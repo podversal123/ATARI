@@ -1,36 +1,46 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# ATARI AMS — Super Admin Panel
 
-## Getting Started
+Pixel-accurate rebuild of the ICAR-ATARI Agriculture Management System's Super Admin panel (Zone IV, Patna) on Next.js.
 
-First, run the development server:
+## Status
+
+Phase 1: static UI only, built against a reference recording and the live login page — no backend wired up yet. All figures shown in the app are genuinely zero, not sample data; real numbers arrive once the database step lands.
+
+## Stack
+
+- Next.js (App Router) + TypeScript
+- Tailwind CSS v4 + shadcn/ui (base-ui primitives)
+- PostgreSQL with Row Level Security, multi-zone from day one (planned — see Phase 3 below)
+
+## Getting started
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Project structure
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```text
+app/
+  (auth)/login/page.tsx        # login screen
+  (dashboard)/                 # sidebar + topbar shell and every dashboard route
+components/
+  ui/                          # shadcn primitives
+  layout/                      # sidebar, topbar, page header
+  dashboard/                   # dashboard-only widgets (stat cards, progress charts)
+  data-table/                  # reusable list-page table shell
+lib/
+  navigation.ts                # single source of truth for the sidebar tree
+```
 
-## Learn More
+`lib/navigation.ts` drives the sidebar and the dynamic `/masters/[...slug]` and `/forms/[...slug]` routes, so new master/form pages are a config addition rather than hand-built screens.
 
-To learn more about Next.js, take a look at the following resources:
+## Roadmap
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+1. **UI** (current) — login, dashboard shell, full navigation tree, static/zero data.
+2. **Database & auth** — Postgres schema (zones, profiles, masters, forms), Row Level Security policies, real sign-in.
+3. **Master/form buildout** — roll the reusable data-table pattern across the remaining masters and forms.
+4. **Multi-zone rollout & deployment** — onboard a second zone, deploy to AWS.

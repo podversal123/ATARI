@@ -39,3 +39,13 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# internal planning docs (not for public repo)
+/docs
+
+# official ICAR/government brand assets (not ours to redistribute publicly)
+/public/brand
+
+# editor
+.vscode/
+.idea/
