@@ -1,21 +1,16 @@
 import { PageHeader } from "@/components/layout/page-header";
-import { EmptyDataTable } from "@/components/data-table/empty-data-table";
-
-const COLUMNS = [
-  { key: "roleName", label: "Role Name" },
-  { key: "description", label: "Description" },
-  { key: "usersAssigned", label: "Users Assigned" },
-];
+import { RoleManagementView } from "@/components/role-management/role-management-view";
 
 export default function RoleManagementPage() {
   return (
     <div>
       <PageHeader
-        trail={[{ label: "Role Management" }]}
+        backHref="/dashboard"
+        trail={[{ label: "Dashboard", href: "/dashboard" }, { label: "Role Management" }]}
         title="Role Management"
-        description="Define roles and the permissions each one grants."
+        description="Manage system roles and their permissions"
       />
-      <EmptyDataTable columns={COLUMNS} />
+      <RoleManagementView />
     </div>
   );
 }

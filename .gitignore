@@ -49,3 +49,6 @@ next-env.d.ts
 # editor
 .vscode/
 .idea/
+
+# local browser-testing artifacts (screenshots/snapshots, not project content)
+/.playwright-mcp
