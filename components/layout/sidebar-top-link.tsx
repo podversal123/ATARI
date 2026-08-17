@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, type ReactNode } from "react";
 import { ChevronDown } from "lucide-react";
@@ -11,6 +12,7 @@ type SidebarTopLinkProps = {
   label: string;
   iconName: SidebarIconName;
   href: string;
+  collapsed?: boolean;
   children: ReactNode;
 };
 
@@ -21,11 +23,27 @@ type SidebarTopLinkProps = {
  * component reference as a prop from a Server Component (Sidebar) into a
  * Client Component isn't serializable across the RSC boundary, so the
  * lookup happens here instead.
+ *
+ * When the whole sidebar is collapsed to icon-only, there's no room to show
+ * an inline submenu, so this renders as a plain link to the section's own
+ * landing page instead of an expand/collapse toggle.
  */
-export function SidebarTopLink({ label, iconName, href, children }: SidebarTopLinkProps) {
+export function SidebarTopLink({ label, iconName, href, collapsed, children }: SidebarTopLinkProps) {
   const pathname = usePathname();
   const [open, setOpen] = useState(pathname.startsWith(href));
   const Icon = SIDEBAR_ICONS[iconName];
+
+  if (collapsed) {
+    return (
+      <Link
+        href={href}
+        title={label}
+        className="flex items-center justify-center rounded-md px-3 py-2 text-sm text-white/80 transition-colors hover:bg-black/10 hover:text-white"
+      >
+        <Icon className="size-4 shrink-0" />
+      </Link>
+    );
+  }
 
   return (
     <div>

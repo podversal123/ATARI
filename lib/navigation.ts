@@ -406,6 +406,37 @@ export const SIDEBAR: SidebarSection[] = [
   { slug: "reports", label: "Reports", href: "/reports", icon: "reports" },
 ];
 
+export type SearchResult = {
+  label: string;
+  href: string;
+  /** Breadcrumb-style path shown under the label, e.g. "All Masters / Basic Masters". */
+  section: string;
+};
+
+function flattenNavTree(items: NavItem[], basePath: string, section: string): SearchResult[] {
+  return items.flatMap((item) => {
+    const href = `${basePath}/${item.slug}`;
+    if (item.type === "leaf") {
+      return [{ label: item.label, href, section }];
+    }
+    return [
+      { label: item.label, href, section },
+      ...flattenNavTree(item.children, href, `${section} / ${item.label}`),
+    ];
+  });
+}
+
+/** Every navigable page in the app, flattened for the sidebar's Ctrl+K search. */
+export const SEARCH_INDEX: SearchResult[] = SIDEBAR.flatMap((section) => {
+  if (section.children) {
+    return [
+      { label: section.label, href: `/${section.slug}`, section: "" },
+      ...flattenNavTree(section.children, `/${section.slug}`, section.label),
+    ];
+  }
+  return [{ label: section.label, href: section.href!, section: "" }];
+});
+
 /**
  * Resolves a slug path (e.g. ["other", "resource", "equipment"]) to the
  * node it points at — a leaf (rendered as a list page) or a group
