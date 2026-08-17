@@ -11,8 +11,8 @@ const COLUMNS = [
 export default function NotificationsPage() {
   return (
     <div>
-      <PageHeader trail={[{ label: "Notifications" }]} title="Notifications" />
-      <EmptyDataTable columns={COLUMNS} />
+      <PageHeader trail={[{ label: "Notifications" }]} />
+      <EmptyDataTable title="Notifications" columns={COLUMNS} />
     </div>
   );
 }

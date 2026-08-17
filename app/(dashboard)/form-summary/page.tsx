@@ -82,7 +82,10 @@ export default function FormSummaryPage() {
             Matrix
           </button>
         </div>
-        <Input placeholder="Filter KVKs..." className="w-64" />
+        <div className="flex items-center gap-3">
+          <FilterSelect label="Progress" options={["All"]} />
+          <Input placeholder="Filter KVKs..." className="w-64" />
+        </div>
       </div>
 
       <div className="mt-4 overflow-hidden rounded-lg border border-border">

@@ -11,8 +11,8 @@ const COLUMNS = [
 export default function TargetsPage() {
   return (
     <div>
-      <PageHeader trail={[{ label: "Targets" }]} title="Targets" />
-      <EmptyDataTable columns={COLUMNS} />
+      <PageHeader trail={[{ label: "Targets" }]} />
+      <EmptyDataTable title="Targets" columns={COLUMNS} />
     </div>
   );
 }

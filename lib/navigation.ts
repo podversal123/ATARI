@@ -7,10 +7,9 @@
  * real, working page — there are no dead links.
  *
  * Columns for each list page are filled in from what was actually visible
- * in the reference recording where possible. Groups that were named in the
- * nav but never opened on screen (Basic Masters, OFT & FLD Masters,
- * Production Masters, Publication Masters) get a generic placeholder
- * column set until the client provides the real field list.
+ * in the reference recording/screenshots where possible. Leaves without a
+ * confirmed real column list fall back to the generic single "Name" column
+ * until the client's screenshots show the real field list.
  */
 
 export type MasterColumn = {
@@ -69,8 +68,8 @@ function group(slug: string, label: string, children: NavItem[]): NavGroup {
   return { type: "group", slug, label, children };
 }
 
-/** All Masters -> Training & Extension Masters (columns confirmed on screen) */
-const trainingExtensionMasters = group("training-extension", "Training & Extension Masters", [
+/** All Masters -> Training & Extension Masters -> Training Master (columns confirmed on screen) */
+const trainingMaster = group("training", "Training Master", [
   leaf("training-type", "Training Type Master", [
     { key: "trainingType", label: "Training Type" },
   ]),
@@ -87,6 +86,20 @@ const trainingExtensionMasters = group("training-extension", "Training & Extensi
   leaf("funding-source", "Funding Source Master", [
     { key: "fundingSource", label: "Funding Source" },
   ]),
+]);
+
+/** All Masters -> Training & Extension Masters (3-card landing confirmed on screen) */
+const trainingExtensionMasters = group("training-extension", "Training & Extension Masters", [
+  trainingMaster,
+  group("extension-activities", "Extension Activities", [
+    leaf("extension-activity", "Extension Activity Master", [
+      { key: "activityName", label: "Activity Name" },
+    ]),
+    leaf("other-extension-activity", "Other Extension Activity Master", [
+      { key: "activityName", label: "Activity Name" },
+    ]),
+  ]),
+  group("events", "Events", [leaf("events", "Events Master")]),
 ]);
 
 /** All Masters -> Other Masters (sub-groups + columns confirmed on screen) */
@@ -139,39 +152,225 @@ const otherMasters = group("other", "Other Masters", [
   ]),
 ]);
 
+/** All Masters -> Basic Masters (columns + tab order confirmed on screen) */
+const basicMasters = group("basic", "Basic Masters", [
+  leaf("zone-master", "Zone Master", [{ key: "zoneName", label: "Zone Name" }]),
+  leaf("state-master", "State Master", [
+    { key: "zoneName", label: "Zone Name" },
+    { key: "stateName", label: "State Name" },
+  ]),
+  leaf("district-master", "District Master", [
+    { key: "zoneName", label: "Zone Name" },
+    { key: "stateName", label: "State Name" },
+    { key: "districtName", label: "District Name" },
+  ]),
+  leaf("institute-master", "Institute Master", [{ key: "instituteName", label: "Institute Name" }]),
+  leaf("host-master", "Host Master", [{ key: "hostName", label: "Host Name" }]),
+  leaf("kvk-master", "KVK Master", [
+    { key: "zoneName", label: "Zone Name" },
+    { key: "stateName", label: "State Name" },
+    { key: "hostOrg", label: "Host Org" },
+    { key: "districtName", label: "District Name" },
+    { key: "kvk", label: "KVK" },
+    { key: "mobile", label: "Mobile" },
+  ]),
+]);
+
+/** All Masters -> OFT & FLD Masters (two tab-sets confirmed on screen: OFT side, FLD side) */
+const oftFldMasters = group("oft-fld", "OFT & FLD Masters", [
+  group("oft", "OFT Masters", [
+    leaf("subject", "Subject Master"),
+    leaf("oft-thematic-area", "OFT Thematic Area Master", [
+      { key: "thematicArea", label: "Thematic Area" },
+    ]),
+  ]),
+  group("fld", "FLD Masters", [
+    leaf("sector", "Sector Master"),
+    leaf("fld-thematic-area", "FLD Thematic Area Master"),
+    leaf("category", "Category Master"),
+    leaf("sub-category", "Sub-category Master", [
+      { key: "subCategoryName", label: "Sub Category Name" },
+    ]),
+    leaf("crop", "Crop Master", [
+      { key: "cropName", label: "Crop Name" },
+      { key: "category", label: "Category" },
+    ]),
+    leaf("activity", "Activity Master"),
+  ]),
+]);
+
+/**
+ * All Masters -> Production Masters (6-card landing confirmed on screen).
+ * Label confirmed as "Production Masters" from the reference recording,
+ * seen repeatedly in the sidebar across many frames — takes precedence over
+ * an earlier single-screenshot catalog note that guessed "Production & Projects".
+ */
+const productionProjects = group("production", "Production Masters", [
+  group("seed-planting-bio", "Production of Seed/Planting Materials/Bio Products", [
+    leaf("product-category", "Product Category Master"),
+    leaf("product-type", "Product Type Master"),
+    leaf("products", "Products Master"),
+  ]),
+  group("climate-resilient-agriculture", "Climate Resilient Agriculture", [
+    leaf("cropping-system", "Cropping System Master", [
+      { key: "season", label: "Season" },
+      { key: "cropName", label: "Crop Name" },
+    ]),
+    leaf("farming-system", "Farming System Master", [
+      { key: "farmingSystemName", label: "Farming System Name" },
+    ]),
+  ]),
+  group("arya", "ARYA", [leaf("arya-enterprise", "ARYA Enterprise Master")]),
+  group("tsp-scsp", "TSP/SCSP", [
+    leaf("tsp-scsp-type", "Type Master"),
+    leaf("tsp-scsp-activity", "Activity Master"),
+  ]),
+  group("natural-farming", "Natural Farming", [
+    leaf("natural-farming-activity", "Activity Master"),
+    leaf("soil-parameter", "Soil Parameter Master"),
+  ]),
+  group("agri-drone", "Agri-Drone", [leaf("demonstrations-on", "Demonstrations On Master")]),
+]);
+
 export const ALL_MASTERS: NavItem[] = [
-  group("basic", "Basic Masters", [leaf("placeholder", "Basic Masters list")]),
-  group("oft-fld", "OFT & FLD Masters", [leaf("placeholder", "OFT & FLD Masters list")]),
+  basicMasters,
+  oftFldMasters,
   trainingExtensionMasters,
-  group("production", "Production Masters", [leaf("placeholder", "Production Masters list")]),
-  group("publication", "Publication Masters", [leaf("placeholder", "Publication Masters list")]),
+  productionProjects,
+  group("publication", "Publication Masters", [
+    leaf("publication-items", "Publication Items Master", [{ key: "itemName", label: "Item Name" }]),
+  ]),
   otherMasters,
 ];
 
-export const FORM_MANAGEMENT: NavItem[] = [
-  group("about-kvk", "About KVK", [
-    leaf("employee-details", "Employee Details"),
+/** Form Management -> About KVK (5-card landing confirmed on screen; card->leaf pairing inferred from the matching badge names on the real Form Summary expand rows) */
+const aboutKvk = group("about-kvk", "About KVK", [
+  group("basic", "Basic", [
+    leaf("view-kvks", "View KVKs", [
+      { key: "kvk", label: "KVK" },
+      { key: "address", label: "Address" },
+      { key: "hostOrganization", label: "Host Organization" },
+      { key: "mobile", label: "Mobile" },
+      { key: "landline", label: "Landline" },
+      { key: "fax", label: "Fax" },
+      { key: "email", label: "E-mail" },
+    ]),
+    leaf("bank-account-details", "Bank Account Details", [
+      { key: "kvk", label: "KVK" },
+      { key: "accountType", label: "Account Type" },
+      { key: "accountName", label: "Account Name" },
+      { key: "bankName", label: "Bank Name" },
+      { key: "location", label: "Location" },
+      { key: "accountNumber", label: "Account Number" },
+    ]),
+  ]),
+  group("employee", "Employee", [
+    leaf("employee-details", "Employee Details", [
+      { key: "kvk", label: "KVK" },
+      { key: "photo", label: "Photo" },
+      { key: "resume", label: "Resume" },
+      { key: "staffName", label: "Staff Name" },
+      { key: "position", label: "Position" },
+      { key: "mobile", label: "Mobile" },
+      { key: "email", label: "Email" },
+    ]),
     leaf("staff-transferred", "Staff Transferred", [
       { key: "staffName", label: "Staff Name" },
       { key: "kvkNameBeforeTransfer", label: "KVK Name Before Transfer" },
       { key: "latestKvkName", label: "Latest KVK Name" },
     ]),
   ]),
-  leaf("achievements", "Achievements"),
-  group("projects", "Projects", [
-    group("cfld", "CFLD", [
-      leaf("technical-parameter", "Technical Parameter", [
-        { key: "reportingYear", label: "Reporting Year" },
-        { key: "crop", label: "Crop" },
-        { key: "technologyDemonstrated", label: "Technology Demonstrated" },
-        { key: "areaHa", label: "Area (Ha)" },
-        { key: "numberOfFarmers", label: "Number of Farmers" },
-        { key: "district", label: "District" },
-      ]),
-      leaf("extension-activity", "Extension Activity"),
-      leaf("budget-utilization", "Budget Utilization"),
+  group("land-infrastructure", "Land & Infrastructure", [
+    leaf("infrastructure-details", "Infrastructure Details"),
+  ]),
+  group("vehicles", "Vehicles", [
+    leaf("view-vehicles", "View Vehicles", [
+      { key: "vehicleName", label: "Vehicle Name" },
+      { key: "registrationNo", label: "Registration No" },
+      { key: "yearOfPurchase", label: "Year of Purchase" },
+      { key: "totalCost", label: "Total Cost" },
+    ]),
+    leaf("vehicle-details", "Vehicle Details", [
+      { key: "reportingYear", label: "Reporting Year" },
+      { key: "kvk", label: "KVK" },
+      { key: "vehicleName", label: "Vehicle Name" },
+      { key: "registrationNumber", label: "Registration Number" },
+      { key: "totalRun", label: "Total Run" },
     ]),
   ]),
+  group("equipments", "Equipments", [
+    leaf("view-equipments", "View Equipments"),
+    leaf("equipment-details", "Equipment Details"),
+  ]),
+]);
+
+/** Form Management -> Achievements (13-card landing confirmed on screen) */
+const achievements = group("achievements", "Achievements", [
+  leaf("technical-achievement", "Technical Achievement"),
+  leaf("on-farm-trial", "On Farm Trial"),
+  leaf("front-line-demonstration", "Front Line Demonstration"),
+  leaf("training", "Training", [
+    { key: "reportingYear", label: "Reporting Year" },
+    { key: "kvk", label: "KVK" },
+    { key: "startEndDate", label: "Start-End Date" },
+    { key: "program", label: "Program" },
+    { key: "title", label: "Title" },
+  ]),
+  leaf("extension", "Extension"),
+  leaf("other-extension-activities", "Other Extension Activities"),
+  group("special-days", "Special Days", [
+    leaf("technology-week-celebration", "Technology Week Celebration"),
+    leaf("celebration-days", "Celebration Days", [
+      { key: "kvk", label: "KVK" },
+      { key: "importantDay", label: "Important Day" },
+      { key: "eventDate", label: "Event Date" },
+      { key: "noOfActivities", label: "No of Activities" },
+    ]),
+    leaf("world-soil-day", "World Soil Day"),
+    leaf("poshan-maaha", "Poshan Maaha"),
+  ]),
+  leaf("production-supply", "Production & Supply"),
+  leaf("soil-water-testing", "Soil and Water Testing"),
+  leaf("publications", "Publications"),
+  leaf("hrd", "Human Resources Development"),
+  group("award-recognition", "Award and Recognition", [
+    leaf("award-kvk", "KVK"),
+    leaf("award-scientist", "Scientist"),
+    leaf("award-farmer", "Farmer"),
+  ]),
+]);
+
+/** Form Management -> Projects (landing confirmed on screen: ARYA/SAFAL, Natural Farming, TSP/SCSP, NARI, Agri-Drone, FPO and CBBO, Swachhta Bharat Abhiyaan, CFLD) */
+const projects = group("projects", "Projects", [
+  leaf("arya-safal", "ARYA/SAFAL"),
+  leaf("natural-farming", "Natural Farming"),
+  leaf("tsp-scsp", "TSP/SCSP"),
+  leaf("nari", "NARI"),
+  leaf("agri-drone", "Agri-Drone"),
+  leaf("fpo-cbbo", "FPO and CBBO"),
+  group("swachhta-bharat-abhiyaan", "Swachhta Bharat Abhiyaan", [
+    leaf("sewa", "Sewa"),
+    leaf("pakhwada", "Pakhwada"),
+    leaf("budget-expenditure", "Budget expenditure"),
+  ]),
+  group("cfld", "CFLD", [
+    leaf("technical-parameter", "Technical Parameter", [
+      { key: "numberOfFarmers", label: "Number of Farmers" },
+      { key: "districtYield", label: "District Yield" },
+      { key: "stateYield", label: "State Yield" },
+      { key: "potentialYield", label: "Potential Yield" },
+      { key: "status", label: "Status" },
+      { key: "completedAt", label: "Completed At" },
+    ]),
+    leaf("extension-activity", "Extension Activity"),
+    leaf("budget-utilization", "Budget Utilization"),
+  ]),
+]);
+
+export const FORM_MANAGEMENT: NavItem[] = [
+  aboutKvk,
+  achievements,
+  projects,
   leaf("performance", "Performance Indicators"),
   leaf("meetings", "Meetings"),
   leaf("miscellaneous", "Miscellaneous"),

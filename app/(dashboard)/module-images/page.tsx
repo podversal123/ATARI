@@ -9,8 +9,8 @@ const COLUMNS = [
 export default function ModuleImagesPage() {
   return (
     <div>
-      <PageHeader trail={[{ label: "Module Images" }]} title="Module Images" />
-      <EmptyDataTable columns={COLUMNS} />
+      <PageHeader trail={[{ label: "Module Images" }]} />
+      <EmptyDataTable title="Module Images" columns={COLUMNS} />
     </div>
   );
 }

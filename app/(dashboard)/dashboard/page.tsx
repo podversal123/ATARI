@@ -42,14 +42,20 @@ export default function DashboardPage() {
         <ProgressChartCard
           title="OFT Progress"
           description="Ongoing, completed; not started = KVK with no entries"
-          defaultView="area"
+          defaultView="bar"
           totalCount={0}
+          summary="0 of 0 KVKs with entries · 0 not started"
+          showAllLabel="Show all (0)"
+          detailedHref="/dashboard/analytics/oft"
         />
         <ProgressChartCard
           title="FLD Progress"
           description="Ongoing, completed; not started = KVK with no entries"
           defaultView="bar"
           totalCount={0}
+          summary="0 of 0 KVKs with entries · 0 not started"
+          showAllLabel="Show all (0)"
+          detailedHref="/dashboard/analytics/fld"
         />
       </div>
     </div>

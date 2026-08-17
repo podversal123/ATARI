@@ -1,40 +1,139 @@
 "use client";
 
-import { useState } from "react";
-import { Search, FileDown, FileSpreadsheet, FileType, Plus, RotateCcw } from "lucide-react";
+import { type ReactNode, useState } from "react";
+import Link from "next/link";
+import {
+  Search,
+  FileDown,
+  FileSpreadsheet,
+  FileType,
+  Plus,
+  RotateCcw,
+  Filter,
+  MoreVertical,
+  Pencil,
+  Trash2,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import type { MasterColumn } from "@/lib/navigation";
 
+export type MasterTab = { label: string; href: string; active: boolean };
+
 type EmptyDataTableProps = {
+  /** Page title, rendered inside the card next to the export/Add New buttons (confirmed placement from the reference recording — not a separate PageHeader title above the tabs). */
+  title: string;
   columns: MasterColumn[];
+  /** "Manage and view all zone master in the system" — shown under the title. */
+  subtitle?: string;
+  /** Sibling masters in the same group, rendered as pills above the card (e.g. Zone/State/District/...). */
+  tabs?: MasterTab[];
+  /** Real reference rows, keyed by column `key`. Omit to keep the original all-empty placeholder behavior. */
+  rows?: Record<string, ReactNode>[];
+  /** Real total row count for the pagination footer, when it differs from `rows.length` (a partial first page). */
+  totalCount?: number;
 };
 
 /**
  * The list-page shell repeated across nearly every master and form screen:
- * search + date range + export actions + a table.
+ * tabs above a card, then inside the card a title+export-buttons row, a
+ * search/date-filter row, and the table. This exact ordering (tabs before
+ * the card; title sharing a row with PDF/Excel/Word/Add New; search+dates
+ * as their own row below that) was confirmed pixel-for-pixel against the
+ * reference recording — do not reorder without re-checking the video.
  *
- * There is no data source wired up yet (Step 3 of the build), so this
- * always renders the real empty state — "Showing 0-0 of 0" — rather than
- * fabricated rows. Search/date inputs are live pieces of UI state; export
- * and "Add New" are presentational until the database step lands.
+ * Most masters have no data source wired up yet (Step 3 of the build), so
+ * they render the real empty state — "Showing 0-0 of 0" — rather than
+ * fabricated rows. A handful of Basic Masters (Zone/State/District/Host/KVK)
+ * pass real reference rows via `rows`; everything else keeps the original
+ * empty behavior. Search/date inputs are live pieces of UI state; export,
+ * "Add New", row actions, and the per-column filter icon are presentational
+ * until the database step lands.
  */
-export function EmptyDataTable({ columns }: EmptyDataTableProps) {
+export function EmptyDataTable({
+  title,
+  columns,
+  subtitle,
+  tabs,
+  rows,
+  totalCount,
+}: EmptyDataTableProps) {
   const [search, setSearch] = useState("");
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
 
   const hasActiveDates = fromDate !== "" || toDate !== "";
+  const hasActiveFilters = hasActiveDates || search !== "";
 
   function resetDates() {
     setFromDate("");
     setToDate("");
   }
 
+  function resetFilters() {
+    setSearch("");
+    setFromDate("");
+    setToDate("");
+  }
+
+  const rowCount = rows?.length ?? 0;
+  const total = totalCount ?? rowCount;
+
   return (
-    <div className="rounded-lg border border-border bg-card">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border p-4">
-        <div className="flex flex-wrap items-center gap-2">
+    <div>
+      {tabs && tabs.length > 1 && (
+        <div className="mb-4 flex flex-wrap gap-1 rounded-lg bg-primary p-1">
+          {tabs.map((tab) => (
+            <Link
+              key={tab.href}
+              href={tab.href}
+              className={cn(
+                "rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
+                tab.active
+                  ? "bg-white text-primary"
+                  : "text-primary-foreground/85 hover:text-primary-foreground"
+              )}
+            >
+              {tab.label}
+            </Link>
+          ))}
+        </div>
+      )}
+
+      <div className="rounded-lg border border-border bg-card">
+        <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border p-4">
+          <div>
+            <h1 className="text-lg font-semibold text-foreground">{title}</h1>
+            {subtitle && <p className="mt-0.5 text-sm text-muted-foreground">{subtitle}</p>}
+          </div>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm">
+              <FileDown className="size-3.5" />
+              PDF
+            </Button>
+            <Button variant="outline" size="sm">
+              <FileSpreadsheet className="size-3.5" />
+              Excel
+            </Button>
+            <Button variant="outline" size="sm">
+              <FileType className="size-3.5" />
+              Word
+            </Button>
+            <Button size="sm">
+              <Plus className="size-3.5" />
+              Add New
+            </Button>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2 border-b border-border p-4">
           <div className="relative">
             <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input
@@ -60,60 +159,84 @@ export function EmptyDataTable({ columns }: EmptyDataTableProps) {
             <RotateCcw className="size-3.5" />
             Reset dates
           </Button>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm">
-            <FileDown className="size-3.5" />
-            PDF
-          </Button>
-          <Button variant="outline" size="sm">
-            <FileSpreadsheet className="size-3.5" />
-            Excel
-          </Button>
-          <Button variant="outline" size="sm">
-            <FileType className="size-3.5" />
-            Word
-          </Button>
-          <Button size="sm">
-            <Plus className="size-3.5" />
-            Add New
+          <Button variant="ghost" size="sm" onClick={resetFilters} disabled={!hasActiveFilters}>
+            <RotateCcw className="size-3.5" />
+            Reset filters
           </Button>
         </div>
-      </div>
 
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-border bg-muted/50 text-left text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-              <th className="w-14 px-4 py-3">S.No</th>
-              {columns.map((column) => (
-                <th key={column.key} className="px-4 py-3">
-                  {column.label}
-                </th>
-              ))}
-              <th className="w-20 px-4 py-3 text-right">Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td colSpan={columns.length + 2} className="px-4 py-16 text-center text-muted-foreground">
-                No records found.
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-border bg-muted/50 text-left text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+                <th className="w-14 px-4 py-3">S.No</th>
+                {columns.map((column) => (
+                  <th key={column.key} className="px-4 py-3">
+                    <span className="inline-flex items-center gap-1">
+                      {column.label}
+                      <Filter className="size-3 text-muted-foreground/50" />
+                    </span>
+                  </th>
+                ))}
+                <th className="w-20 px-4 py-3 text-right">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rowCount === 0 ? (
+                <tr>
+                  <td colSpan={columns.length + 2} className="px-4 py-16 text-center text-muted-foreground">
+                    No records found.
+                  </td>
+                </tr>
+              ) : (
+                rows!.map((row, index) => (
+                  <tr key={index} className="border-b border-border last:border-0">
+                    <td className="px-4 py-3 text-muted-foreground">{index + 1}</td>
+                    {columns.map((column) => (
+                      <td key={column.key} className="px-4 py-3 text-foreground">
+                        {row[column.key]}
+                      </td>
+                    ))}
+                    <td className="px-4 py-3 text-right">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger
+                          render={
+                            <Button variant="ghost" size="icon-sm">
+                              <MoreVertical className="size-4" />
+                            </Button>
+                          }
+                        />
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem>
+                            <Pencil className="size-3.5" />
+                            Edit
+                          </DropdownMenuItem>
+                          <DropdownMenuItem variant="destructive">
+                            <Trash2 className="size-3.5" />
+                            Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
 
-      <div className="flex items-center justify-between border-t border-border px-4 py-3 text-sm text-muted-foreground">
-        <span>Showing 0-0 of 0</span>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" disabled>
-            Prev
-          </Button>
-          <Button variant="outline" size="sm" disabled>
-            Next
-          </Button>
+        <div className="flex items-center justify-between border-t border-border px-4 py-3 text-sm text-muted-foreground">
+          <span>
+            {rowCount === 0 ? "Showing 0-0 of 0" : `Showing 1-${rowCount} of ${total}`}
+          </span>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" disabled>
+              Prev
+            </Button>
+            <Button variant="outline" size="sm" disabled={total <= rowCount}>
+              Next
+            </Button>
+          </div>
         </div>
       </div>
     </div>

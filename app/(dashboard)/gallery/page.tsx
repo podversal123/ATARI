@@ -10,8 +10,8 @@ const COLUMNS = [
 export default function GalleryPage() {
   return (
     <div>
-      <PageHeader trail={[{ label: "Gallery" }]} title="Gallery" />
-      <EmptyDataTable columns={COLUMNS} />
+      <PageHeader trail={[{ label: "Gallery" }]} />
+      <EmptyDataTable title="Gallery" columns={COLUMNS} />
     </div>
   );
 }

@@ -22,14 +22,14 @@ export function SidebarSectionLink({ href, label, iconName }: SidebarSectionLink
     <Link
       href={href}
       className={cn(
-        "flex items-center gap-2.5 rounded-md px-3 py-2 text-sm transition-colors",
+        "flex min-w-0 items-center gap-2.5 rounded-md px-3 py-2 text-sm transition-colors",
         isActive
           ? "bg-sidebar-accent font-medium text-sidebar-accent-foreground"
           : "text-white/85 hover:bg-black/10 hover:text-white"
       )}
     >
       <Icon className="size-4 shrink-0" />
-      {label}
+      <span className="truncate">{label}</span>
     </Link>
   );
 }

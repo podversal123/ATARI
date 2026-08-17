@@ -23,21 +23,22 @@ export default function LoginPage() {
     <div className="flex min-h-screen">
       <div className="relative hidden w-1/2 lg:block">
         <Image
-          src="/brand/hero-farmland.png"
+          src="/brand/hero-farmland.jpg"
           alt=""
           fill
           priority
+          sizes="50vw"
           className="object-cover"
         />
-        <div className="absolute inset-0 bg-linear-to-t from-black/70 via-black/10 to-transparent" />
-        <div className="absolute bottom-12 left-10 right-10 text-white">
-          <p className="text-xs font-semibold tracking-wider uppercase">
+        <div className="absolute inset-0 bg-linear-to-t from-black/35 to-transparent" />
+        <div className="absolute bottom-14 left-12 right-12 text-white">
+          <p className="text-sm font-semibold tracking-wider uppercase">
             AMS - ATARI Zone (IV) Patna
           </p>
-          <h1 className="mt-2 text-4xl font-semibold">
+          <h1 className="mt-3 text-5xl leading-[1.1] font-bold text-shadow-lg">
             ICAR - Agricultural Technology Application Research Institute
           </h1>
-          <p className="mt-3 max-w-xl text-sm text-white/85">
+          <p className="mt-4 max-w-xl text-base text-white/90">
             ATARI is mandated for Coordination and Monitoring of Technology Application and
             Frontline Extension Education Programmes.
             <br />
@@ -51,17 +52,23 @@ export default function LoginPage() {
       <div className="flex w-full flex-col items-center justify-center bg-[#f1eee4] px-6 lg:w-1/2">
         <div className="w-full max-w-sm">
           <div className="mb-8 flex items-center justify-between">
-            <Image src="/brand/icar-logo.png" alt="ICAR" width={56} height={56} />
+            <Image
+              src="/brand/icar-logo.png"
+              alt="ICAR"
+              width={812}
+              height={1084}
+              className="h-20 w-auto"
+            />
             <Image
               src="/brand/zone-seal-patna.png"
               alt="ATARI Zone IV Patna"
-              width={56}
-              height={56}
-              className="rounded-full"
+              width={1254}
+              height={1254}
+              className="h-20 w-20 rounded-full"
             />
           </div>
 
-          <h2 className="text-3xl font-bold text-[#034541]">Welcome Back!</h2>
+          <h2 className="text-4xl font-bold text-[#034541]">Welcome Back!</h2>
 
           <form
             className="mt-6 space-y-4"

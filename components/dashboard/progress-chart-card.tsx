@@ -1,17 +1,17 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
-import { BarChart3, List, AreaChart, Maximize2 } from "lucide-react";
+import Link from "next/link";
+import { BarChart3, List, AreaChart, ArrowUpRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 
-type ChartView = "bar" | "list" | "area" | "detailed";
+type ChartView = "bar" | "list" | "area";
 
 const VIEW_OPTIONS: { value: ChartView; label: string; icon: typeof BarChart3 }[] = [
   { value: "bar", label: "Bar", icon: BarChart3 },
   { value: "list", label: "List", icon: List },
   { value: "area", label: "Area", icon: AreaChart },
-  { value: "detailed", label: "Detailed", icon: Maximize2 },
 ];
 
 type ProgressChartCardProps = {
@@ -19,22 +19,34 @@ type ProgressChartCardProps = {
   description: string;
   defaultView?: ChartView;
   totalCount: number;
+  /** "64 of 65 KVKs with entries · 1 not started" — omitted when there's nothing to summarize yet. */
+  summary?: ReactNode;
+  /** "Show all (65)" — rendered next to the summary line. */
+  showAllLabel?: string;
+  /** When set, "Detailed" navigates to the full analytics page instead of toggling a view. */
+  detailedHref?: string;
   footer?: ReactNode;
+  pageIndicator?: string;
 };
 
 /**
- * Shell for the Dashboard's OFT/FLD progress charts: title, view-toggle
- * (Bar/List/Area/Detailed), the ongoing/completed/not-started legend, and a
- * pagination footer. No backend yet, so the plot area renders the real
- * empty state instead of a fabricated curve — the chart itself gets wired
- * up once real submissions exist (Step 3 of the build).
+ * Shell for a KVK-level progress chart: title, view-toggle (Bar/List/Area,
+ * plus an optional "Detailed" link out to the full analytics page), the
+ * ongoing/completed/not-started legend, and a pagination footer. No backend
+ * yet, so the plot area renders the real empty state instead of a
+ * fabricated curve — the chart itself gets wired up once real submissions
+ * exist (Step 3 of the build).
  */
 export function ProgressChartCard({
   title,
   description,
   defaultView = "bar",
   totalCount,
+  summary,
+  showAllLabel,
+  detailedHref,
   footer,
+  pageIndicator,
 }: ProgressChartCardProps) {
   const [view, setView] = useState<ChartView>(defaultView);
 
@@ -42,7 +54,7 @@ export function ProgressChartCard({
     <div className="rounded-lg border border-border bg-card p-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <p className="text-xs font-semibold tracking-wide text-foreground uppercase">{title}</p>
+          <p className="text-xs font-semibold tracking-wide text-primary uppercase">{title}</p>
           <p className="mt-0.5 text-xs text-muted-foreground">{description}</p>
         </div>
         <div className="flex items-center gap-1 rounded-md border border-border bg-muted/50 p-0.5">
@@ -62,8 +74,32 @@ export function ProgressChartCard({
               {option.label}
             </button>
           ))}
+          {detailedHref && (
+            <Link
+              href={detailedHref}
+              className="flex items-center gap-1 rounded-[calc(var(--radius-md)-2px)] px-2 py-1 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+            >
+              <ArrowUpRight className="size-3.5" />
+              Detailed
+            </Link>
+          )}
         </div>
       </div>
+
+      {(summary || showAllLabel) && (
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
+          {summary && <span>{summary}</span>}
+          {showAllLabel && (
+            <button
+              type="button"
+              disabled
+              className="text-primary underline-offset-2 hover:underline disabled:cursor-default disabled:text-muted-foreground disabled:no-underline"
+            >
+              {showAllLabel}
+            </button>
+          )}
+        </div>
+      )}
 
       <div className="mt-3 flex items-center gap-4 text-xs text-muted-foreground">
         <span className="flex items-center gap-1.5">
@@ -77,7 +113,13 @@ export function ProgressChartCard({
         </span>
       </div>
 
-      <div className="mt-4 flex h-56 items-end border-b border-dashed border-border">
+      <div className="relative mt-4 h-56 pl-6">
+        <div className="absolute inset-y-0 right-0 left-6 flex flex-col justify-between">
+          {[0, 1, 2, 3].map((line) => (
+            <div key={line} className="w-full border-t border-dashed border-border" />
+          ))}
+        </div>
+        <span className="absolute bottom-0 left-0 text-[10px] text-muted-foreground/70">0</span>
         <div className="flex h-full w-full items-center justify-center text-sm text-muted-foreground">
           No data yet
         </div>
@@ -89,6 +131,7 @@ export function ProgressChartCard({
           <Button variant="outline" size="sm" disabled>
             Prev
           </Button>
+          {pageIndicator && <span className="text-xs">{pageIndicator}</span>}
           <Button variant="outline" size="sm" disabled>
             Next
           </Button>

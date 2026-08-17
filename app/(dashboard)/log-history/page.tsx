@@ -11,12 +11,8 @@ const COLUMNS = [
 export default function LogHistoryPage() {
   return (
     <div>
-      <PageHeader
-        trail={[{ label: "Log History" }]}
-        title="Log History"
-        description="Audit trail of who changed what, and when."
-      />
-      <EmptyDataTable columns={COLUMNS} />
+      <PageHeader trail={[{ label: "Log History" }]} />
+      <EmptyDataTable title="Log History" columns={COLUMNS} />
     </div>
   );
 }

@@ -34,9 +34,9 @@ export function SidebarTopLink({ label, iconName, href, children }: SidebarTopLi
         onClick={() => setOpen((prev) => !prev)}
         className="flex w-full items-center justify-between rounded-md px-3 py-2 text-sm text-white/80 transition-colors hover:bg-black/10 hover:text-white"
       >
-        <span className="flex items-center gap-2.5">
+        <span className="flex min-w-0 items-center gap-2.5">
           <Icon className="size-4 shrink-0" />
-          {label}
+          <span className="truncate">{label}</span>
         </span>
         <ChevronDown className={cn("size-4 shrink-0 transition-transform", open && "rotate-180")} />
       </button>

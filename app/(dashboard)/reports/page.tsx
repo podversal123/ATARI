@@ -10,8 +10,8 @@ const COLUMNS = [
 export default function ReportsPage() {
   return (
     <div>
-      <PageHeader trail={[{ label: "Reports" }]} title="Reports" />
-      <EmptyDataTable columns={COLUMNS} />
+      <PageHeader trail={[{ label: "Reports" }]} />
+      <EmptyDataTable title="Reports" columns={COLUMNS} />
     </div>
   );
 }

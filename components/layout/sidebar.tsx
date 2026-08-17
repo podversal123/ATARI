@@ -1,5 +1,4 @@
-import Image from "next/image";
-import { Search } from "lucide-react";
+import { ChevronLeft, Search } from "lucide-react";
 import { SIDEBAR } from "@/lib/navigation";
 import { NavTree } from "./sidebar-nav";
 import { SidebarTopLink } from "./sidebar-top-link";
@@ -9,21 +8,17 @@ import { SidebarSectionLink } from "./sidebar-section-link";
  * The fixed green Super Admin sidebar. Structure mirrors the reference
  * app: a top section (Dashboard, Form Summary), the All Masters group, then
  * Role/User Management, Form Management, and the remaining utility links.
+ *
+ * Header is plain "ATARI Zone IV" text + a collapse chevron — no logo next
+ * to it in the real reference (confirmed against the screenshot; the ICAR
+ * mark only appears on the login page, not in the sidebar).
  */
 export function Sidebar() {
   return (
     <aside className="flex h-screen w-64 shrink-0 flex-col bg-sidebar text-sidebar-foreground">
-      <div className="flex items-center gap-2 px-5 pt-5 pb-4">
-        <Image
-          src="/brand/icar-logo.png"
-          alt=""
-          width={28}
-          height={28}
-          className="rounded-sm bg-white/90 p-0.5"
-        />
-        <div className="leading-tight">
-          <p className="text-sm font-semibold">ATARI Zone IV</p>
-        </div>
+      <div className="flex items-center justify-between px-5 pt-5 pb-4">
+        <p className="text-sm font-bold">ATARI Zone IV</p>
+        <ChevronLeft className="size-4 text-white/70" />
       </div>
 
       <div className="px-4 pb-4">
@@ -43,7 +38,7 @@ export function Sidebar() {
               return (
                 <li key={section.slug}>
                   <SidebarTopLink label={section.label} iconName={section.icon} href={`/${section.slug}`}>
-                    <NavTree items={section.children} basePath={`/${section.slug}`} depth={1} />
+                    <NavTree items={section.children} basePath={`/${section.slug}`} />
                   </SidebarTopLink>
                 </li>
               );

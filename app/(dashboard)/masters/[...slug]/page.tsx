@@ -1,11 +1,57 @@
 import { notFound } from "next/navigation";
-import { ALL_MASTERS, resolveNavPath } from "@/lib/navigation";
+import { ALL_MASTERS, resolveNavPath, type NavItem } from "@/lib/navigation";
 import { PageHeader, type Crumb } from "@/components/layout/page-header";
 import { NavCardGrid } from "@/components/layout/nav-card-grid";
-import { EmptyDataTable } from "@/components/data-table/empty-data-table";
+import { EmptyDataTable, type MasterTab } from "@/components/data-table/empty-data-table";
+import {
+  ZONE_MASTER_ROWS,
+  STATE_MASTER_ROWS,
+  DISTRICT_MASTER_ROWS,
+  DISTRICT_MASTER_TOTAL,
+  HOST_MASTER_ROWS,
+  HOST_MASTER_TOTAL,
+  KVK_MASTER_ROWS,
+  KVK_MASTER_TOTAL,
+  INSTITUTE_MASTER_ROWS,
+  INSTITUTE_MASTER_TOTAL,
+  OFT_THEMATIC_AREA_ROWS,
+  OFT_THEMATIC_AREA_TOTAL,
+  FLD_SUB_CATEGORY_ROWS,
+  FLD_SUB_CATEGORY_TOTAL,
+  CROP_MASTER_ROWS,
+  CROP_MASTER_TOTAL,
+  FUNDING_SOURCE_ROWS,
+  FUNDING_SOURCE_TOTAL,
+  EXTENSION_ACTIVITY_ROWS,
+  EXTENSION_ACTIVITY_TOTAL,
+  CROPPING_SYSTEM_ROWS,
+  CROPPING_SYSTEM_TOTAL,
+  FARMING_SYSTEM_ROWS,
+  FARMING_SYSTEM_TOTAL,
+  PUBLICATION_ITEM_ROWS,
+  PUBLICATION_ITEM_TOTAL,
+} from "@/lib/masters";
 
 type MastersPageProps = {
   params: Promise<{ slug: string[] }>;
+};
+
+/** Real reference rows for Masters leaves that have confirmed data, keyed by their nav slug. */
+const MASTERS_DATA: Record<string, { rows: Record<string, string>[]; totalCount: number }> = {
+  "zone-master": { rows: ZONE_MASTER_ROWS, totalCount: ZONE_MASTER_ROWS.length },
+  "state-master": { rows: STATE_MASTER_ROWS, totalCount: STATE_MASTER_ROWS.length },
+  "district-master": { rows: DISTRICT_MASTER_ROWS, totalCount: DISTRICT_MASTER_TOTAL },
+  "host-master": { rows: HOST_MASTER_ROWS, totalCount: HOST_MASTER_TOTAL },
+  "kvk-master": { rows: KVK_MASTER_ROWS, totalCount: KVK_MASTER_TOTAL },
+  "institute-master": { rows: INSTITUTE_MASTER_ROWS, totalCount: INSTITUTE_MASTER_TOTAL },
+  "oft-thematic-area": { rows: OFT_THEMATIC_AREA_ROWS, totalCount: OFT_THEMATIC_AREA_TOTAL },
+  "sub-category": { rows: FLD_SUB_CATEGORY_ROWS, totalCount: FLD_SUB_CATEGORY_TOTAL },
+  crop: { rows: CROP_MASTER_ROWS, totalCount: CROP_MASTER_TOTAL },
+  "funding-source": { rows: FUNDING_SOURCE_ROWS, totalCount: FUNDING_SOURCE_TOTAL },
+  "extension-activity": { rows: EXTENSION_ACTIVITY_ROWS, totalCount: EXTENSION_ACTIVITY_TOTAL },
+  "cropping-system": { rows: CROPPING_SYSTEM_ROWS, totalCount: CROPPING_SYSTEM_TOTAL },
+  "farming-system": { rows: FARMING_SYSTEM_ROWS, totalCount: FARMING_SYSTEM_TOTAL },
+  "publication-items": { rows: PUBLICATION_ITEM_ROWS, totalCount: PUBLICATION_ITEM_TOTAL },
 };
 
 export default async function MastersPage({ params }: MastersPageProps) {
@@ -27,13 +73,41 @@ export default async function MastersPage({ params }: MastersPageProps) {
   });
   trailCrumbs.push({ label: node.label });
 
+  let tabs: MasterTab[] | undefined;
+  if (node.type === "leaf" && trail.length >= 2) {
+    const parent = trail[trail.length - 2] as NavItem;
+    if (parent.type === "group") {
+      const basePath = `/masters/${slug.slice(0, -1).join("/")}`;
+      tabs = parent.children
+        .filter((item): item is Extract<NavItem, { type: "leaf" }> => item.type === "leaf")
+        .map((item) => ({
+          label: item.label,
+          href: `${basePath}/${item.slug}`,
+          active: item.slug === node.slug,
+        }));
+    }
+  }
+
+  const masterData = node.type === "leaf" ? MASTERS_DATA[node.slug] : undefined;
+
   return (
     <div>
-      <PageHeader backHref="/masters" trail={trailCrumbs} title={node.label} />
+      <PageHeader
+        backHref="/masters"
+        trail={trailCrumbs}
+        title={node.type === "group" ? node.label : undefined}
+      />
       {node.type === "group" ? (
         <NavCardGrid items={node.children} basePath={`/masters/${slug.join("/")}`} />
       ) : (
-        <EmptyDataTable columns={node.columns} />
+        <EmptyDataTable
+          title={node.label}
+          columns={node.columns}
+          subtitle={`Manage and view all ${node.label.toLowerCase()} in the system`}
+          tabs={tabs}
+          rows={masterData?.rows}
+          totalCount={masterData?.totalCount}
+        />
       )}
     </div>
   );
