@@ -52,12 +52,9 @@ export function ProgressChartCard({
 
   return (
     <div className="rounded-lg border border-border bg-card p-5">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <p className="text-xs font-semibold tracking-wide text-primary uppercase">{title}</p>
-          <p className="mt-0.5 text-xs text-muted-foreground">{description}</p>
-        </div>
-        <div className="ml-auto flex items-center gap-1 rounded-md border border-border bg-muted/50 p-0.5">
+      <div className="flex items-start justify-between gap-3">
+        <p className="text-xs font-semibold tracking-wide text-primary uppercase">{title}</p>
+        <div className="flex shrink-0 items-center gap-1 rounded-md border border-border bg-muted/50 p-0.5">
           {VIEW_OPTIONS.map((option) => (
             <button
               key={option.value}
@@ -85,6 +82,7 @@ export function ProgressChartCard({
           )}
         </div>
       </div>
+      <p className="mt-0.5 text-xs text-muted-foreground">{description}</p>
 
       {(summary || showAllLabel) && (
         <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-border pt-3 text-xs text-muted-foreground">
