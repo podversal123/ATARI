@@ -54,29 +54,29 @@ export function ProgressChartCard({
     <div className="rounded-lg border border-border bg-card p-5">
       <div className="flex items-start justify-between gap-3">
         <p className="text-xs font-semibold tracking-wide text-primary uppercase">{title}</p>
-        <div className="flex shrink-0 items-center gap-1 rounded-md border border-border bg-muted/50 p-0.5">
+        <div className="flex shrink-0 items-center gap-0.5 rounded-md border border-border bg-muted/50 p-0.5">
           {VIEW_OPTIONS.map((option) => (
             <button
               key={option.value}
               type="button"
               onClick={() => setView(option.value)}
               className={cn(
-                "flex items-center gap-1 rounded-[calc(var(--radius-md)-2px)] px-2 py-1 text-xs font-medium transition-colors",
+                "flex items-center gap-1 rounded-[calc(var(--radius-md)-2px)] px-1.5 py-1 text-[11px] font-medium transition-colors",
                 view === option.value
                   ? "bg-primary text-primary-foreground"
                   : "text-muted-foreground hover:text-foreground"
               )}
             >
-              <option.icon className="size-3.5" />
+              <option.icon className="size-3" />
               {option.label}
             </button>
           ))}
           {detailedHref && (
             <Link
               href={detailedHref}
-              className="flex items-center gap-1 rounded-[calc(var(--radius-md)-2px)] px-2 py-1 text-xs font-medium text-primary transition-colors hover:text-primary/80"
+              className="flex items-center gap-1 rounded-[calc(var(--radius-md)-2px)] px-1.5 py-1 text-[11px] font-medium text-primary transition-colors hover:text-primary/80"
             >
-              <ArrowUpRight className="size-3.5" />
+              <ArrowUpRight className="size-3" />
               Detailed
             </Link>
           )}
