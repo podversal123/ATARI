@@ -1,12 +1,8 @@
 import { PageHeader } from "@/components/layout/page-header";
 import { EmptyDataTable } from "@/components/data-table/empty-data-table";
 
-const COLUMNS = [
-  { key: "title", label: "Title" },
-  { key: "kvk", label: "KVK" },
-  { key: "sentOn", label: "Sent On" },
-  { key: "status", label: "Status" },
-];
+/** No reference screenshot exists anywhere in the client's materials for this page — kept generic rather than guessed. */
+const COLUMNS = [{ key: "name", label: "Name" }];
 
 export default function NotificationsPage() {
   return (

@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
-import { FORM_MANAGEMENT, resolveNavPath, type NavItem } from "@/lib/navigation";
+import { FORM_MANAGEMENT, resolveNavPath, landingCards, type NavItem, type NavGroup } from "@/lib/navigation";
 import { PageHeader, type Crumb } from "@/components/layout/page-header";
-import { NavCardGrid } from "@/components/layout/nav-card-grid";
+import { SectionedMasterGrid } from "@/components/layout/sectioned-master-grid";
 import { EmptyDataTable, type MasterTab } from "@/components/data-table/empty-data-table";
 
 type FormsPageProps = {
@@ -42,23 +42,34 @@ export default async function FormsPage({ params }: FormsPageProps) {
     }
   }
 
+  /** Same flat inline-list card pattern as All Masters — confirmed via atari-master-data screenshots for /forms/about-kvk and Projects. */
+  let sectionedGroups: NavGroup[] | null = null;
+  let sectionedBasePath = `/forms/${slug.join("/")}`;
+  if (node.type === "group") {
+    sectionedGroups = landingCards(node);
+    if (sectionedGroups.length === 1 && sectionedGroups[0].slug === node.slug) {
+      sectionedBasePath = `/forms/${slug.slice(0, -1).join("/")}`;
+    }
+  }
+
   return (
     <div>
       <PageHeader
         backHref="/forms"
         trail={trailCrumbs}
-        title={node.type === "group" ? node.label : undefined}
+        title={node.type === "group" ? (node.pageTitle ?? node.label) : undefined}
+        description={node.type === "group" ? node.description : undefined}
       />
-      {node.type === "group" ? (
-        <NavCardGrid items={node.children} basePath={`/forms/${slug.join("/")}`} />
-      ) : (
+      {sectionedGroups ? (
+        <SectionedMasterGrid groups={sectionedGroups} basePath={sectionedBasePath} />
+      ) : node.type === "leaf" ? (
         <EmptyDataTable
           title={node.label}
           columns={node.columns}
           subtitle={`Manage and view all ${node.label.toLowerCase()} in the system`}
           tabs={tabs}
         />
-      )}
+      ) : null}
     </div>
   );
 }

@@ -48,5 +48,8 @@ next-env.d.ts
 .vscode/
 .idea/
 
+# Claude Code local state — never push
+.claude/
+
 # local browser-testing artifacts (screenshots/snapshots, not project content)
 /.playwright-mcp

@@ -1,0 +1,87 @@
+import { AlertCircle, Loader2 } from "lucide-react";
+import type { PreviewPhase } from "./use-report-preview";
+
+type MetaField = { label: string; value: string };
+
+type ReportPreviewCardProps = {
+  heading: string;
+  reportId: string | null;
+  phase: PreviewPhase;
+  /** One array per meta column (2 columns on the KVK screen, 3 on the Super Admin screen). */
+  metaColumns: MetaField[][];
+};
+
+/**
+ * Preview shell reused by both report screens. Per the spec's dynamic-states
+ * section, a stale filter change must hide the previous preview rather than
+ * keep showing it as current, and a no-data result renders the documented
+ * message instead of an empty table.
+ */
+export function ReportPreviewCard({ heading, reportId, phase, metaColumns }: ReportPreviewCardProps) {
+  const showMeta = phase === "generating" || phase === "no-data";
+
+  return (
+    <div className="rounded-lg border border-border bg-card p-5">
+      <h3 className="text-center text-sm font-semibold tracking-wide text-foreground">{heading}</h3>
+      {reportId && showMeta && (
+        <p className="mt-1 text-center text-xs text-muted-foreground">Report ID: {reportId}</p>
+      )}
+
+      {showMeta && (
+        <div
+          className="mt-4 grid gap-x-6 gap-y-1"
+          style={{ gridTemplateColumns: `repeat(${metaColumns.length}, minmax(0, 1fr))` }}
+        >
+          {metaColumns.map((column, index) => (
+            <dl key={index} className="space-y-1 text-sm">
+              {column.map((field) => (
+                <div key={field.label} className="flex items-baseline justify-between gap-2">
+                  <dt className="text-muted-foreground">{field.label}</dt>
+                  <dd className="font-medium text-foreground">{field.value}</dd>
+                </div>
+              ))}
+            </dl>
+          ))}
+        </div>
+      )}
+
+      {phase === "no-data" && (
+        <p className="mt-3 text-sm font-semibold text-foreground">Total Records : 0</p>
+      )}
+
+      <div className="mt-4 rounded-md border border-dashed border-border">
+        {phase === "idle" && (
+          <div className="flex flex-col items-center justify-center gap-1 px-4 py-10 text-center">
+            <p className="text-sm font-medium text-foreground">No report generated.</p>
+            <p className="text-xs text-muted-foreground">
+              Please select filters and click Generate Preview.
+            </p>
+          </div>
+        )}
+        {phase === "generating" && (
+          <div className="flex flex-col items-center justify-center gap-2 px-4 py-10 text-center">
+            <Loader2 className="size-5 animate-spin text-primary" />
+            <p className="text-sm font-medium text-foreground">Generating report…</p>
+            <p className="text-xs text-muted-foreground">Please wait.</p>
+          </div>
+        )}
+        {phase === "no-data" && (
+          <div className="flex flex-col items-center justify-center gap-1 px-4 py-10 text-center">
+            <AlertCircle className="size-5 text-muted-foreground" />
+            <p className="text-sm font-medium text-foreground">
+              No data available for the selected filters and date range.
+            </p>
+          </div>
+        )}
+        {phase === "stale" && (
+          <div className="flex flex-col items-center justify-center gap-1 px-4 py-10 text-center">
+            <p className="text-sm font-medium text-foreground">Filters changed.</p>
+            <p className="text-xs text-muted-foreground">
+              Please click &quot;Generate Preview&quot; to update the report.
+            </p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

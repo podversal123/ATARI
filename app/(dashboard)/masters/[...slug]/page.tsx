@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
-import { ALL_MASTERS, resolveNavPath, type NavItem } from "@/lib/navigation";
+import { ALL_MASTERS, resolveNavPath, landingCards, type NavItem, type NavGroup } from "@/lib/navigation";
 import { PageHeader, type Crumb } from "@/components/layout/page-header";
-import { NavCardGrid } from "@/components/layout/nav-card-grid";
+import { SectionedMasterGrid } from "@/components/layout/sectioned-master-grid";
 import { EmptyDataTable, type MasterTab } from "@/components/data-table/empty-data-table";
 import {
   ZONE_MASTER_ROWS,
@@ -90,16 +90,37 @@ export default async function MastersPage({ params }: MastersPageProps) {
 
   const masterData = node.type === "leaf" ? MASTERS_DATA[node.slug] : undefined;
 
+  /**
+   * Every "All Masters" group's landing page — confirmed via live screenshots
+   * of Basic Masters, OFT & FLD Masters, Production & Projects, and Other
+   * Masters (atari-photo-zip/IMG-20260815-WA0063.jpg, IMG-20260817-WA0278.jpg,
+   * IMG-20260817-WA0233.jpg, and the two Other Masters PNGs) — renders as a
+   * single page of cards, each listing its own masters inline and clickable.
+   * When a group's children are themselves groups (e.g. OFT/FLD/CFLD), each
+   * child becomes its own card; when the children are already leaves (e.g.
+   * Basic Masters' 6 masters), the group wraps itself as the single card.
+   */
+  let sectionedGroups: NavGroup[] | null = null;
+  let sectionedBasePath = `/masters/${slug.join("/")}`;
+  if (node.type === "group") {
+    sectionedGroups = landingCards(node);
+    if (sectionedGroups.length === 1 && sectionedGroups[0].slug === node.slug) {
+      // Group wraps itself as the single card, so links must skip past its own slug (already the last segment of the current path).
+      sectionedBasePath = `/masters/${slug.slice(0, -1).join("/")}`;
+    }
+  }
+
   return (
     <div>
       <PageHeader
         backHref="/masters"
         trail={trailCrumbs}
-        title={node.type === "group" ? node.label : undefined}
+        title={node.type === "group" ? (node.pageTitle ?? node.label) : undefined}
+        description={node.type === "group" ? node.description : undefined}
       />
-      {node.type === "group" ? (
-        <NavCardGrid items={node.children} basePath={`/masters/${slug.join("/")}`} />
-      ) : (
+      {sectionedGroups ? (
+        <SectionedMasterGrid groups={sectionedGroups} basePath={sectionedBasePath} />
+      ) : node.type === "leaf" ? (
         <EmptyDataTable
           title={node.label}
           columns={node.columns}
@@ -108,7 +129,7 @@ export default async function MastersPage({ params }: MastersPageProps) {
           rows={masterData?.rows}
           totalCount={masterData?.totalCount}
         />
-      )}
+      ) : null}
     </div>
   );
 }

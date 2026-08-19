@@ -77,7 +77,7 @@ export function ProgressChartCard({
           {detailedHref && (
             <Link
               href={detailedHref}
-              className="flex items-center gap-1 rounded-[calc(var(--radius-md)-2px)] px-2 py-1 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+              className="flex items-center gap-1 rounded-[calc(var(--radius-md)-2px)] px-2 py-1 text-xs font-medium text-primary transition-colors hover:text-primary/80"
             >
               <ArrowUpRight className="size-3.5" />
               Detailed
@@ -87,13 +87,17 @@ export function ProgressChartCard({
       </div>
 
       {(summary || showAllLabel) && (
-        <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
-          {summary && <span>{summary}</span>}
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-border pt-3 text-xs text-muted-foreground">
+          {summary && (
+            <span>
+              {summary}
+            </span>
+          )}
           {showAllLabel && (
             <button
               type="button"
               disabled
-              className="text-primary underline-offset-2 hover:underline disabled:cursor-default disabled:text-muted-foreground disabled:no-underline"
+              className="rounded-md border border-border px-2.5 py-1 font-medium text-foreground disabled:cursor-default disabled:opacity-70"
             >
               {showAllLabel}
             </button>
@@ -101,7 +105,7 @@ export function ProgressChartCard({
         </div>
       )}
 
-      <div className="mt-3 flex items-center gap-4 text-xs text-muted-foreground">
+      <div className="mt-3 flex items-center justify-end gap-4 text-xs font-medium tracking-wide text-muted-foreground uppercase">
         <span className="flex items-center gap-1.5">
           <span className="size-2 rounded-full bg-[#eaa624]" /> Ongoing
         </span>

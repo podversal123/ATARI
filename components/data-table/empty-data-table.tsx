@@ -1,6 +1,6 @@
 "use client";
 
-import { type ReactNode, useState } from "react";
+import { type ReactNode, useMemo, useState } from "react";
 import Link from "next/link";
 import {
   Search,
@@ -9,7 +9,6 @@ import {
   FileType,
   Plus,
   RotateCcw,
-  Filter,
   MoreVertical,
   Pencil,
   Trash2,
@@ -23,6 +22,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { ColumnFilterMenu, type ColumnFilterState } from "./column-filter-menu";
 import type { MasterColumn } from "@/lib/navigation";
 
 export type MasterTab = { label: string; href: string; active: boolean };
@@ -68,9 +68,13 @@ export function EmptyDataTable({
   const [search, setSearch] = useState("");
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
+  const [columnFilters, setColumnFilters] = useState<Record<string, ColumnFilterState>>({});
 
   const hasActiveDates = fromDate !== "" || toDate !== "";
-  const hasActiveFilters = hasActiveDates || search !== "";
+  const hasActiveColumnFilters = Object.values(columnFilters).some(
+    (state) => state.sort !== null || state.selected !== null
+  );
+  const hasActiveFilters = hasActiveDates || search !== "" || hasActiveColumnFilters;
 
   function resetDates() {
     setFromDate("");
@@ -81,10 +85,43 @@ export function EmptyDataTable({
     setSearch("");
     setFromDate("");
     setToDate("");
+    setColumnFilters({});
   }
 
-  const rowCount = rows?.length ?? 0;
-  const total = totalCount ?? rowCount;
+  /** Distinct values (with counts) for a column, sourced from the real rows passed in — matches the reference's per-column "Unique Values" checklist. */
+  function columnValues(key: string): { value: string; count: number }[] {
+    if (!rows) return [];
+    const counts = new Map<string, number>();
+    for (const row of rows) {
+      const value = String(row[key] ?? "");
+      counts.set(value, (counts.get(value) ?? 0) + 1);
+    }
+    return Array.from(counts, ([value, count]) => ({ value, count })).sort((a, b) =>
+      a.value.localeCompare(b.value)
+    );
+  }
+
+  const displayedRows = useMemo(() => {
+    if (!rows) return rows;
+    let next = rows.filter((row) =>
+      Object.entries(columnFilters).every(([key, state]) => {
+        if (state.selected === null) return true;
+        return state.selected.has(String(row[key] ?? ""));
+      })
+    );
+    const sortEntry = Object.entries(columnFilters).find(([, state]) => state.sort !== null);
+    if (sortEntry) {
+      const [key, state] = sortEntry;
+      next = [...next].sort((a, b) => {
+        const cmp = String(a[key] ?? "").localeCompare(String(b[key] ?? ""));
+        return state.sort === "desc" ? -cmp : cmp;
+      });
+    }
+    return next;
+  }, [rows, columnFilters]);
+
+  const rowCount = displayedRows?.length ?? 0;
+  const total = totalCount ?? rows?.length ?? 0;
 
   return (
     <div>
@@ -174,7 +211,14 @@ export function EmptyDataTable({
                   <th key={column.key} className="px-4 py-3">
                     <span className="inline-flex items-center gap-1">
                       {column.label}
-                      <Filter className="size-3 text-muted-foreground/50" />
+                      <ColumnFilterMenu
+                        columnLabel={column.label}
+                        values={columnValues(column.key)}
+                        state={columnFilters[column.key] ?? { selected: null, sort: null }}
+                        onApply={(state) =>
+                          setColumnFilters((prev) => ({ ...prev, [column.key]: state }))
+                        }
+                      />
                     </span>
                   </th>
                 ))}
@@ -189,7 +233,7 @@ export function EmptyDataTable({
                   </td>
                 </tr>
               ) : (
-                rows!.map((row, index) => (
+                displayedRows!.map((row, index) => (
                   <tr key={index} className="border-b border-border last:border-0">
                     <td className="px-4 py-3 text-muted-foreground">{index + 1}</td>
                     {columns.map((column) => (

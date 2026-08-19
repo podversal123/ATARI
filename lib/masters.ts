@@ -38,7 +38,7 @@ export type HostMasterRow = { hostName: string };
 /** First page only (6 of 15 rows were visible in the reference screenshot). */
 export const HOST_MASTER_ROWS: HostMasterRow[] = [
   { hostName: "Samta Seva Kendra Sitamarhi" },
-  { hostName: "National Rice Research Institute" },
+  { hostName: "National Rice Research Institute (NRRI), Cuttack" },
   { hostName: "ICAR-NISA, Ranchi" },
   { hostName: "Viksh Bharti Bishunpur Gumla" },
   { hostName: "Gramin Vikash Trust, Noida" },
@@ -125,21 +125,67 @@ export const INSTITUTE_MASTER_TOTAL = 4;
  * actually visible on screen are listed.
  */
 
-export type OftThematicAreaRow = { thematicArea: string };
+export type OftThematicAreaRow = { thematicArea: string; subjectName: string };
 
-/**
- * 7 of 57 real thematic-area names confirmed. The reference table also has a
- * paired "Subject Name" column, but which subject goes with which thematic
- * area wasn't legible in the screenshots — left out rather than guessed.
- */
+/** Complete — all 57 rows, transcribed directly from oft-thematic-area-master.pdf. */
 export const OFT_THEMATIC_AREA_ROWS: OftThematicAreaRow[] = [
-  { thematicArea: "Horticulture" },
-  { thematicArea: "Integrated Nutrient Management" },
-  { thematicArea: "Integrated Crop/Disease Management" },
-  { thematicArea: "Weed Management" },
-  { thematicArea: "Resource Conservation Technology" },
-  { thematicArea: "Post-harvest Technology/Value Addition" },
-  { thematicArea: "Small Scale Income Generation" },
+  { thematicArea: "Horticulture", subjectName: "Technologies assessed under various crops (Horticulture crops)" },
+  { thematicArea: "Integrated Nutrient Management", subjectName: "Technologies assessed under various crops (Horticulture crops)" },
+  { thematicArea: "Varietal Evaluation", subjectName: "Technologies assessed under various crops (Horticulture crops)" },
+  { thematicArea: "Integrated Pest Management", subjectName: "Technologies assessed under various crops (Horticulture crops)" },
+  { thematicArea: "Integrated Crop Management", subjectName: "Technologies assessed under various crops (Horticulture crops)" },
+  { thematicArea: "Integrated Disease Management", subjectName: "Technologies assessed under various crops (Horticulture crops)" },
+  { thematicArea: "Small Scale Income Generation Enterprises", subjectName: "Technologies assessed under various crops (Horticulture crops)" },
+  { thematicArea: "Weed Management", subjectName: "Technologies assessed under various crops (Horticulture crops)" },
+  { thematicArea: "Resource Conservation Technology", subjectName: "Technologies assessed under various crops (Horticulture crops)" },
+  { thematicArea: "Post-harvest Technology / Value addition", subjectName: "Technologies assessed under various crops (Horticulture crops)" },
+  { thematicArea: "Others if any specify", subjectName: "Technologies assessed under various crops (Horticulture crops)" },
+  { thematicArea: "Drudgery Reductions", subjectName: "Technologies assessed under women empowerment (Home science)" },
+  { thematicArea: "Entrepreneurship Development", subjectName: "Technologies assessed under women empowerment (Home science)" },
+  { thematicArea: "Health and Nutrition", subjectName: "Technologies assessed under women empowerment (Home science)" },
+  { thematicArea: "Value Addition", subjectName: "Technologies assessed under women empowerment (Home science)" },
+  { thematicArea: "Others", subjectName: "Technologies assessed under women empowerment (Home science)" },
+  { thematicArea: "Drudgery Reduction", subjectName: "Technologies assessed under various enterprises" },
+  { thematicArea: "Entrepreneurship Development", subjectName: "Technologies assessed under various enterprises" },
+  { thematicArea: "Health And Nutrition", subjectName: "Technologies assessed under various enterprises" },
+  { thematicArea: "Processing and Value Addition", subjectName: "Technologies assessed under various enterprises" },
+  { thematicArea: "Energy Conservation", subjectName: "Technologies assessed under various enterprises" },
+  { thematicArea: "Small-Scale Income Generation", subjectName: "Technologies assessed under various enterprises" },
+  { thematicArea: "Storage Techniques", subjectName: "Technologies assessed under various enterprises" },
+  { thematicArea: "Household Food Security", subjectName: "Technologies assessed under various enterprises" },
+  { thematicArea: "Organic Farming", subjectName: "Technologies assessed under various enterprises" },
+  { thematicArea: "Agroforestry Management", subjectName: "Technologies assessed under various enterprises" },
+  { thematicArea: "Mechanization", subjectName: "Technologies assessed under various enterprises" },
+  { thematicArea: "Resource Conservation Technology", subjectName: "Technologies assessed under various enterprises" },
+  { thematicArea: "Value Addition", subjectName: "Technologies assessed under various enterprises" },
+  { thematicArea: "Others", subjectName: "Technologies assessed under various enterprises" },
+  { thematicArea: "Disease Management", subjectName: "Technologies assessed under livestock and fisheries" },
+  { thematicArea: "Breeding Management/Evaluation of Breed", subjectName: "Technologies assessed under livestock and fisheries" },
+  { thematicArea: "Feed And Fodder Management", subjectName: "Technologies assessed under livestock and fisheries" },
+  { thematicArea: "Production And Management", subjectName: "Technologies assessed under livestock and fisheries" },
+  { thematicArea: "Processing and Value Addition of livestock products", subjectName: "Technologies assessed under livestock and fisheries" },
+  { thematicArea: "Horticulture Crop", subjectName: "Technologies assessed under livestock and fisheries" },
+  { thematicArea: "Diseases and Health Management", subjectName: "Technologies assessed under livestock and fisheries" },
+  { thematicArea: "Nutrient Management", subjectName: "Technologies assessed under livestock and fisheries" },
+  { thematicArea: "Fisheries Management", subjectName: "Technologies assessed under livestock and fisheries" },
+  { thematicArea: "Others", subjectName: "Technologies assessed under livestock and fisheries" },
+  { thematicArea: "Integrated Nutrient Management", subjectName: "Technologies Assessed under Various Crops by KVKs (Crop Production)" },
+  { thematicArea: "Varietal Evaluation", subjectName: "Technologies Assessed under Various Crops by KVKs (Crop Production)" },
+  { thematicArea: "Integrated Pest Management", subjectName: "Technologies Assessed under Various Crops by KVKs (Crop Production)" },
+  { thematicArea: "Integrated Crop Management", subjectName: "Technologies Assessed under Various Crops by KVKs (Crop Production)" },
+  { thematicArea: "Integrated Disease Management", subjectName: "Technologies Assessed under Various Crops by KVKs (Crop Production)" },
+  { thematicArea: "Small Scale Income Generation Enterprises", subjectName: "Technologies Assessed under Various Crops by KVKs (Crop Production)" },
+  { thematicArea: "Weed Management", subjectName: "Technologies Assessed under Various Crops by KVKs (Crop Production)" },
+  { thematicArea: "Resource Conservation Technology", subjectName: "Technologies Assessed under Various Crops by KVKs (Crop Production)" },
+  { thematicArea: "Farm Machineries", subjectName: "Technologies Assessed under Various Crops by KVKs (Crop Production)" },
+  { thematicArea: "Integrated Farming System", subjectName: "Technologies Assessed under Various Crops by KVKs (Crop Production)" },
+  { thematicArea: "Seed / Plant Production", subjectName: "Technologies Assessed under Various Crops by KVKs (Crop Production)" },
+  { thematicArea: "Post Harvest Technology / Value Addition", subjectName: "Technologies Assessed under Various Crops by KVKs (Crop Production)" },
+  { thematicArea: "Drudgery Reduction", subjectName: "Technologies Assessed under Various Crops by KVKs (Crop Production)" },
+  { thematicArea: "Storage Technique", subjectName: "Technologies Assessed under Various Crops by KVKs (Crop Production)" },
+  { thematicArea: "Cropping Systems", subjectName: "Technologies Assessed under Various Crops by KVKs (Crop Production)" },
+  { thematicArea: "Farm Mechanization", subjectName: "Technologies Assessed under Various Crops by KVKs (Crop Production)" },
+  { thematicArea: "Others Thematic Area Upload By ATARI", subjectName: "Technologies Assessed under Various Crops by KVKs (Crop Production)" },
 ];
 export const OFT_THEMATIC_AREA_TOTAL = 57;
 

@@ -137,4 +137,39 @@
   html {
     @apply font-sans;
   }
+
+  /* Themed scrollbars — replaces the plain OS-default gray bar everywhere in the app. */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+  *::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  *::-webkit-scrollbar-thumb {
+    background-color: var(--border);
+    border-radius: 9999px;
+    border: 2px solid transparent;
+    background-clip: content-box;
+  }
+  *::-webkit-scrollbar-thumb:hover {
+    background-color: var(--muted-foreground);
+  }
+
+  /* The sidebar sits on a dark green background, so its scrollbar needs a
+     light thumb instead of the default (which would be invisible). */
+  .sidebar-scroll {
+    scrollbar-color: rgba(255, 255, 255, 0.25) transparent;
+  }
+  .sidebar-scroll::-webkit-scrollbar-thumb {
+    background-color: rgba(255, 255, 255, 0.25);
+    background-clip: content-box;
+  }
+  .sidebar-scroll::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(255, 255, 255, 0.4);
+  }
 }

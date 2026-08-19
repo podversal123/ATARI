@@ -80,23 +80,34 @@ export default function LoginPage() {
               router.push("/dashboard");
             }}
           >
-            <Input
-              placeholder="Enter Username"
-              value={username}
-              onChange={(event) => setUsername(event.target.value)}
-              autoComplete="username"
-              className="h-13 rounded-lg border-black/15 bg-transparent px-4 text-base placeholder:text-muted-foreground/80"
-            />
-
-            <div className="relative">
+            <div>
+              <label htmlFor="username" className="mb-1.5 block text-sm font-semibold text-[#034541]">
+                Username
+              </label>
               <Input
-                type={showPassword ? "text" : "password"}
-                placeholder="Enter Password"
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                autoComplete="current-password"
-                className="h-13 rounded-lg border-black/15 bg-transparent px-4 pr-11 text-base placeholder:text-muted-foreground/80"
+                id="username"
+                placeholder="Enter Username"
+                value={username}
+                onChange={(event) => setUsername(event.target.value)}
+                autoComplete="username"
+                className="h-13 rounded-lg border-black/15 bg-transparent px-4 text-base placeholder:text-muted-foreground/80"
               />
+            </div>
+
+            <div>
+              <label htmlFor="password" className="mb-1.5 block text-sm font-semibold text-[#034541]">
+                Password
+              </label>
+              <div className="relative">
+                <Input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  placeholder="Enter Password"
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                  autoComplete="current-password"
+                  className="h-13 rounded-lg border-black/15 bg-transparent px-4 pr-11 text-base placeholder:text-muted-foreground/80"
+                />
               <button
                 type="button"
                 onClick={() => setShowPassword((prev) => !prev)}
@@ -105,6 +116,7 @@ export default function LoginPage() {
               >
                 {showPassword ? <EyeOff className="size-4.5" /> : <Eye className="size-4.5" />}
               </button>
+              </div>
             </div>
 
             <Button

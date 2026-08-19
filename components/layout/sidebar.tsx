@@ -78,7 +78,12 @@ export function Sidebar() {
         )}
       </div>
 
-      <nav className={cn("flex-1 overflow-y-auto pb-6", collapsed ? "px-2" : "px-3")}>
+      <nav
+        className={cn(
+          "sidebar-scroll flex-1 overflow-y-auto pb-6",
+          collapsed ? "px-2" : "px-3"
+        )}
+      >
         {!collapsed && (
           <p className="px-3 pt-2 pb-2 text-[11px] font-semibold tracking-wider text-white/50">
             NAVIGATION
