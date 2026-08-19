@@ -57,7 +57,7 @@ export function ProgressChartCard({
           <p className="text-xs font-semibold tracking-wide text-primary uppercase">{title}</p>
           <p className="mt-0.5 text-xs text-muted-foreground">{description}</p>
         </div>
-        <div className="flex items-center gap-1 rounded-md border border-border bg-muted/50 p-0.5">
+        <div className="ml-auto flex items-center gap-1 rounded-md border border-border bg-muted/50 p-0.5">
           {VIEW_OPTIONS.map((option) => (
             <button
               key={option.value}
