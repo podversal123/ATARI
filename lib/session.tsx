@@ -55,14 +55,31 @@ function subscribe(callback: () => void) {
   return () => window.removeEventListener("atari-ams-session-change", callback);
 }
 
+let cachedRaw: string | null = null;
+let cachedSnapshot: Session = DEFAULT_SESSION;
+
+/**
+ * useSyncExternalStore requires getSnapshot to return a stable (Object.is-equal)
+ * reference when nothing changed. Re-parsing sessionStorage on every call would
+ * hand back a new object each render, so React would treat that as a store
+ * change every time and re-render forever. Caching the parsed value against
+ * the raw string it came from keeps the reference stable across calls.
+ */
 function getSnapshot(): Session {
   const raw = window.sessionStorage.getItem(STORAGE_KEY);
-  if (!raw) return DEFAULT_SESSION;
-  try {
-    return JSON.parse(raw) as Session;
-  } catch {
-    return DEFAULT_SESSION;
+  if (raw === cachedRaw) return cachedSnapshot;
+
+  cachedRaw = raw;
+  if (!raw) {
+    cachedSnapshot = DEFAULT_SESSION;
+    return cachedSnapshot;
   }
+  try {
+    cachedSnapshot = JSON.parse(raw) as Session;
+  } catch {
+    cachedSnapshot = DEFAULT_SESSION;
+  }
+  return cachedSnapshot;
 }
 
 function getServerSnapshot(): Session {
