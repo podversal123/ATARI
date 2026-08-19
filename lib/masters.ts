@@ -277,9 +277,16 @@ export const FARMING_SYSTEM_TOTAL = 32;
 
 export type PublicationItemRow = { itemName: string };
 
-/** 6 of 12 real rows confirmed (a 7th, partially transcribed as "Electronic Publication CD/D…" in the source catalog, is left out since its full name wasn't legible). */
+/**
+ * 7 of 12 real rows confirmed. The 2nd row (real screenshot order, per
+ * atari-photo-zip/IMG-20260817-WA0020.jpg) reads "Electronic Publication
+ * CD or D…" — legible enough to place in sequence, but the exact tail
+ * ("DVD" is the near-certain expansion) wasn't fully confirmed, so keep an
+ * eye out for a clearer capture of this row before treating it as final.
+ */
 export const PUBLICATION_ITEM_ROWS: PublicationItemRow[] = [
   { itemName: "E Publication" },
+  { itemName: "Electronic Publication (CD/DVD)" },
   { itemName: "News Letter" },
   { itemName: "Technical Reports" },
   { itemName: "Extension Folders/Leaflet" },

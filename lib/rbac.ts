@@ -64,31 +64,42 @@ export type Permission = (typeof PERMISSIONS)[number];
 /** Zone IV covers Bihar & Jharkhand (per spec: "Assign State (Zone IV - PATNA & JHARKHAND)"). */
 export const STATES = ["Bihar", "Jharkhand"];
 
-/** District names, sourced from the real KVK Admin rows seen on the reference User Management screen. */
+/** Bihar district names — the original 15 from the reference User Management screen, plus 5 more (Rohtas, Nalanda, Darbhanga, East Champaran, Munger) confirmed real via KVK rows seen in the client's Form Management screenshot walkthrough (2026-08-20). */
 export const DISTRICTS = [
   "Araria",
   "Arwal",
   "Aurangabad",
   "Banka",
   "Bhojpur",
+  "Darbhanga",
+  "East Champaran",
   "Gaya",
   "Jehanabad",
   "Katihar",
   "Khagaria",
   "Lakhisarai",
   "Madhubani",
+  "Munger",
+  "Nalanda",
   "Patna",
   "Purnea",
+  "Rohtas",
   "Saharsa",
   "West Champaran",
 ];
 
+/** Jharkhand district names — confirmed real via KVK rows seen in the client's Form Management screenshot walkthrough (2026-08-20); Zone IV covers both Bihar and Jharkhand (see STATES above). */
+export const JHARKHAND_DISTRICTS = ["Dumka", "Godda", "Gumla", "Latehar"];
+
 /** KVKs, one per district above — matches the "KVK <District>" naming seen in the reference. */
-export const KVKS = DISTRICTS.map((district) => ({
-  name: `KVK ${district}`,
-  district,
-  state: "Bihar",
-}));
+export const KVKS = [
+  ...DISTRICTS.map((district) => ({ name: `KVK ${district}`, district, state: "Bihar" })),
+  ...JHARKHAND_DISTRICTS.map((district) => ({
+    name: `KVK ${district}`,
+    district,
+    state: "Jharkhand",
+  })),
+];
 
 /** Which scope field (if any) to show once a Role is picked in Create/Edit User. */
 export function scopeFieldFor(

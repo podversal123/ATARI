@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { KVKS } from "@/lib/rbac";
+import { useSession } from "@/lib/session";
 
 const COLUMNS = [
   { key: "sNo", label: "S.No." },
@@ -16,6 +17,9 @@ const COLUMNS = [
   { key: "ipAddress", label: "IP Address" },
   { key: "loginTime", label: "Login Time" },
 ] as const;
+
+/** A KVK Admin's own log view drops the KVK Name column — every row is already their own KVK. */
+const KVK_COLUMNS = COLUMNS.filter((column) => column.key !== "kvkName");
 
 type SortState = { key: string; direction: "asc" | "desc" } | null;
 
@@ -29,6 +33,10 @@ type SortState = { key: string; direction: "asc" | "desc" } | null;
  * consistent with the rest of this app's design system.
  */
 export default function LogHistoryPage() {
+  const session = useSession();
+  const isKvk = session.role !== "super-admin";
+  const columns = isKvk ? KVK_COLUMNS : COLUMNS;
+
   const [kvkFilter, setKvkFilter] = useState("all");
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<SortState>(null);
@@ -43,26 +51,33 @@ export default function LogHistoryPage() {
 
   return (
     <div>
-      <PageHeader trail={[{ label: "Log History" }]} title="View Users Log Activity" />
+      <PageHeader
+        trail={[{ label: "Log History" }]}
+        title="View Users Log Activity"
+        description={isKvk ? `Activity log for ${session.kvkName ?? "your KVK"}` : undefined}
+      />
 
-      <div className="mb-4 flex flex-wrap items-end gap-3">
-        <div>
-          <label className="text-xs font-medium text-muted-foreground">KVKs</label>
-          <select
-            value={kvkFilter}
-            onChange={(e) => setKvkFilter(e.target.value)}
-            className="mt-1 h-9 w-56 rounded-md border border-border bg-card px-2.5 text-sm text-foreground outline-none focus-visible:border-ring"
-          >
-            <option value="all">All</option>
-            {KVKS.map((kvk) => (
-              <option key={kvk.name} value={kvk.name}>
-                {kvk.name}
-              </option>
-            ))}
-          </select>
+      {/* A KVK Admin never gets a cross-KVK picker — data isolation: KVK A must never read KVK B's activity. */}
+      {!isKvk && (
+        <div className="mb-4 flex flex-wrap items-end gap-3">
+          <div>
+            <label className="text-xs font-medium text-muted-foreground">KVKs</label>
+            <select
+              value={kvkFilter}
+              onChange={(e) => setKvkFilter(e.target.value)}
+              className="mt-1 h-9 w-56 rounded-md border border-border bg-card px-2.5 text-sm text-foreground outline-none focus-visible:border-ring"
+            >
+              <option value="all">All</option>
+              {KVKS.map((kvk) => (
+                <option key={kvk.name} value={kvk.name}>
+                  {kvk.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <Button size="sm">Filter</Button>
         </div>
-        <Button size="sm">Filter</Button>
-      </div>
+      )}
 
       <div className="rounded-lg border border-border bg-card">
         <div className="border-b border-border p-4">
@@ -81,7 +96,7 @@ export default function LogHistoryPage() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border bg-muted/50 text-left text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-                {COLUMNS.map((column) => {
+                {columns.map((column) => {
                   const active = sort?.key === column.key;
                   return (
                     <th key={column.key} className="px-4 py-3">
@@ -111,7 +126,7 @@ export default function LogHistoryPage() {
             </thead>
             <tbody>
               <tr>
-                <td colSpan={COLUMNS.length} className="px-4 py-16 text-center text-muted-foreground">
+                <td colSpan={columns.length} className="px-4 py-16 text-center text-muted-foreground">
                   No records found.
                 </td>
               </tr>

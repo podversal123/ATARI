@@ -4,6 +4,8 @@ import { PageHeader, type Crumb } from "@/components/layout/page-header";
 import { SectionedMasterGrid } from "@/components/layout/sectioned-master-grid";
 import { EmptyDataTable, type MasterTab } from "@/components/data-table/empty-data-table";
 
+const EVENT_DEMOGRAPHIC_SLUGS = new Set(["technology-week-celebration", "world-soil-day"]);
+
 type FormsPageProps = {
   params: Promise<{ slug: string[] }>;
 };
@@ -68,6 +70,13 @@ export default async function FormsPage({ params }: FormsPageProps) {
           columns={node.columns}
           subtitle={`Manage and view all ${node.label.toLowerCase()} in the system`}
           tabs={tabs}
+          customForm={
+            node.slug === "technical-parameter"
+              ? "cfld-technical-parameter"
+              : EVENT_DEMOGRAPHIC_SLUGS.has(node.slug)
+                ? "event-demographic"
+                : undefined
+          }
         />
       ) : null}
     </div>

@@ -9,27 +9,38 @@ import { Input } from "@/components/ui/input";
 import { EmptyDataTable } from "@/components/data-table/empty-data-table";
 import { useSession } from "@/lib/session";
 import { KVKS } from "@/lib/rbac";
+import { RECIPIENT_ALL_KVKS, RECIPIENT_OWN_USERS } from "@/lib/notifications";
 
-const COLUMNS = [
+const SENT_COLUMNS = [
   { key: "title", label: "Title" },
+  { key: "message", label: "Message" },
   { key: "recipient", label: "Recipient" },
   { key: "sentOn", label: "Sent On" },
 ];
 
-const RECIPIENT_ALL = "all-kvks";
+const RECEIVED_COLUMNS = [
+  { key: "title", label: "Title" },
+  { key: "message", label: "Message" },
+  { key: "from", label: "From" },
+  { key: "sentOn", label: "Sent On" },
+];
 
 /**
  * Per the client's described flow: Super Admin sends a notification to
  * either all KVKs or one specific KVK; a KVK Admin sends to their own
- * KVK's users only (no cross-KVK visibility). No reference screenshot
+ * KVK's users only (no cross-KVK visibility). A KVK Admin's sends should
+ * also surface to the Super Admin for oversight. No reference screenshot
  * exists for this compose form, so the layout is a minimal, honest
  * implementation of that stated flow rather than an invented design.
+ *
+ * Send/receive here are UI-only placeholders — actual persistence and
+ * delivery come from the backend, not a frontend mock.
  */
 export default function NotificationsPage() {
   const session = useSession();
-  const isKvk = session.role === "kvk-admin";
+  const isKvk = session.role !== "super-admin";
 
-  const [recipient, setRecipient] = useState(isKvk ? "own-users" : RECIPIENT_ALL);
+  const [recipient, setRecipient] = useState(isKvk ? RECIPIENT_OWN_USERS : RECIPIENT_ALL_KVKS);
   const [title, setTitle] = useState("");
   const [message, setMessage] = useState("");
 
@@ -52,7 +63,7 @@ export default function NotificationsPage() {
                 onChange={(e) => setRecipient(e.target.value)}
                 className="mt-1 h-9 w-full rounded-md border border-border bg-card px-2.5 text-sm text-foreground outline-none focus-visible:border-ring"
               >
-                <option value={RECIPIENT_ALL}>All KVKs</option>
+                <option value={RECIPIENT_ALL_KVKS}>All KVKs</option>
                 {KVKS.map((kvk) => (
                   <option key={kvk.name} value={kvk.name}>
                     {kvk.name}
@@ -84,9 +95,21 @@ export default function NotificationsPage() {
         </div>
       </div>
 
+      <div className="mb-4">
+        <EmptyDataTable
+          title="Received Notifications"
+          subtitle={
+            isKvk
+              ? "Notifications sent to your KVK"
+              : "Notifications sent out by KVK Admins to their users"
+          }
+          columns={RECEIVED_COLUMNS}
+        />
+      </div>
+
       <EmptyDataTable
         title={isKvk ? "Sent to My KVK Users" : "Sent Notifications"}
-        columns={COLUMNS}
+        columns={SENT_COLUMNS}
       />
     </div>
   );

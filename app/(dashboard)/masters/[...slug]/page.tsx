@@ -89,6 +89,12 @@ export default async function MastersPage({ params }: MastersPageProps) {
   }
 
   const masterData = node.type === "leaf" ? MASTERS_DATA[node.slug] : undefined;
+  const cascadeType =
+    node.type === "leaf" && node.slug === "district-master"
+      ? "district"
+      : node.type === "leaf" && node.slug === "kvk-master"
+        ? "kvk"
+        : undefined;
 
   /**
    * Every "All Masters" group's landing page — confirmed via live screenshots
@@ -128,6 +134,7 @@ export default async function MastersPage({ params }: MastersPageProps) {
           tabs={tabs}
           rows={masterData?.rows}
           totalCount={masterData?.totalCount}
+          cascadeType={cascadeType}
         />
       ) : null}
     </div>

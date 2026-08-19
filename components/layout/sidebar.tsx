@@ -11,12 +11,15 @@ import { SidebarSectionLink } from "./sidebar-section-link";
 import { SidebarSearch } from "./sidebar-search";
 
 /**
- * Sidebar items hidden for a KVK Admin session — per the RBAC spec, only
- * Super Admin / Host Organisation create KVK accounts, never the reverse,
- * so Role Management (which governs who can create what) has no reason to
- * be visible to a KVK session.
+ * Sidebar items hidden for a KVK Admin (and, per explicit direction, KVK
+ * User too — its sidebar mirrors KVK Admin's one-for-one for now; real
+ * per-role restriction is a backend/permissions concern for later, not
+ * something to hand-restrict in the UI ahead of that). Every role except
+ * Super Admin loses All Masters (global reference data only Super Admin
+ * curates) — every other page is shared, scoped later to that KVK's own
+ * data via the same pages, not a separate route tree.
  */
-const KVK_HIDDEN_SLUGS = new Set(["role-management"]);
+const KVK_HIDDEN_SLUGS = new Set(["masters"]);
 
 /**
  * The fixed green Super Admin sidebar. Structure mirrors the reference
@@ -35,7 +38,7 @@ export function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
   const session = useSession();
   const visibleSections = SIDEBAR.filter(
-    (section) => session.role !== "kvk-admin" || !KVK_HIDDEN_SLUGS.has(section.slug)
+    (section) => session.role === "super-admin" || !KVK_HIDDEN_SLUGS.has(section.slug)
   );
 
   return (

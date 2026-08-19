@@ -2,7 +2,7 @@
 
 import { useSyncExternalStore } from "react";
 
-export type SessionRole = "super-admin" | "kvk-admin";
+export type SessionRole = "super-admin" | "kvk-admin" | "kvk-user";
 
 export type Session = {
   role: SessionRole;
@@ -24,11 +24,19 @@ const STORAGE_KEY = "atari-ams-session";
  */
 export function resolveSessionFromUsername(username: string): Session {
   const normalized = username.trim().toLowerCase();
-  const match = normalized.match(/^kvk\s*([a-z]+)/);
-  if (match) {
-    const name = match[1];
+
+  const userMatch = normalized.match(/^user\s*([a-z]+)/);
+  if (userMatch) {
+    const name = userMatch[1];
+    return { role: "kvk-user", kvkName: `KVK ${name.charAt(0).toUpperCase()}${name.slice(1)}` };
+  }
+
+  const adminMatch = normalized.match(/^kvk\s*([a-z]+)/);
+  if (adminMatch) {
+    const name = adminMatch[1];
     return { role: "kvk-admin", kvkName: `KVK ${name.charAt(0).toUpperCase()}${name.slice(1)}` };
   }
+
   return { role: "super-admin" };
 }
 

@@ -5,6 +5,8 @@ import { LayoutGrid, Table2, Filter } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { FilterSelect } from "@/components/dashboard/filter-select";
+import { useSession } from "@/lib/session";
+import { FORM_MANAGEMENT } from "@/lib/navigation";
 
 const SUMMARY_STATS = [
   { label: "KVKs", value: "0" },
@@ -13,18 +15,27 @@ const SUMMARY_STATS = [
   { label: "Overall Progress", value: "0%" },
 ];
 
+/** A KVK Admin's own stats drop the "KVKs" tile — there's only ever the one KVK, itself. */
+const KVK_SUMMARY_STATS = SUMMARY_STATS.filter((stat) => stat.label !== "KVKs");
+
 type ViewMode = "kvk" | "matrix";
 
 export default function FormSummaryPage() {
+  const session = useSession();
+  const isKvk = session.role !== "super-admin";
   const [view, setView] = useState<ViewMode>("kvk");
 
   return (
     <div>
       <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold text-primary">Form Summary — All KVKs</h1>
+          <h1 className="text-3xl font-semibold text-primary">
+            {isKvk ? `Form Summary — ${session.kvkName ?? "My KVK"}` : "Form Summary — All KVKs"}
+          </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Track which KVKs have submitted each form
+            {isKvk
+              ? "Track which forms your KVK has submitted"
+              : "Track which KVKs have submitted each form"}
           </p>
         </div>
         <FilterSelect label="Reporting year" options={[String(new Date().getFullYear())]} />
@@ -32,7 +43,7 @@ export default function FormSummaryPage() {
 
       <div className="rounded-lg border border-border bg-card p-5">
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-          {SUMMARY_STATS.map((stat) => (
+          {(isKvk ? KVK_SUMMARY_STATS : SUMMARY_STATS).map((stat) => (
             <div key={stat.label}>
               <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
                 {stat.label}
@@ -54,37 +65,41 @@ export default function FormSummaryPage() {
       </div>
 
       <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-1 rounded-md border border-border bg-muted/50 p-0.5">
-          <button
-            type="button"
-            onClick={() => setView("kvk")}
-            className={cn(
-              "flex items-center gap-1.5 rounded-[calc(var(--radius-md)-2px)] px-3 py-1.5 text-sm font-medium transition-colors",
-              view === "kvk"
-                ? "bg-primary text-primary-foreground"
-                : "text-muted-foreground hover:text-foreground"
-            )}
-          >
-            <LayoutGrid className="size-3.5" />
-            By KVK
-          </button>
-          <button
-            type="button"
-            onClick={() => setView("matrix")}
-            className={cn(
-              "flex items-center gap-1.5 rounded-[calc(var(--radius-md)-2px)] px-3 py-1.5 text-sm font-medium transition-colors",
-              view === "matrix"
-                ? "bg-primary text-primary-foreground"
-                : "text-muted-foreground hover:text-foreground"
-            )}
-          >
-            <Table2 className="size-3.5" />
-            Matrix
-          </button>
-        </div>
+        {isKvk ? (
+          <p className="text-sm font-medium text-foreground">By Form</p>
+        ) : (
+          <div className="flex items-center gap-1 rounded-md border border-border bg-muted/50 p-0.5">
+            <button
+              type="button"
+              onClick={() => setView("kvk")}
+              className={cn(
+                "flex items-center gap-1.5 rounded-[calc(var(--radius-md)-2px)] px-3 py-1.5 text-sm font-medium transition-colors",
+                view === "kvk"
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              <LayoutGrid className="size-3.5" />
+              By KVK
+            </button>
+            <button
+              type="button"
+              onClick={() => setView("matrix")}
+              className={cn(
+                "flex items-center gap-1.5 rounded-[calc(var(--radius-md)-2px)] px-3 py-1.5 text-sm font-medium transition-colors",
+                view === "matrix"
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              <Table2 className="size-3.5" />
+              Matrix
+            </button>
+          </div>
+        )}
         <div className="flex items-center gap-3">
           <FilterSelect label="Progress" options={["All"]} />
-          <Input placeholder="Filter KVKs..." className="w-64" />
+          <Input placeholder={isKvk ? "Filter forms..." : "Filter KVKs..."} className="w-64" />
         </div>
       </div>
 
@@ -94,7 +109,7 @@ export default function FormSummaryPage() {
             <tr className="border-b border-border bg-muted/50 text-left text-xs font-semibold tracking-wide text-muted-foreground uppercase">
               <th className="px-4 py-3">
                 <span className="flex items-center gap-1.5">
-                  KVK <Filter className="size-3" />
+                  {isKvk ? "Form" : "KVK"} <Filter className="size-3" />
                 </span>
               </th>
               <th className="px-4 py-3">Filled</th>
@@ -103,11 +118,26 @@ export default function FormSummaryPage() {
             </tr>
           </thead>
           <tbody>
-            <tr>
-              <td colSpan={4} className="px-4 py-16 text-center text-muted-foreground">
-                No KVKs yet.
-              </td>
-            </tr>
+            {isKvk ? (
+              FORM_MANAGEMENT.map((form) => (
+                <tr key={form.slug} className="border-b border-border last:border-0">
+                  <td className="px-4 py-3 text-foreground">{form.label}</td>
+                  <td className="px-4 py-3 text-muted-foreground">Not filled</td>
+                  <td className="px-4 py-3">
+                    <div className="h-2 w-32 overflow-hidden rounded-full bg-muted">
+                      <div className="h-full w-0 rounded-full bg-primary" />
+                    </div>
+                  </td>
+                  <td className="px-4 py-3 text-right text-muted-foreground">0%</td>
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td colSpan={4} className="px-4 py-16 text-center text-muted-foreground">
+                  No KVKs yet.
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>

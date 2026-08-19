@@ -13,7 +13,7 @@
  * ATARI AMS".
  */
 
-import { FORM_MANAGEMENT } from "./navigation";
+import { FORM_MANAGEMENT, flattenLeafPaths, type NavLeafPath } from "./navigation";
 import { KVK_MASTER_ROWS, STATE_MASTER_ROWS, ZONE_MASTER_ROWS } from "./masters";
 
 export type ReportFormOption = { slug: string; label: string };
@@ -23,6 +23,15 @@ export const REPORT_FORM_OPTIONS: ReportFormOption[] = FORM_MANAGEMENT.map((item
   slug: item.slug,
   label: item.label,
 }));
+
+/**
+ * Every individual form leaf across all of Form Management (e.g. "Employee
+ * Details" inside About KVK), not just the 6 top-level categories — lets a
+ * report be scoped to one particular sub-form, not only a whole category.
+ */
+export const REPORT_FORM_LEAVES: NavLeafPath[] = flattenLeafPaths(FORM_MANAGEMENT);
+
+export const ALL_FORM_PATHS = new Set(REPORT_FORM_LEAVES.map((leaf) => leaf.path));
 
 export type ReportStatus = "Submitted" | "Verified" | "Pending";
 

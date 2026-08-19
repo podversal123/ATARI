@@ -12,7 +12,7 @@ export default function ReportsPage() {
   return (
     <div>
       <PageHeader trail={[{ label: "Reports" }]} />
-      {session.role === "kvk-admin" ? (
+      {session.role !== "super-admin" ? (
         <KvkReportView kvkName={session.kvkName} />
       ) : (
         <SuperAdminReportView />

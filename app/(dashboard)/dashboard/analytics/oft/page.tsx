@@ -24,7 +24,7 @@ export default function OftDetailedAnalyticsPage() {
         Back to dashboard
       </Link>
 
-      <h1 className="text-2xl font-semibold text-primary">OFT — detailed analytics</h1>
+      <h1 className="text-3xl font-semibold text-primary">OFT — detailed analytics</h1>
       <p className="mt-1 text-sm text-muted-foreground">
         Filter by year, zone, state, district, institute and KVK
       </p>

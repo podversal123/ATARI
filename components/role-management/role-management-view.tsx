@@ -46,6 +46,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { BASE_ROLES, HIERARCHY_LEVELS, PERMISSIONS, type RoleDefinition } from "@/lib/rbac";
+import { useSession } from "@/lib/session";
 
 type Role = RoleDefinition & { id: string };
 
@@ -54,6 +55,10 @@ const ROLES: Role[] = BASE_ROLES.map((role) => ({
   ...role,
   id: role.name.toLowerCase().replace(/\s+/g, "_"),
 }));
+
+/** A KVK Admin only ever deals with their own two roles — the rest of the hierarchy is Super Admin's concern. */
+const KVK_VISIBLE_ROLE_NAMES = new Set(["KVK Admin", "KVK User"]);
+const KVK_ROLES: Role[] = ROLES.filter((role) => KVK_VISIBLE_ROLE_NAMES.has(role.name));
 
 type RoleFormState = {
   name: string;
@@ -70,6 +75,10 @@ const EMPTY_FORM: RoleFormState = { name: "", hierarchyLevel: "", description: "
  * as the rest of the app's list pages until the database step lands.
  */
 export function RoleManagementView() {
+  const session = useSession();
+  const isKvk = session.role !== "super-admin";
+  const roles = isKvk ? KVK_ROLES : ROLES;
+
   const [search, setSearch] = useState("");
 
   const [formOpen, setFormOpen] = useState(false);
@@ -83,9 +92,9 @@ export function RoleManagementView() {
 
   const filteredRoles = useMemo(() => {
     const query = search.trim().toLowerCase();
-    if (!query) return ROLES;
-    return ROLES.filter((role) => role.name.toLowerCase().includes(query));
-  }, [search]);
+    if (!query) return roles;
+    return roles.filter((role) => role.name.toLowerCase().includes(query));
+  }, [search, roles]);
 
   function openCreate() {
     setEditingRole(null);
@@ -132,10 +141,12 @@ export function RoleManagementView() {
             className="w-72 pl-8"
           />
         </div>
-        <Button size="sm" onClick={openCreate}>
-          <Plus className="size-3.5" />
-          Add Role
-        </Button>
+        {!isKvk && (
+          <Button size="sm" onClick={openCreate}>
+            <Plus className="size-3.5" />
+            Add Role
+          </Button>
+        )}
       </div>
 
       <Table>
@@ -143,13 +154,13 @@ export function RoleManagementView() {
           <TableRow className="bg-muted/50 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
             <TableHead className="w-16 px-4 py-3">S.No.</TableHead>
             <TableHead className="px-4 py-3">Name</TableHead>
-            <TableHead className="w-16 px-4 py-3 text-right">Actions</TableHead>
+            {!isKvk && <TableHead className="w-16 px-4 py-3 text-right">Actions</TableHead>}
           </TableRow>
         </TableHeader>
         <TableBody>
           {filteredRoles.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={3} className="px-4 py-16 text-center text-muted-foreground">
+              <TableCell colSpan={isKvk ? 2 : 3} className="px-4 py-16 text-center text-muted-foreground">
                 No roles found.
               </TableCell>
             </TableRow>
@@ -158,31 +169,33 @@ export function RoleManagementView() {
               <TableRow key={role.id}>
                 <TableCell className="px-4 py-4 text-muted-foreground">{index + 1}</TableCell>
                 <TableCell className="px-4 py-4 font-medium text-foreground">{role.name}</TableCell>
-                <TableCell className="px-4 py-4 text-right">
-                  <DropdownMenu>
-                    <DropdownMenuTrigger
-                      render={
-                        <Button variant="ghost" size="icon-sm">
-                          <MoreVertical className="size-4" />
-                        </Button>
-                      }
-                    />
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => openEdit(role)}>
-                        <Pencil className="size-3.5" />
-                        Edit Role
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => openPermissions(role)}>
-                        <ShieldCheck className="size-3.5" />
-                        Manage Permissions
-                      </DropdownMenuItem>
-                      <DropdownMenuItem variant="destructive" onClick={() => setDeleteRole(role)}>
-                        <Trash2 className="size-3.5" />
-                        Delete Role
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </TableCell>
+                {!isKvk && (
+                  <TableCell className="px-4 py-4 text-right">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger
+                        render={
+                          <Button variant="ghost" size="icon-sm">
+                            <MoreVertical className="size-4" />
+                          </Button>
+                        }
+                      />
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => openEdit(role)}>
+                          <Pencil className="size-3.5" />
+                          Edit Role
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => openPermissions(role)}>
+                          <ShieldCheck className="size-3.5" />
+                          Manage Permissions
+                        </DropdownMenuItem>
+                        <DropdownMenuItem variant="destructive" onClick={() => setDeleteRole(role)}>
+                          <Trash2 className="size-3.5" />
+                          Delete Role
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </TableCell>
+                )}
               </TableRow>
             ))
           )}

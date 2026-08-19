@@ -23,6 +23,8 @@ export type NavLeaf = {
   label: string;
   /** Columns for the list page this leaf renders, in display order. */
   columns: MasterColumn[];
+  /** Overrides `label` on the landing-page card only, for the confirmed real cases where a bare leaf's card title differs from its own page title (e.g. card "Technical Achievement" vs page "Technical Achievement Summary"). */
+  cardLabel?: string;
 };
 
 export type NavGroup = {
@@ -64,8 +66,13 @@ const GENERIC_MASTER_COLUMNS: MasterColumn[] = [
   { key: "name", label: "Name" },
 ];
 
-function leaf(slug: string, label: string, columns: MasterColumn[] = GENERIC_MASTER_COLUMNS): NavLeaf {
-  return { type: "leaf", slug, label, columns };
+function leaf(
+  slug: string,
+  label: string,
+  columns: MasterColumn[] = GENERIC_MASTER_COLUMNS,
+  cardLabel?: string
+): NavLeaf {
+  return { type: "leaf", slug, label, columns, cardLabel };
 }
 
 /**
@@ -80,7 +87,9 @@ export function landingCards(node: NavGroup): NavGroup[] {
   const hasSubGroup = node.children.some((child) => child.type === "group");
   if (!hasSubGroup) return [node];
   return node.children.map((child) =>
-    child.type === "group" ? child : { type: "group", slug: child.slug, label: child.label, children: [child] }
+    child.type === "group"
+      ? child
+      : { type: "group", slug: child.slug, label: child.cardLabel ?? child.label, children: [child] }
   );
 }
 
@@ -225,7 +234,12 @@ const oftFldMasters = group("oft-fld", "OFT & FLD Masters", [
   group("fld", "FLD Masters", [
     leaf("sector", "Sector Master"),
     leaf("fld-thematic-area", "FLD Thematic Area Master"),
-    leaf("category", "Category Master"),
+    /** Real columns confirmed live (atari-photo-zip/IMG-20260817-WA0121.jpg, WA0125.jpg). */
+    leaf("category", "Category Master", [
+      { key: "categoryName", label: "Category Name" },
+      { key: "sectorName", label: "Sector Name" },
+      { key: "subCategoriesCount", label: "Sub Categories Count" },
+    ]),
     leaf("sub-category", "Sub-category Master", [
       { key: "subCategoryName", label: "Sub Category Name" },
     ]),
@@ -381,6 +395,7 @@ const aboutKvk = group("about-kvk", "About KVK", [
     leaf("view-equipments", "Equipments", [
       { key: "kvk", label: "KVK" },
       { key: "equipmentName", label: "Equipment Name" },
+      { key: "companyBrandModel", label: "Company / Brand / Model" },
       { key: "yearOfPurchase", label: "Year of Purchase" },
       { key: "cost", label: "Cost" },
       { key: "sourceOfFunding", label: "Source of Funding" },
@@ -409,21 +424,47 @@ const aboutKvk = group("about-kvk", "About KVK", [
  * its structure is unconfirmed but presumed parallel to FLD's.
  */
 const achievements = group("achievements", "Achievements", [
-  leaf("technical-achievement", "Technical Achievement Summary"),
-  leaf("oft", "On Farm Trials (OFT)"),
-  /** Real group + leaf names confirmed via a client reference screenshot of the Form Summary KVK breakdown (localhost:5173, current reference build). */
+  leaf("technical-achievement", "Technical Achievement Summary", GENERIC_MASTER_COLUMNS, "Technical Achievement"),
+  /** Real columns confirmed live (atari-photo-zip/IMG-20260817-WA0069.jpg). */
+  leaf(
+    "oft",
+    "OFT",
+    [
+      { key: "reportingYear", label: "Reporting Year" },
+      { key: "kvk", label: "KVK" },
+      { key: "staff", label: "Staff" },
+      { key: "trialOnForm", label: "Trial on Form" },
+      { key: "problemDiagnosed", label: "Problem Diagnosed" },
+    ],
+    "On Farm Trial"
+  ),
+  /**
+   * Real group + leaf names confirmed via a client reference screenshot of the Form Summary KVK breakdown (localhost:5173, current reference build), with leaf labels and columns re-confirmed via the full-text walkthrough (atari-photo-zip/IMG-20260817-WA0257.jpg, WA0077.jpg).
+   */
   group("front-line-demonstration", "Front Line Demonstrations (FLD)", [
-    leaf("view-fld", "Front Line Demonstrations (FLD)"),
-    leaf("fld-extension-training", "Extension & Training under FLD"),
-    leaf("fld-technical-feedback", "Technical Feedback on FLD"),
+    leaf("view-fld", "View FLD", [
+      { key: "reportingYear", label: "Reporting Year" },
+      { key: "kvk", label: "KVK" },
+      { key: "category", label: "Category" },
+      { key: "subCategory", label: "Sub Category" },
+      { key: "technologyDemonstrated", label: "Name of Technology Demonstrated" },
+    ]),
+    leaf("fld-extension-training", "Extension and Training Activities under FLD"),
+    leaf("fld-technical-feedback", "Technical Feedback on the Demonstrated Technology"),
   ]),
-  leaf("trainings", "Trainings", [
-    { key: "reportingYear", label: "Reporting Year" },
-    { key: "kvk", label: "KVK" },
-    { key: "startEndDate", label: "Start-End Date" },
-    { key: "program", label: "Program" },
-    { key: "title", label: "Title" },
-  ]),
+  leaf(
+    "trainings",
+    "Trainings",
+    [
+      { key: "reportingYear", label: "Reporting Year" },
+      { key: "kvk", label: "KVK" },
+      { key: "startDate", label: "Start Date" },
+      { key: "endDate", label: "End Date" },
+      { key: "program", label: "Program" },
+      { key: "title", label: "Title" },
+    ],
+    "Training"
+  ),
   /** Real columns confirmed live at /forms/achievements/extension-activities (atari-photo-zip/IMG-20260817-WA0027.jpg). */
   group("extension", "Extension", [
     leaf("extension-activities", "Extension Activities", [
@@ -445,17 +486,58 @@ const achievements = group("achievements", "Achievements", [
       { key: "noOfActivities", label: "No of Activities" },
     ]),
     leaf("world-soil-day", "World Soil Day"),
-    leaf("poshan-maaha", "Poshan Maaha"),
+    /** Real columns confirmed live (atari-photo-zip/IMG-20260817-WA0093.jpg). */
+    leaf("poshan-maaha", "Poshan Maaha", [
+      { key: "kvk", label: "KVK" },
+      { key: "activityDate", label: "Activity Date" },
+      { key: "activitiesConducted", label: "Activities Conducted" },
+      { key: "eventName", label: "Event Name" },
+      { key: "saplingsPlanted", label: "Saplings Planted" },
+      { key: "vegetableKits", label: "Vegetable Kits" },
+    ]),
   ]),
   leaf("production-supply", "Production & Supply of Technological Products"),
-  leaf("soil-water-testing", "Soil, Water and Plant Analysis"),
-  /** Never scrolled into view in any captured source — unconfirmed, kept generic rather than guessed. */
-  leaf("publications", "Publications"),
-  leaf("hrd", "Human Resource Development"),
+  /** Real page title confirmed live (atari-photo-zip/IMG-20260817-WA0177.jpg). */
+  leaf("soil-water-testing", "Detail of Soil, Water and Plant Analysis"),
+  /** Real page title + columns confirmed live (atari-photo-zip/IMG-20260817-WA0181.jpg). */
+  leaf("publications", "KVKs Publication Details", [
+    { key: "kvk", label: "KVK" },
+    { key: "publicationYear", label: "Publication Year" },
+    { key: "publicationItem", label: "Publication Item" },
+    { key: "title", label: "Title" },
+    { key: "authorName", label: "Author Name" },
+  ]),
+  leaf("hrd", "Human Resources Development"),
+  /**
+   * Award and Recognition's real edit form has 5-6 fields including a
+   * dynamic staff-lookup dropdown (atari-photo-zip WA0185/WA0189), but the
+   * exact field list wasn't captured — this is the reasonable shape given
+   * what an award record needs (name, awarding body, year, recipient),
+   * not a confirmed transcription. "Recipient" reuses the real KVK list for
+   * the KVK tab; a true staff-lookup for Scientist needs a real employee
+   * dataset this app doesn't have yet, so it stays a plain text field.
+   */
   group("awards", "Award and Recognition", [
-    leaf("kvk", "KVK"),
-    leaf("scientist", "Scientist"),
-    leaf("farmer", "Farmer"),
+    leaf("kvk", "KVK", [
+      { key: "awardName", label: "Award Name" },
+      { key: "awardingBody", label: "Awarding Body" },
+      { key: "year", label: "Year" },
+      { key: "kvk", label: "KVK" },
+    ]),
+    leaf("scientist", "Scientist", [
+      { key: "awardName", label: "Award Name" },
+      { key: "awardingBody", label: "Awarding Body" },
+      { key: "year", label: "Year" },
+      { key: "scientistName", label: "Scientist Name" },
+      { key: "kvk", label: "KVK" },
+    ]),
+    leaf("farmer", "Farmer", [
+      { key: "awardName", label: "Award Name" },
+      { key: "awardingBody", label: "Awarding Body" },
+      { key: "year", label: "Year" },
+      { key: "farmerName", label: "Farmer Name" },
+      { key: "kvk", label: "KVK" },
+    ]),
   ]),
   /**
    * Real location confirmed via atari-photo-zip/IMG-20260817-WA0030.jpg: reached
@@ -465,15 +547,15 @@ const achievements = group("achievements", "Achievements", [
    * abhiyaan/sewa), an apparent routing quirk in the reference app itself.
    */
   group("swachhta-bharat-abhiyaan", "Swachhta Bharat Abhiyaan", [
-    leaf("sewa", "Swachhta hi Sewa", [
+    leaf("sewa", "Observation of Swachhta hi Sewa (SBA)", [
       { key: "kvk", label: "KVK" },
       { key: "dateDurationOfObservation", label: "Date Duration of Observation" },
       { key: "totalNoOfActivitiesUndertaken", label: "Total No of Activities Undertaken" },
       { key: "noOfStaffs", label: "No of Staffs" },
       { key: "noOfFarmers", label: "No of Farmers" },
     ]),
-    leaf("pakhwada", "Swachta Pakhwada"),
-    leaf("budget-expenditure", "Budget expenditure"),
+    leaf("pakhwada", "Observation of Swachta Pakhwada"),
+    leaf("budget-expenditure", "Details of Quarterly Budget Expenditure on Swachhta"),
   ]),
 ]);
 
@@ -539,13 +621,272 @@ const projects = group("projects", "Projects", [
   group("fpo-cbbo", "FPO and CBBO", [leaf("fpo-cbbo", "FPO and CBBO")]),
 ], { description: "Manage project details, technical parameters, extension activities, and budget utilization" });
 
+/**
+ * Form Management -> Performance Indicators. All 20 leaves' real columns
+ * confirmed live via the client's Form Management screenshot walkthrough
+ * (2026-08-20) — real sample rows seen for Village Adoption Programme (KVK
+ * Darbhanga), Operational Area Details (KVK East Champaran), District Level
+ * Data (KVK Patna/Ramgarh), Project-wise Budget / Revenue Generation (Krishi
+ * Vigyan Kendra Dumka), Resource Generation (KVK Munger), Special Programmes
+ * (KVK Godda).
+ */
+const performanceIndicators = group("performance", "Performance Indicators", [
+  group("impact", "Impact", [
+    leaf("impact-of-kvk-activities", "Impact of KVK Activities", [
+      { key: "kvk", label: "KVK Name" },
+      { key: "specificArea", label: "Name of Specific Area" },
+      { key: "briefDetails", label: "Brief Details of the Area" },
+      { key: "farmersBenefitted", label: "No. of Farmers Benefitted" },
+      { key: "horizontalSpread", label: "Horizontal Spread (in area/no.)" },
+      { key: "adoptionPercent", label: "% of Adoption" },
+    ]),
+    leaf("entrepreneurship-details", "Details of Entrepreneurship", [
+      { key: "kvk", label: "KVK Name" },
+      { key: "entrepreneurOrEnterprise", label: "Name of the Entrepreneur / Enterprise / Firm" },
+      { key: "enterpriseType", label: "Type of Enterprise" },
+      { key: "membersAssociated", label: "No of Members Associated" },
+      { key: "annualIncome", label: "Annual Income/Revenue of the Enterprise" },
+    ]),
+    leaf("success-stories", "Success Stories", [
+      { key: "kvk", label: "KVK Name" },
+      { key: "farmerOrEntrepreneur", label: "Name of the Farmer/Entrepreneur" },
+      { key: "experience", label: "Farming/Enterprise Experience" },
+      { key: "majorAchievement", label: "Major Achievement of the Farmers" },
+      { key: "storyTitle", label: "Title of the Success Story" },
+    ]),
+  ]),
+  group("district-village-performance", "District and Village Performance", [
+    leaf("district-level-data", "District Level Data", [
+      { key: "kvk", label: "KVK" },
+      { key: "reportingYear", label: "Reporting Year" },
+      { key: "items", label: "Items" },
+      { key: "information", label: "Information" },
+    ]),
+    leaf("operational-area-details", "Operational Area Details", [
+      { key: "kvk", label: "KVK" },
+      { key: "reportingYear", label: "Reporting Year" },
+      { key: "taluk", label: "Taluk" },
+      { key: "block", label: "Block" },
+      { key: "village", label: "Village" },
+      { key: "majorCrops", label: "Major Crops" },
+      { key: "majorProblems", label: "Major Problems Identified (crop-wise)" },
+      { key: "thrustAreas", label: "Identified Thrust Areas" },
+    ]),
+    leaf("village-adoption-programme", "Village Adoption Programme", [
+      { key: "kvk", label: "KVK" },
+      { key: "reportingYear", label: "Reporting Year" },
+      { key: "village", label: "Village" },
+      { key: "block", label: "Block" },
+      { key: "actionTaken", label: "Action Taken for Development" },
+    ]),
+    leaf("priority-thrust-area", "Priority Thrust Area", [
+      { key: "kvk", label: "KVK" },
+      { key: "reportingYear", label: "Reporting Year" },
+      { key: "thrustArea", label: "Thrust Area" },
+    ]),
+  ]),
+  group("infrastructure-performance", "Infrastructure Performance", [
+    leaf("demonstration-units", "Demonstration Units", [
+      { key: "kvk", label: "KVK Name" },
+      { key: "demoUnitName", label: "Name of Demo Unit" },
+      { key: "yearOfEstt", label: "Year of Estt." },
+      { key: "areaSqMt", label: "Area (Sq. mt)" },
+    ]),
+    leaf("instructional-farm-crops", "Instructional Farm - Crops", [
+      { key: "kvk", label: "KVK Name" },
+      { key: "cropName", label: "Name of the Crop" },
+      { key: "areaHa", label: "Area (ha)" },
+    ]),
+    leaf("production-units", "Production Units", [
+      { key: "kvk", label: "KVK Name" },
+      { key: "productName", label: "Name of the Product" },
+      { key: "qty", label: "Qty" },
+    ]),
+    leaf("instructional-farm-livestock", "Instructional Farm - Livestock", [
+      { key: "kvk", label: "KVK Name" },
+      { key: "animalName", label: "Name of the Animal/Bird/Aquatics" },
+      { key: "speciesBreed", label: "Species / Breed / Variety" },
+      { key: "produceType", label: "Type of Produce" },
+    ]),
+    leaf("hostel-utilization", "Hostel Utilization", [
+      { key: "kvk", label: "KVK Name" },
+      { key: "months", label: "Months" },
+      { key: "traineesStayed", label: "No. of Trainees Stayed" },
+      { key: "traineeDays", label: "Trainee Days (Days Stayed)" },
+    ]),
+    leaf("staff-quarters-performance", "Staff Quarters", [
+      { key: "kvk", label: "KVK Name" },
+      { key: "noOfStaffQuarters", label: "No. of Staff Quarters" },
+      { key: "dateOfCompletion", label: "Date of Completion" },
+      { key: "remark", label: "Remark" },
+    ]),
+    leaf("rain-water-harvesting", "Rain Water Harvesting", [
+      { key: "kvk", label: "KVK Name" },
+      { key: "trainingProgrammes", label: "No of Training Programme Conducted" },
+      { key: "demonstrations", label: "No. of Demonstrations" },
+      { key: "plantMaterialProduced", label: "No. of Plant Material Produced" },
+      { key: "farmerVisits", label: "Visit by the Farmers (No.)" },
+      { key: "officialVisits", label: "Visit by the Officials (No.)" },
+    ]),
+  ]),
+  group("financial-performance", "Financial Performance", [
+    leaf("budget-details", "Budget Details", [
+      { key: "kvk", label: "KVK" },
+      { key: "salaryAllocation", label: "Salary Allocation" },
+      { key: "salaryExpenditure", label: "Salary Expenditure" },
+      { key: "generalGrantAllocation", label: "General Main Grant Allocation" },
+      { key: "generalGrantExpenditure", label: "General Main Grant Expenditure" },
+      { key: "capitalGrantAllocation", label: "Capital Main Grant Allocation" },
+      { key: "capitalGrantExpenditure", label: "Capital Main Grant Expenditure" },
+    ]),
+    leaf("project-wise-budget-performance", "Project-wise Budget", [
+      { key: "kvk", label: "KVK" },
+      { key: "projectName", label: "Project Name" },
+      { key: "fundingAgency", label: "Funding Agency" },
+      { key: "budgetEstimate", label: "Budget Estimate" },
+      { key: "budgetAllocated", label: "Budget Allocated" },
+      { key: "budgetReleased", label: "Budget Released" },
+      { key: "expenditure", label: "Expenditure" },
+      { key: "unspentBalance", label: "Unspent Balance" },
+    ]),
+    leaf("revolving-fund", "Revolving Fund", [
+      { key: "kvk", label: "KVK" },
+      { key: "reportingYear", label: "Reporting Year" },
+      { key: "openingBalance", label: "Opening Balance as on 1st April" },
+      { key: "incomeDuringYear", label: "Income During the Year" },
+      { key: "expenditureDuringYear", label: "Expenditure During the Year" },
+      { key: "closing", label: "Closing" },
+      { key: "kind", label: "Kind" },
+    ]),
+    leaf("revenue-generation", "Revenue Generation", [
+      { key: "kvk", label: "KVK" },
+      { key: "headName", label: "Name of Head" },
+      { key: "income", label: "Income (Rs.)" },
+      { key: "sponsoringAgency", label: "Sponsoring Agency" },
+    ]),
+    leaf("resource-generation", "Resource Generation", [
+      { key: "kvk", label: "KVK" },
+      { key: "programmeName", label: "Name of the Programme" },
+      { key: "purpose", label: "Purpose of the Programme" },
+      { key: "sourcesOfFund", label: "Sources of Fund" },
+      { key: "amountLakhs", label: "Amount (Rs. Lakhs)" },
+    ]),
+  ]),
+  group("linkages", "Linkages", [
+    leaf("functional-linkage", "Functional Linkage", [
+      { key: "kvk", label: "KVK Name" },
+      { key: "organizationName", label: "Name of Organization" },
+      { key: "natureOfLinkage", label: "Nature of Linkage" },
+    ]),
+    leaf("special-programmes", "Special Programmes", [
+      { key: "kvk", label: "KVK Name" },
+      { key: "programmeType", label: "Programme Type" },
+      { key: "programmeName", label: "Name of the Programme/Scheme" },
+      { key: "initiationDate", label: "Date/Month of Initiation" },
+    ]),
+  ]),
+], { description: "Manage impact, district/village, infrastructure, financial, and linkage performance data" });
+
+/** Form Management -> Meetings. Real columns confirmed live via the client's Form Management screenshot walkthrough (2026-08-20) — real rows seen for Other Meetings, KVK Latehar. */
+const meetings = group("meetings", "Meetings", [
+  leaf("sac-meetings", "SAC Meetings", [
+    { key: "kvk", label: "KVK Name" },
+    { key: "startDate", label: "Start Date" },
+    { key: "endDate", label: "End Date" },
+    { key: "participants", label: "No of Participants" },
+    { key: "statutoryMembers", label: "Total Statutory Members Present (State Line Department)" },
+    { key: "recommendations", label: "Salient Recommendations" },
+  ]),
+  leaf("other-meetings", "Other Meetings related to ATARI", [
+    { key: "kvk", label: "KVK Name" },
+    { key: "date", label: "Date" },
+    { key: "meetingType", label: "Type of Meeting" },
+    { key: "agenda", label: "Agenda" },
+    { key: "remarks", label: "Remarks" },
+  ]),
+]);
+
+/**
+ * Form Management -> Miscellaneous. Real columns confirmed live via the
+ * client's Form Management screenshot walkthrough (2026-08-20) — real rows
+ * seen for RAWE/FET/FIT Programme (KVK Gumla, KVK Rohtas) and List of VIP
+ * Visitors (KVK Nalanda). PPV & FRA Sensitization turned out to be 2
+ * distinct real forms (Training Programme + Farmer Details), not one —
+ * corrected from the earlier single-leaf guess.
+ */
+const miscellaneous = group("miscellaneous", "Miscellaneous", [
+  leaf("prevalent-diseases-crops", "Prevalent Diseases in Crops", [
+    { key: "kvk", label: "KVK Name" },
+    { key: "diseaseName", label: "Name of the Disease" },
+    { key: "crop", label: "Crop" },
+    { key: "outbreakDate", label: "Date of Outbreak" },
+    { key: "areaAffected", label: "Area Affected (in ha)" },
+    { key: "commodityLossPercent", label: "% Commodity Loss" },
+    { key: "preventiveMeasures", label: "Preventive Measures Taken for Area (in ha)" },
+  ]),
+  leaf("prevalent-diseases-livestock", "Prevalent Diseases in Livestock", [
+    { key: "kvk", label: "KVK Name" },
+    { key: "diseaseName", label: "Name of the Disease" },
+    { key: "speciesAffected", label: "Species Affected" },
+    { key: "outbreakDate", label: "Date of Outbreak" },
+    { key: "mortalityMorbidity", label: "Number of Death/Morbidity Rate (%)" },
+    { key: "animalsVaccinated", label: "Number of Animals Vaccinated" },
+    { key: "preventiveMeasures", label: "Preventive Measures Taken for Area (in ha)" },
+  ]),
+  leaf("nyk-training", "NYK Training", [
+    { key: "kvk", label: "KVK Name" },
+    { key: "programmeTitle", label: "Title of the Training Programme" },
+    { key: "startDate", label: "Start Date" },
+    { key: "endDate", label: "End Date" },
+    { key: "male", label: "Male" },
+    { key: "female", label: "Female" },
+    { key: "fundReceived", label: "Amount of Fund Received (Rs)" },
+  ]),
+  group("ppv-fra-sensitization", "PPV & FRA Sensitization", [
+    leaf("ppv-fra-training-programme", "PPV & FRA Sensitization Training Programme", [
+      { key: "kvk", label: "KVK Name" },
+      { key: "date", label: "Date" },
+      { key: "title", label: "Title" },
+      { key: "type", label: "Type" },
+      { key: "venue", label: "Venue" },
+      { key: "resourcePerson", label: "Resource Person" },
+      { key: "participants", label: "No. of Participants" },
+    ]),
+    leaf("ppv-fra-farmer-details", "PPV & FRA Sensitization Farmer Details", [
+      { key: "kvk", label: "KVK Name" },
+      { key: "year", label: "Year" },
+      { key: "crop", label: "Crop" },
+      { key: "registrationNo", label: "Registration No." },
+      { key: "farmerName", label: "Farmer Name" },
+      { key: "block", label: "Block" },
+      { key: "district", label: "District" },
+    ]),
+  ]),
+  leaf("rawe-fet-fit-programme", "RAWE/FET/FIT Programme", [
+    { key: "startDate", label: "Start Date" },
+    { key: "endDate", label: "End Date" },
+    { key: "kvk", label: "KVK" },
+    { key: "attachmentType", label: "Attachment Type" },
+    { key: "attachment", label: "Attachment" },
+    { key: "numberOfStudents", label: "Number of Student" },
+    { key: "daysStayed", label: "No of Days Stayed" },
+  ]),
+  leaf("vip-visitors", "List of VIP Visitors", [
+    { key: "kvk", label: "KVK" },
+    { key: "visitDate", label: "Date of Visit" },
+    { key: "dignitaryType", label: "Type of Dignitaries" },
+    { key: "ministerName", label: "Name of Hon'ble Minister" },
+    { key: "observations", label: "Salient Points in His/Her Observation" },
+  ]),
+]);
+
 export const FORM_MANAGEMENT: NavItem[] = [
   aboutKvk,
   achievements,
   projects,
-  leaf("performance", "Performance Indicators"),
-  leaf("meetings", "Meetings"),
-  leaf("miscellaneous", "Miscellaneous"),
+  performanceIndicators,
+  meetings,
+  miscellaneous,
 ];
 
 export const SIDEBAR: SidebarSection[] = [
@@ -584,6 +925,20 @@ export type SearchResult = {
   /** Breadcrumb-style path shown under the label, e.g. "All Masters / Basic Masters". */
   section: string;
 };
+
+export type NavLeafPath = { path: string; label: string; groupLabel: string };
+
+/** Every leaf under a tree, with its full slug path and its top-level group label — used by the Reports "Select Form" checklist to let a user pick a specific sub-item (e.g. just "Employee Details" inside About KVK) rather than only whole top-level categories. */
+export function flattenLeafPaths(items: NavItem[], basePath = "", groupLabel = ""): NavLeafPath[] {
+  return items.flatMap((item) => {
+    const path = basePath ? `${basePath}/${item.slug}` : item.slug;
+    const currentGroupLabel = groupLabel || item.label;
+    if (item.type === "leaf") {
+      return [{ path, label: item.label, groupLabel: currentGroupLabel }];
+    }
+    return flattenLeafPaths(item.children, path, currentGroupLabel);
+  });
+}
 
 function flattenNavTree(items: NavItem[], basePath: string, section: string): SearchResult[] {
   return items.flatMap((item) => {

@@ -16,14 +16,36 @@ import {
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { ColumnFilterMenu, type ColumnFilterState } from "./column-filter-menu";
 import type { MasterColumn } from "@/lib/navigation";
+import { REPORT_ZONE_OPTIONS, hostOrgsForState, statesForZone } from "@/lib/reports";
+import { CfldTechnicalParameterDialog } from "./cfld-technical-parameter-dialog";
+import { EventDemographicDialog } from "./event-demographic-dialog";
 
 export type MasterTab = { label: string; href: string; active: boolean };
 
@@ -39,6 +61,17 @@ type EmptyDataTableProps = {
   rows?: Record<string, ReactNode>[];
   /** Real total row count for the pagination footer, when it differs from `rows.length` (a partial first page). */
   totalCount?: number;
+  /**
+   * Real cascading-dropdown behaviour confirmed for a couple of Basic
+   * Masters' Add New forms (District Master, KVK Master both cascade
+   * Zone -> State -> ... in the reference) — turns the matching columns
+   * (zoneName/stateName/hostOrg) into dependent selects reusing the same
+   * Zone/State/Host-Org data Reports already draws from, instead of the
+   * generic plain-text field every other leaf gets.
+   */
+  cascadeType?: "district" | "kvk";
+  /** When set, Add New/Edit open a bespoke dialog instead of the generic per-column form — for the handful of leaves whose real Add/Edit shape genuinely isn't a flat field list (CFLD's 4-tab wizard, and the event forms carrying the recurring demographic-breakdown block). */
+  customForm?: "cfld-technical-parameter" | "event-demographic";
 };
 
 /**
@@ -57,6 +90,8 @@ type EmptyDataTableProps = {
  * "Add New", row actions, and the per-column filter icon are presentational
  * until the database step lands.
  */
+const CASCADE_KEYS = new Set(["zoneName", "stateName", "hostOrg"]);
+
 export function EmptyDataTable({
   title,
   columns,
@@ -64,11 +99,22 @@ export function EmptyDataTable({
   tabs,
   rows,
   totalCount,
+  cascadeType,
+  customForm,
 }: EmptyDataTableProps) {
   const [search, setSearch] = useState("");
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
   const [columnFilters, setColumnFilters] = useState<Record<string, ColumnFilterState>>({});
+
+  const [formOpen, setFormOpen] = useState(false);
+  const [editingRow, setEditingRow] = useState<Record<string, ReactNode> | null>(null);
+  const [formValues, setFormValues] = useState<Record<string, string>>({});
+  const [markAsOther, setMarkAsOther] = useState(false);
+  const [deleteRow, setDeleteRow] = useState<Record<string, ReactNode> | null>(null);
+
+  /** Real confirmed pattern for every "simple" single-Name master (Subject, Funding Source, Asset Funding Source, NARI Nutrition Garden Type, Pay Scale, TSP/SCSP Activity, and every other single-column master sharing this exact shape): the real Create form is one Name field plus a "Mark as 'Other' option" checkbox. */
+  const isSimpleMaster = columns.length === 1 && columns[0].key === "name";
 
   const hasActiveDates = fromDate !== "" || toDate !== "";
   const hasActiveColumnFilters = Object.values(columnFilters).some(
@@ -87,6 +133,42 @@ export function EmptyDataTable({
     setToDate("");
     setColumnFilters({});
   }
+
+  /**
+   * Add/Edit form is generated from `columns` — one text field per confirmed
+   * field name, since this phase has no backend to persist to and the real
+   * input widget for each field (select vs text vs date, which are
+   * required) isn't confirmed per-leaf across all ~40 Form Management
+   * pages. Matches the rest of this app's Phase 1 convention: a real,
+   * working dialog that doesn't invent field types it can't confirm.
+   */
+  function openAdd() {
+    setEditingRow(null);
+    setFormValues({});
+    setMarkAsOther(false);
+    setFormOpen(true);
+  }
+
+  function openEdit(row: Record<string, ReactNode>) {
+    const values: Record<string, string> = {};
+    for (const column of columns) {
+      const value = row[column.key];
+      values[column.key] = typeof value === "string" || typeof value === "number" ? String(value) : "";
+    }
+    setEditingRow(row);
+    setFormValues(values);
+    setMarkAsOther(false);
+    setFormOpen(true);
+  }
+
+  function submitForm() {
+    setFormOpen(false);
+  }
+
+  const deleteRowLabel =
+    deleteRow && columns[0] && typeof deleteRow[columns[0].key] === "string"
+      ? (deleteRow[columns[0].key] as string)
+      : "this record";
 
   /** Distinct values (with counts) for a column, sourced from the real rows passed in — matches the reference's per-column "Unique Values" checklist. */
   function columnValues(key: string): { value: string; count: number }[] {
@@ -126,7 +208,7 @@ export function EmptyDataTable({
   return (
     <div>
       {tabs && tabs.length > 1 && (
-        <div className="mb-4 flex flex-wrap gap-1 rounded-lg bg-primary p-1">
+        <div className="mb-4 inline-flex flex-wrap gap-1 rounded-lg bg-primary p-1">
           {tabs.map((tab) => (
             <Link
               key={tab.href}
@@ -163,7 +245,7 @@ export function EmptyDataTable({
               <FileType className="size-3.5" />
               Word
             </Button>
-            <Button size="sm">
+            <Button size="sm" onClick={openAdd}>
               <Plus className="size-3.5" />
               Add New
             </Button>
@@ -251,11 +333,11 @@ export function EmptyDataTable({
                           }
                         />
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => openEdit(row)}>
                             <Pencil className="size-3.5" />
                             Edit
                           </DropdownMenuItem>
-                          <DropdownMenuItem variant="destructive">
+                          <DropdownMenuItem variant="destructive" onClick={() => setDeleteRow(row)}>
                             <Trash2 className="size-3.5" />
                             Delete
                           </DropdownMenuItem>
@@ -283,6 +365,117 @@ export function EmptyDataTable({
           </div>
         </div>
       </div>
+
+      {/* Add / Edit */}
+      {customForm === "cfld-technical-parameter" ? (
+        <CfldTechnicalParameterDialog open={formOpen} onOpenChange={setFormOpen} editingRow={editingRow} />
+      ) : customForm === "event-demographic" ? (
+        <EventDemographicDialog title={title} open={formOpen} onOpenChange={setFormOpen} editingRow={editingRow} />
+      ) : (
+      <Dialog open={formOpen} onOpenChange={setFormOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {editingRow ? `Edit ${title}` : `Add ${title}`}
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="max-h-[60vh] space-y-4 overflow-y-auto">
+            {columns.map((column) => {
+              const isCascading = cascadeType && CASCADE_KEYS.has(column.key);
+              const isHostOrgField = cascadeType === "kvk" && column.key === "hostOrg";
+              const isStateField = column.key === "stateName";
+
+              if (isCascading) {
+                const options =
+                  column.key === "zoneName"
+                    ? REPORT_ZONE_OPTIONS
+                    : isStateField
+                      ? statesForZone(formValues.zoneName ?? "")
+                      : isHostOrgField
+                        ? hostOrgsForState(formValues.stateName ?? "")
+                        : [];
+                const disabled =
+                  (isStateField && !formValues.zoneName) ||
+                  (isHostOrgField && !formValues.stateName);
+
+                return (
+                  <div key={column.key} className="space-y-1.5">
+                    <Label htmlFor={`field-${column.key}`}>{column.label}</Label>
+                    <select
+                      id={`field-${column.key}`}
+                      value={formValues[column.key] ?? ""}
+                      disabled={disabled}
+                      onChange={(event) =>
+                        setFormValues((prev) => ({
+                          ...prev,
+                          [column.key]: event.target.value,
+                          ...(column.key === "zoneName" ? { stateName: "", hostOrg: "" } : {}),
+                          ...(isStateField ? { hostOrg: "" } : {}),
+                        }))
+                      }
+                      className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      <option value="" disabled>
+                        {disabled ? `Select ${column.key === "stateName" ? "a zone" : "a state"} first` : `Select ${column.label}`}
+                      </option>
+                      {options.map((option) => (
+                        <option key={option} value={option}>
+                          {option}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                );
+              }
+
+              return (
+                <div key={column.key} className="space-y-1.5">
+                  <Label htmlFor={`field-${column.key}`}>{column.label}</Label>
+                  <Input
+                    id={`field-${column.key}`}
+                    value={formValues[column.key] ?? ""}
+                    onChange={(event) =>
+                      setFormValues((prev) => ({ ...prev, [column.key]: event.target.value }))
+                    }
+                  />
+                </div>
+              );
+            })}
+
+            {isSimpleMaster && (
+              <label className="flex items-center gap-2 text-sm text-foreground">
+                <Checkbox checked={markAsOther} onCheckedChange={(checked) => setMarkAsOther(checked === true)} />
+                Mark as &quot;Other&quot; option
+              </label>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setFormOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={submitForm}>{editingRow ? "Save Changes" : "Add"}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      )}
+
+      {/* Delete confirm */}
+      <AlertDialog open={deleteRow !== null} onOpenChange={(open) => !open && setDeleteRow(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete “{deleteRowLabel}”?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This removes the record. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => setDeleteRow(null)}>Delete</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
