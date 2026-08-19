@@ -86,7 +86,7 @@ export function SelectFormDropdown({ selected, onChange }: SelectFormDropdownPro
           </button>
         }
       />
-      <DropdownMenuContent align="start" className="max-h-96 w-80 min-w-0 overflow-y-auto">
+      <DropdownMenuContent align="start" className="w-80 min-w-0 overflow-y-auto">
         <DropdownMenuCheckboxItem checked={allSelected} onCheckedChange={toggleAll}>
           Select All Forms
         </DropdownMenuCheckboxItem>
