@@ -411,16 +411,11 @@ const aboutKvk = group("about-kvk", "About KVK", [
 const achievements = group("achievements", "Achievements", [
   leaf("technical-achievement", "Technical Achievement Summary"),
   leaf("oft", "On Farm Trials (OFT)"),
-  /**
-   * Real page is a group of 3 leaves, confirmed via video-frames-2/frame_0859.png
-   * and frame_0864.png (Achievements landing page). The 3rd leaf's full title was
-   * truncated in every captured frame ("Technical Feedback on the demonstrated
-   * tech…") — kept as the visible fragment rather than guessing the rest.
-   */
-  group("front-line-demonstration", "Front Line Demonstration", [
-    leaf("view-fld", "View FLD"),
-    leaf("fld-extension-training", "Extension and Training activities under FLD"),
-    leaf("fld-technical-feedback", "Technical Feedback on the demonstrated tech…"),
+  /** Real group + leaf names confirmed via a client reference screenshot of the Form Summary KVK breakdown (localhost:5173, current reference build). */
+  group("front-line-demonstration", "Front Line Demonstrations (FLD)", [
+    leaf("view-fld", "Front Line Demonstrations (FLD)"),
+    leaf("fld-extension-training", "Extension & Training under FLD"),
+    leaf("fld-technical-feedback", "Technical Feedback on FLD"),
   ]),
   leaf("trainings", "Trainings", [
     { key: "reportingYear", label: "Reporting Year" },
@@ -443,20 +438,20 @@ const achievements = group("achievements", "Achievements", [
   ]),
   group("special-days", "Special Days", [
     leaf("technology-week-celebration", "Technology Week Celebration"),
-    leaf("celebration-days", "Celebration of important days", [
+    leaf("celebration-days", "Celebration Days", [
       { key: "kvk", label: "KVK" },
       { key: "importantDay", label: "Important Day" },
       { key: "eventDate", label: "Event Date" },
       { key: "noOfActivities", label: "No of Activities" },
     ]),
-    leaf("world-soil-day", "Details of World Soil Day Celebration"),
+    leaf("world-soil-day", "World Soil Day"),
     leaf("poshan-maaha", "Poshan Maaha"),
   ]),
-  leaf("production-supply", "Production and supply of Technological products"),
-  leaf("soil-water-testing", "Detail of Soil, Water and Plant analysis"),
+  leaf("production-supply", "Production & Supply of Technological Products"),
+  leaf("soil-water-testing", "Soil, Water and Plant Analysis"),
   /** Never scrolled into view in any captured source — unconfirmed, kept generic rather than guessed. */
   leaf("publications", "Publications"),
-  leaf("hrd", "Human Resources Development"),
+  leaf("hrd", "Human Resource Development"),
   group("awards", "Award and Recognition", [
     leaf("kvk", "KVK"),
     leaf("scientist", "Scientist"),

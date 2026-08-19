@@ -8,15 +8,19 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { clearSession, useSession } from "@/lib/session";
 
 /**
  * Fixed top bar shown above every dashboard page: zone title on the left,
- * notifications + current user on the right. The signed-in user shown here
- * is a placeholder until auth (Step 2 of the build) is wired up — "Logout"
- * just sends you back to /login rather than clearing a real session.
+ * notifications + current user on the right. The signed-in identity comes
+ * from the mock session set at login (lib/session.ts) — real auth (Phase
+ * 2/3) replaces that mock with an actual authenticated user, but the shape
+ * (role decided once, at login) doesn't change.
  */
 export function Topbar() {
   const router = useRouter();
+  const session = useSession();
+  const isKvk = session.role === "kvk-admin";
 
   return (
     <header className="flex h-16 shrink-0 items-center justify-between border-b border-border bg-card px-6">
@@ -40,8 +44,12 @@ export function Topbar() {
                 </span>
                 <span className="flex items-center gap-1 leading-tight">
                   <span className="text-left">
-                    <p className="text-sm font-medium">Super Administrator</p>
-                    <p className="text-xs text-muted-foreground">ATARI Super Admin</p>
+                    <p className="text-sm font-medium">
+                      {isKvk ? (session.kvkName ?? "KVK Admin") : "Super Administrator"}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {isKvk ? "KVK Admin" : "ATARI Super Admin"}
+                    </p>
                   </span>
                   <ChevronDown className="size-4 text-muted-foreground" />
                 </span>
@@ -49,7 +57,12 @@ export function Topbar() {
             }
           />
           <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={() => router.push("/login")}>
+            <DropdownMenuItem
+              onClick={() => {
+                clearSession();
+                router.push("/login");
+              }}
+            >
               <LogOut className="size-3.5" />
               Logout
             </DropdownMenuItem>

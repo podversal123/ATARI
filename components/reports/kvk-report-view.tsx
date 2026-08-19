@@ -19,15 +19,18 @@ function today(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
+type KvkReportViewProps = {
+  /** The logged-in KVK's name, from the mock session (lib/session.ts) — falls back to the first real KVK row if the session has none. */
+  kvkName?: string;
+};
+
 /**
  * KVK Report screen. Per the spec, a KVK user never selects Zone/State/Host
  * Organisation/KVK — their own KVK is auto-identified from the logged-in
- * account. Real login doesn't exist yet (Phase 2/3), so this defaults to
- * the first real KVK row rather than a fabricated name — it becomes a real
- * session lookup once auth lands.
+ * account, never a user-editable field.
  */
-export function KvkReportView() {
-  const currentKvk = KVK_MASTER_ROWS[0];
+export function KvkReportView({ kvkName }: KvkReportViewProps) {
+  const currentKvkName = kvkName ?? KVK_MASTER_ROWS[0].kvk;
   const [formSlug, setFormSlug] = useState<string>("all");
   const [fromDate, setFromDate] = useState(firstOfMonth());
   const [toDate, setToDate] = useState(today());
@@ -82,7 +85,7 @@ export function KvkReportView() {
           <div className="flex items-start gap-2 rounded-md bg-accent px-3 py-2.5 text-xs text-accent-foreground">
             <Info className="mt-0.5 size-3.5 shrink-0" />
             <span>
-              You are viewing reports for KVK: <strong>{currentKvk.kvk}</strong>
+              You are viewing reports for KVK: <strong>{currentKvkName}</strong>
             </span>
           </div>
 
@@ -138,7 +141,7 @@ export function KvkReportView() {
               phase={phase}
               metaColumns={[
                 [
-                  { label: "KVK Name", value: currentKvk.kvk },
+                  { label: "KVK Name", value: currentKvkName },
                   { label: "Form", value: selectedFormLabel },
                 ],
                 [

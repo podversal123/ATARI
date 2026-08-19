@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { Eye, EyeOff } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { persistSession, resolveSessionFromUsername } from "@/lib/session";
 
 /**
  * Pixel reference: docs/project-plan.html (login screenshot). Split hero
@@ -74,9 +75,12 @@ export default function LoginPage() {
             className="mt-6 space-y-4"
             onSubmit={(event) => {
               event.preventDefault();
-              // No auth check yet — goes straight to the dashboard so the
-              // UI (Step 2 of the build) is fully browsable. Replace with a
-              // real sign-in call once the database is connected.
+              // No auth check yet — the role is inferred from the username
+              // pattern (e.g. "kvkbhagalpur@...") rather than a real
+              // credential lookup. Replace with a real sign-in call once
+              // the database is connected; the resulting session shape
+              // (role decided once, here, not switched later) stays the same.
+              persistSession(resolveSessionFromUsername(username));
               router.push("/dashboard");
             }}
           >

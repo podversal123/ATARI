@@ -4,10 +4,19 @@ import { useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { SIDEBAR } from "@/lib/navigation";
 import { cn } from "@/lib/utils";
+import { useSession } from "@/lib/session";
 import { NavTree } from "./sidebar-nav";
 import { SidebarTopLink } from "./sidebar-top-link";
 import { SidebarSectionLink } from "./sidebar-section-link";
 import { SidebarSearch } from "./sidebar-search";
+
+/**
+ * Sidebar items hidden for a KVK Admin session — per the RBAC spec, only
+ * Super Admin / Host Organisation create KVK accounts, never the reverse,
+ * so Role Management (which governs who can create what) has no reason to
+ * be visible to a KVK session.
+ */
+const KVK_HIDDEN_SLUGS = new Set(["role-management"]);
 
 /**
  * The fixed green Super Admin sidebar. Structure mirrors the reference
@@ -24,6 +33,10 @@ import { SidebarSearch } from "./sidebar-search";
  */
 export function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
+  const session = useSession();
+  const visibleSections = SIDEBAR.filter(
+    (section) => session.role !== "kvk-admin" || !KVK_HIDDEN_SLUGS.has(section.slug)
+  );
 
   return (
     <aside
@@ -90,7 +103,7 @@ export function Sidebar() {
           </p>
         )}
         <ul className="space-y-0.5">
-          {SIDEBAR.map((section) => {
+          {visibleSections.map((section) => {
             if (section.children) {
               return (
                 <li key={section.slug}>
