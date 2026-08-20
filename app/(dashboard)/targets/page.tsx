@@ -127,6 +127,7 @@ export default function TargetsPage() {
 
       <EmptyDataTable
         title="Targets"
+        icon="targets"
         subtitle={
           isKvk
             ? `Targets assigned to ${session.kvkName ?? "your KVK"} and your progress against them`

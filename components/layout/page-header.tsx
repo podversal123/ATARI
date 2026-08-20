@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ChevronLeft } from "lucide-react";
+import { ChevronLeft, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export type Crumb = {
@@ -12,11 +12,13 @@ type PageHeaderProps = {
   trail: Crumb[];
   /** Omit for leaf/table pages — those render their own title inside EmptyDataTable's card, next to the export buttons (confirmed from the reference recording). */
   title?: string;
+  /** Module icon shown next to the title, matching the section's sidebar icon (client request: every module heading needs a relevant icon). */
+  icon?: LucideIcon;
   description?: string;
 };
 
 /** Breadcrumb + back link + title block reused at the top of every dashboard page. */
-export function PageHeader({ backHref, trail, title, description }: PageHeaderProps) {
+export function PageHeader({ backHref, trail, title, icon: Icon, description }: PageHeaderProps) {
   return (
     <div className="mb-6">
       <div className={cn("flex items-center gap-2 text-sm text-muted-foreground", title && "mb-3")}>
@@ -39,8 +41,13 @@ export function PageHeader({ backHref, trail, title, description }: PageHeaderPr
           </span>
         ))}
       </div>
-      {title && <h1 className="text-2xl font-semibold text-foreground">{title}</h1>}
-      {description && <p className="mt-1 text-sm text-muted-foreground">{description}</p>}
+      {title && (
+        <div className="flex items-center gap-2 border-b border-border pb-3">
+          {Icon && <Icon className="size-5 shrink-0 text-primary" />}
+          <h1 className="text-2xl font-semibold text-primary">{title}</h1>
+        </div>
+      )}
+      {description && <p className="mt-2 text-sm text-muted-foreground">{description}</p>}
     </div>
   );
 }

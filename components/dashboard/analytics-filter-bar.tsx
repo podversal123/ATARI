@@ -1,3 +1,5 @@
+import { RotateCcw } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { STATES, DISTRICTS, KVKS } from "@/lib/rbac";
 
 type FilterField = {
@@ -37,12 +39,10 @@ export function AnalyticsFilterBar() {
         ))}
       </div>
       <div className="mt-3 flex justify-end">
-        <button
-          type="button"
-          className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
-        >
+        <Button variant="outline-primary" size="sm">
+          <RotateCcw className="size-3.5" />
           Reset filters
-        </button>
+        </Button>
       </div>
     </div>
   );

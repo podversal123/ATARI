@@ -17,6 +17,7 @@ export default function ModuleImagesPage() {
       <PageHeader
         trail={[{ label: "Module Images" }]}
         title="Module Images"
+        icon={ImageIcon}
         description="Set a representative image for each Form Management module."
       />
 

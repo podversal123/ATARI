@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { usePathname } from "next/navigation";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { SIDEBAR } from "@/lib/navigation";
 import { cn } from "@/lib/utils";
@@ -36,9 +37,20 @@ const KVK_HIDDEN_SLUGS = new Set(["masters"]);
  */
 export function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
+  const pathname = usePathname();
   const session = useSession();
   const visibleSections = SIDEBAR.filter(
     (section) => session.role === "super-admin" || !KVK_HIDDEN_SLUGS.has(section.slug)
+  );
+
+  /**
+   * Only one top-level collapsible section (All Masters, Form Management)
+   * stays open at a time — opening one auto-closes whichever other one was
+   * open, per client direction. Starts open on whichever section the
+   * current page lives under, if any.
+   */
+  const [openSlug, setOpenSlug] = useState<string | null>(
+    () => visibleSections.find((section) => section.children && pathname.startsWith(`/${section.slug}`))?.slug ?? null
   );
 
   return (
@@ -115,6 +127,10 @@ export function Sidebar() {
                     iconName={section.icon}
                     href={`/${section.slug}`}
                     collapsed={collapsed}
+                    open={openSlug === section.slug}
+                    onToggle={() =>
+                      setOpenSlug((prev) => (prev === section.slug ? null : section.slug))
+                    }
                   >
                     <NavTree items={section.children} basePath={`/${section.slug}`} />
                   </SidebarTopLink>

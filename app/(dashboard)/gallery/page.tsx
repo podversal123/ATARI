@@ -5,6 +5,7 @@ import {
   ChevronDown,
   ChevronRight,
   ImageIcon,
+  Images,
   LayoutGrid,
   List,
   Search,
@@ -57,7 +58,7 @@ export default function GalleryPage() {
 
   return (
     <div>
-      <PageHeader trail={[{ label: "Gallery" }]} title="Gallery" />
+      <PageHeader trail={[{ label: "Gallery" }]} title="Gallery" icon={Images} />
 
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <div className="relative flex-1 min-w-56">

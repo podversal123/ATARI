@@ -1,6 +1,6 @@
 "use client";
 
-import { BarChart3, Users, FileText, GraduationCap, Activity, Tags } from "lucide-react";
+import { BarChart3, Users, FileText, GraduationCap, Activity, Tags, LayoutDashboard } from "lucide-react";
 import { StatCard } from "@/components/dashboard/stat-card";
 import { ProgressChartCard } from "@/components/dashboard/progress-chart-card";
 import { FilterSelect } from "@/components/dashboard/filter-select";
@@ -28,8 +28,11 @@ function KvkUserDashboard({ kvkName }: { kvkName?: string }) {
   return (
     <div>
       <div className="mb-6">
-        <h1 className="text-3xl font-semibold text-primary">My Pending Forms</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
+        <div className="flex items-center gap-2 border-b border-border pb-3">
+          <LayoutDashboard className="size-5 shrink-0 text-primary" />
+          <h1 className="text-3xl font-semibold text-primary">My Pending Forms</h1>
+        </div>
+        <p className="mt-2 text-sm text-muted-foreground">
           Track what still needs filling in for {kvkName ?? "your KVK"}
         </p>
       </div>
@@ -80,8 +83,11 @@ export default function DashboardPage() {
     <div>
       <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-semibold text-primary">Dashboard</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
+          <div className="flex items-center gap-2 border-b border-border pb-3">
+            <LayoutDashboard className="size-5 shrink-0 text-primary" />
+            <h1 className="text-3xl font-semibold text-primary">Dashboard</h1>
+          </div>
+          <p className="mt-2 text-sm text-muted-foreground">
             {isKvkAdmin
               ? `Overview for ${session.kvkName ?? "your KVK"}`
               : "Central overview of system activities and performance metrics"}
@@ -90,7 +96,7 @@ export default function DashboardPage() {
         <div className="flex items-center gap-3">
           <FilterSelect label="Year" options={["All"]} />
           {!isKvkAdmin && <FilterSelect label="KVK" options={["All"]} />}
-          <Button variant="secondary" size="sm">
+          <Button variant="outline-primary" size="sm">
             Reset
           </Button>
         </div>

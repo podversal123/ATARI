@@ -143,7 +143,7 @@ export function SuperAdminReportView() {
             <Filter className="size-3.5" />
             Report Filters
           </div>
-          <Button variant="ghost" size="sm" onClick={resetFilters}>
+          <Button variant="outline-primary" size="sm" onClick={resetFilters}>
             <RotateCcw className="size-3.5" />
             Reset Filters
           </Button>

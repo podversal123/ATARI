@@ -220,6 +220,9 @@ const basicMasters = group("basic", "Basic Masters", [
     { key: "districtName", label: "District Name" },
     { key: "kvk", label: "KVK" },
     { key: "mobile", label: "Mobile" },
+    { key: "address", label: "Address" },
+    { key: "email", label: "E-Mail" },
+    { key: "sanctionYear", label: "Sanction Year" },
   ]),
 ], { description: "Manage zones, states, institutes, hosts, and districts" });
 

@@ -53,9 +53,13 @@ export type KvkMasterRow = {
   districtName: string;
   kvk: string;
   mobile: string;
+  /** Address/E-Mail/Sanction Year confirmed from the client's own "1.1.1 Name and address of KVK" reference document — real per-KVK data, not screenshot-guessed. */
+  address: string;
+  email: string;
+  sanctionYear: string;
 };
 
-/** First page only (6 of 65 rows were visible in the reference screenshot). */
+/** First page only (6 of 65 rows were visible in the reference screenshot; Address/E-Mail/Sanction Year cross-confirmed for these same 6 from the client's "1.1.1" KVK Basic Information document). */
 export const KVK_MASTER_ROWS: KvkMasterRow[] = [
   {
     zoneName: "Zone IV - Patna",
@@ -64,6 +68,9 @@ export const KVK_MASTER_ROWS: KvkMasterRow[] = [
     districtName: "Araria",
     kvk: "KVK Araria",
     mobile: "9431645217",
+    address: "KVK Araria",
+    email: "arariaakvk@gmail.com",
+    sanctionYear: "2004",
   },
   {
     zoneName: "Zone IV - Patna",
@@ -72,6 +79,9 @@ export const KVK_MASTER_ROWS: KvkMasterRow[] = [
     districtName: "Arwal",
     kvk: "KVK Arwal",
     mobile: "8210554284",
+    address: "At - Lodipur, Post - Sarwarpur, PS - Mehandia, Block - Kaler, District - Arwal, Pin - 804428 (Bihar)",
+    email: "arwalkvk@gmail.com",
+    sanctionYear: "2008",
   },
   {
     zoneName: "Zone IV - Patna",
@@ -80,6 +90,9 @@ export const KVK_MASTER_ROWS: KvkMasterRow[] = [
     districtName: "Aurangabad",
     kvk: "KVK Aurangabad",
     mobile: "8298641285",
+    address: "KVK Aurangabad",
+    email: "aurangabadkvk@gmail.com",
+    sanctionYear: "2006",
   },
   {
     zoneName: "Zone IV - Patna",
@@ -88,6 +101,9 @@ export const KVK_MASTER_ROWS: KvkMasterRow[] = [
     districtName: "Banka",
     kvk: "KVK Banka",
     mobile: "9431659922",
+    address: "KVK Banka",
+    email: "bankakvk@gmail.com",
+    sanctionYear: "1983",
   },
   {
     zoneName: "Zone IV - Patna",
@@ -96,6 +112,9 @@ export const KVK_MASTER_ROWS: KvkMasterRow[] = [
     districtName: "Begusarai",
     kvk: "KVK Begusarai",
     mobile: "6287797169",
+    address: "KVK Begusarai At- Khodawandpur, Post- Meghaul, Block-Khodawnandpur, Dist- Begusarai-848202",
+    email: "head.kvk.begusarai@rpcau.ac.in",
+    sanctionYear: "1992",
   },
   {
     zoneName: "Zone IV - Patna",
@@ -104,6 +123,9 @@ export const KVK_MASTER_ROWS: KvkMasterRow[] = [
     districtName: "Bhagalpur",
     kvk: "Kvk Bhagalpur",
     mobile: "9939626493",
+    address: "KVK Bhagalpur, Bihar, Pin – 813210",
+    email: "bhagalpurkvk@gmail.com",
+    sanctionYear: "2004",
   },
 ];
 export const KVK_MASTER_TOTAL = 65;

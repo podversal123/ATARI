@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { Database } from "lucide-react";
 import { ALL_MASTERS, resolveNavPath, landingCards, type NavItem, type NavGroup } from "@/lib/navigation";
 import { PageHeader, type Crumb } from "@/components/layout/page-header";
 import { SectionedMasterGrid } from "@/components/layout/sectioned-master-grid";
@@ -122,6 +123,7 @@ export default async function MastersPage({ params }: MastersPageProps) {
         backHref="/masters"
         trail={trailCrumbs}
         title={node.type === "group" ? (node.pageTitle ?? node.label) : undefined}
+        icon={node.type === "group" ? Database : undefined}
         description={node.type === "group" ? node.description : undefined}
       />
       {sectionedGroups ? (
@@ -129,6 +131,7 @@ export default async function MastersPage({ params }: MastersPageProps) {
       ) : node.type === "leaf" ? (
         <EmptyDataTable
           title={node.label}
+          icon="masters"
           columns={node.columns}
           subtitle={`Manage and view all ${node.label.toLowerCase()} in the system`}
           tabs={tabs}

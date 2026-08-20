@@ -1,8 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useState, type ReactNode } from "react";
+import { type ReactNode } from "react";
 import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { SidebarIconName } from "@/lib/navigation";
@@ -13,6 +12,9 @@ type SidebarTopLinkProps = {
   iconName: SidebarIconName;
   href: string;
   collapsed?: boolean;
+  /** Controlled from Sidebar so opening one top-level section (e.g. Form Management) auto-collapses any other one that was open (e.g. All Masters) — client requirement, not independent per-section state. */
+  open: boolean;
+  onToggle: () => void;
   children: ReactNode;
 };
 
@@ -28,9 +30,7 @@ type SidebarTopLinkProps = {
  * an inline submenu, so this renders as a plain link to the section's own
  * landing page instead of an expand/collapse toggle.
  */
-export function SidebarTopLink({ label, iconName, href, collapsed, children }: SidebarTopLinkProps) {
-  const pathname = usePathname();
-  const [open, setOpen] = useState(pathname.startsWith(href));
+export function SidebarTopLink({ label, iconName, href, collapsed, open, onToggle, children }: SidebarTopLinkProps) {
   const Icon = SIDEBAR_ICONS[iconName];
 
   if (collapsed) {
@@ -49,7 +49,7 @@ export function SidebarTopLink({ label, iconName, href, collapsed, children }: S
     <div>
       <button
         type="button"
-        onClick={() => setOpen((prev) => !prev)}
+        onClick={onToggle}
         className="flex w-full items-center justify-between rounded-md px-3 py-2 text-sm text-white/80 transition-colors hover:bg-black/10 hover:text-white"
       >
         <span className="flex min-w-0 items-center gap-2.5">

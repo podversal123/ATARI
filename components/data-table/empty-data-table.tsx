@@ -1,6 +1,6 @@
 "use client";
 
-import { type ReactNode, useMemo, useState } from "react";
+import { type ReactNode, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import {
   Search,
@@ -12,7 +12,10 @@ import {
   MoreVertical,
   Pencil,
   Trash2,
+  GripVertical,
 } from "lucide-react";
+import type { SidebarIconName } from "@/lib/navigation";
+import { SIDEBAR_ICONS } from "@/components/layout/sidebar-icons";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -52,6 +55,15 @@ export type MasterTab = { label: string; href: string; active: boolean };
 type EmptyDataTableProps = {
   /** Page title, rendered inside the card next to the export/Add New buttons (confirmed placement from the reference recording — not a separate PageHeader title above the tabs). */
   title: string;
+  /**
+   * Module icon shown next to the title, matching the section's sidebar
+   * icon (client request: every module heading needs a relevant icon).
+   * Taken as a name rather than the icon component itself — this renders
+   * from Server Component pages (masters/[...slug], forms/[...slug]), and a
+   * component reference isn't serializable across that RSC boundary into
+   * this Client Component (same reasoning as SidebarTopLink's iconName).
+   */
+  icon?: SidebarIconName;
   columns: MasterColumn[];
   /** "Manage and view all zone master in the system" — shown under the title. */
   subtitle?: string;
@@ -94,6 +106,7 @@ const CASCADE_KEYS = new Set(["zoneName", "stateName", "hostOrg"]);
 
 export function EmptyDataTable({
   title,
+  icon,
   columns,
   subtitle,
   tabs,
@@ -102,10 +115,47 @@ export function EmptyDataTable({
   cascadeType,
   customForm,
 }: EmptyDataTableProps) {
+  const Icon = icon ? SIDEBAR_ICONS[icon] : undefined;
   const [search, setSearch] = useState("");
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
   const [columnFilters, setColumnFilters] = useState<Record<string, ColumnFilterState>>({});
+
+  /**
+   * The search/date-filter bar can be dragged and repositioned by the user
+   * (client request: "sorting/filter box should be movable"), via a grip
+   * handle. Position is plain in-memory offset state — resets on
+   * navigation/refresh, same as every other Phase 1 UI-only interaction;
+   * persisting a chosen layout across sessions needs the backend.
+   */
+  const [filterBarOffset, setFilterBarOffset] = useState({ x: 0, y: 0 });
+  const dragState = useRef<{ startX: number; startY: number; originX: number; originY: number } | null>(null);
+
+  function handleFilterBarDragStart(event: React.PointerEvent<HTMLButtonElement>) {
+    event.preventDefault();
+    dragState.current = {
+      startX: event.clientX,
+      startY: event.clientY,
+      originX: filterBarOffset.x,
+      originY: filterBarOffset.y,
+    };
+    window.addEventListener("pointermove", handleFilterBarDragMove);
+    window.addEventListener("pointerup", handleFilterBarDragEnd);
+  }
+
+  function handleFilterBarDragMove(event: PointerEvent) {
+    if (!dragState.current) return;
+    setFilterBarOffset({
+      x: dragState.current.originX + (event.clientX - dragState.current.startX),
+      y: dragState.current.originY + (event.clientY - dragState.current.startY),
+    });
+  }
+
+  function handleFilterBarDragEnd() {
+    dragState.current = null;
+    window.removeEventListener("pointermove", handleFilterBarDragMove);
+    window.removeEventListener("pointerup", handleFilterBarDragEnd);
+  }
 
   const [formOpen, setFormOpen] = useState(false);
   const [editingRow, setEditingRow] = useState<Record<string, ReactNode> | null>(null);
@@ -229,7 +279,10 @@ export function EmptyDataTable({
       <div className="rounded-lg border border-border bg-card">
         <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border p-4">
           <div>
-            <h1 className="text-lg font-semibold text-foreground">{title}</h1>
+            <div className="flex items-center gap-2">
+              {Icon && <Icon className="size-4.5 shrink-0 text-primary" />}
+              <h1 className="text-lg font-semibold text-primary">{title}</h1>
+            </div>
             {subtitle && <p className="mt-0.5 text-sm text-muted-foreground">{subtitle}</p>}
           </div>
           <div className="flex items-center gap-2">
@@ -252,7 +305,23 @@ export function EmptyDataTable({
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2 border-b border-border p-4">
+        <div
+          className="relative z-10 flex flex-wrap items-center gap-2 border-b border-border bg-card p-4"
+          style={
+            filterBarOffset.x !== 0 || filterBarOffset.y !== 0
+              ? { transform: `translate(${filterBarOffset.x}px, ${filterBarOffset.y}px)`, boxShadow: "0 8px 24px rgba(0,0,0,0.12)" }
+              : undefined
+          }
+        >
+          <button
+            type="button"
+            onPointerDown={handleFilterBarDragStart}
+            onDoubleClick={() => setFilterBarOffset({ x: 0, y: 0 })}
+            title="Drag to reposition — double-click to reset"
+            className="flex size-7 shrink-0 cursor-grab touch-none items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground active:cursor-grabbing"
+          >
+            <GripVertical className="size-4" />
+          </button>
           <div className="relative">
             <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input
@@ -262,23 +331,35 @@ export function EmptyDataTable({
               className="w-56 pl-8"
             />
           </div>
-          <Input
-            type="date"
-            value={fromDate}
-            onChange={(event) => setFromDate(event.target.value)}
-            className="w-40 text-muted-foreground"
-          />
-          <Input
-            type="date"
-            value={toDate}
-            onChange={(event) => setToDate(event.target.value)}
-            className="w-40 text-muted-foreground"
-          />
-          <Button variant="secondary" size="sm" onClick={resetDates} disabled={!hasActiveDates}>
+          <div className="flex items-center gap-1.5">
+            <Label htmlFor="empty-data-table-from-date" className="text-xs text-muted-foreground">
+              From Date
+            </Label>
+            <Input
+              id="empty-data-table-from-date"
+              type="date"
+              value={fromDate}
+              onChange={(event) => setFromDate(event.target.value)}
+              className="w-40 text-muted-foreground"
+            />
+          </div>
+          <div className="flex items-center gap-1.5">
+            <Label htmlFor="empty-data-table-to-date" className="text-xs text-muted-foreground">
+              To Date
+            </Label>
+            <Input
+              id="empty-data-table-to-date"
+              type="date"
+              value={toDate}
+              onChange={(event) => setToDate(event.target.value)}
+              className="w-40 text-muted-foreground"
+            />
+          </div>
+          <Button variant="outline-primary" size="sm" onClick={resetDates} disabled={!hasActiveDates}>
             <RotateCcw className="size-3.5" />
             Reset dates
           </Button>
-          <Button variant="ghost" size="sm" onClick={resetFilters} disabled={!hasActiveFilters}>
+          <Button variant="outline-primary" size="sm" onClick={resetFilters} disabled={!hasActiveFilters}>
             <RotateCcw className="size-3.5" />
             Reset filters
           </Button>
@@ -287,7 +368,7 @@ export function EmptyDataTable({
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-border bg-muted/50 text-left text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+              <tr className="divide-x divide-border border-b border-border bg-muted/50 text-left text-xs font-semibold tracking-wide text-muted-foreground uppercase">
                 <th className="w-14 px-4 py-3">S.No</th>
                 {columns.map((column) => (
                   <th key={column.key} className="px-4 py-3">
@@ -316,7 +397,7 @@ export function EmptyDataTable({
                 </tr>
               ) : (
                 displayedRows!.map((row, index) => (
-                  <tr key={index} className="border-b border-border last:border-0">
+                  <tr key={index} className="divide-x divide-border border-b border-border last:border-0">
                     <td className="px-4 py-3 text-muted-foreground">{index + 1}</td>
                     {columns.map((column) => (
                       <td key={column.key} className="px-4 py-3 text-foreground">

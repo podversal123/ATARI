@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ArrowDown, ArrowUp, ArrowUpDown, Search } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, Search, History } from "lucide-react";
 import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -54,7 +54,10 @@ export default function LogHistoryPage() {
       <PageHeader
         trail={[{ label: "Log History" }]}
         title="View Users Log Activity"
-        description={isKvk ? `Activity log for ${session.kvkName ?? "your KVK"}` : undefined}
+        icon={History}
+        description={
+          isKvk ? `Activity log for ${session.kvkName ?? "your KVK"}` : "Super Admin Log — activity across the system"
+        }
       />
 
       {/* A KVK Admin never gets a cross-KVK picker — data isolation: KVK A must never read KVK B's activity. */}
@@ -95,7 +98,7 @@ export default function LogHistoryPage() {
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-border bg-muted/50 text-left text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+              <tr className="divide-x divide-border border-b border-border bg-muted/50 text-left text-xs font-semibold tracking-wide text-muted-foreground uppercase">
                 {columns.map((column) => {
                   const active = sort?.key === column.key;
                   return (

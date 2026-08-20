@@ -1,5 +1,6 @@
 "use client";
 
+import { Users } from "lucide-react";
 import { PageHeader } from "@/components/layout/page-header";
 import { UserManagementView } from "@/components/user-management/user-management-view";
 import { useSession } from "@/lib/session";
@@ -14,6 +15,7 @@ export default function UserManagementPage() {
         backHref="/dashboard"
         trail={[{ label: "Dashboard", href: "/dashboard" }, { label: "User Management" }]}
         title="User Management"
+        icon={Users}
         description={
           isKvk
             ? `Create and manage users for ${session.kvkName ?? "your KVK"}`

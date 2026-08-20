@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { FileText } from "lucide-react";
 import { FORM_MANAGEMENT, resolveNavPath, landingCards, type NavItem, type NavGroup } from "@/lib/navigation";
 import { PageHeader, type Crumb } from "@/components/layout/page-header";
 import { SectionedMasterGrid } from "@/components/layout/sectioned-master-grid";
@@ -60,6 +61,7 @@ export default async function FormsPage({ params }: FormsPageProps) {
         backHref="/forms"
         trail={trailCrumbs}
         title={node.type === "group" ? (node.pageTitle ?? node.label) : undefined}
+        icon={node.type === "group" ? FileText : undefined}
         description={node.type === "group" ? node.description : undefined}
       />
       {sectionedGroups ? (
@@ -67,6 +69,7 @@ export default async function FormsPage({ params }: FormsPageProps) {
       ) : node.type === "leaf" ? (
         <EmptyDataTable
           title={node.label}
+          icon="form-management"
           columns={node.columns}
           subtitle={`Manage and view all ${node.label.toLowerCase()} in the system`}
           tabs={tabs}

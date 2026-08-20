@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Send } from "lucide-react";
+import { Send, Bell } from "lucide-react";
 import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -46,7 +46,7 @@ export default function NotificationsPage() {
 
   return (
     <div>
-      <PageHeader trail={[{ label: "Notifications" }]} title="Notifications" />
+      <PageHeader trail={[{ label: "Notifications" }]} title="Notifications" icon={Bell} />
 
       <div className="mb-4 rounded-lg border border-border bg-card p-4">
         <p className="mb-3 text-xs font-semibold tracking-wide text-primary uppercase">
@@ -98,6 +98,7 @@ export default function NotificationsPage() {
       <div className="mb-4">
         <EmptyDataTable
           title="Received Notifications"
+          icon="notifications"
           subtitle={
             isKvk
               ? "Notifications sent to your KVK"
@@ -109,6 +110,7 @@ export default function NotificationsPage() {
 
       <EmptyDataTable
         title={isKvk ? "Sent to My KVK Users" : "Sent Notifications"}
+        icon="notifications"
         columns={SENT_COLUMNS}
       />
     </div>

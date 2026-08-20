@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { LayoutGrid, Table2, Filter } from "lucide-react";
+import { LayoutGrid, Table2, Filter, ListChecks } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { FilterSelect } from "@/components/dashboard/filter-select";
@@ -29,10 +29,13 @@ export default function FormSummaryPage() {
     <div>
       <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-semibold text-primary">
-            {isKvk ? `Form Summary — ${session.kvkName ?? "My KVK"}` : "Form Summary — All KVKs"}
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
+          <div className="flex items-center gap-2 border-b border-border pb-3">
+            <ListChecks className="size-5 shrink-0 text-primary" />
+            <h1 className="text-3xl font-semibold text-primary">
+              {isKvk ? `Form Summary — ${session.kvkName ?? "My KVK"}` : "Form Summary — All KVKs"}
+            </h1>
+          </div>
+          <p className="mt-2 text-sm text-muted-foreground">
             {isKvk
               ? "Track which forms your KVK has submitted"
               : "Track which KVKs have submitted each form"}
