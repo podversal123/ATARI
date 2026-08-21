@@ -28,7 +28,6 @@ import {
   BookOpen,
   type LucideIcon,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
 import type { NavGroup } from "@/lib/navigation";
 
 /**
@@ -106,7 +105,7 @@ export function SectionedMasterGrid({ groups, basePath }: SectionedMasterGridPro
         const Icon = GROUP_ICONS[group.slug];
         return (
           <div key={group.slug} className="rounded-lg border border-border bg-card p-4">
-            <p className={cn("mb-1 flex items-center gap-2 text-sm font-semibold text-primary", !Icon && "mb-2")}>
+            <p className="flex items-center gap-2 border-b border-border pb-2.5 text-sm font-semibold text-primary">
               {Icon && <Icon className="size-4 shrink-0" />}
               <span className="truncate">{group.label}</span>
             </p>

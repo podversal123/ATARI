@@ -33,24 +33,20 @@ function ReportPreviewContent() {
 
   const type = params.get("type") === "kvk" ? "kvk" : "admin";
   const backHref = "/reports";
+  const hostOrg = params.get("hostOrg") ?? "";
 
   /**
-   * A Host Organisation scoped down to "All KVKs" is its own report kind —
-   * an aggregate across every KVK under that one organisation — distinct
-   * from the fully collective Super Admin report (no organisation picked)
-   * and from a single-KVK report. Client direction: "organisation and host
-   * wala bhi banega" — Reports needs this scope explicitly labeled, not
-   * just folded into the generic Super Admin report.
+   * Report Type (Collective / Organisation / KVK) is an explicit choice the
+   * Super Admin makes on the filter screen — not inferred from which
+   * dropdowns happen to be filled in — per client direction to keep
+   * Organisation and Host/KVK reports clearly separate flows.
    */
-  const hostOrg = params.get("hostOrg") ?? "";
-  const kvk = params.get("kvk") ?? "";
-  const isOrgScoped = type === "admin" && hostOrg !== "" && hostOrg !== "All Host Organizations" && (kvk === "" || kvk === "All KVKs");
-
-  const reportKind = type === "kvk" ? "kvk" : isOrgScoped ? "org" : "admin";
+  const scope = params.get("scope") === "kvk" || type === "kvk" ? "kvk" : params.get("scope") === "organisation" ? "organisation" : "collective";
+  const reportKind = type === "kvk" ? "kvk" : scope === "organisation" ? "org" : scope === "kvk" ? "kvk" : "admin";
   const reportTitle =
-    reportKind === "kvk" ? "KVK REPORT PREVIEW" : reportKind === "org" ? "HOST ORGANISATION REPORT PREVIEW" : "SUPER ADMIN REPORT PREVIEW";
+    reportKind === "kvk" ? "KVK REPORT PREVIEW" : reportKind === "org" ? "ORGANISATION REPORT PREVIEW" : "SUPER ADMIN REPORT PREVIEW";
   const reportHeading =
-    reportKind === "kvk" ? "KVK REPORT PREVIEW" : reportKind === "org" ? "HOST ORGANISATION REPORT" : "REPORT SUMMARY";
+    reportKind === "kvk" ? "KVK REPORT PREVIEW" : reportKind === "org" ? "ORGANISATION REPORT" : "REPORT SUMMARY";
 
   useEffect(() => {
     generate(() => null);
