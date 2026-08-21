@@ -4,19 +4,54 @@ import { FORM_MANAGEMENT, resolveNavPath, landingCards, type NavItem, type NavGr
 import { PageHeader, type Crumb } from "@/components/layout/page-header";
 import { SectionedMasterGrid } from "@/components/layout/sectioned-master-grid";
 import { EmptyDataTable, type MasterTab } from "@/components/data-table/empty-data-table";
+import { AddLeafPage } from "@/components/data-table/add-leaf-page";
 
 const EVENT_DEMOGRAPHIC_SLUGS = new Set(["technology-week-celebration", "world-soil-day"]);
+/** Leaves whose real Add/Edit shape isn't a flat field list — these keep opening their existing bespoke dialog instead of the new full-page Add flow. */
+const CUSTOM_FORM_SLUGS = new Set(["technical-parameter", ...EVENT_DEMOGRAPHIC_SLUGS]);
 
 type FormsPageProps = {
   params: Promise<{ slug: string[] }>;
 };
 
 export default async function FormsPage({ params }: FormsPageProps) {
-  const { slug } = await params;
+  const { slug: rawSlug } = await params;
+
+  /**
+   * "Add New" for Form Management opens a dedicated page instead of the
+   * popup Masters/Targets/Notifications keep (client direction). Rather
+   * than a sibling route file (which Next.js can't nest under a catch-all
+   * segment folder), a trailing "add" slug segment is handled right here.
+   */
+  const isAddPage = rawSlug[rawSlug.length - 1] === "add";
+  const slug = isAddPage ? rawSlug.slice(0, -1) : rawSlug;
+
   const resolved = resolveNavPath(FORM_MANAGEMENT, slug);
   if (!resolved) notFound();
 
   const { node, trail } = resolved;
+
+  if (isAddPage) {
+    if (node.type !== "leaf" || CUSTOM_FORM_SLUGS.has(node.slug)) notFound();
+    const addTrail: Crumb[] = [{ label: "Form Management", href: "/forms" }];
+    trail.forEach((item, index) => {
+      addTrail.push({
+        label: item.label,
+        href: `/forms/${trail
+          .slice(0, index + 1)
+          .map((t) => t.slug)
+          .join("/")}`,
+      });
+    });
+    return (
+      <AddLeafPage
+        title={node.label}
+        trail={addTrail}
+        backHref={`/forms/${slug.join("/")}`}
+        columns={node.columns}
+      />
+    );
+  }
 
   const trailCrumbs: Crumb[] = [{ label: "Form Management", href: "/forms" }];
   trail.slice(0, -1).forEach((item, index) => {
@@ -73,6 +108,7 @@ export default async function FormsPage({ params }: FormsPageProps) {
           columns={node.columns}
           subtitle={`Manage and view all ${node.label.toLowerCase()} in the system`}
           tabs={tabs}
+          addNewHref={CUSTOM_FORM_SLUGS.has(node.slug) ? undefined : `/forms/${slug.join("/")}/add`}
           customForm={
             node.slug === "technical-parameter"
               ? "cfld-technical-parameter"

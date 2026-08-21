@@ -35,9 +35,10 @@ type SortState = { key: string; direction: "asc" | "desc" } | null;
 export default function LogHistoryPage() {
   const session = useSession();
   const isKvk = session.role !== "super-admin";
-  const columns = isKvk ? KVK_COLUMNS : COLUMNS;
 
   const [kvkFilter, setKvkFilter] = useState("all");
+  /** Super Admin's own log entries have no KVK, so that column drops out the same way it does for a KVK Admin's own scoped view. */
+  const columns = isKvk || kvkFilter === "super-admin" ? KVK_COLUMNS : COLUMNS;
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<SortState>(null);
 
@@ -71,6 +72,7 @@ export default function LogHistoryPage() {
               className="mt-1 h-9 w-56 rounded-md border border-border bg-card px-2.5 text-sm text-foreground outline-none focus-visible:border-ring"
             >
               <option value="all">All</option>
+              <option value="super-admin">Super Admin</option>
               {KVKS.map((kvk) => (
                 <option key={kvk.name} value={kvk.name}>
                   {kvk.name}

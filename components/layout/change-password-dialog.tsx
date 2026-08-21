@@ -18,7 +18,7 @@ type ChangePasswordDialogProps = {
   onOpenChange: (open: boolean) => void;
 };
 
-const EMPTY_FORM = { currentPassword: "", newPassword: "", confirmPassword: "" };
+const EMPTY_FORM = { newPassword: "", confirmPassword: "" };
 
 /**
  * Self-service password change — every account (Super Admin, KVK Admin, and
@@ -49,7 +49,7 @@ export function ChangePasswordDialog({ open, onOpenChange }: ChangePasswordDialo
   }
 
   function submit() {
-    if (!form.currentPassword || !form.newPassword || !form.confirmPassword) {
+    if (!form.newPassword || !form.confirmPassword) {
       setError("All fields are required.");
       return;
     }
@@ -68,17 +68,6 @@ export function ChangePasswordDialog({ open, onOpenChange }: ChangePasswordDialo
         </DialogHeader>
 
         <div className="space-y-4">
-          <div className="space-y-1.5">
-            <Label htmlFor="current-password">Current Password</Label>
-            <Input
-              id="current-password"
-              type={showPassword ? "text" : "password"}
-              autoComplete="current-password"
-              value={form.currentPassword}
-              onChange={(event) => updateForm("currentPassword", event.target.value)}
-            />
-          </div>
-
           <div className="space-y-1.5">
             <Label htmlFor="new-password">New Password</Label>
             <div className="relative">

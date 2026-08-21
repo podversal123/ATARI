@@ -1,6 +1,6 @@
 "use client";
 
-import { type ReactNode, useMemo, useRef, useState } from "react";
+import { type ReactNode, useId, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import {
   Search,
@@ -18,9 +18,8 @@ import type { SidebarIconName } from "@/lib/navigation";
 import { SIDEBAR_ICONS } from "@/components/layout/sidebar-icons";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -46,9 +45,9 @@ import {
 } from "@/components/ui/alert-dialog";
 import { ColumnFilterMenu, type ColumnFilterState } from "./column-filter-menu";
 import type { MasterColumn } from "@/lib/navigation";
-import { REPORT_ZONE_OPTIONS, hostOrgsForState, statesForZone } from "@/lib/reports";
 import { CfldTechnicalParameterDialog } from "./cfld-technical-parameter-dialog";
 import { EventDemographicDialog } from "./event-demographic-dialog";
+import { MasterFormFields } from "./master-form-fields";
 
 export type MasterTab = { label: string; href: string; active: boolean };
 
@@ -84,6 +83,13 @@ type EmptyDataTableProps = {
   cascadeType?: "district" | "kvk";
   /** When set, Add New/Edit open a bespoke dialog instead of the generic per-column form — for the handful of leaves whose real Add/Edit shape genuinely isn't a flat field list (CFLD's 4-tab wizard, and the event forms carrying the recurring demographic-breakdown block). */
   customForm?: "cfld-technical-parameter" | "event-demographic";
+  /**
+   * When set, "Add New" navigates here instead of opening the dialog — per
+   * client direction, Form Management's Add New opens a dedicated page,
+   * while Masters/Targets/Notifications keep the popup. Editing an existing
+   * row still uses the dialog either way (not part of that request).
+   */
+  addNewHref?: string;
 };
 
 /**
@@ -102,7 +108,6 @@ type EmptyDataTableProps = {
  * "Add New", row actions, and the per-column filter icon are presentational
  * until the database step lands.
  */
-const CASCADE_KEYS = new Set(["zoneName", "stateName", "hostOrg"]);
 
 export function EmptyDataTable({
   title,
@@ -114,8 +119,13 @@ export function EmptyDataTable({
   totalCount,
   cascadeType,
   customForm,
+  addNewHref,
 }: EmptyDataTableProps) {
   const Icon = icon ? SIDEBAR_ICONS[icon] : undefined;
+  /** Unique per instance — a page can render more than one EmptyDataTable (e.g. Notifications' Received + Sent tables), and duplicate ids break label association. */
+  const instanceId = useId();
+  const fromDateId = `${instanceId}-from-date`;
+  const toDateId = `${instanceId}-to-date`;
   const [search, setSearch] = useState("");
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
@@ -298,10 +308,17 @@ export function EmptyDataTable({
               <FileType className="size-3.5" />
               Word
             </Button>
-            <Button size="sm" onClick={openAdd}>
-              <Plus className="size-3.5" />
-              Add New
-            </Button>
+            {addNewHref ? (
+              <Link href={addNewHref} className={cn(buttonVariants({ size: "sm" }))}>
+                <Plus className="size-3.5" />
+                Add New
+              </Link>
+            ) : (
+              <Button size="sm" onClick={openAdd}>
+                <Plus className="size-3.5" />
+                Add New
+              </Button>
+            )}
           </div>
         </div>
 
@@ -332,11 +349,11 @@ export function EmptyDataTable({
             />
           </div>
           <div className="flex items-center gap-1.5">
-            <Label htmlFor="empty-data-table-from-date" className="text-xs text-muted-foreground">
+            <Label htmlFor={fromDateId} className="text-xs text-muted-foreground">
               From Date
             </Label>
             <Input
-              id="empty-data-table-from-date"
+              id={fromDateId}
               type="date"
               value={fromDate}
               onChange={(event) => setFromDate(event.target.value)}
@@ -344,11 +361,11 @@ export function EmptyDataTable({
             />
           </div>
           <div className="flex items-center gap-1.5">
-            <Label htmlFor="empty-data-table-to-date" className="text-xs text-muted-foreground">
+            <Label htmlFor={toDateId} className="text-xs text-muted-foreground">
               To Date
             </Label>
             <Input
-              id="empty-data-table-to-date"
+              id={toDateId}
               type="date"
               value={toDate}
               onChange={(event) => setToDate(event.target.value)}
@@ -398,13 +415,22 @@ export function EmptyDataTable({
               ) : (
                 displayedRows!.map((row, index) => (
                   <tr key={index} className="divide-x divide-border border-b border-border last:border-0">
-                    <td className="px-4 py-3 text-muted-foreground">{index + 1}</td>
-                    {columns.map((column) => (
-                      <td key={column.key} className="px-4 py-3 text-foreground">
-                        {row[column.key]}
-                      </td>
-                    ))}
-                    <td className="px-4 py-3 text-right">
+                    <td className="px-4 py-3 align-top text-muted-foreground">{index + 1}</td>
+                    {columns.map((column) => {
+                      const value = row[column.key];
+                      return (
+                        <td key={column.key} className="px-4 py-3 align-top text-foreground">
+                          {typeof value === "string" ? (
+                            <span className="line-clamp-2 max-w-xs" title={value}>
+                              {value}
+                            </span>
+                          ) : (
+                            value
+                          )}
+                        </td>
+                      );
+                    })}
+                    <td className="px-4 py-3 text-right align-top">
                       <DropdownMenu>
                         <DropdownMenuTrigger
                           render={
@@ -462,74 +488,15 @@ export function EmptyDataTable({
           </DialogHeader>
 
           <div className="max-h-[60vh] space-y-4 overflow-y-auto">
-            {columns.map((column) => {
-              const isCascading = cascadeType && CASCADE_KEYS.has(column.key);
-              const isHostOrgField = cascadeType === "kvk" && column.key === "hostOrg";
-              const isStateField = column.key === "stateName";
-
-              if (isCascading) {
-                const options =
-                  column.key === "zoneName"
-                    ? REPORT_ZONE_OPTIONS
-                    : isStateField
-                      ? statesForZone(formValues.zoneName ?? "")
-                      : isHostOrgField
-                        ? hostOrgsForState(formValues.stateName ?? "")
-                        : [];
-                const disabled =
-                  (isStateField && !formValues.zoneName) ||
-                  (isHostOrgField && !formValues.stateName);
-
-                return (
-                  <div key={column.key} className="space-y-1.5">
-                    <Label htmlFor={`field-${column.key}`}>{column.label}</Label>
-                    <select
-                      id={`field-${column.key}`}
-                      value={formValues[column.key] ?? ""}
-                      disabled={disabled}
-                      onChange={(event) =>
-                        setFormValues((prev) => ({
-                          ...prev,
-                          [column.key]: event.target.value,
-                          ...(column.key === "zoneName" ? { stateName: "", hostOrg: "" } : {}),
-                          ...(isStateField ? { hostOrg: "" } : {}),
-                        }))
-                      }
-                      className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      <option value="" disabled>
-                        {disabled ? `Select ${column.key === "stateName" ? "a zone" : "a state"} first` : `Select ${column.label}`}
-                      </option>
-                      {options.map((option) => (
-                        <option key={option} value={option}>
-                          {option}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                );
-              }
-
-              return (
-                <div key={column.key} className="space-y-1.5">
-                  <Label htmlFor={`field-${column.key}`}>{column.label}</Label>
-                  <Input
-                    id={`field-${column.key}`}
-                    value={formValues[column.key] ?? ""}
-                    onChange={(event) =>
-                      setFormValues((prev) => ({ ...prev, [column.key]: event.target.value }))
-                    }
-                  />
-                </div>
-              );
-            })}
-
-            {isSimpleMaster && (
-              <label className="flex items-center gap-2 text-sm text-foreground">
-                <Checkbox checked={markAsOther} onCheckedChange={(checked) => setMarkAsOther(checked === true)} />
-                Mark as &quot;Other&quot; option
-              </label>
-            )}
+            <MasterFormFields
+              columns={columns}
+              cascadeType={cascadeType}
+              formValues={formValues}
+              onChange={setFormValues}
+              isSimpleMaster={isSimpleMaster}
+              markAsOther={markAsOther}
+              onMarkAsOtherChange={setMarkAsOther}
+            />
           </div>
 
           <DialogFooter>

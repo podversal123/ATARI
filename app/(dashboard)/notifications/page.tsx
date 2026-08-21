@@ -7,9 +7,9 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { EmptyDataTable } from "@/components/data-table/empty-data-table";
+import { SelectKvksDropdown } from "@/components/notifications/select-kvks-dropdown";
 import { useSession } from "@/lib/session";
 import { KVKS } from "@/lib/rbac";
-import { RECIPIENT_ALL_KVKS, RECIPIENT_OWN_USERS } from "@/lib/notifications";
 
 const SENT_COLUMNS = [
   { key: "title", label: "Title" },
@@ -40,7 +40,7 @@ export default function NotificationsPage() {
   const session = useSession();
   const isKvk = session.role !== "super-admin";
 
-  const [recipient, setRecipient] = useState(isKvk ? RECIPIENT_OWN_USERS : RECIPIENT_ALL_KVKS);
+  const [selectedKvks, setSelectedKvks] = useState<Set<string>>(() => new Set(KVKS.map((kvk) => kvk.name)));
   const [title, setTitle] = useState("");
   const [message, setMessage] = useState("");
 
@@ -58,18 +58,7 @@ export default function NotificationsPage() {
             {isKvk ? (
               <Input value={session.kvkName ? `${session.kvkName} Users` : "My KVK Users"} disabled className="mt-1" />
             ) : (
-              <select
-                value={recipient}
-                onChange={(e) => setRecipient(e.target.value)}
-                className="mt-1 h-9 w-full rounded-md border border-border bg-card px-2.5 text-sm text-foreground outline-none focus-visible:border-ring"
-              >
-                <option value={RECIPIENT_ALL_KVKS}>All KVKs</option>
-                {KVKS.map((kvk) => (
-                  <option key={kvk.name} value={kvk.name}>
-                    {kvk.name}
-                  </option>
-                ))}
-              </select>
+              <SelectKvksDropdown selected={selectedKvks} onChange={setSelectedKvks} />
             )}
           </div>
           <div>
@@ -88,7 +77,7 @@ export default function NotificationsPage() {
           />
         </div>
         <div className="mt-3 flex justify-end">
-          <Button size="sm" disabled={!title || !message}>
+          <Button size="sm" disabled={!title || !message || (!isKvk && selectedKvks.size === 0)}>
             <Send className="size-3.5" />
             Send
           </Button>

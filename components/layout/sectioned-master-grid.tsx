@@ -1,19 +1,43 @@
 import Link from "next/link";
 import {
   ArrowRight,
+  Building2,
+  CalendarDays,
+  CloudSun,
+  Database,
+  FlaskConical,
+  GraduationCap,
+  HandHeart,
+  Home,
   IndianRupee,
+  LandPlot,
   Landmark,
   Leaf,
+  MapPin,
+  Megaphone,
+  Newspaper,
+  Package,
+  Plane,
   ShieldCheck,
+  Sprout,
   TrendingUp,
   Users,
+  Users2,
   Wrench,
+  Flag,
+  BookOpen,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { NavGroup } from "@/lib/navigation";
 
-/** Per-card icon, pixel-matched to the reference screenshot (each Other Masters card has its own). */
+/**
+ * Per-card icon. The Other Masters set (employee..project-wise-budget) is
+ * pixel-matched to the reference screenshot; every other entry below is a
+ * generic, non-fabricated icon choice (design decoration, not a claim about
+ * content) added so every module/sub-module card in All Masters has one —
+ * client request, no reference screenshot existed for these.
+ */
 const GROUP_ICONS: Record<string, LucideIcon> = {
   employee: Users,
   bank: IndianRupee,
@@ -23,6 +47,37 @@ const GROUP_ICONS: Record<string, LucideIcon> = {
   nicra: ShieldCheck,
   "performance-indicator": TrendingUp,
   "project-wise-budget": IndianRupee,
+  // Basic Masters — pure-leaf group, so this always renders as ONE card
+  // keyed by the group's own slug ("basic"), not by each leaf's slug
+  // (landingCards only splits into per-child cards when a group mixes in
+  // sub-groups — see `landingCards`'s `hasSubGroup` check). The per-leaf
+  // entries below are kept in case that group ever gains a sub-group.
+  basic: Database,
+  "zone-master": MapPin,
+  "state-master": Flag,
+  "district-master": LandPlot,
+  "institute-master": GraduationCap,
+  "host-master": Building2,
+  "kvk-master": Home,
+  // OFT & FLD Masters
+  oft: FlaskConical,
+  fld: Sprout,
+  cfld: Leaf,
+  // Training & Extension Masters
+  training: BookOpen,
+  "extension-activities": Megaphone,
+  events: CalendarDays,
+  // Production Masters
+  "seed-planting-bio": Package,
+  "climate-resilient-agriculture": CloudSun,
+  arya: Users2,
+  "tsp-scsp": HandHeart,
+  "natural-farming": Sprout,
+  "agri-drone": Plane,
+  // Publication Masters — same single-card case as Basic Masters above,
+  // keyed by the group's own slug ("publication").
+  publication: Newspaper,
+  "publication-items": Newspaper,
 };
 
 type SectionedMasterGridProps = {
@@ -52,8 +107,8 @@ export function SectionedMasterGrid({ groups, basePath }: SectionedMasterGridPro
         return (
           <div key={group.slug} className="rounded-lg border border-border bg-card p-4">
             <p className={cn("mb-1 flex items-center gap-2 text-sm font-semibold text-primary", !Icon && "mb-2")}>
-              {Icon && <Icon className="size-4" />}
-              {group.label}
+              {Icon && <Icon className="size-4 shrink-0" />}
+              <span className="truncate">{group.label}</span>
             </p>
             <ul>
               {group.children.map((child) => {
