@@ -28,11 +28,11 @@ function KvkUserDashboard({ kvkName }: { kvkName?: string }) {
   return (
     <div>
       <div className="mb-6">
-        <div className="flex items-center gap-2 border-b border-border pb-3">
+        <div className="flex items-center gap-2">
           <LayoutDashboard className="size-5 shrink-0 text-primary" />
           <h1 className="text-3xl font-semibold text-primary">My Pending Forms</h1>
         </div>
-        <p className="mt-2 text-sm text-muted-foreground">
+        <p className="mt-1 text-sm text-muted-foreground">
           Track what still needs filling in for {kvkName ?? "your KVK"}
         </p>
       </div>
@@ -83,11 +83,11 @@ export default function DashboardPage() {
     <div>
       <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2 border-b border-border pb-3">
+          <div className="flex items-center gap-2">
             <LayoutDashboard className="size-5 shrink-0 text-primary" />
             <h1 className="text-3xl font-semibold text-primary">Dashboard</h1>
           </div>
-          <p className="mt-2 text-sm text-muted-foreground">
+          <p className="mt-1 text-sm text-muted-foreground">
             {isKvkAdmin
               ? `Overview for ${session.kvkName ?? "your KVK"}`
               : "Central overview of system activities and performance metrics"}

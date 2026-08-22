@@ -1,41 +1,33 @@
-import { ImageIcon, Upload } from "lucide-react";
+"use client";
+
+import { Image as ImageIcon } from "lucide-react";
 import { PageHeader } from "@/components/layout/page-header";
-import { Button } from "@/components/ui/button";
-import { FORM_MANAGEMENT } from "@/lib/navigation";
+import { useSession } from "@/lib/session";
+import { SuperAdminModuleImagesView } from "@/components/module-images/super-admin-module-images-view";
+import { KvkModuleImagesView } from "@/components/module-images/kvk-module-images-view";
 
 /**
- * Per the client's own description: one representative image per top-level
- * Form Management module (About KVK, Achievements, ...), set by the admin
- * — distinct from Gallery, which browses real photos KVKs submit through
- * their forms. No reference screenshot exists for this exact page, but the
- * shape (one card per module, upload/replace its image) comes directly
- * from that description rather than being invented.
+ * Per "Module Images UI.pdf": Super Admin gets a cross-KVK, filter-and-download-only
+ * screen ("Category Wise Photographs"); a KVK gets its own upload/list screen. Which
+ * one renders is decided by the session role, same split as Reports and Log History.
  */
 export default function ModuleImagesPage() {
+  const session = useSession();
+  const isKvk = session.role !== "super-admin";
+
   return (
     <div>
       <PageHeader
         trail={[{ label: "Module Images" }]}
-        title="Module Images"
+        title={isKvk ? "Module Images" : "Module Images — Category Wise Photographs"}
         icon={ImageIcon}
-        description="Set a representative image for each Form Management module."
+        description={
+          isKvk
+            ? `Upload and manage photographs for ${session.kvkName ?? "your KVK"}, organised by Form Management category.`
+            : "Find and download KVK-submitted photographs by reporting year, KVK, and Form Management category."
+        }
       />
-
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {FORM_MANAGEMENT.map((module) => (
-          <div key={module.slug} className="rounded-lg border border-border bg-card p-4">
-            <div className="flex aspect-video items-center justify-center rounded-md border border-dashed border-border bg-muted/40">
-              <ImageIcon className="size-8 text-muted-foreground/40" />
-            </div>
-            <p className="mt-3 text-sm font-medium text-foreground">{module.label}</p>
-            <p className="mt-0.5 text-xs text-muted-foreground">No image set</p>
-            <Button variant="outline" size="sm" className="mt-3 w-full">
-              <Upload className="size-3.5" />
-              Upload Image
-            </Button>
-          </div>
-        ))}
-      </div>
+      {isKvk ? <KvkModuleImagesView /> : <SuperAdminModuleImagesView />}
     </div>
   );
 }

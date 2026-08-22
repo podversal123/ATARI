@@ -11,7 +11,9 @@ import {
   REPORT_FORM_LEAVES,
   REPORT_ZONE_OPTIONS,
   QUICK_SELECT_OPTIONS,
+  districtsForHostOrg,
   hostOrgsForState,
+  kvksForDistrict,
   kvksForHostOrg,
   resolveQuickSelectRange,
   statesForZone,
@@ -19,16 +21,9 @@ import {
 } from "@/lib/reports";
 import { ReportHeaderBar } from "./report-header-bar";
 import { SelectFormDropdown } from "./select-form-dropdown";
+import { SelectOrgKvksDropdown } from "./select-org-kvks-dropdown";
 
 const ALL = "all";
-
-type ReportScope = "collective" | "organisation" | "kvk";
-
-const REPORT_SCOPE_OPTIONS: { value: ReportScope; label: string }[] = [
-  { value: "collective", label: "Collective Report" },
-  { value: "organisation", label: "Organisation Report" },
-  { value: "kvk", label: "KVK Report" },
-];
 
 function firstOfMonth(): string {
   const now = new Date();
@@ -39,20 +34,21 @@ function today(): string {
 }
 
 /**
- * Super Admin / Admin Report screen. The Zone -> State -> Host Organisation
- * -> KVK filters cascade strictly (each level's options depend on the level
- * above, "All" is always available so a report can be run collectively
- * across a whole scope or narrowed down to one specific KVK), and changing
- * any parent filter resets its descendants and invalidates the current
- * preview — both behaviours come directly from the spec's filter rules.
+ * Super Admin / Admin Report screen. Zone -> State -> Host Organisation
+ * cascades as before. Once a Host Organisation is picked, every KVK under
+ * it shows as a checklist instead of a single dropdown — leaving them all
+ * checked gives a collective report across that organisation, unchecking
+ * some gives a selective report for just those KVKs. Client direction:
+ * "ek organisation se sare host show ho aur fir collective ya selective
+ * report checkbox ke help se le sku."
  */
 export function SuperAdminReportView() {
   const router = useRouter();
-  const [scope, setScope] = useState<ReportScope>("collective");
   const [zone, setZone] = useState(REPORT_ZONE_OPTIONS[0]);
   const [state, setState] = useState(ALL);
   const [hostOrg, setHostOrg] = useState(ALL);
-  const [kvk, setKvk] = useState(ALL);
+  const [district, setDistrict] = useState(ALL);
+  const [selectedKvks, setSelectedKvks] = useState<Set<string>>(new Set());
   const [selectedForms, setSelectedForms] = useState<Set<string>>(new Set(ALL_FORM_PATHS));
   const [fromDate, setFromDate] = useState(firstOfMonth());
   const [toDate, setToDate] = useState(today());
@@ -61,35 +57,33 @@ export function SuperAdminReportView() {
 
   const stateOptions = statesForZone(zone);
   const hostOrgOptions = state === ALL ? [] : hostOrgsForState(state);
-  const kvkOptions = hostOrg === ALL ? [] : kvksForHostOrg(hostOrg);
+  const districtOptions = hostOrg === ALL ? [] : districtsForHostOrg(hostOrg);
+  const kvkOptions =
+    hostOrg === ALL ? [] : district === ALL ? kvksForHostOrg(hostOrg) : kvksForDistrict(hostOrg, district);
 
-  function onScopeChange(value: ReportScope) {
-    setScope(value);
-    if (value === "collective") {
-      setHostOrg(ALL);
-      setKvk(ALL);
-    } else if (value === "organisation") {
-      setKvk(ALL);
-    }
-    setValidationError(null);
-  }
   function onZoneChange(value: string) {
     setZone(value);
     setState(ALL);
     setHostOrg(ALL);
-    setKvk(ALL);
+    setDistrict(ALL);
+    setSelectedKvks(new Set());
   }
   function onStateChange(value: string) {
     setState(value);
     setHostOrg(ALL);
-    setKvk(ALL);
+    setDistrict(ALL);
+    setSelectedKvks(new Set());
   }
   function onHostOrgChange(value: string) {
     setHostOrg(value);
-    setKvk(ALL);
+    setDistrict(ALL);
+    // Defaults to every KVK under the newly picked organisation selected — a collective report out of the box.
+    setSelectedKvks(value === ALL ? new Set() : new Set(kvksForHostOrg(value)));
   }
-  function onKvkChange(value: string) {
-    setKvk(value);
+  function onDistrictChange(value: string) {
+    setDistrict(value);
+    // Narrowing to a district still defaults to every KVK inside it — collective within that narrower scope.
+    setSelectedKvks(value === ALL ? new Set(kvksForHostOrg(hostOrg)) : new Set(kvksForDistrict(hostOrg, value)));
   }
   function onFormsChange(next: Set<string>) {
     setSelectedForms(next);
@@ -116,23 +110,26 @@ export function SuperAdminReportView() {
       setValidationError("To Date cannot be earlier than From Date.");
       return;
     }
-    if (scope === "organisation" && hostOrg === ALL) {
-      setValidationError("Please select a Host Organisation for an Organisation Report.");
-      return;
-    }
-    if (scope === "kvk" && kvk === ALL) {
-      setValidationError("Please select a KVK for a KVK Report.");
+    if (hostOrg !== ALL && selectedKvks.size === 0) {
+      setValidationError("Please select at least one KVK.");
       return;
     }
     setValidationError(null);
 
+    const kvkLabel =
+      hostOrg === ALL
+        ? "All KVKs"
+        : selectedKvks.size === kvkOptions.length
+          ? "All KVKs"
+          : Array.from(selectedKvks).join(", ");
+
     const query = new URLSearchParams({
       type: "admin",
-      scope,
       zone,
       state: state === ALL ? "All States" : state,
       hostOrg: hostOrg === ALL ? "All Host Organizations" : hostOrg,
-      kvk: kvk === ALL ? "All KVKs" : kvk,
+      district: district === ALL ? "All Districts" : district,
+      kvk: kvkLabel,
       form: selectedFormLabel,
       from: fromDate,
       to: toDate,
@@ -141,11 +138,11 @@ export function SuperAdminReportView() {
   }
 
   function resetFilters() {
-    setScope("collective");
     setZone(REPORT_ZONE_OPTIONS[0]);
     setState(ALL);
     setHostOrg(ALL);
-    setKvk(ALL);
+    setDistrict(ALL);
+    setSelectedKvks(new Set());
     setSelectedForms(new Set(ALL_FORM_PATHS));
     setFromDate(firstOfMonth());
     setToDate(today());
@@ -178,28 +175,7 @@ export function SuperAdminReportView() {
           </Button>
         </div>
 
-        <div className="mt-3">
-          <label className="text-xs font-medium text-muted-foreground">Report Type</label>
-          <div className="mt-1.5 flex flex-wrap gap-1.5">
-            {REPORT_SCOPE_OPTIONS.map((option) => (
-              <button
-                key={option.value}
-                type="button"
-                onClick={() => onScopeChange(option.value)}
-                className={cn(
-                  "rounded-full border px-3 py-1 text-xs font-medium transition-colors",
-                  scope === option.value
-                    ? "border-primary bg-primary text-primary-foreground"
-                    : "border-border text-muted-foreground hover:text-foreground"
-                )}
-              >
-                {option.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className={cn("mt-3 grid grid-cols-2 gap-3", scope === "collective" ? "sm:grid-cols-2" : scope === "organisation" ? "sm:grid-cols-3" : "sm:grid-cols-4")}>
+        <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
           <div>
             <label className="text-xs font-medium text-muted-foreground">Zone</label>
             <select
@@ -229,46 +205,47 @@ export function SuperAdminReportView() {
               ))}
             </select>
           </div>
-          {scope !== "collective" && (
-            <div>
-              <label className="text-xs font-medium text-muted-foreground">
-                Host Organisation {scope === "organisation" && <span className="text-destructive">*</span>}
-              </label>
-              <select
-                value={hostOrg}
-                onChange={(e) => onHostOrgChange(e.target.value)}
-                disabled={state === ALL}
-                className="mt-1 h-9 w-full rounded-md border border-border bg-card px-2.5 text-sm text-foreground outline-none focus-visible:border-ring disabled:opacity-50"
-              >
-                <option value={ALL}>All Host Organizations</option>
-                {hostOrgOptions.map((org) => (
-                  <option key={org} value={org}>
-                    {org}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-          {scope === "kvk" && (
-            <div>
-              <label className="text-xs font-medium text-muted-foreground">
-                KVK <span className="text-destructive">*</span>
-              </label>
-              <select
-                value={kvk}
-                onChange={(e) => onKvkChange(e.target.value)}
-                disabled={hostOrg === ALL}
-                className="mt-1 h-9 w-full rounded-md border border-border bg-card px-2.5 text-sm text-foreground outline-none focus-visible:border-ring disabled:opacity-50"
-              >
-                <option value={ALL}>All KVKs</option>
-                {kvkOptions.map((k) => (
-                  <option key={k} value={k}>
-                    {k}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
+          <div>
+            <label className="text-xs font-medium text-muted-foreground">Host Organisation</label>
+            <select
+              value={hostOrg}
+              onChange={(e) => onHostOrgChange(e.target.value)}
+              disabled={state === ALL}
+              className="mt-1 h-9 w-full rounded-md border border-border bg-card px-2.5 text-sm text-foreground outline-none focus-visible:border-ring disabled:opacity-50"
+            >
+              <option value={ALL}>All Host Organizations</option>
+              {hostOrgOptions.map((org) => (
+                <option key={org} value={org}>
+                  {org}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="text-xs font-medium text-muted-foreground">District</label>
+            <select
+              value={district}
+              onChange={(e) => onDistrictChange(e.target.value)}
+              disabled={hostOrg === ALL}
+              className="mt-1 h-9 w-full rounded-md border border-border bg-card px-2.5 text-sm text-foreground outline-none focus-visible:border-ring disabled:opacity-50"
+            >
+              <option value={ALL}>All Districts</option>
+              {districtOptions.map((d) => (
+                <option key={d} value={d}>
+                  {d}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="text-xs font-medium text-muted-foreground">KVK</label>
+            <SelectOrgKvksDropdown
+              kvks={kvkOptions}
+              selected={selectedKvks}
+              onChange={setSelectedKvks}
+              disabled={hostOrg === ALL}
+            />
+          </div>
         </div>
 
         <div className="mt-4 max-w-xs">

@@ -42,7 +42,7 @@ export function PageHeader({ backHref, trail, title, icon: Icon, description }: 
         ))}
       </div>
       {title && (
-        <div className="flex items-center gap-2 border-b border-border pb-3">
+        <div className="flex items-center gap-2">
           {Icon && <Icon className="size-5 shrink-0 text-primary" />}
           <h1 className="text-2xl font-semibold text-primary">{title}</h1>
         </div>

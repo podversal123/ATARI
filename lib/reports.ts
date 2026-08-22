@@ -110,6 +110,27 @@ export function kvksForHostOrg(hostOrg: string): string[] {
   return KVK_MASTER_ROWS.filter((row) => row.hostOrg === hostOrg).map((row) => row.kvk);
 }
 
+/**
+ * Districts under a given Host Organisation, derived from the real KVK
+ * Master rows. A Host Organisation isn't confined to one district — the
+ * real data shows e.g. BAU Sabour spanning Araria/Arwal/Aurangabad/Banka/
+ * Bhagalpur — so District narrows the KVK picker one step further inside
+ * an already-chosen Host Organisation, not the other way around.
+ */
+export function districtsForHostOrg(hostOrg: string): string[] {
+  const districts = new Set(
+    KVK_MASTER_ROWS.filter((row) => row.hostOrg === hostOrg).map((row) => row.districtName)
+  );
+  return Array.from(districts);
+}
+
+/** KVKs under a given Host Organisation, further narrowed to one district. */
+export function kvksForDistrict(hostOrg: string, districtName: string): string[] {
+  return KVK_MASTER_ROWS.filter((row) => row.hostOrg === hostOrg && row.districtName === districtName).map(
+    (row) => row.kvk
+  );
+}
+
 /** Formats a Date as DD/MM/YYYY, matching the spec's mockup date format. */
 export function formatDisplayDate(isoDate: string): string {
   if (!isoDate) return "";

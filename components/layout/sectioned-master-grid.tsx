@@ -1,41 +1,65 @@
 import Link from "next/link";
 import {
   ArrowRight,
+  BookOpen,
   Building2,
+  Bug,
+  CalendarClock,
   CalendarDays,
+  Car,
+  ClipboardCheck,
   CloudSun,
-  Database,
+  Cog,
+  Crown,
+  Droplets,
   FlaskConical,
   GraduationCap,
   HandHeart,
+  Handshake,
   Home,
   IndianRupee,
   LandPlot,
   Landmark,
   Leaf,
-  MapPin,
+  Link2,
   Megaphone,
-  Newspaper,
+  MapPin,
   Package,
+  PartyPopper,
+  PawPrint,
   Plane,
+  Scale,
+  School,
+  Shield,
   ShieldCheck,
+  Sparkles,
   Sprout,
+  Target,
   TrendingUp,
+  Trophy,
   Users,
   Users2,
   Wrench,
-  Flag,
-  BookOpen,
   type LucideIcon,
 } from "lucide-react";
 import type { NavGroup } from "@/lib/navigation";
 
 /**
- * Per-card icon. The Other Masters set (employee..project-wise-budget) is
- * pixel-matched to the reference screenshot; every other entry below is a
- * generic, non-fabricated icon choice (design decoration, not a claim about
- * content) added so every module/sub-module card in All Masters has one —
- * client request, no reference screenshot existed for these.
+ * Per-card icon. The Other Masters set (employee..project-wise-budget) and
+ * "basic"/"publication" are all pixel-matched to real reference screenshots
+ * (atari-client.vercel.app/all-master/basic and /all-master/publication) —
+ * a location-pin icon for Basic Masters, an open-book icon for
+ * Publications; neither has a border line under the heading in the
+ * reference either, just the icon + repeated title, then the list. Every
+ * other entry below (OFT & FLD / Training & Extension / Production under
+ * All Masters, and the whole Form Management set) has no reference
+ * screenshot for its icon specifically — generic, non-fabricated choices
+ * added so every card has one, per client request ("sbme logo hai" /
+ * "form management mai bhi sare mai logo laga do"). Slugs that mean the
+ * same thing under both All Masters and Form Management (oft, cfld, nicra,
+ * nari, arya-related, agri-drone, natural-farming, tsp-scsp, employee,
+ * basic) intentionally share one icon — this map is keyed by slug only, so
+ * reusing it across pages is fine since the concept is the same.
  */
 const GROUP_ICONS: Record<string, LucideIcon> = {
   employee: Users,
@@ -46,18 +70,8 @@ const GROUP_ICONS: Record<string, LucideIcon> = {
   nicra: ShieldCheck,
   "performance-indicator": TrendingUp,
   "project-wise-budget": IndianRupee,
-  // Basic Masters — pure-leaf group, so this always renders as ONE card
-  // keyed by the group's own slug ("basic"), not by each leaf's slug
-  // (landingCards only splits into per-child cards when a group mixes in
-  // sub-groups — see `landingCards`'s `hasSubGroup` check). The per-leaf
-  // entries below are kept in case that group ever gains a sub-group.
-  basic: Database,
-  "zone-master": MapPin,
-  "state-master": Flag,
-  "district-master": LandPlot,
-  "institute-master": GraduationCap,
-  "host-master": Building2,
-  "kvk-master": Home,
+  basic: MapPin,
+  publication: BookOpen,
   // OFT & FLD Masters
   oft: FlaskConical,
   fld: Sprout,
@@ -73,10 +87,41 @@ const GROUP_ICONS: Record<string, LucideIcon> = {
   "tsp-scsp": HandHeart,
   "natural-farming": Sprout,
   "agri-drone": Plane,
-  // Publication Masters — same single-card case as Basic Masters above,
-  // keyed by the group's own slug ("publication").
-  publication: Newspaper,
-  "publication-items": Newspaper,
+  // Form Management -> About KVK
+  "land-infrastructure": Home,
+  vehicles: Car,
+  equipments: Cog,
+  // Form Management -> Achievements
+  "technical-achievement": ClipboardCheck,
+  "front-line-demonstration": Sprout,
+  trainings: BookOpen,
+  extension: Megaphone,
+  "special-days": PartyPopper,
+  "production-supply": Package,
+  "soil-water-testing": Droplets,
+  publications: BookOpen,
+  hrd: Users,
+  awards: Trophy,
+  "swachhta-bharat-abhiyaan": Sparkles,
+  // Form Management -> Projects
+  "nicra-others": Shield,
+  "arya-safal": Users2,
+  "fpo-cbbo": Handshake,
+  // Form Management -> Performance Indicators
+  impact: Target,
+  "district-village-performance": LandPlot,
+  "infrastructure-performance": Building2,
+  "financial-performance": IndianRupee,
+  linkages: Link2,
+  // Form Management -> Meetings (self-wraps into one card)
+  meetings: CalendarClock,
+  // Form Management -> Miscellaneous
+  "prevalent-diseases-crops": Bug,
+  "prevalent-diseases-livestock": PawPrint,
+  "nyk-training": GraduationCap,
+  "ppv-fra-sensitization": Scale,
+  "rawe-fet-fit-programme": School,
+  "vip-visitors": Crown,
 };
 
 type SectionedMasterGridProps = {
@@ -105,9 +150,9 @@ export function SectionedMasterGrid({ groups, basePath }: SectionedMasterGridPro
         const Icon = GROUP_ICONS[group.slug];
         return (
           <div key={group.slug} className="rounded-lg border border-border bg-card p-4">
-            <p className="flex items-center gap-2 border-b border-border pb-2.5 text-sm font-semibold text-primary">
-              {Icon && <Icon className="size-4 shrink-0" />}
-              <span className="truncate">{group.label}</span>
+            <p className="mb-2 flex items-center gap-2 text-base font-bold text-primary">
+              {Icon && <Icon className="size-4.5 shrink-0" />}
+              {group.pageTitle ?? group.label}
             </p>
             <ul>
               {group.children.map((child) => {

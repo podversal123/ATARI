@@ -61,7 +61,7 @@ export function ProgressChartCard({
               type="button"
               onClick={() => setView(option.value)}
               className={cn(
-                "flex items-center gap-1 rounded-[calc(var(--radius-md)-2px)] px-1.5 py-1 text-[11px] font-medium transition-colors",
+                "flex items-center gap-1 rounded-[calc(var(--radius-md)-2px)] px-1.5 py-1 text-[11px] font-medium tracking-wide uppercase transition-colors",
                 view === option.value
                   ? "bg-primary text-primary-foreground"
                   : "text-muted-foreground hover:text-foreground"
@@ -74,7 +74,7 @@ export function ProgressChartCard({
           {detailedHref && (
             <Link
               href={detailedHref}
-              className="flex items-center gap-1 rounded-[calc(var(--radius-md)-2px)] px-1.5 py-1 text-[11px] font-medium text-primary transition-colors hover:text-primary/80"
+              className="flex items-center gap-1 rounded-[calc(var(--radius-md)-2px)] px-1.5 py-1 text-[11px] font-medium tracking-wide text-primary uppercase transition-colors hover:text-primary/80"
             >
               <ArrowUpRight className="size-3" />
               Detailed

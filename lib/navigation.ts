@@ -201,18 +201,19 @@ const otherMasters = group("other", "Other Masters", [
 
 /** All Masters -> Basic Masters (columns + tab order confirmed on screen) */
 const basicMasters = group("basic", "Basic Masters", [
-  leaf("zone-master", "Zone Master", [{ key: "zoneName", label: "Zone Name" }]),
-  leaf("state-master", "State Master", [
+  leaf("zone-master", "Zones Master", [{ key: "zoneName", label: "Zone Name" }]),
+  leaf("state-master", "States Master", [
     { key: "zoneName", label: "Zone Name" },
     { key: "stateName", label: "State Name" },
   ]),
-  leaf("district-master", "District Master", [
+  leaf("district-master", "Districts Master", [
     { key: "zoneName", label: "Zone Name" },
     { key: "stateName", label: "State Name" },
     { key: "districtName", label: "District Name" },
   ]),
   leaf("institute-master", "Institute Master", [{ key: "instituteName", label: "Institute Name" }]),
   leaf("host-master", "Host Master", [{ key: "hostName", label: "Host Name" }]),
+  /** Column order/labels confirmed exactly against the real reference screenshot (atari-client.vercel.app/all-master/kvks, IMG-20260817-WA0009.jpg + WA0011.jpg): Mobile, Email, Address, Year of Sanction — not the Mobile/Address/E-Mail/Sanction Year order this leaf had before. */
   leaf("kvk-master", "KVK Master", [
     { key: "zoneName", label: "Zone Name" },
     { key: "stateName", label: "State Name" },
@@ -220,9 +221,9 @@ const basicMasters = group("basic", "Basic Masters", [
     { key: "districtName", label: "District Name" },
     { key: "kvk", label: "KVK" },
     { key: "mobile", label: "Mobile" },
+    { key: "email", label: "Email" },
     { key: "address", label: "Address" },
-    { key: "email", label: "E-Mail" },
-    { key: "sanctionYear", label: "Sanction Year" },
+    { key: "sanctionYear", label: "Year of Sanction" },
   ]),
 ], { description: "Manage zones, states, institutes, hosts, and districts" });
 
@@ -298,9 +299,12 @@ export const ALL_MASTERS: NavItem[] = [
   oftFldMasters,
   trainingExtensionMasters,
   productionProjects,
-  group("publication", "Publication Masters", [
-    leaf("publication-items", "Publication Items Master", [{ key: "itemName", label: "Item Name" }]),
-  ]),
+  group(
+    "publication",
+    "Publication Masters",
+    [leaf("publication-items", "Publication Items", [{ key: "itemName", label: "Item Name" }])],
+    { pageTitle: "Publications", description: "Manage publication items and related master data" }
+  ),
   otherMasters,
 ];
 

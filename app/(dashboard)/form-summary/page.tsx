@@ -29,7 +29,7 @@ export default function FormSummaryPage() {
     <div>
       <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2 border-b border-border pb-3">
+          <div className="flex items-center gap-2">
             <ListChecks className="size-5 shrink-0 text-primary" />
             <h1 className="text-3xl font-semibold text-primary">
               {isKvk ? `Form Summary — ${session.kvkName ?? "My KVK"}` : "Form Summary — All KVKs"}

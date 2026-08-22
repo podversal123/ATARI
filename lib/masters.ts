@@ -53,13 +53,13 @@ export type KvkMasterRow = {
   districtName: string;
   kvk: string;
   mobile: string;
-  /** Address/E-Mail/Sanction Year confirmed from the client's own "1.1.1 Name and address of KVK" reference document — real per-KVK data, not screenshot-guessed. */
-  address: string;
+  /** Column order is Mobile, Email, Address, Year of Sanction — confirmed against the real table screenshot (atari-client.vercel.app/all-master/kvks), not the Mobile/Address/E-Mail/Sanction Year order this used to have. Values themselves were cross-confirmed from the client's own "1.1.1 Name and address of KVK" reference document. */
   email: string;
+  address: string;
   sanctionYear: string;
 };
 
-/** First page only (6 of 65 rows were visible in the reference screenshot; Address/E-Mail/Sanction Year cross-confirmed for these same 6 from the client's "1.1.1" KVK Basic Information document). */
+/** First page only (6 of 65 rows were visible in the reference screenshot; Email/Address/Sanction Year cross-confirmed for these same 6 from the client's "1.1.1" KVK Basic Information document). */
 export const KVK_MASTER_ROWS: KvkMasterRow[] = [
   {
     zoneName: "Zone IV - Patna",
