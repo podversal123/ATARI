@@ -46,19 +46,18 @@ import type { NavGroup } from "@/lib/navigation";
 
 /**
  * Per-card icon. The Other Masters set (employee..project-wise-budget) and
- * "basic"/"publication" are all pixel-matched to real reference screenshots
- * (atari-client.vercel.app/all-master/basic and /all-master/publication) —
+ * "basic"/"publication" are all pixel-matched to the reference -
  * a location-pin icon for Basic Masters, an open-book icon for
  * Publications; neither has a border line under the heading in the
  * reference either, just the icon + repeated title, then the list. Every
  * other entry below (OFT & FLD / Training & Extension / Production under
  * All Masters, and the whole Form Management set) has no reference
- * screenshot for its icon specifically — generic, non-fabricated choices
+ * reference for its icon specifically - generic, non-fabricated choices
  * added so every card has one, per client request ("sbme logo hai" /
  * "form management mai bhi sare mai logo laga do"). Slugs that mean the
  * same thing under both All Masters and Form Management (oft, cfld, nicra,
  * nari, arya-related, agri-drone, natural-farming, tsp-scsp, employee,
- * basic) intentionally share one icon — this map is keyed by slug only, so
+ * basic) intentionally share one icon - this map is keyed by slug only, so
  * reusing it across pages is fine since the concept is the same.
  */
 const GROUP_ICONS: Record<string, LucideIcon> = {
@@ -125,7 +124,7 @@ const GROUP_ICONS: Record<string, LucideIcon> = {
 };
 
 type SectionedMasterGridProps = {
-  /** Sub-groups (Employee Masters, Bank Masters, ...), each rendered as its own card. */
+  /** Sub-groups (Employee Masters, Bank Masters,...), each rendered as its own card. */
   groups: NavGroup[];
   basePath: string;
 };
@@ -133,23 +132,27 @@ type SectionedMasterGridProps = {
 /**
  * "Other Masters" landing page. Unlike every other Masters group, the real
  * reference renders all of its sub-groups as cards on a single page, each
- * listing its individual masters as clickable text rows — there is no
- * intermediate sub-group landing page to click through first (confirmed by
- * directly viewing atari-master-data/master/6.Other Masters/1st and 2nd pic
- * of other masters.png, real screenshots of atari-client.vercel.app/
- * all-master/other-masters). Rows have no divider lines and default to dark
- * text; only on hover does the row turn green and grow a trailing arrow —
- * also confirmed directly from those screenshots. Leaf links below jump
+ * listing its individual masters as clickable text rows - there is no
+ * intermediate sub-group landing page to click through first. Rows have no
+ * divider lines and default to dark text; only on hover does the row turn
+ * green and grow a trailing arrow - both confirmed against the reference.
+ * Leaf links below jump
  * straight from this page to the master's data table, skipping the generic
  * NavCardGrid drill-down used everywhere else in All Masters.
  */
-export function SectionedMasterGrid({ groups, basePath }: SectionedMasterGridProps) {
+export function SectionedMasterGrid({
+  groups,
+  basePath,
+}: SectionedMasterGridProps) {
   return (
     <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
       {groups.map((group) => {
         const Icon = GROUP_ICONS[group.slug];
         return (
-          <div key={group.slug} className="rounded-lg border border-border bg-card p-4">
+          <div
+            key={group.slug}
+            className="rounded-lg border border-border bg-card p-4"
+          >
             <p className="mb-2 flex items-center gap-2 text-base font-bold text-primary">
               {Icon && <Icon className="size-4.5 shrink-0" />}
               {group.pageTitle ?? group.label}
@@ -157,19 +160,27 @@ export function SectionedMasterGrid({ groups, basePath }: SectionedMasterGridPro
             <ul>
               {group.children.map((child) => {
                 // A card wrapping a single same-slug leaf is a synthetic single-item
-                // card (see `landingCards`) — the leaf itself lives directly under
+                // card (see `landingCards`) - the leaf itself lives directly under
                 // basePath, not nested one level deeper under the card's own slug.
-                const isSelfWrap = group.children.length === 1 && child.slug === group.slug;
+                const isSelfWrap =
+                  group.children.length === 1 && child.slug === group.slug;
                 const href = isSelfWrap
                   ? `${basePath}/${child.slug}`
                   : `${basePath}/${group.slug}/${child.slug}`;
+                // Where a leaf's card text differs from its own page title (e.g. card
+                // "Infrastructure Master" vs page "Infrastructure"), the card must show
+                // the card text - that's what `cardLabel` records.
+                const cardText =
+                  child.type === "leaf"
+                    ? (child.cardLabel ?? child.label)
+                    : child.label;
                 return (
                   <li key={child.slug}>
                     <Link
                       href={href}
                       className="group flex items-center justify-between gap-2 py-2.5 text-sm text-foreground transition-colors hover:text-primary"
                     >
-                      {child.label}
+                      {cardText}
                       <ArrowRight className="size-3.5 shrink-0 -translate-x-1 text-primary opacity-0 transition-all group-hover:translate-x-0 group-hover:opacity-100" />
                     </Link>
                   </li>

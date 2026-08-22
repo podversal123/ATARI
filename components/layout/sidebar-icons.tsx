@@ -16,8 +16,8 @@ import {
 import type { SidebarIconName } from "@/lib/navigation";
 
 /**
- * Mapped by zooming into the real reference sidebar screenshot icon-by-icon
- * (not guessed) — Role Management is a gear (not a shield), Module Images is
+ * Mapped by zooming into the real reference sidebar the reference icon-by-icon
+ * (not guessed) - Role Management is a gear (not a shield), Module Images is
  * a single photo frame, Gallery is the "stack of photos" icon.
  */
 export const SIDEBAR_ICONS: Record<SidebarIconName, LucideIcon> = {

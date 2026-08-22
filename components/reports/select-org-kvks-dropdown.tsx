@@ -19,24 +19,30 @@ type SelectOrgKvksDropdownProps = {
 
 /**
  * Once a Host Organisation is picked, every KVK under it shows here as a
- * checklist — Select All gives the collective report for that organisation,
+ * checklist - Select All gives the collective report for that organisation,
  * unchecking some gives a selective report for just those KVKs. Client
  * direction: "ek organisation se sare host show ho aur fir collective ya
  * selective report checkbox ke help se le sku."
  */
-export function SelectOrgKvksDropdown({ kvks, selected, onChange, disabled }: SelectOrgKvksDropdownProps) {
+export function SelectOrgKvksDropdown({
+  kvks,
+  selected,
+  onChange,
+  disabled,
+}: SelectOrgKvksDropdownProps) {
   const allSelected = kvks.length > 0 && selected.size === kvks.length;
   const noneSelected = selected.size === 0;
 
-  const label = disabled || kvks.length === 0
-    ? "Select a Host Organisation first"
-    : allSelected
-      ? `All KVKs (${kvks.length})`
-      : noneSelected
-        ? "No KVKs Selected"
-        : selected.size === 1
-          ? Array.from(selected)[0]
-          : `${selected.size} of ${kvks.length} KVKs Selected`;
+  const label =
+    disabled || kvks.length === 0
+      ? "Select a Host Organisation first"
+      : allSelected
+        ? `All KVKs (${kvks.length})`
+        : noneSelected
+          ? "No KVKs Selected"
+          : selected.size === 1
+            ? Array.from(selected)[0]
+            : `${selected.size} of ${kvks.length} KVKs Selected`;
 
   function toggleAll() {
     onChange(allSelected ? new Set() : new Set(kvks));
@@ -65,13 +71,23 @@ export function SelectOrgKvksDropdown({ kvks, selected, onChange, disabled }: Se
           </button>
         }
       />
-      <DropdownMenuContent align="start" className="w-72 min-w-0 overflow-y-auto">
-        <DropdownMenuCheckboxItem checked={allSelected} onCheckedChange={toggleAll}>
+      <DropdownMenuContent
+        align="start"
+        className="w-72 min-w-0 overflow-y-auto"
+      >
+        <DropdownMenuCheckboxItem
+          checked={allSelected}
+          onCheckedChange={toggleAll}
+        >
           Select All KVKs (Collective Report)
         </DropdownMenuCheckboxItem>
         <DropdownMenuSeparator />
         {kvks.map((name) => (
-          <DropdownMenuCheckboxItem key={name} checked={selected.has(name)} onCheckedChange={() => toggleOne(name)}>
+          <DropdownMenuCheckboxItem
+            key={name}
+            checked={selected.has(name)}
+            onCheckedChange={() => toggleOne(name)}
+          >
             {name}
           </DropdownMenuCheckboxItem>
         ))}

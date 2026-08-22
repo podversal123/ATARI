@@ -23,7 +23,7 @@ type ViewMode = "grid" | "list";
 const YEAR_OPTIONS = ["2026-27", "2025-26", "2024-25"];
 
 /**
- * Real structure confirmed from a client reference screenshot of /gallery:
+ * Real structure confirmed from a the reference of /gallery:
  * search + year filter, grid/list toggle, an active-filter chip row, a left
  * "MODULES" panel (expandable groups, each with a photo count) driving
  * which module/form the grid is filtered to, and an empty state offering to
@@ -88,7 +88,9 @@ export default function GalleryPage() {
             aria-label="Grid view"
             className={cn(
               "rounded-[calc(var(--radius-md)-2px)] p-1.5 transition-colors",
-              view === "grid" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+              view === "grid"
+                ? "bg-primary text-primary-foreground"
+                : "text-muted-foreground hover:text-foreground",
             )}
           >
             <LayoutGrid className="size-4" />
@@ -99,7 +101,9 @@ export default function GalleryPage() {
             aria-label="List view"
             className={cn(
               "rounded-[calc(var(--radius-md)-2px)] p-1.5 transition-colors",
-              view === "list" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+              view === "list"
+                ? "bg-primary text-primary-foreground"
+                : "text-muted-foreground hover:text-foreground",
             )}
           >
             <List className="size-4" />
@@ -115,7 +119,11 @@ export default function GalleryPage() {
               <X className="size-3.5" />
             </button>
           </span>
-          <button type="button" onClick={clearAll} className="text-muted-foreground underline underline-offset-2 hover:text-foreground">
+          <button
+            type="button"
+            onClick={clearAll}
+            className="text-muted-foreground underline underline-offset-2 hover:text-foreground"
+          >
             Clear all
           </button>
         </div>
@@ -124,8 +132,14 @@ export default function GalleryPage() {
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[260px_1fr]">
         <div className="rounded-lg border border-border bg-card p-3">
           <div className="mb-2 flex items-center justify-between">
-            <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">Modules</p>
-            <button type="button" onClick={expandAll} className="text-xs text-primary hover:underline">
+            <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+              Modules
+            </p>
+            <button
+              type="button"
+              onClick={expandAll}
+              className="text-xs text-primary hover:underline"
+            >
               Expand all
             </button>
           </div>
@@ -135,7 +149,9 @@ export default function GalleryPage() {
             onClick={() => setActiveLeaf(null)}
             className={cn(
               "flex w-full items-center justify-between rounded-md px-2 py-1.5 text-sm transition-colors",
-              !activeLeaf ? "bg-accent font-medium text-accent-foreground" : "text-foreground hover:bg-muted"
+              !activeLeaf
+                ? "bg-accent font-medium text-accent-foreground"
+                : "text-foreground hover:bg-muted",
             )}
           >
             All modules
@@ -153,7 +169,11 @@ export default function GalleryPage() {
                     className="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left text-xs font-semibold tracking-wide text-muted-foreground uppercase hover:bg-muted"
                   >
                     <span className="flex items-center gap-1">
-                      {isOpen ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />}
+                      {isOpen ? (
+                        <ChevronDown className="size-3.5" />
+                      ) : (
+                        <ChevronRight className="size-3.5" />
+                      )}
                       {module.label}
                     </span>
                     <span>0</span>
@@ -169,7 +189,7 @@ export default function GalleryPage() {
                             "flex w-full items-center justify-between rounded-md px-2 py-1.5 text-sm transition-colors",
                             activeLeaf?.slug === leaf.slug
                               ? "bg-accent font-medium text-accent-foreground"
-                              : "text-foreground hover:bg-muted"
+                              : "text-foreground hover:bg-muted",
                           )}
                         >
                           {leaf.label}

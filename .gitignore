@@ -30,7 +30,7 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files — real secrets never committed; .env.example is the tracked template
+# env files - real secrets never committed; .env.example is the tracked template
 .env*
 !.env.example
 
@@ -48,7 +48,7 @@ next-env.d.ts
 .vscode/
 .idea/
 
-# Claude Code local state — never push
+# Claude Code local state - never push
 .claude/
 
 # local browser-testing artifacts (screenshots/snapshots, not project content)

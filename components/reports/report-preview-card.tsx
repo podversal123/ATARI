@@ -17,7 +17,12 @@ type ReportPreviewCardProps = {
  * keep showing it as current, and a no-data result renders the documented
  * message instead of an empty table.
  */
-export function ReportPreviewCard({ heading, reportId, phase, metaColumns }: ReportPreviewCardProps) {
+export function ReportPreviewCard({
+  heading,
+  reportId,
+  phase,
+  metaColumns,
+}: ReportPreviewCardProps) {
   const showMeta = phase === "generating" || phase === "no-data";
 
   return (

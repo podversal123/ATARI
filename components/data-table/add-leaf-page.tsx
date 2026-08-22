@@ -16,13 +16,18 @@ type AddLeafPageProps = {
 };
 
 /**
- * Form Management's "Add New" — per client direction, opens a dedicated
+ * Form Management's "Add New" - per client direction, opens a dedicated
  * page instead of the popup EmptyDataTable/Masters keep. Same field set and
  * "Mark as Other" behaviour as the dialog version (shared via
  * MasterFormFields), just laid out full-page. No backend yet, so Save just
  * returns to the list like every other Phase 1 form.
  */
-export function AddLeafPage({ title, trail, backHref, columns }: AddLeafPageProps) {
+export function AddLeafPage({
+  title,
+  trail,
+  backHref,
+  columns,
+}: AddLeafPageProps) {
   const router = useRouter();
   const [formValues, setFormValues] = useState<Record<string, string>>({});
   const [markAsOther, setMarkAsOther] = useState(false);

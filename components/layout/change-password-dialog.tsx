@@ -21,19 +21,25 @@ type ChangePasswordDialogProps = {
 const EMPTY_FORM = { newPassword: "", confirmPassword: "" };
 
 /**
- * Self-service password change — every account (Super Admin, KVK Admin, and
+ * Self-service password change - every account (Super Admin, KVK Admin, and
  * eventually KVK User) needs this since there's no email-based reset flow
  * per the client's spec ("Super Admin will fix" = admin-mediated only). An
  * admin sets/resets a password out-of-band (phone call, in person); this is
  * how the account holder then sets their own from that point on. No backend
  * yet, so this validates and closes like every other Phase 1 form.
  */
-export function ChangePasswordDialog({ open, onOpenChange }: ChangePasswordDialogProps) {
+export function ChangePasswordDialog({
+  open,
+  onOpenChange,
+}: ChangePasswordDialogProps) {
   const [form, setForm] = useState(EMPTY_FORM);
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  function updateForm<K extends keyof typeof EMPTY_FORM>(key: K, value: string) {
+  function updateForm<K extends keyof typeof EMPTY_FORM>(
+    key: K,
+    value: string,
+  ) {
     setForm((prev) => ({ ...prev, [key]: value }));
   }
 
@@ -76,7 +82,9 @@ export function ChangePasswordDialog({ open, onOpenChange }: ChangePasswordDialo
                 type={showPassword ? "text" : "password"}
                 autoComplete="new-password"
                 value={form.newPassword}
-                onChange={(event) => updateForm("newPassword", event.target.value)}
+                onChange={(event) =>
+                  updateForm("newPassword", event.target.value)
+                }
                 className="pr-9"
               />
               <button
@@ -85,7 +93,11 @@ export function ChangePasswordDialog({ open, onOpenChange }: ChangePasswordDialo
                 aria-label={showPassword ? "Hide password" : "Show password"}
                 className="absolute top-1/2 right-2.5 -translate-y-1/2 text-muted-foreground hover:text-foreground"
               >
-                {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                {showPassword ? (
+                  <EyeOff className="size-4" />
+                ) : (
+                  <Eye className="size-4" />
+                )}
               </button>
             </div>
             <p className="text-xs text-muted-foreground">
@@ -100,7 +112,9 @@ export function ChangePasswordDialog({ open, onOpenChange }: ChangePasswordDialo
               type={showPassword ? "text" : "password"}
               autoComplete="new-password"
               value={form.confirmPassword}
-              onChange={(event) => updateForm("confirmPassword", event.target.value)}
+              onChange={(event) =>
+                updateForm("confirmPassword", event.target.value)
+              }
             />
           </div>
 

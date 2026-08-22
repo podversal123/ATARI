@@ -15,7 +15,10 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { DISTRICTS } from "@/lib/rbac";
-import { DemographicBreakdown, type DemographicValues } from "./demographic-breakdown";
+import {
+  DemographicBreakdown,
+  type DemographicValues,
+} from "./demographic-breakdown";
 
 const TABS = [
   "Technical Parameter",
@@ -25,25 +28,34 @@ const TABS = [
 ] as const;
 type TabName = (typeof TABS)[number];
 
-/** Standard CFLD economic-parameter set used across ICAR CFLD reporting (Demonstration vs Farmers' Practice comparison) — not itself confirmed from a screenshot, unlike the other 3 tabs, since no Economic Parameters screen was captured in the reference set. */
+/** Standard CFLD economic-parameter set used across ICAR CFLD reporting (Demonstration vs Farmers' Practice comparison) - not itself confirmed from a the reference, unlike the other 3 tabs, since no Economic Parameters screen was captured in the reference set. */
 const ECONOMIC_FIELDS = [
-  { key: "costDemo", label: "Cost of Cultivation — Demonstration (₹/ha)" },
-  { key: "costFarmer", label: "Cost of Cultivation — Farmers' Practice (₹/ha)" },
-  { key: "grossReturnDemo", label: "Gross Return — Demonstration (₹/ha)" },
-  { key: "grossReturnFarmer", label: "Gross Return — Farmers' Practice (₹/ha)" },
-  { key: "netReturnDemo", label: "Net Return — Demonstration (₹/ha)" },
-  { key: "netReturnFarmer", label: "Net Return — Farmers' Practice (₹/ha)" },
-  { key: "bcRatioDemo", label: "B:C Ratio — Demonstration" },
-  { key: "bcRatioFarmer", label: "B:C Ratio — Farmers' Practice" },
+  { key: "costDemo", label: "Cost of Cultivation - Demonstration (₹/ha)" },
+  {
+    key: "costFarmer",
+    label: "Cost of Cultivation - Farmers' Practice (₹/ha)",
+  },
+  { key: "grossReturnDemo", label: "Gross Return - Demonstration (₹/ha)" },
+  {
+    key: "grossReturnFarmer",
+    label: "Gross Return - Farmers' Practice (₹/ha)",
+  },
+  { key: "netReturnDemo", label: "Net Return - Demonstration (₹/ha)" },
+  { key: "netReturnFarmer", label: "Net Return - Farmers' Practice (₹/ha)" },
+  { key: "bcRatioDemo", label: "B:C Ratio - Demonstration" },
+  { key: "bcRatioFarmer", label: "B:C Ratio - Farmers' Practice" },
 ];
 
-/** Real field names confirmed live (atari-photo-zip CFLD Technical Parameter edit form, 4-tab wizard). */
+/** Real field names confirmed live. */
 const PERCEPTION_FIELDS = [
   { key: "suitability", label: "Suitability to Farming System" },
   { key: "likingsPreference", label: "Likings / Preference" },
   { key: "affordability", label: "Affordability" },
   { key: "negativeEffect", label: "Any Negative Effect" },
-  { key: "acceptableToAll", label: "Is Technology Acceptable to All in Group/Village" },
+  {
+    key: "acceptableToAll",
+    label: "Is Technology Acceptable to All in Group/Village",
+  },
   { key: "suggestions", label: "Suggestions for Change/Improvement" },
   { key: "farmerFeedback", label: "Farmer Feedback" },
 ];
@@ -55,7 +67,7 @@ type CfldTechnicalParameterDialogProps = {
 };
 
 /**
- * CFLD Technical Parameter's real Add/Edit form isn't a flat field list —
+ * CFLD Technical Parameter's real Add/Edit form isn't a flat field list -
  * it's a 4-tab wizard (Technical / Economic / Socio-Economic / Farmers
  * Perception) with a caste/gender demographic breakdown and separate
  * "Update" vs "Mark as Completed" actions (the real reference shows a
@@ -91,13 +103,15 @@ export function CfldTechnicalParameterDialog({
       <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>
-            {editingRow ? "Edit CFLD Technical Parameter" : "Add CFLD Technical Parameter"}
+            {editingRow
+              ? "Edit CFLD Technical Parameter"
+              : "Add CFLD Technical Parameter"}
           </DialogTitle>
         </DialogHeader>
 
         <div className="rounded-md bg-accent px-3 py-2.5 text-xs text-accent-foreground">
-          Mark this record as completed only after Technical, Economic, Socio-Economic, and Farmers
-          Perception details have all been added.
+          Mark this record as completed only after Technical, Economic,
+          Socio-Economic, and Farmers Perception details have all been added.
         </div>
 
         <div className="flex flex-wrap gap-1 rounded-lg bg-muted/50 p-1">
@@ -110,7 +124,7 @@ export function CfldTechnicalParameterDialog({
                 "rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
                 activeTab === tab
                   ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:text-foreground"
+                  : "text-muted-foreground hover:text-foreground",
               )}
             >
               {tab}
@@ -126,7 +140,12 @@ export function CfldTechnicalParameterDialog({
                 <Input
                   id="cfld-year"
                   value={technical.reportingYear ?? ""}
-                  onChange={(e) => setTechnical((p) => ({ ...p, reportingYear: e.target.value }))}
+                  onChange={(e) =>
+                    setTechnical((p) => ({
+                      ...p,
+                      reportingYear: e.target.value,
+                    }))
+                  }
                 />
               </div>
               <div className="space-y-1.5">
@@ -134,7 +153,9 @@ export function CfldTechnicalParameterDialog({
                 <Input
                   id="cfld-crop"
                   value={technical.crop ?? ""}
-                  onChange={(e) => setTechnical((p) => ({ ...p, crop: e.target.value }))}
+                  onChange={(e) =>
+                    setTechnical((p) => ({ ...p, crop: e.target.value }))
+                  }
                 />
               </div>
               <div className="space-y-1.5 sm:col-span-2">
@@ -143,7 +164,10 @@ export function CfldTechnicalParameterDialog({
                   id="cfld-tech"
                   value={technical.technologyDemonstrated ?? ""}
                   onChange={(e) =>
-                    setTechnical((p) => ({ ...p, technologyDemonstrated: e.target.value }))
+                    setTechnical((p) => ({
+                      ...p,
+                      technologyDemonstrated: e.target.value,
+                    }))
                   }
                 />
               </div>
@@ -154,7 +178,9 @@ export function CfldTechnicalParameterDialog({
                   type="number"
                   min="0"
                   value={technical.areaHa ?? ""}
-                  onChange={(e) => setTechnical((p) => ({ ...p, areaHa: e.target.value }))}
+                  onChange={(e) =>
+                    setTechnical((p) => ({ ...p, areaHa: e.target.value }))
+                  }
                 />
               </div>
               <div className="space-y-1.5">
@@ -164,7 +190,12 @@ export function CfldTechnicalParameterDialog({
                   type="number"
                   min="0"
                   value={technical.numberOfFarmers ?? ""}
-                  onChange={(e) => setTechnical((p) => ({ ...p, numberOfFarmers: e.target.value }))}
+                  onChange={(e) =>
+                    setTechnical((p) => ({
+                      ...p,
+                      numberOfFarmers: e.target.value,
+                    }))
+                  }
                 />
               </div>
               <div className="space-y-1.5">
@@ -172,7 +203,9 @@ export function CfldTechnicalParameterDialog({
                 <select
                   id="cfld-district"
                   value={technical.district ?? ""}
-                  onChange={(e) => setTechnical((p) => ({ ...p, district: e.target.value }))}
+                  onChange={(e) =>
+                    setTechnical((p) => ({ ...p, district: e.target.value }))
+                  }
                   className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring"
                 >
                   <option value="" disabled>
@@ -192,12 +225,19 @@ export function CfldTechnicalParameterDialog({
             <div className="grid gap-4 sm:grid-cols-2">
               {ECONOMIC_FIELDS.map((field) => (
                 <div key={field.key} className="space-y-1.5">
-                  <Label htmlFor={`cfld-econ-${field.key}`}>{field.label}</Label>
+                  <Label htmlFor={`cfld-econ-${field.key}`}>
+                    {field.label}
+                  </Label>
                   <Input
                     id={`cfld-econ-${field.key}`}
                     type="number"
                     value={economic[field.key] ?? ""}
-                    onChange={(e) => setEconomic((p) => ({ ...p, [field.key]: e.target.value }))}
+                    onChange={(e) =>
+                      setEconomic((p) => ({
+                        ...p,
+                        [field.key]: e.target.value,
+                      }))
+                    }
                   />
                 </div>
               ))}
@@ -211,7 +251,9 @@ export function CfldTechnicalParameterDialog({
               </p>
               <DemographicBreakdown
                 values={demographics}
-                onChange={(key, value) => setDemographics((p) => ({ ...p, [key]: value }))}
+                onChange={(key, value) =>
+                  setDemographics((p) => ({ ...p, [key]: value }))
+                }
               />
             </div>
           )}
@@ -220,12 +262,19 @@ export function CfldTechnicalParameterDialog({
             <div className="space-y-4">
               {PERCEPTION_FIELDS.map((field) => (
                 <div key={field.key} className="space-y-1.5">
-                  <Label htmlFor={`cfld-perception-${field.key}`}>{field.label}</Label>
+                  <Label htmlFor={`cfld-perception-${field.key}`}>
+                    {field.label}
+                  </Label>
                   <Textarea
                     id={`cfld-perception-${field.key}`}
                     rows={2}
                     value={perception[field.key] ?? ""}
-                    onChange={(e) => setPerception((p) => ({ ...p, [field.key]: e.target.value }))}
+                    onChange={(e) =>
+                      setPerception((p) => ({
+                        ...p,
+                        [field.key]: e.target.value,
+                      }))
+                    }
                   />
                 </div>
               ))}

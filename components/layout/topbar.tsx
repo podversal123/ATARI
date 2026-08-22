@@ -17,7 +17,7 @@ import { ChangePasswordDialog } from "./change-password-dialog";
 /**
  * Fixed top bar shown above every dashboard page: zone title on the left,
  * notifications + current user on the right. The signed-in identity comes
- * from the mock session set at login (lib/session.ts) — real auth (Phase
+ * from the mock session set at login (lib/session.ts) - real auth (Phase
  * 2/3) replaces that mock with an actual authenticated user, but the shape
  * (role decided once, at login) doesn't change.
  */
@@ -27,7 +27,9 @@ export function Topbar() {
   const [changePasswordOpen, setChangePasswordOpen] = useState(false);
 
   const displayName =
-    session.role === "super-admin" ? "Super Administrator" : (session.kvkName ?? "KVK Admin");
+    session.role === "super-admin"
+      ? "Super Administrator"
+      : (session.kvkName ?? "KVK Admin");
   const roleLabel =
     session.role === "super-admin"
       ? "ATARI Super Admin"
@@ -37,7 +39,9 @@ export function Topbar() {
 
   return (
     <header className="flex h-16 shrink-0 items-center justify-between border-b border-border bg-card px-6">
-      <p className="text-xl font-semibold text-primary">AMS - ATARI Zone (IV) Patna</p>
+      <p className="text-xl font-semibold text-primary">
+        AMS - ATARI Zone (IV) Patna
+      </p>
 
       <div className="flex items-center gap-5">
         <DropdownMenu>
@@ -68,7 +72,10 @@ export function Topbar() {
         <DropdownMenu>
           <DropdownMenuTrigger
             render={
-              <button type="button" className="flex items-center gap-2 outline-none">
+              <button
+                type="button"
+                className="flex items-center gap-2 outline-none"
+              >
                 <span className="flex size-8 items-center justify-center rounded-full bg-primary text-primary-foreground">
                   <User className="size-4.5" strokeWidth={1.75} />
                 </span>
@@ -101,7 +108,10 @@ export function Topbar() {
         </DropdownMenu>
       </div>
 
-      <ChangePasswordDialog open={changePasswordOpen} onOpenChange={setChangePasswordOpen} />
+      <ChangePasswordDialog
+        open={changePasswordOpen}
+        onOpenChange={setChangePasswordOpen}
+      />
     </header>
   );
 }

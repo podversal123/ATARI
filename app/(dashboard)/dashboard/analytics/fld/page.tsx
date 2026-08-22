@@ -22,7 +22,9 @@ export default function FldDetailedAnalyticsPage() {
         Back to dashboard
       </Link>
 
-      <h1 className="text-3xl font-semibold text-primary">FLD — detailed analytics</h1>
+      <h1 className="text-3xl font-semibold text-primary">
+        FLD - detailed analytics
+      </h1>
       <p className="mt-1 text-sm text-muted-foreground">
         Filter by year, zone, state, district, institute and KVK
       </p>
@@ -33,7 +35,11 @@ export default function FldDetailedAnalyticsPage() {
 
       <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
         {METRICS.map((metric) => (
-          <MetricCard key={metric.label} label={metric.label} value={metric.value} />
+          <MetricCard
+            key={metric.label}
+            label={metric.label}
+            value={metric.value}
+          />
         ))}
       </div>
 

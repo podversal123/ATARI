@@ -15,11 +15,15 @@ const FIELDS: FilterField[] = [
   { label: "District", options: ["All", ...DISTRICTS] },
   { label: "Institute", options: ["All"] },
   { label: "KVK", options: ["All", ...KVKS.map((kvk) => kvk.name)] },
-  { label: "Group By", options: ["Zone", "State", "District", "Institute", "KVK"], placeholder: "Select" },
+  {
+    label: "Group By",
+    options: ["Zone", "State", "District", "Institute", "KVK"],
+    placeholder: "Select",
+  },
   { label: "Breakdown", options: ["Status"] },
 ];
 
-/** Filter row for the OFT/FLD "detailed analytics" pages — same 8 fields on both, unwired until the database step lands. */
+/** Filter row for the OFT/FLD "detailed analytics" pages - same 8 fields on both, unwired until the database step lands. */
 export function AnalyticsFilterBar() {
   return (
     <div className="rounded-lg border border-border bg-card p-4">
@@ -30,7 +34,9 @@ export function AnalyticsFilterBar() {
               {field.label}
             </label>
             <select className="mt-1 h-8 w-full rounded-md border border-border bg-card px-2 text-sm text-foreground outline-none focus-visible:border-ring">
-              {field.placeholder && <option value="">{field.placeholder}</option>}
+              {field.placeholder && (
+                <option value="">{field.placeholder}</option>
+              )}
               {field.options.map((option) => (
                 <option key={option}>{option}</option>
               ))}

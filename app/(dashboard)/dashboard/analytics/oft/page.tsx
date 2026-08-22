@@ -24,7 +24,9 @@ export default function OftDetailedAnalyticsPage() {
         Back to dashboard
       </Link>
 
-      <h1 className="text-3xl font-semibold text-primary">OFT — detailed analytics</h1>
+      <h1 className="text-3xl font-semibold text-primary">
+        OFT - detailed analytics
+      </h1>
       <p className="mt-1 text-sm text-muted-foreground">
         Filter by year, zone, state, district, institute and KVK
       </p>
@@ -35,7 +37,11 @@ export default function OftDetailedAnalyticsPage() {
 
       <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
         {METRICS.map((metric) => (
-          <MetricCard key={metric.label} label={metric.label} value={metric.value} />
+          <MetricCard
+            key={metric.label}
+            label={metric.label}
+            value={metric.value}
+          />
         ))}
       </div>
 

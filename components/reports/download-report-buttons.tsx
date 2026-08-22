@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 
 /**
  * Downloads must reflect exactly the currently-previewed filter set, so they
- * stay disabled unless the preview is showing real, current data — which
+ * stay disabled unless the preview is showing real, current data - which
  * never happens yet in Phase 1 (no backend has generated a report), so this
  * is always disabled today and becomes live once Phase 2/3 wires real data.
  */

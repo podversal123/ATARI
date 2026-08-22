@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   ALLOWED_IMAGE_TYPES,
   MAX_IMAGE_SIZE_MB,
@@ -17,19 +18,24 @@ import {
 } from "@/lib/module-images";
 import { useSession } from "@/lib/session";
 
-type PendingImage = { id: string; previewUrl: string; caption: string; uploadDate: string };
+type PendingImage = {
+  id: string;
+  previewUrl: string;
+  caption: string;
+  uploadDate: string;
+};
 
 function today(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
 /**
- * KVK — Add Image (Module Images UI.pdf, "ADD IMAGE UI"): pick the
+ * KVK - Add Image (Module Images UI.pdf, "ADD IMAGE UI"): pick the
  * Category/Form this photograph belongs to (auto-linked to Form Management
  * per spec section 12, not free text), Reporting Year, Date of Activity,
  * then upload one or more images each with a mandatory caption (spec
- * section 15 — Add to List is blocked unless both are present) before
- * Save & Submit. Uploaded images live in local component state only —
+ * section 15 - Add to List is blocked unless both are present) before
+ * Save & Submit. Uploaded images live in local component state only -
  * there is no backend/storage yet, so nothing here is actually persisted.
  */
 export default function AddModuleImagePage() {
@@ -47,18 +53,25 @@ function AddModuleImageForm() {
   const presetCategory = searchParams.get("category") ?? "";
 
   const [categoryPath, setCategoryPath] = useState(
-    MODULE_IMAGE_CATEGORIES.some((c) => c.path === presetCategory) ? presetCategory : ""
+    MODULE_IMAGE_CATEGORIES.some((c) => c.path === presetCategory)
+      ? presetCategory
+      : "",
   );
-  const [reportingYear, setReportingYear] = useState(MODULE_IMAGE_REPORTING_YEARS[0]);
-  const [activityDate, setActivityDate] = useState(today());
+  const [reportingYear, setReportingYear] = useState(
+    MODULE_IMAGE_REPORTING_YEARS[0],
+  );
+  const [activityDate, setActivityDate] = useState(today);
 
   const [pendingFile, setPendingFile] = useState<File | null>(null);
-  const [pendingPreviewUrl, setPendingPreviewUrl] = useState<string | null>(null);
+  const [pendingPreviewUrl, setPendingPreviewUrl] = useState<string | null>(
+    null,
+  );
   const [caption, setCaption] = useState("");
   const [fileError, setFileError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [uploadedImages, setUploadedImages] = useState<PendingImage[]>([]);
+  const [publishOnSubmit, setPublishOnSubmit] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
   function handleFileChange(file: File | null) {
@@ -93,7 +106,12 @@ function AddModuleImageForm() {
     setFormError(null);
     setUploadedImages((prev) => [
       ...prev,
-      { id: crypto.randomUUID(), previewUrl: pendingPreviewUrl, caption: caption.trim(), uploadDate: today() },
+      {
+        id: crypto.randomUUID(),
+        previewUrl: pendingPreviewUrl,
+        caption: caption.trim(),
+        uploadDate: today(),
+      },
     ]);
     setPendingFile(null);
     setPendingPreviewUrl(null);
@@ -115,21 +133,28 @@ function AddModuleImageForm() {
       return;
     }
     setFormError(null);
-    // No backend/storage yet — nothing to persist until Phase 2/3.
+    // No backend/storage yet - nothing to persist until Phase 2/3.
     router.push("/module-images");
   }
 
   const isKvk = session.role !== "super-admin";
-  const categoryLabel = MODULE_IMAGE_CATEGORIES.find((c) => c.path === categoryPath)?.label;
+  const categoryLabel = MODULE_IMAGE_CATEGORIES.find(
+    (c) => c.path === categoryPath,
+  )?.label;
 
   return (
     <div>
       <PageHeader
         backHref="/module-images"
-        trail={[{ label: "Module Images", href: "/module-images" }, { label: "Add Image" }]}
+        trail={[
+          { label: "Module Images", href: "/module-images" },
+          { label: "Add Image" },
+        ]}
         title="Add Image"
         icon={ImagePlus}
-        description={isKvk ? `Uploading for ${session.kvkName ?? "your KVK"}.` : undefined}
+        description={
+          isKvk ? `Uploading for ${session.kvkName ?? "your KVK"}.` : undefined
+        }
       />
 
       <div className="space-y-4">
@@ -151,7 +176,7 @@ function AddModuleImageForm() {
                 <option value="">Select category / form</option>
                 {MODULE_IMAGE_CATEGORIES.map((leaf) => (
                   <option key={leaf.path} value={leaf.path}>
-                    {leaf.groupLabel} — {leaf.label}
+                    {leaf.groupLabel} - {leaf.label}
                   </option>
                 ))}
               </select>
@@ -187,10 +212,13 @@ function AddModuleImageForm() {
           {categoryLabel && (
             <div className="mt-3 flex items-center justify-between gap-2 rounded-md bg-accent px-3 py-2 text-xs text-accent-foreground">
               <span>
-                Photographs already added for <strong>{categoryLabel}</strong> in {reportingYear}:{" "}
-                {uploadedImages.length}
+                Photographs already added for <strong>{categoryLabel}</strong>{" "}
+                in {reportingYear}: {uploadedImages.length}
               </span>
-              <Link href="/module-images" className="font-medium whitespace-nowrap hover:underline">
+              <Link
+                href="/module-images"
+                className="font-medium whitespace-nowrap hover:underline"
+              >
                 View Uploaded Images
               </Link>
             </div>
@@ -210,11 +238,17 @@ function AddModuleImageForm() {
               <label className="mt-1 flex aspect-video cursor-pointer flex-col items-center justify-center gap-2 rounded-md border border-dashed border-border bg-muted/40 text-center hover:bg-muted/60">
                 {pendingPreviewUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={pendingPreviewUrl} alt="Selected preview" className="h-full w-full rounded-md object-cover" />
+                  <img
+                    src={pendingPreviewUrl}
+                    alt="Selected preview"
+                    className="h-full w-full rounded-md object-cover"
+                  />
                 ) : (
                   <>
                     <UploadCloud className="size-6 text-muted-foreground/60" />
-                    <span className="text-xs text-muted-foreground">Drag & drop image here, or click to choose a file</span>
+                    <span className="text-xs text-muted-foreground">
+                      Drag & drop image here, or click to choose a file
+                    </span>
                   </>
                 )}
                 <input
@@ -222,16 +256,24 @@ function AddModuleImageForm() {
                   type="file"
                   accept={ALLOWED_IMAGE_TYPES.join(",")}
                   className="hidden"
-                  onChange={(e) => handleFileChange(e.target.files?.[0] ?? null)}
+                  onChange={(e) =>
+                    handleFileChange(e.target.files?.[0] ?? null)
+                  }
                 />
               </label>
               <p className="mt-1 text-xs text-muted-foreground">
-                Allowed file types: JPG, JPEG, PNG. Max file size: {MAX_IMAGE_SIZE_MB}MB.
+                Allowed file types: JPG, JPEG, PNG. Max file size:{" "}
+                {MAX_IMAGE_SIZE_MB}MB.
               </p>
-              {fileError && <p className="mt-1 text-xs text-destructive">{fileError}</p>}
+              {fileError && (
+                <p className="mt-1 text-xs text-destructive">{fileError}</p>
+              )}
             </div>
             <div className="flex flex-col">
-              <Label htmlFor="caption" className="text-xs text-muted-foreground">
+              <Label
+                htmlFor="caption"
+                className="text-xs text-muted-foreground"
+              >
                 Caption <span className="text-destructive">*</span>
               </Label>
               <Textarea
@@ -248,9 +290,24 @@ function AddModuleImageForm() {
             </div>
           </div>
 
-          {formError && <p className="mt-3 text-xs text-destructive">{formError}</p>}
+          {formError && (
+            <p className="mt-3 text-xs text-destructive">{formError}</p>
+          )}
 
-          <div className="mt-3 flex justify-end">
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+            {/* Uploads stay a draft by default - the KVK decides when a photograph goes live, and the Super Admin can still override either way later. */}
+            <label className="flex items-center gap-2 text-sm text-foreground">
+              <Checkbox
+                checked={publishOnSubmit}
+                onCheckedChange={(checked) =>
+                  setPublishOnSubmit(checked === true)
+                }
+              />
+              Publish these photographs on submit
+              <span className="text-xs text-muted-foreground">
+                (unchecked = saved as Not Published)
+              </span>
+            </label>
             <Button size="sm" onClick={addToList}>
               <ImagePlus className="size-3.5" />
               Add to List
@@ -271,16 +328,33 @@ function AddModuleImageForm() {
                 </thead>
                 <tbody>
                   {uploadedImages.map((img, index) => (
-                    <tr key={img.id} className="divide-x divide-border border-b border-border last:border-0">
-                      <td className="px-4 py-2 text-muted-foreground">{index + 1}</td>
+                    <tr
+                      key={img.id}
+                      className="divide-x divide-border border-b border-border last:border-0"
+                    >
+                      <td className="px-4 py-2 text-muted-foreground">
+                        {index + 1}
+                      </td>
                       <td className="px-4 py-2">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={img.previewUrl} alt={img.caption} className="size-10 rounded-md object-cover" />
+                        <img
+                          src={img.previewUrl}
+                          alt={img.caption}
+                          className="size-10 rounded-md object-cover"
+                        />
                       </td>
-                      <td className="px-4 py-2 text-foreground">{img.caption}</td>
-                      <td className="px-4 py-2 text-muted-foreground">{img.uploadDate}</td>
+                      <td className="px-4 py-2 text-foreground">
+                        {img.caption}
+                      </td>
+                      <td className="px-4 py-2 text-muted-foreground">
+                        {img.uploadDate}
+                      </td>
                       <td className="px-4 py-2 text-right">
-                        <Button variant="ghost" size="icon-sm" onClick={() => removeUploaded(img.id)}>
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          onClick={() => removeUploaded(img.id)}
+                        >
                           <Trash2 className="size-3.5 text-destructive" />
                         </Button>
                       </td>
@@ -293,10 +367,16 @@ function AddModuleImageForm() {
         </div>
 
         <div className="flex justify-end gap-2">
-          <Button variant="outline" onClick={() => router.push("/module-images")}>
+          <Button
+            variant="outline"
+            onClick={() => router.push("/module-images")}
+          >
             Cancel
           </Button>
-          <Button variant="outline" onClick={() => router.push("/module-images")}>
+          <Button
+            variant="outline"
+            onClick={() => router.push("/module-images")}
+          >
             Save as Draft
           </Button>
           <Button onClick={handleSubmit}>Save &amp; Submit</Button>

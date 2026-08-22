@@ -14,7 +14,7 @@ function n(values: DemographicValues, key: string): number {
 /**
  * The General/OBC/SC/ST x Male/Female breakdown-with-auto-computed-totals
  * block recurring across CFLD, On Farm Trial, Technology Week Celebration,
- * and World Soil Day forms in the real reference — built once here and
+ * and World Soil Day forms in the real reference - built once here and
  * reused wherever it recurs, per the standing note not to reimplement it
  * per form.
  */
@@ -25,8 +25,14 @@ export function DemographicBreakdown({
   values: DemographicValues;
   onChange: (key: string, value: string) => void;
 }) {
-  const maleTotal = CATEGORIES.reduce((sum, c) => sum + n(values, `${c.toLowerCase()}Male`), 0);
-  const femaleTotal = CATEGORIES.reduce((sum, c) => sum + n(values, `${c.toLowerCase()}Female`), 0);
+  const maleTotal = CATEGORIES.reduce(
+    (sum, c) => sum + n(values, `${c.toLowerCase()}Male`),
+    0,
+  );
+  const femaleTotal = CATEGORIES.reduce(
+    (sum, c) => sum + n(values, `${c.toLowerCase()}Female`),
+    0,
+  );
   const grandTotal = maleTotal + femaleTotal;
 
   return (
@@ -46,8 +52,13 @@ export function DemographicBreakdown({
             const femaleKey = `${category.toLowerCase()}Female`;
             const rowTotal = n(values, maleKey) + n(values, femaleKey);
             return (
-              <tr key={category} className="border-b border-border last:border-0">
-                <td className="px-3 py-2 font-medium text-foreground">{category}</td>
+              <tr
+                key={category}
+                className="border-b border-border last:border-0"
+              >
+                <td className="px-3 py-2 font-medium text-foreground">
+                  {category}
+                </td>
                 <td className="px-3 py-2">
                   <Input
                     type="number"
@@ -66,15 +77,23 @@ export function DemographicBreakdown({
                     className="h-8 w-24"
                   />
                 </td>
-                <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">{rowTotal}</td>
+                <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">
+                  {rowTotal}
+                </td>
               </tr>
             );
           })}
           <tr className="bg-muted/30 font-semibold">
             <td className="px-3 py-2 text-foreground">Total</td>
-            <td className="px-3 py-2 tabular-nums text-foreground">{maleTotal}</td>
-            <td className="px-3 py-2 tabular-nums text-foreground">{femaleTotal}</td>
-            <td className="px-3 py-2 text-right tabular-nums text-foreground">{grandTotal}</td>
+            <td className="px-3 py-2 tabular-nums text-foreground">
+              {maleTotal}
+            </td>
+            <td className="px-3 py-2 tabular-nums text-foreground">
+              {femaleTotal}
+            </td>
+            <td className="px-3 py-2 text-right tabular-nums text-foreground">
+              {grandTotal}
+            </td>
           </tr>
         </tbody>
       </table>

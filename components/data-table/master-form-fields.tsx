@@ -5,7 +5,11 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import type { MasterColumn } from "@/lib/navigation";
-import { REPORT_ZONE_OPTIONS, hostOrgsForState, statesForZone } from "@/lib/reports";
+import {
+  REPORT_ZONE_OPTIONS,
+  hostOrgsForState,
+  statesForZone,
+} from "@/lib/reports";
 
 const CASCADE_KEYS = new Set(["zoneName", "stateName", "hostOrg"]);
 
@@ -20,7 +24,7 @@ type MasterFormFieldsProps = {
 };
 
 /**
- * The per-column Add/Edit field list — one text field per confirmed column,
+ * The per-column Add/Edit field list - one text field per confirmed column,
  * plus the cascading Zone->State->HostOrg selects for the two masters that
  * need them, plus the "Mark as 'Other' option" checkbox for simple
  * single-Name masters. Shared between EmptyDataTable's dialog (Masters,
@@ -44,7 +48,8 @@ export function MasterFormFields({
       {columns.map((column) => {
         const fieldId = `${instanceId}-${column.key}`;
         const isCascading = cascadeType && CASCADE_KEYS.has(column.key);
-        const isHostOrgField = cascadeType === "kvk" && column.key === "hostOrg";
+        const isHostOrgField =
+          cascadeType === "kvk" && column.key === "hostOrg";
         const isStateField = column.key === "stateName";
 
         if (isCascading) {
@@ -57,7 +62,8 @@ export function MasterFormFields({
                   ? hostOrgsForState(formValues.stateName ?? "")
                   : [];
           const disabled =
-            (isStateField && !formValues.zoneName) || (isHostOrgField && !formValues.stateName);
+            (isStateField && !formValues.zoneName) ||
+            (isHostOrgField && !formValues.stateName);
 
           return (
             <div key={column.key} className="space-y-1.5">
@@ -70,14 +76,18 @@ export function MasterFormFields({
                   onChange({
                     ...formValues,
                     [column.key]: event.target.value,
-                    ...(column.key === "zoneName" ? { stateName: "", hostOrg: "" } : {}),
+                    ...(column.key === "zoneName"
+                      ? { stateName: "", hostOrg: "" }
+                      : {}),
                     ...(isStateField ? { hostOrg: "" } : {}),
                   })
                 }
                 className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <option value="" disabled>
-                  {disabled ? `Select ${column.key === "stateName" ? "a zone" : "a state"} first` : `Select ${column.label}`}
+                  {disabled
+                    ? `Select ${column.key === "stateName" ? "a zone" : "a state"} first`
+                    : `Select ${column.label}`}
                 </option>
                 {options.map((option) => (
                   <option key={option} value={option}>
@@ -95,7 +105,9 @@ export function MasterFormFields({
             <Input
               id={fieldId}
               value={formValues[column.key] ?? ""}
-              onChange={(event) => onChange({ ...formValues, [column.key]: event.target.value })}
+              onChange={(event) =>
+                onChange({ ...formValues, [column.key]: event.target.value })
+              }
             />
           </div>
         );
@@ -103,7 +115,10 @@ export function MasterFormFields({
 
       {isSimpleMaster && (
         <label className="flex items-center gap-2 text-sm text-foreground">
-          <Checkbox checked={markAsOther} onCheckedChange={(checked) => onMarkAsOtherChange(checked === true)} />
+          <Checkbox
+            checked={markAsOther}
+            onCheckedChange={(checked) => onMarkAsOtherChange(checked === true)}
+          />
           Mark as &quot;Other&quot; option
         </label>
       )}

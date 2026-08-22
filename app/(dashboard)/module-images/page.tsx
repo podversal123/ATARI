@@ -19,7 +19,9 @@ export default function ModuleImagesPage() {
     <div>
       <PageHeader
         trail={[{ label: "Module Images" }]}
-        title={isKvk ? "Module Images" : "Module Images — Category Wise Photographs"}
+        title={
+          isKvk ? "Module Images" : "Module Images - Category Wise Photographs"
+        }
         icon={ImageIcon}
         description={
           isKvk

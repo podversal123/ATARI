@@ -3,12 +3,16 @@
  *
  * Source of truth: the client's "ATARI Access Management – Role & User Flow"
  * spec, cross-checked against the real Role Management / User Management
- * screens in the reference recording (atari-client.vercel.app/role-view and
- * /view-users) — hierarchy order, role names, and field labels below all
+ * screens in the reference - hierarchy order, role names, and field labels below all
  * come from one of those two, not guessed.
  */
 
-export type ScopeKind = "system" | "state" | "district" | "organisation" | "kvk";
+export type ScopeKind =
+  | "system"
+  | "state"
+  | "district"
+  | "organisation"
+  | "kvk";
 
 export type RoleDefinition = {
   sNo: number;
@@ -21,15 +25,69 @@ export type RoleDefinition = {
 
 /** The 9 roles shown on the real Role Management page, in the same order. */
 export const BASE_ROLES: RoleDefinition[] = [
-  { sNo: 1, name: "Super Admin", parentRole: "System Level", hierarchyLevel: 1, scope: "system" },
-  { sNo: 2, name: "State Admin", parentRole: "Super Admin", hierarchyLevel: 2, scope: "state" },
-  { sNo: 3, name: "District Admin", parentRole: "State Admin", hierarchyLevel: 3, scope: "district" },
-  { sNo: 4, name: "Org Admin", parentRole: "District Admin", hierarchyLevel: 4, scope: "organisation" },
-  { sNo: 5, name: "KVK Admin", parentRole: "Org Admin", hierarchyLevel: 5, scope: "kvk" },
-  { sNo: 6, name: "KVK User", parentRole: "KVK Admin", hierarchyLevel: 6, scope: "kvk" },
-  { sNo: 7, name: "State User", parentRole: "State Admin", hierarchyLevel: 6, scope: "state" },
-  { sNo: 8, name: "District User", parentRole: "District Admin", hierarchyLevel: 7, scope: "district" },
-  { sNo: 9, name: "Org User", parentRole: "Org Admin", hierarchyLevel: 8, scope: "organisation" },
+  {
+    sNo: 1,
+    name: "Super Admin",
+    parentRole: "System Level",
+    hierarchyLevel: 1,
+    scope: "system",
+  },
+  {
+    sNo: 2,
+    name: "State Admin",
+    parentRole: "Super Admin",
+    hierarchyLevel: 2,
+    scope: "state",
+  },
+  {
+    sNo: 3,
+    name: "District Admin",
+    parentRole: "State Admin",
+    hierarchyLevel: 3,
+    scope: "district",
+  },
+  {
+    sNo: 4,
+    name: "Org Admin",
+    parentRole: "District Admin",
+    hierarchyLevel: 4,
+    scope: "organisation",
+  },
+  {
+    sNo: 5,
+    name: "KVK Admin",
+    parentRole: "Org Admin",
+    hierarchyLevel: 5,
+    scope: "kvk",
+  },
+  {
+    sNo: 6,
+    name: "KVK User",
+    parentRole: "KVK Admin",
+    hierarchyLevel: 6,
+    scope: "kvk",
+  },
+  {
+    sNo: 7,
+    name: "State User",
+    parentRole: "State Admin",
+    hierarchyLevel: 6,
+    scope: "state",
+  },
+  {
+    sNo: 8,
+    name: "District User",
+    parentRole: "District Admin",
+    hierarchyLevel: 7,
+    scope: "district",
+  },
+  {
+    sNo: 9,
+    name: "Org User",
+    parentRole: "Org Admin",
+    hierarchyLevel: 8,
+    scope: "organisation",
+  },
 ];
 
 /** Options for the "Hierarchy Level" select on the Add/Edit Role modal. */
@@ -64,7 +122,7 @@ export type Permission = (typeof PERMISSIONS)[number];
 /** Zone IV covers Bihar & Jharkhand (per spec: "Assign State (Zone IV - PATNA & JHARKHAND)"). */
 export const STATES = ["Bihar", "Jharkhand"];
 
-/** Bihar district names — the original 15 from the reference User Management screen, plus 5 more (Rohtas, Nalanda, Darbhanga, East Champaran, Munger) confirmed real via KVK rows seen in the client's Form Management screenshot walkthrough (2026-08-20). */
+/** Bihar district names - the original 15 from the reference User Management screen, plus 5 more (Rohtas, Nalanda, Darbhanga, East Champaran, Munger) confirmed real against the Form Management reference. */
 export const DISTRICTS = [
   "Araria",
   "Arwal",
@@ -88,12 +146,16 @@ export const DISTRICTS = [
   "West Champaran",
 ];
 
-/** Jharkhand district names — confirmed real via KVK rows seen in the client's Form Management screenshot walkthrough (2026-08-20); Zone IV covers both Bihar and Jharkhand (see STATES above). */
+/** Jharkhand district names - confirmed real against the Form Management reference; Zone IV covers both Bihar and Jharkhand (see STATES above). */
 export const JHARKHAND_DISTRICTS = ["Dumka", "Godda", "Gumla", "Latehar"];
 
-/** KVKs, one per district above — matches the "KVK <District>" naming seen in the reference. */
+/** KVKs, one per district above - matches the "KVK <District>" naming seen in the reference. */
 export const KVKS = [
-  ...DISTRICTS.map((district) => ({ name: `KVK ${district}`, district, state: "Bihar" })),
+  ...DISTRICTS.map((district) => ({
+    name: `KVK ${district}`,
+    district,
+    state: "Bihar",
+  })),
   ...JHARKHAND_DISTRICTS.map((district) => ({
     name: `KVK ${district}`,
     district,
@@ -103,7 +165,7 @@ export const KVKS = [
 
 /** Which scope field (if any) to show once a Role is picked in Create/Edit User. */
 export function scopeFieldFor(
-  scope: ScopeKind
+  scope: ScopeKind,
 ): { label: string; placeholder: string; kind: ScopeKind } | null {
   switch (scope) {
     case "system":
@@ -111,7 +173,11 @@ export function scopeFieldFor(
     case "state":
       return { label: "State", placeholder: "Select state", kind: "state" };
     case "district":
-      return { label: "District", placeholder: "Select district", kind: "district" };
+      return {
+        label: "District",
+        placeholder: "Select district",
+        kind: "district",
+      };
     case "organisation":
       return {
         label: "Organisation / Institution",

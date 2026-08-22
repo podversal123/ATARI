@@ -14,7 +14,9 @@ const CATEGORIES = ["OFT", "FLD", "Training", "Extension Activity"];
 
 function reportingYearOptions(): string[] {
   const currentYear = new Date().getFullYear();
-  return [currentYear + 1, currentYear, currentYear - 1, currentYear - 2].map(String);
+  return [currentYear + 1, currentYear, currentYear - 1, currentYear - 2].map(
+    String,
+  );
 }
 
 const SUPER_ADMIN_COLUMNS = [
@@ -27,18 +29,20 @@ const SUPER_ADMIN_COLUMNS = [
   { key: "status", label: "Status" },
 ];
 
-/** KVK Admin's own view drops the KVK column — every row is already their own KVK. */
-const KVK_COLUMNS = SUPER_ADMIN_COLUMNS.filter((column) => column.key !== "kvk");
+/** KVK Admin's own view drops the KVK column - every row is already their own KVK. */
+const KVK_COLUMNS = SUPER_ADMIN_COLUMNS.filter(
+  (column) => column.key !== "kvk",
+);
 
 /**
- * No reference screenshot exists anywhere in the client's materials for this
- * page, so this flow isn't lifted from a source — it's the sensible shape
+ * No the reference exists anywhere in the client's materials for this
+ * page, so this flow isn't lifted from a source - it's the sensible shape
  * given what a "target" means everywhere else in this app: the Dashboard's
  * OFT/FLD Progress cards already track each KVK against Ongoing / Completed
  * / Not started, and the KVK/category/year triple is how every achievement
  * form (Trainings, CFLD, etc.) already keys its rows. Super Admin assigns
  * the Target number per KVK+category+year here; Achieved/Progress/Status
- * fill in from whatever that KVK actually submits through Form Management —
+ * fill in from whatever that KVK actually submits through Form Management -
  * so only Super Admin gets an assign form, a KVK Admin gets a read-only view
  * scoped to their own KVK, mirroring the Notifications page's send/receive split.
  */
@@ -63,7 +67,9 @@ export default function TargetsPage() {
           </p>
           <div className="grid gap-3 sm:grid-cols-4">
             <div>
-              <label className="text-xs font-medium text-muted-foreground">Reporting Year</label>
+              <label className="text-xs font-medium text-muted-foreground">
+                Reporting Year
+              </label>
               <select
                 value={reportingYear}
                 onChange={(e) => setReportingYear(e.target.value)}
@@ -77,7 +83,9 @@ export default function TargetsPage() {
               </select>
             </div>
             <div>
-              <label className="text-xs font-medium text-muted-foreground">KVK</label>
+              <label className="text-xs font-medium text-muted-foreground">
+                KVK
+              </label>
               <select
                 value={kvk}
                 onChange={(e) => setKvk(e.target.value)}
@@ -91,7 +99,9 @@ export default function TargetsPage() {
               </select>
             </div>
             <div>
-              <label className="text-xs font-medium text-muted-foreground">Category</label>
+              <label className="text-xs font-medium text-muted-foreground">
+                Category
+              </label>
               <select
                 value={category}
                 onChange={(e) => setCategory(e.target.value)}
@@ -105,7 +115,9 @@ export default function TargetsPage() {
               </select>
             </div>
             <div>
-              <label className="text-xs font-medium text-muted-foreground">Target</label>
+              <label className="text-xs font-medium text-muted-foreground">
+                Target
+              </label>
               <Input
                 type="number"
                 min="0"

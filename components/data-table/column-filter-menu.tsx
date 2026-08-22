@@ -30,22 +30,33 @@ type ColumnFilterMenuProps = {
 
 /**
  * Per-column filter dropdown (sort + searchable "unique values" checklist),
- * confirmed against the reference's OFT Thematic Area Master screenshot
- * (atari-photo-zip/IMG-20260817-WA0019.jpg) — every EmptyDataTable column
+ * confirmed against the reference's OFT Thematic Area Master the reference
+ * - every EmptyDataTable column
  * header has this, not just a decorative funnel icon.
  */
-export function ColumnFilterMenu({ columnLabel, values, state, onApply }: ColumnFilterMenuProps) {
+export function ColumnFilterMenu({
+  columnLabel,
+  values,
+  state,
+  onApply,
+}: ColumnFilterMenuProps) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [draft, setDraft] = useState<ColumnFilterState>(state);
 
   const filteredValues = useMemo(
-    () => values.filter((v) => v.value.toLowerCase().includes(search.toLowerCase())),
-    [values, search]
+    () =>
+      values.filter((v) =>
+        v.value.toLowerCase().includes(search.toLowerCase()),
+      ),
+    [values, search],
   );
 
-  const allSelected = draft.selected === null || draft.selected.size === values.length;
-  const isActive = state.sort !== null || (state.selected !== null && state.selected.size < values.length);
+  const allSelected =
+    draft.selected === null || draft.selected.size === values.length;
+  const isActive =
+    state.sort !== null ||
+    (state.selected !== null && state.selected.size < values.length);
 
   function openMenu(next: boolean) {
     setOpen(next);
@@ -89,7 +100,9 @@ export function ColumnFilterMenu({ columnLabel, values, state, onApply }: Column
             aria-label={`Filter ${columnLabel}`}
             className={cn(
               "rounded p-0.5 transition-colors",
-              isActive ? "text-primary" : "text-muted-foreground/50 hover:text-muted-foreground"
+              isActive
+                ? "text-primary"
+                : "text-muted-foreground/50 hover:text-muted-foreground",
             )}
           >
             <Filter className="size-3" />
@@ -106,7 +119,12 @@ export function ColumnFilterMenu({ columnLabel, values, state, onApply }: Column
             variant={draft.sort === "asc" ? "default" : "outline"}
             size="xs"
             className="flex-1"
-            onClick={() => setDraft((prev) => ({ ...prev, sort: prev.sort === "asc" ? null : "asc" }))}
+            onClick={() =>
+              setDraft((prev) => ({
+                ...prev,
+                sort: prev.sort === "asc" ? null : "asc",
+              }))
+            }
           >
             <ArrowUp className="size-3" />
             Asc
@@ -115,7 +133,12 @@ export function ColumnFilterMenu({ columnLabel, values, state, onApply }: Column
             variant={draft.sort === "desc" ? "default" : "outline"}
             size="xs"
             className="flex-1"
-            onClick={() => setDraft((prev) => ({ ...prev, sort: prev.sort === "desc" ? null : "desc" }))}
+            onClick={() =>
+              setDraft((prev) => ({
+                ...prev,
+                sort: prev.sort === "desc" ? null : "desc",
+              }))
+            }
           >
             <ArrowDown className="size-3" />
             Desc
@@ -130,7 +153,9 @@ export function ColumnFilterMenu({ columnLabel, values, state, onApply }: Column
           />
           <span>
             <span className="font-medium text-foreground">Unique Values</span>
-            <span className="block text-muted-foreground">Show one row per distinct value, with its count</span>
+            <span className="block text-muted-foreground">
+              Show one row per distinct value, with its count
+            </span>
           </span>
         </label>
 
@@ -146,16 +171,24 @@ export function ColumnFilterMenu({ columnLabel, values, state, onApply }: Column
 
         <div className="mt-2 max-h-40 space-y-1 overflow-y-auto">
           {filteredValues.length === 0 ? (
-            <p className="py-3 text-center text-xs text-muted-foreground">No values</p>
+            <p className="py-3 text-center text-xs text-muted-foreground">
+              No values
+            </p>
           ) : (
             filteredValues.map((v) => {
-              const checked = draft.selected === null || draft.selected.has(v.value);
+              const checked =
+                draft.selected === null || draft.selected.has(v.value);
               return (
-                <label key={v.value} className="flex items-center justify-between gap-2 py-0.5 text-xs">
+                <label
+                  key={v.value}
+                  className="flex items-center justify-between gap-2 py-0.5 text-xs"
+                >
                   <span className="flex items-center gap-2">
                     <Checkbox
                       checked={checked}
-                      onCheckedChange={(next) => toggleValue(v.value, next === true)}
+                      onCheckedChange={(next) =>
+                        toggleValue(v.value, next === true)
+                      }
                     />
                     <span className="text-foreground uppercase">{v.value}</span>
                   </span>
@@ -167,7 +200,11 @@ export function ColumnFilterMenu({ columnLabel, values, state, onApply }: Column
         </div>
 
         <div className="mt-3 flex items-center justify-between gap-2 border-t border-border pt-2">
-          <button type="button" onClick={clear} className="text-xs text-muted-foreground hover:text-foreground">
+          <button
+            type="button"
+            onClick={clear}
+            className="text-xs text-muted-foreground hover:text-foreground"
+          >
             Clear Filters
           </button>
           <Button size="xs" onClick={apply}>

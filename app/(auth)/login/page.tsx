@@ -9,9 +9,9 @@ import { Button } from "@/components/ui/button";
 import { persistSession, resolveSessionFromUsername } from "@/lib/session";
 
 /**
- * Pixel reference: docs/project-plan.html (login screenshot). Split hero
+ * Pixel reference: docs/project-plan.html (login the reference). Split hero
  * layout, ICAR mark + zone seal, username/password with reveal toggle.
- * No auth call is wired up yet — Step 2/3 of the build (database) replaces
+ * No auth call is wired up yet - Step 2/3 of the build (database) replaces
  * the submit handler below with a real sign-in request.
  */
 export default function LoginPage() {
@@ -40,16 +40,17 @@ export default function LoginPage() {
             ICAR - Agricultural Technology Application Research Institute
           </h1>
           <p className="mt-4 max-w-xl text-base text-white/90">
-            ATARI is mandated for Coordination and Monitoring of Technology Application and
-            Frontline Extension Education Programmes.
+            ATARI is mandated for Coordination and Monitoring of Technology
+            Application and Frontline Extension Education Programmes.
             <br />
-            Strengthening Agricultural Extension Research and Knowledge Management.
+            Strengthening Agricultural Extension Research and Knowledge
+            Management.
           </p>
         </div>
       </div>
 
-      {/* Exact background sampled from the reference login screen (#f1eee4) —
-          distinct from the app's regular off-white content background. */}
+      {/* Exact background sampled from the reference login screen (#f1eee4) -
+ distinct from the app's regular off-white content background. */}
       <div className="flex w-full flex-col items-center justify-center bg-[#f1eee4] px-6 lg:w-1/2">
         <div className="w-full max-w-sm">
           <div className="mb-8 flex items-center justify-between">
@@ -75,7 +76,7 @@ export default function LoginPage() {
             className="mt-6 space-y-4"
             onSubmit={(event) => {
               event.preventDefault();
-              // No auth check yet — the role is inferred from the username
+              // No auth check yet - the role is inferred from the username
               // pattern (e.g. "kvkbhagalpur@...") rather than a real
               // credential lookup. Replace with a real sign-in call once
               // the database is connected; the resulting session shape
@@ -85,7 +86,10 @@ export default function LoginPage() {
             }}
           >
             <div>
-              <label htmlFor="username" className="mb-1.5 block text-sm font-semibold text-[#034541]">
+              <label
+                htmlFor="username"
+                className="mb-1.5 block text-sm font-semibold text-[#034541]"
+              >
                 Username
               </label>
               <Input
@@ -99,7 +103,10 @@ export default function LoginPage() {
             </div>
 
             <div>
-              <label htmlFor="password" className="mb-1.5 block text-sm font-semibold text-[#034541]">
+              <label
+                htmlFor="password"
+                className="mb-1.5 block text-sm font-semibold text-[#034541]"
+              >
                 Password
               </label>
               <div className="relative">
@@ -112,14 +119,18 @@ export default function LoginPage() {
                   autoComplete="current-password"
                   className="h-13 rounded-lg border-black/15 bg-transparent px-4 pr-11 text-base placeholder:text-muted-foreground/80"
                 />
-              <button
-                type="button"
-                onClick={() => setShowPassword((prev) => !prev)}
-                aria-label={showPassword ? "Hide password" : "Show password"}
-                className="absolute top-1/2 right-4 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-              >
-                {showPassword ? <EyeOff className="size-4.5" /> : <Eye className="size-4.5" />}
-              </button>
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((prev) => !prev)}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                  className="absolute top-1/2 right-4 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                >
+                  {showPassword ? (
+                    <EyeOff className="size-4.5" />
+                  ) : (
+                    <Eye className="size-4.5" />
+                  )}
+                </button>
               </div>
             </div>
 
@@ -132,15 +143,24 @@ export default function LoginPage() {
           </form>
 
           <div className="mt-6 space-y-1 text-center text-sm">
-            <a href="#" className="block text-[#034541] underline underline-offset-2">
+            <a
+              href="#"
+              className="block text-[#034541] underline underline-offset-2"
+            >
               Download User Manual
             </a>
-            <a href="#" className="block font-semibold text-destructive underline underline-offset-2">
+            <a
+              href="#"
+              className="block font-semibold text-destructive underline underline-offset-2"
+            >
               Feedback / Help &amp; Support: Google Form
             </a>
             <p className="text-muted-foreground">
               Or reach out to us at{" "}
-              <a href="mailto:atariams.kvk@gmail.com" className="text-[#034541]">
+              <a
+                href="mailto:atariams.kvk@gmail.com"
+                className="text-[#034541]"
+              >
                 atariams.kvk@gmail.com
               </a>
             </p>

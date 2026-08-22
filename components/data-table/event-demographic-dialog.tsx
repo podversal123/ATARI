@@ -13,7 +13,10 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { KVKS } from "@/lib/rbac";
-import { DemographicBreakdown, type DemographicValues } from "./demographic-breakdown";
+import {
+  DemographicBreakdown,
+  type DemographicValues,
+} from "./demographic-breakdown";
 
 type EventDemographicDialogProps = {
   title: string;
@@ -25,8 +28,7 @@ type EventDemographicDialogProps = {
 /**
  * Shared Add/Edit form for the Achievement event leaves whose real editors
  * include the General/OBC/SC/ST x Male/Female participant breakdown
- * (confirmed recurring in Technology Week Celebration and World Soil Day,
- * atari-photo-zip Form Management walkthrough) — reuses DemographicBreakdown
+ * - reuses DemographicBreakdown
  * rather than duplicating it. Only the demographic block itself and KVK/
  * Event Date are confirmed; the exact remaining field list per event wasn't
  * captured, so this keeps everything else to one honest generic "Details"
@@ -57,7 +59,9 @@ export function EventDemographicDialog({
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>{editingRow ? `Edit ${title}` : `Add ${title}`}</DialogTitle>
+          <DialogTitle>
+            {editingRow ? `Edit ${title}` : `Add ${title}`}
+          </DialogTitle>
         </DialogHeader>
 
         <div className="max-h-[60vh] space-y-4 overflow-y-auto">
@@ -102,10 +106,14 @@ export function EventDemographicDialog({
           </div>
 
           <div className="space-y-2">
-            <p className="text-xs text-muted-foreground">Participant breakdown by category and gender.</p>
+            <p className="text-xs text-muted-foreground">
+              Participant breakdown by category and gender.
+            </p>
             <DemographicBreakdown
               values={demographics}
-              onChange={(key, value) => setDemographics((p) => ({ ...p, [key]: value }))}
+              onChange={(key, value) =>
+                setDemographics((p) => ({ ...p, [key]: value }))
+              }
             />
           </div>
         </div>
@@ -114,7 +122,9 @@ export function EventDemographicDialog({
           <Button variant="outline" onClick={() => handleOpenChange(false)}>
             Cancel
           </Button>
-          <Button onClick={() => handleOpenChange(false)}>{editingRow ? "Save Changes" : "Add"}</Button>
+          <Button onClick={() => handleOpenChange(false)}>
+            {editingRow ? "Save Changes" : "Add"}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

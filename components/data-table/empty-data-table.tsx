@@ -52,22 +52,29 @@ import { MasterFormFields } from "./master-form-fields";
 export type MasterTab = { label: string; href: string; active: boolean };
 
 type EmptyDataTableProps = {
-  /** Page title, rendered inside the card next to the export/Add New buttons (confirmed placement from the reference recording — not a separate PageHeader title above the tabs). */
+  /** Page title, rendered inside the card next to the export/Add New buttons (confirmed placement from the reference - not a separate PageHeader title above the tabs). */
   title: string;
   /**
    * Module icon shown next to the title, matching the section's sidebar
    * icon (client request: every module heading needs a relevant icon).
-   * Taken as a name rather than the icon component itself — this renders
+   * Taken as a name rather than the icon component itself - this renders
    * from Server Component pages (masters/[...slug], forms/[...slug]), and a
    * component reference isn't serializable across that RSC boundary into
    * this Client Component (same reasoning as SidebarTopLink's iconName).
    */
   icon?: SidebarIconName;
   columns: MasterColumn[];
-  /** "Manage and view all zone master in the system" — shown under the title. */
+  /** "Manage and view all zone master in the system" - shown under the title. */
   subtitle?: string;
   /** Sibling masters in the same group, rendered as pills above the card (e.g. Zone/State/District/...). */
   tabs?: MasterTab[];
+  /**
+   * Module → sub-module path shown in the green bar instead of `tabs`, for
+   * Form Management (client direction: "form management mai module and sub
+   * module hi rhega, extra nahi dikhna chahiye upar green wale div mai").
+   * All Masters keeps the sibling-tab bar, which matches its own reference.
+   */
+  moduleTrail?: MasterTab[];
   /** Real reference rows, keyed by column `key`. Omit to keep the original all-empty placeholder behavior. */
   rows?: Record<string, ReactNode>[];
   /** Real total row count for the pagination footer, when it differs from `rows.length` (a partial first page). */
@@ -75,16 +82,16 @@ type EmptyDataTableProps = {
   /**
    * Real cascading-dropdown behaviour confirmed for a couple of Basic
    * Masters' Add New forms (District Master, KVK Master both cascade
-   * Zone -> State -> ... in the reference) — turns the matching columns
+   * Zone -> State ->... in the reference) - turns the matching columns
    * (zoneName/stateName/hostOrg) into dependent selects reusing the same
    * Zone/State/Host-Org data Reports already draws from, instead of the
    * generic plain-text field every other leaf gets.
    */
   cascadeType?: "district" | "kvk";
-  /** When set, Add New/Edit open a bespoke dialog instead of the generic per-column form — for the handful of leaves whose real Add/Edit shape genuinely isn't a flat field list (CFLD's 4-tab wizard, and the event forms carrying the recurring demographic-breakdown block). */
+  /** When set, Add New/Edit open a bespoke dialog instead of the generic per-column form - for the handful of leaves whose real Add/Edit shape genuinely isn't a flat field list (CFLD's 4-tab wizard, and the event forms carrying the recurring demographic-breakdown block). */
   customForm?: "cfld-technical-parameter" | "event-demographic";
   /**
-   * When set, "Add New" navigates here instead of opening the dialog — per
+   * When set, "Add New" navigates here instead of opening the dialog - per
    * client direction, Form Management's Add New opens a dedicated page,
    * while Masters/Targets/Notifications keep the popup. Editing an existing
    * row still uses the dialog either way (not part of that request).
@@ -98,10 +105,10 @@ type EmptyDataTableProps = {
  * search/date-filter row, and the table. This exact ordering (tabs before
  * the card; title sharing a row with PDF/Excel/Word/Add New; search+dates
  * as their own row below that) was confirmed pixel-for-pixel against the
- * reference recording — do not reorder without re-checking the video.
+ * reference - do not reorder without re-checking the video.
  *
  * Most masters have no data source wired up yet (Step 3 of the build), so
- * they render the real empty state — "Showing 0-0 of 0" — rather than
+ * they render the real empty state - "Showing 0-0 of 0" - rather than
  * fabricated rows. A handful of Basic Masters (Zone/State/District/Host/KVK)
  * pass real reference rows via `rows`; everything else keeps the original
  * empty behavior. Search/date inputs are live pieces of UI state; export,
@@ -115,6 +122,7 @@ export function EmptyDataTable({
   columns,
   subtitle,
   tabs,
+  moduleTrail,
   rows,
   totalCount,
   cascadeType,
@@ -122,26 +130,35 @@ export function EmptyDataTable({
   addNewHref,
 }: EmptyDataTableProps) {
   const Icon = icon ? SIDEBAR_ICONS[icon] : undefined;
-  /** Unique per instance — a page can render more than one EmptyDataTable (e.g. Notifications' Received + Sent tables), and duplicate ids break label association. */
+  /** Unique per instance - a page can render more than one EmptyDataTable (e.g. Notifications' Received + Sent tables), and duplicate ids break label association. */
   const instanceId = useId();
   const fromDateId = `${instanceId}-from-date`;
   const toDateId = `${instanceId}-to-date`;
   const [search, setSearch] = useState("");
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
-  const [columnFilters, setColumnFilters] = useState<Record<string, ColumnFilterState>>({});
+  const [columnFilters, setColumnFilters] = useState<
+    Record<string, ColumnFilterState>
+  >({});
 
   /**
    * The search/date-filter bar can be dragged and repositioned by the user
    * (client request: "sorting/filter box should be movable"), via a grip
-   * handle. Position is plain in-memory offset state — resets on
+   * handle. Position is plain in-memory offset state - resets on
    * navigation/refresh, same as every other Phase 1 UI-only interaction;
    * persisting a chosen layout across sessions needs the backend.
    */
   const [filterBarOffset, setFilterBarOffset] = useState({ x: 0, y: 0 });
-  const dragState = useRef<{ startX: number; startY: number; originX: number; originY: number } | null>(null);
+  const dragState = useRef<{
+    startX: number;
+    startY: number;
+    originX: number;
+    originY: number;
+  } | null>(null);
 
-  function handleFilterBarDragStart(event: React.PointerEvent<HTMLButtonElement>) {
+  function handleFilterBarDragStart(
+    event: React.PointerEvent<HTMLButtonElement>,
+  ) {
     event.preventDefault();
     dragState.current = {
       startX: event.clientX,
@@ -168,19 +185,25 @@ export function EmptyDataTable({
   }
 
   const [formOpen, setFormOpen] = useState(false);
-  const [editingRow, setEditingRow] = useState<Record<string, ReactNode> | null>(null);
+  const [editingRow, setEditingRow] = useState<Record<
+    string,
+    ReactNode
+  > | null>(null);
   const [formValues, setFormValues] = useState<Record<string, string>>({});
   const [markAsOther, setMarkAsOther] = useState(false);
-  const [deleteRow, setDeleteRow] = useState<Record<string, ReactNode> | null>(null);
+  const [deleteRow, setDeleteRow] = useState<Record<string, ReactNode> | null>(
+    null,
+  );
 
   /** Real confirmed pattern for every "simple" single-Name master (Subject, Funding Source, Asset Funding Source, NARI Nutrition Garden Type, Pay Scale, TSP/SCSP Activity, and every other single-column master sharing this exact shape): the real Create form is one Name field plus a "Mark as 'Other' option" checkbox. */
   const isSimpleMaster = columns.length === 1 && columns[0].key === "name";
 
   const hasActiveDates = fromDate !== "" || toDate !== "";
   const hasActiveColumnFilters = Object.values(columnFilters).some(
-    (state) => state.sort !== null || state.selected !== null
+    (state) => state.sort !== null || state.selected !== null,
   );
-  const hasActiveFilters = hasActiveDates || search !== "" || hasActiveColumnFilters;
+  const hasActiveFilters =
+    hasActiveDates || search !== "" || hasActiveColumnFilters;
 
   function resetDates() {
     setFromDate("");
@@ -195,7 +218,7 @@ export function EmptyDataTable({
   }
 
   /**
-   * Add/Edit form is generated from `columns` — one text field per confirmed
+   * Add/Edit form is generated from `columns` - one text field per confirmed
    * field name, since this phase has no backend to persist to and the real
    * input widget for each field (select vs text vs date, which are
    * required) isn't confirmed per-leaf across all ~40 Form Management
@@ -213,7 +236,10 @@ export function EmptyDataTable({
     const values: Record<string, string> = {};
     for (const column of columns) {
       const value = row[column.key];
-      values[column.key] = typeof value === "string" || typeof value === "number" ? String(value) : "";
+      values[column.key] =
+        typeof value === "string" || typeof value === "number"
+          ? String(value)
+          : "";
     }
     setEditingRow(row);
     setFormValues(values);
@@ -230,7 +256,7 @@ export function EmptyDataTable({
       ? (deleteRow[columns[0].key] as string)
       : "this record";
 
-  /** Distinct values (with counts) for a column, sourced from the real rows passed in — matches the reference's per-column "Unique Values" checklist. */
+  /** Distinct values (with counts) for a column, sourced from the real rows passed in - matches the reference's per-column "Unique Values" checklist. */
   function columnValues(key: string): { value: string; count: number }[] {
     if (!rows) return [];
     const counts = new Map<string, number>();
@@ -238,8 +264,8 @@ export function EmptyDataTable({
       const value = String(row[key] ?? "");
       counts.set(value, (counts.get(value) ?? 0) + 1);
     }
-    return Array.from(counts, ([value, count]) => ({ value, count })).sort((a, b) =>
-      a.value.localeCompare(b.value)
+    return Array.from(counts, ([value, count]) => ({ value, count })).sort(
+      (a, b) => a.value.localeCompare(b.value),
     );
   }
 
@@ -249,9 +275,11 @@ export function EmptyDataTable({
       Object.entries(columnFilters).every(([key, state]) => {
         if (state.selected === null) return true;
         return state.selected.has(String(row[key] ?? ""));
-      })
+      }),
     );
-    const sortEntry = Object.entries(columnFilters).find(([, state]) => state.sort !== null);
+    const sortEntry = Object.entries(columnFilters).find(
+      ([, state]) => state.sort !== null,
+    );
     if (sortEntry) {
       const [key, state] = sortEntry;
       next = [...next].sort((a, b) => {
@@ -267,9 +295,9 @@ export function EmptyDataTable({
 
   return (
     <div>
-      {tabs && tabs.length > 1 && (
+      {(moduleTrail ?? (tabs && tabs.length > 1 ? tabs : undefined))?.length ? (
         <div className="mb-4 inline-flex flex-wrap gap-1 rounded-lg bg-primary p-1">
-          {tabs.map((tab) => (
+          {(moduleTrail ?? tabs!).map((tab) => (
             <Link
               key={tab.href}
               href={tab.href}
@@ -277,14 +305,14 @@ export function EmptyDataTable({
                 "rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
                 tab.active
                   ? "bg-white text-primary"
-                  : "text-primary-foreground/85 hover:text-primary-foreground"
+                  : "text-primary-foreground/85 hover:text-primary-foreground",
               )}
             >
               {tab.label}
             </Link>
           ))}
         </div>
-      )}
+      ) : null}
 
       <div className="rounded-lg border border-border bg-card">
         <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border p-4">
@@ -293,7 +321,9 @@ export function EmptyDataTable({
               {Icon && <Icon className="size-4.5 shrink-0 text-primary" />}
               <h1 className="text-lg font-semibold text-primary">{title}</h1>
             </div>
-            {subtitle && <p className="mt-0.5 text-sm text-muted-foreground">{subtitle}</p>}
+            {subtitle && (
+              <p className="mt-0.5 text-sm text-muted-foreground">{subtitle}</p>
+            )}
           </div>
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm">
@@ -309,7 +339,10 @@ export function EmptyDataTable({
               Word
             </Button>
             {addNewHref ? (
-              <Link href={addNewHref} className={cn(buttonVariants({ size: "sm" }))}>
+              <Link
+                href={addNewHref}
+                className={cn(buttonVariants({ size: "sm" }))}
+              >
                 <Plus className="size-3.5" />
                 Add New
               </Link>
@@ -326,7 +359,10 @@ export function EmptyDataTable({
           className="relative z-10 flex flex-wrap items-center gap-2 border-b border-border bg-card p-4"
           style={
             filterBarOffset.x !== 0 || filterBarOffset.y !== 0
-              ? { transform: `translate(${filterBarOffset.x}px, ${filterBarOffset.y}px)`, boxShadow: "0 8px 24px rgba(0,0,0,0.12)" }
+              ? {
+                  transform: `translate(${filterBarOffset.x}px, ${filterBarOffset.y}px)`,
+                  boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
+                }
               : undefined
           }
         >
@@ -334,7 +370,7 @@ export function EmptyDataTable({
             type="button"
             onPointerDown={handleFilterBarDragStart}
             onDoubleClick={() => setFilterBarOffset({ x: 0, y: 0 })}
-            title="Drag to reposition — double-click to reset"
+            title="Drag to reposition - double-click to reset"
             className="flex size-7 shrink-0 cursor-grab touch-none items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground active:cursor-grabbing"
           >
             <GripVertical className="size-4" />
@@ -349,7 +385,10 @@ export function EmptyDataTable({
             />
           </div>
           <div className="flex items-center gap-1.5">
-            <Label htmlFor={fromDateId} className="text-xs text-muted-foreground">
+            <Label
+              htmlFor={fromDateId}
+              className="text-xs text-muted-foreground"
+            >
               From Date
             </Label>
             <Input
@@ -372,11 +411,21 @@ export function EmptyDataTable({
               className="w-40 text-muted-foreground"
             />
           </div>
-          <Button variant="outline-primary" size="sm" onClick={resetDates} disabled={!hasActiveDates}>
+          <Button
+            variant="outline-primary"
+            size="sm"
+            onClick={resetDates}
+            disabled={!hasActiveDates}
+          >
             <RotateCcw className="size-3.5" />
             Reset dates
           </Button>
-          <Button variant="outline-primary" size="sm" onClick={resetFilters} disabled={!hasActiveFilters}>
+          <Button
+            variant="outline-primary"
+            size="sm"
+            onClick={resetFilters}
+            disabled={!hasActiveFilters}
+          >
             <RotateCcw className="size-3.5" />
             Reset filters
           </Button>
@@ -394,9 +443,17 @@ export function EmptyDataTable({
                       <ColumnFilterMenu
                         columnLabel={column.label}
                         values={columnValues(column.key)}
-                        state={columnFilters[column.key] ?? { selected: null, sort: null }}
+                        state={
+                          columnFilters[column.key] ?? {
+                            selected: null,
+                            sort: null,
+                          }
+                        }
                         onApply={(state) =>
-                          setColumnFilters((prev) => ({ ...prev, [column.key]: state }))
+                          setColumnFilters((prev) => ({
+                            ...prev,
+                            [column.key]: state,
+                          }))
                         }
                       />
                     </span>
@@ -408,20 +465,34 @@ export function EmptyDataTable({
             <tbody>
               {rowCount === 0 ? (
                 <tr>
-                  <td colSpan={columns.length + 2} className="px-4 py-16 text-center text-muted-foreground">
+                  <td
+                    colSpan={columns.length + 2}
+                    className="px-4 py-16 text-center text-muted-foreground"
+                  >
                     No records found.
                   </td>
                 </tr>
               ) : (
                 displayedRows!.map((row, index) => (
-                  <tr key={index} className="divide-x divide-border border-b border-border last:border-0">
-                    <td className="px-4 py-3 align-top text-muted-foreground">{index + 1}</td>
+                  <tr
+                    key={index}
+                    className="divide-x divide-border border-b border-border last:border-0"
+                  >
+                    <td className="px-4 py-3 align-top text-muted-foreground">
+                      {index + 1}
+                    </td>
                     {columns.map((column) => {
                       const value = row[column.key];
                       return (
-                        <td key={column.key} className="px-4 py-3 align-top text-foreground">
+                        <td
+                          key={column.key}
+                          className="px-4 py-3 align-top text-foreground"
+                        >
                           {typeof value === "string" ? (
-                            <span className="line-clamp-2 max-w-xs" title={value}>
+                            <span
+                              className="line-clamp-2 max-w-xs"
+                              title={value}
+                            >
                               {value}
                             </span>
                           ) : (
@@ -444,7 +515,10 @@ export function EmptyDataTable({
                             <Pencil className="size-3.5" />
                             Edit
                           </DropdownMenuItem>
-                          <DropdownMenuItem variant="destructive" onClick={() => setDeleteRow(row)}>
+                          <DropdownMenuItem
+                            variant="destructive"
+                            onClick={() => setDeleteRow(row)}
+                          >
                             <Trash2 className="size-3.5" />
                             Delete
                           </DropdownMenuItem>
@@ -460,7 +534,9 @@ export function EmptyDataTable({
 
         <div className="flex items-center justify-between border-t border-border px-4 py-3 text-sm text-muted-foreground">
           <span>
-            {rowCount === 0 ? "Showing 0-0 of 0" : `Showing 1-${rowCount} of ${total}`}
+            {rowCount === 0
+              ? "Showing 0-0 of 0"
+              : `Showing 1-${rowCount} of ${total}`}
           </span>
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" disabled>
@@ -475,42 +551,56 @@ export function EmptyDataTable({
 
       {/* Add / Edit */}
       {customForm === "cfld-technical-parameter" ? (
-        <CfldTechnicalParameterDialog open={formOpen} onOpenChange={setFormOpen} editingRow={editingRow} />
+        <CfldTechnicalParameterDialog
+          open={formOpen}
+          onOpenChange={setFormOpen}
+          editingRow={editingRow}
+        />
       ) : customForm === "event-demographic" ? (
-        <EventDemographicDialog title={title} open={formOpen} onOpenChange={setFormOpen} editingRow={editingRow} />
+        <EventDemographicDialog
+          title={title}
+          open={formOpen}
+          onOpenChange={setFormOpen}
+          editingRow={editingRow}
+        />
       ) : (
-      <Dialog open={formOpen} onOpenChange={setFormOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>
-              {editingRow ? `Edit ${title}` : `Add ${title}`}
-            </DialogTitle>
-          </DialogHeader>
+        <Dialog open={formOpen} onOpenChange={setFormOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>
+                {editingRow ? `Edit ${title}` : `Add ${title}`}
+              </DialogTitle>
+            </DialogHeader>
 
-          <div className="max-h-[60vh] space-y-4 overflow-y-auto">
-            <MasterFormFields
-              columns={columns}
-              cascadeType={cascadeType}
-              formValues={formValues}
-              onChange={setFormValues}
-              isSimpleMaster={isSimpleMaster}
-              markAsOther={markAsOther}
-              onMarkAsOtherChange={setMarkAsOther}
-            />
-          </div>
+            <div className="max-h-[60vh] space-y-4 overflow-y-auto">
+              <MasterFormFields
+                columns={columns}
+                cascadeType={cascadeType}
+                formValues={formValues}
+                onChange={setFormValues}
+                isSimpleMaster={isSimpleMaster}
+                markAsOther={markAsOther}
+                onMarkAsOtherChange={setMarkAsOther}
+              />
+            </div>
 
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setFormOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={submitForm}>{editingRow ? "Save Changes" : "Add"}</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setFormOpen(false)}>
+                Cancel
+              </Button>
+              <Button onClick={submitForm}>
+                {editingRow ? "Save Changes" : "Add"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       )}
 
       {/* Delete confirm */}
-      <AlertDialog open={deleteRow !== null} onOpenChange={(open) => !open && setDeleteRow(null)}>
+      <AlertDialog
+        open={deleteRow !== null}
+        onOpenChange={(open) => !open && setDeleteRow(null)}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete “{deleteRowLabel}”?</AlertDialogTitle>
@@ -520,7 +610,9 @@ export function EmptyDataTable({
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={() => setDeleteRow(null)}>Delete</AlertDialogAction>
+            <AlertDialogAction onClick={() => setDeleteRow(null)}>
+              Delete
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

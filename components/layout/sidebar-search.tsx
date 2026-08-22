@@ -5,7 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Search } from "lucide-react";
 import { SEARCH_INDEX } from "@/lib/navigation";
 
-/** The sidebar's "Search... (Ctrl+K)" box — jumps to any page in the app by name. */
+/** The sidebar's "Search... (Ctrl+K)" box - jumps to any page in the app by name. */
 export function SidebarSearch() {
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
@@ -29,7 +29,10 @@ export function SidebarSearch() {
 
   useEffect(() => {
     function onClickOutside(event: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+      if (
+        containerRef.current &&
+        !containerRef.current.contains(event.target as Node)
+      ) {
         setOpen(false);
       }
     }
@@ -40,7 +43,9 @@ export function SidebarSearch() {
   const results = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return [];
-    return SEARCH_INDEX.filter((item) => item.label.toLowerCase().includes(q)).slice(0, 8);
+    return SEARCH_INDEX.filter((item) =>
+      item.label.toLowerCase().includes(q),
+    ).slice(0, 8);
   }, [query]);
 
   return (
@@ -63,7 +68,9 @@ export function SidebarSearch() {
       {open && query.trim() && (
         <div className="absolute top-full right-0 left-0 z-20 mt-1 max-h-80 overflow-y-auto rounded-md border border-border bg-card p-1 shadow-lg">
           {results.length === 0 ? (
-            <p className="px-3 py-2 text-sm text-muted-foreground">No matching pages.</p>
+            <p className="px-3 py-2 text-sm text-muted-foreground">
+              No matching pages.
+            </p>
           ) : (
             results.map((result) => (
               <Link
@@ -77,7 +84,9 @@ export function SidebarSearch() {
               >
                 <span className="font-medium">{result.label}</span>
                 {result.section && (
-                  <span className="ml-1.5 text-xs text-muted-foreground">{result.section}</span>
+                  <span className="ml-1.5 text-xs text-muted-foreground">
+                    {result.section}
+                  </span>
                 )}
               </Link>
             ))

@@ -1,11 +1,20 @@
 "use client";
 
-import { BarChart3, Users, FileText, GraduationCap, Activity, Tags, LayoutDashboard } from "lucide-react";
+import {
+  BarChart3,
+  Users,
+  FileText,
+  GraduationCap,
+  Activity,
+  Tags,
+  LayoutDashboard,
+} from "lucide-react";
 import { StatCard } from "@/components/dashboard/stat-card";
 import { ProgressChartCard } from "@/components/dashboard/progress-chart-card";
 import { FilterSelect } from "@/components/dashboard/filter-select";
 import { Button } from "@/components/ui/button";
 import { useSession } from "@/lib/session";
+import { cn } from "@/lib/utils";
 import { FORM_MANAGEMENT } from "@/lib/navigation";
 
 const STATS = [
@@ -18,7 +27,7 @@ const STATS = [
 ];
 
 /**
- * A KVK User's whole job is filling in Form Management for their own KVK —
+ * A KVK User's whole job is filling in Form Management for their own KVK -
  * unlike Super Admin/KVK Admin, who need cross-KVK oversight stats, a KVK
  * User needs to know one thing: what's still left to fill in. So their
  * Dashboard is the same per-form fill-status list as Form Summary's KVK
@@ -30,7 +39,9 @@ function KvkUserDashboard({ kvkName }: { kvkName?: string }) {
       <div className="mb-6">
         <div className="flex items-center gap-2">
           <LayoutDashboard className="size-5 shrink-0 text-primary" />
-          <h1 className="text-3xl font-semibold text-primary">My Pending Forms</h1>
+          <h1 className="text-3xl font-semibold text-primary">
+            My Pending Forms
+          </h1>
         </div>
         <p className="mt-1 text-sm text-muted-foreground">
           Track what still needs filling in for {kvkName ?? "your KVK"}
@@ -49,7 +60,10 @@ function KvkUserDashboard({ kvkName }: { kvkName?: string }) {
           </thead>
           <tbody>
             {FORM_MANAGEMENT.map((form) => (
-              <tr key={form.slug} className="border-b border-border last:border-0">
+              <tr
+                key={form.slug}
+                className="border-b border-border last:border-0"
+              >
                 <td className="px-4 py-3 text-foreground">{form.label}</td>
                 <td className="px-4 py-3 text-muted-foreground">Not filled</td>
                 <td className="px-4 py-3">
@@ -57,7 +71,9 @@ function KvkUserDashboard({ kvkName }: { kvkName?: string }) {
                     <div className="h-full w-0 rounded-full bg-primary" />
                   </div>
                 </td>
-                <td className="px-4 py-3 text-right text-muted-foreground">0%</td>
+                <td className="px-4 py-3 text-right text-muted-foreground">
+                  0%
+                </td>
               </tr>
             ))}
           </tbody>
@@ -67,7 +83,7 @@ function KvkUserDashboard({ kvkName }: { kvkName?: string }) {
   );
 }
 
-/** A KVK's own dashboard has no reason to show a KVK count or let them pick a different KVK — both only make sense at the cross-KVK, Super Admin level. */
+/** A KVK's own dashboard has no reason to show a KVK count or let them pick a different KVK - both only make sense at the cross-KVK, Super Admin level. */
 const KVK_SCOPED_STATS = STATS.filter((stat) => stat.label !== "KVK");
 
 export default function DashboardPage() {
@@ -102,28 +118,61 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+      {/* Column count follows the stat count - a KVK Admin has one tile fewer, and a fixed 6-column grid would leave a visible gap at the end of the row. */}
+      <div
+        className={cn(
+          "grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3",
+          isKvkAdmin ? "xl:grid-cols-5" : "xl:grid-cols-6",
+        )}
+      >
         {(isKvkAdmin ? KVK_SCOPED_STATS : STATS).map((stat) => (
-          <StatCard key={stat.label} icon={stat.icon} label={stat.label} value={stat.value} />
+          <StatCard
+            key={stat.label}
+            icon={stat.icon}
+            label={stat.label}
+            value={stat.value}
+          />
         ))}
       </div>
 
+      {/*
+        Identical cards for both roles - only the wording changes, because
+        "KVKs with entries" is cross-KVK framing that means nothing to a KVK
+        Admin, whose chart is about their own trials rather than a comparison
+        across KVKs.
+      */}
       <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
         <ProgressChartCard
           title="OFT Progress"
-          description="Ongoing, completed; not started = KVK with no entries"
+          description={
+            isKvkAdmin
+              ? "Ongoing and completed On Farm Trials for your KVK"
+              : "Ongoing, completed; not started = KVK with no entries"
+          }
           defaultView="bar"
           totalCount={0}
-          summary="0 of 0 KVKs with entries · 0 not started"
+          summary={
+            isKvkAdmin
+              ? "0 trials recorded"
+              : "0 of 0 KVKs with entries · 0 not started"
+          }
           showAllLabel="Show all (0)"
           detailedHref="/dashboard/analytics/oft"
         />
         <ProgressChartCard
           title="FLD Progress"
-          description="Ongoing, completed; not started = KVK with no entries"
+          description={
+            isKvkAdmin
+              ? "Ongoing and completed Front Line Demonstrations for your KVK"
+              : "Ongoing, completed; not started = KVK with no entries"
+          }
           defaultView="bar"
           totalCount={0}
-          summary="0 of 0 KVKs with entries · 0 not started"
+          summary={
+            isKvkAdmin
+              ? "0 demonstrations recorded"
+              : "0 of 0 KVKs with entries · 0 not started"
+          }
           showAllLabel="Show all (0)"
           detailedHref="/dashboard/analytics/fld"
         />

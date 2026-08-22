@@ -27,7 +27,9 @@ const ALL = "all";
 
 function firstOfMonth(): string {
   const now = new Date();
-  return new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
+  return new Date(now.getFullYear(), now.getMonth(), 1)
+    .toISOString()
+    .slice(0, 10);
 }
 function today(): string {
   return new Date().toISOString().slice(0, 10);
@@ -36,7 +38,7 @@ function today(): string {
 /**
  * Super Admin / Admin Report screen. Zone -> State -> Host Organisation
  * cascades as before. Once a Host Organisation is picked, every KVK under
- * it shows as a checklist instead of a single dropdown — leaving them all
+ * it shows as a checklist instead of a single dropdown - leaving them all
  * checked gives a collective report across that organisation, unchecking
  * some gives a selective report for just those KVKs. Client direction:
  * "ek organisation se sare host show ho aur fir collective ya selective
@@ -49,7 +51,9 @@ export function SuperAdminReportView() {
   const [hostOrg, setHostOrg] = useState(ALL);
   const [district, setDistrict] = useState(ALL);
   const [selectedKvks, setSelectedKvks] = useState<Set<string>>(new Set());
-  const [selectedForms, setSelectedForms] = useState<Set<string>>(new Set(ALL_FORM_PATHS));
+  const [selectedForms, setSelectedForms] = useState<Set<string>>(
+    new Set(ALL_FORM_PATHS),
+  );
   const [fromDate, setFromDate] = useState(firstOfMonth());
   const [toDate, setToDate] = useState(today());
   const [quickSelect, setQuickSelect] = useState<QuickSelectRange>("custom");
@@ -59,7 +63,11 @@ export function SuperAdminReportView() {
   const hostOrgOptions = state === ALL ? [] : hostOrgsForState(state);
   const districtOptions = hostOrg === ALL ? [] : districtsForHostOrg(hostOrg);
   const kvkOptions =
-    hostOrg === ALL ? [] : district === ALL ? kvksForHostOrg(hostOrg) : kvksForDistrict(hostOrg, district);
+    hostOrg === ALL
+      ? []
+      : district === ALL
+        ? kvksForHostOrg(hostOrg)
+        : kvksForDistrict(hostOrg, district);
 
   function onZoneChange(value: string) {
     setZone(value);
@@ -77,13 +85,17 @@ export function SuperAdminReportView() {
   function onHostOrgChange(value: string) {
     setHostOrg(value);
     setDistrict(ALL);
-    // Defaults to every KVK under the newly picked organisation selected — a collective report out of the box.
+    // Defaults to every KVK under the newly picked organisation selected - a collective report out of the box.
     setSelectedKvks(value === ALL ? new Set() : new Set(kvksForHostOrg(value)));
   }
   function onDistrictChange(value: string) {
     setDistrict(value);
-    // Narrowing to a district still defaults to every KVK inside it — collective within that narrower scope.
-    setSelectedKvks(value === ALL ? new Set(kvksForHostOrg(hostOrg)) : new Set(kvksForDistrict(hostOrg, value)));
+    // Narrowing to a district still defaults to every KVK inside it - collective within that narrower scope.
+    setSelectedKvks(
+      value === ALL
+        ? new Set(kvksForHostOrg(hostOrg))
+        : new Set(kvksForDistrict(hostOrg, value)),
+    );
   }
   function onFormsChange(next: Set<string>) {
     setSelectedForms(next);
@@ -156,7 +168,8 @@ export function SuperAdminReportView() {
       : selectedForms.size === 0
         ? "No Forms Selected"
         : selectedForms.size === 1
-          ? (REPORT_FORM_LEAVES.find((f) => selectedForms.has(f.path))?.label ?? "1 Form Selected")
+          ? (REPORT_FORM_LEAVES.find((f) => selectedForms.has(f.path))?.label ??
+            "1 Form Selected")
           : `${selectedForms.size} Forms Selected`;
 
   return (
@@ -177,7 +190,9 @@ export function SuperAdminReportView() {
 
         <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
           <div>
-            <label className="text-xs font-medium text-muted-foreground">Zone</label>
+            <label className="text-xs font-medium text-muted-foreground">
+              Zone
+            </label>
             <select
               value={zone}
               onChange={(e) => onZoneChange(e.target.value)}
@@ -191,7 +206,9 @@ export function SuperAdminReportView() {
             </select>
           </div>
           <div>
-            <label className="text-xs font-medium text-muted-foreground">State</label>
+            <label className="text-xs font-medium text-muted-foreground">
+              State
+            </label>
             <select
               value={state}
               onChange={(e) => onStateChange(e.target.value)}
@@ -206,7 +223,9 @@ export function SuperAdminReportView() {
             </select>
           </div>
           <div>
-            <label className="text-xs font-medium text-muted-foreground">Host Organisation</label>
+            <label className="text-xs font-medium text-muted-foreground">
+              Host Organisation
+            </label>
             <select
               value={hostOrg}
               onChange={(e) => onHostOrgChange(e.target.value)}
@@ -222,7 +241,9 @@ export function SuperAdminReportView() {
             </select>
           </div>
           <div>
-            <label className="text-xs font-medium text-muted-foreground">District</label>
+            <label className="text-xs font-medium text-muted-foreground">
+              District
+            </label>
             <select
               value={district}
               onChange={(e) => onDistrictChange(e.target.value)}
@@ -238,7 +259,9 @@ export function SuperAdminReportView() {
             </select>
           </div>
           <div>
-            <label className="text-xs font-medium text-muted-foreground">KVK</label>
+            <label className="text-xs font-medium text-muted-foreground">
+              KVK
+            </label>
             <SelectOrgKvksDropdown
               kvks={kvkOptions}
               selected={selectedKvks}
@@ -249,8 +272,13 @@ export function SuperAdminReportView() {
         </div>
 
         <div className="mt-4 max-w-xs">
-          <label className="text-xs font-medium text-muted-foreground">Select Form</label>
-          <SelectFormDropdown selected={selectedForms} onChange={onFormsChange} />
+          <label className="text-xs font-medium text-muted-foreground">
+            Select Form
+          </label>
+          <SelectFormDropdown
+            selected={selectedForms}
+            onChange={onFormsChange}
+          />
         </div>
 
         <div className="mt-4">
@@ -260,7 +288,9 @@ export function SuperAdminReportView() {
           </div>
           <div className="mt-1.5 flex flex-wrap items-end gap-4">
             <div className="w-40 shrink-0">
-              <label className="text-xs font-medium text-muted-foreground">From Date</label>
+              <label className="text-xs font-medium text-muted-foreground">
+                From Date
+              </label>
               <Input
                 type="date"
                 value={fromDate}
@@ -269,7 +299,9 @@ export function SuperAdminReportView() {
               />
             </div>
             <div className="w-40 shrink-0">
-              <label className="text-xs font-medium text-muted-foreground">To Date</label>
+              <label className="text-xs font-medium text-muted-foreground">
+                To Date
+              </label>
               <Input
                 type="date"
                 value={toDate}
@@ -280,7 +312,9 @@ export function SuperAdminReportView() {
           </div>
 
           <div className="mt-3">
-            <label className="text-xs font-medium text-muted-foreground">Quick Select</label>
+            <label className="text-xs font-medium text-muted-foreground">
+              Quick Select
+            </label>
             <div className="mt-1.5 flex flex-wrap gap-1.5">
               {QUICK_SELECT_OPTIONS.map((option) => (
                 <button
@@ -291,7 +325,7 @@ export function SuperAdminReportView() {
                     "rounded-full border px-3 py-1 text-xs font-medium transition-colors",
                     quickSelect === option.value
                       ? "border-primary bg-primary text-primary-foreground"
-                      : "border-border text-muted-foreground hover:text-foreground"
+                      : "border-border text-muted-foreground hover:text-foreground",
                   )}
                 >
                   {option.label}
@@ -301,7 +335,9 @@ export function SuperAdminReportView() {
           </div>
         </div>
 
-        {validationError && <p className="mt-3 text-xs text-destructive">{validationError}</p>}
+        {validationError && (
+          <p className="mt-3 text-xs text-destructive">{validationError}</p>
+        )}
       </div>
 
       <div className="flex justify-end">

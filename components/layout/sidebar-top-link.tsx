@@ -12,7 +12,7 @@ type SidebarTopLinkProps = {
   iconName: SidebarIconName;
   href: string;
   collapsed?: boolean;
-  /** Controlled from Sidebar so opening one top-level section (e.g. Form Management) auto-collapses any other one that was open (e.g. All Masters) — client requirement, not independent per-section state. */
+  /** Controlled from Sidebar so opening one top-level section (e.g. Form Management) auto-collapses any other one that was open (e.g. All Masters) - client requirement, not independent per-section state. */
   open: boolean;
   onToggle: () => void;
   children: ReactNode;
@@ -21,7 +21,7 @@ type SidebarTopLinkProps = {
 /**
  * A top-level, collapsible sidebar entry (e.g. "All Masters", "Form Management").
  *
- * Takes an icon *name* rather than the icon component itself — passing a
+ * Takes an icon *name* rather than the icon component itself - passing a
  * component reference as a prop from a Server Component (Sidebar) into a
  * Client Component isn't serializable across the RSC boundary, so the
  * lookup happens here instead.
@@ -30,7 +30,15 @@ type SidebarTopLinkProps = {
  * an inline submenu, so this renders as a plain link to the section's own
  * landing page instead of an expand/collapse toggle.
  */
-export function SidebarTopLink({ label, iconName, href, collapsed, open, onToggle, children }: SidebarTopLinkProps) {
+export function SidebarTopLink({
+  label,
+  iconName,
+  href,
+  collapsed,
+  open,
+  onToggle,
+  children,
+}: SidebarTopLinkProps) {
   const Icon = SIDEBAR_ICONS[iconName];
 
   if (collapsed) {
@@ -56,7 +64,12 @@ export function SidebarTopLink({ label, iconName, href, collapsed, open, onToggl
           <Icon className="size-4 shrink-0" />
           <span className="truncate">{label}</span>
         </span>
-        <ChevronDown className={cn("size-4 shrink-0 transition-transform", open && "rotate-180")} />
+        <ChevronDown
+          className={cn(
+            "size-4 shrink-0 transition-transform",
+            open && "rotate-180",
+          )}
+        />
       </button>
       {open && children}
     </div>

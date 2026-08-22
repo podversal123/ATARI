@@ -15,7 +15,7 @@ const SUMMARY_STATS = [
   { label: "Overall Progress", value: "0%" },
 ];
 
-/** A KVK Admin's own stats drop the "KVKs" tile — there's only ever the one KVK, itself. */
+/** A KVK Admin's own stats drop the "KVKs" tile - there's only ever the one KVK, itself. */
 const KVK_SUMMARY_STATS = SUMMARY_STATS.filter((stat) => stat.label !== "KVKs");
 
 type ViewMode = "kvk" | "matrix";
@@ -32,7 +32,9 @@ export default function FormSummaryPage() {
           <div className="flex items-center gap-2">
             <ListChecks className="size-5 shrink-0 text-primary" />
             <h1 className="text-3xl font-semibold text-primary">
-              {isKvk ? `Form Summary — ${session.kvkName ?? "My KVK"}` : "Form Summary — All KVKs"}
+              {isKvk
+                ? `Form Summary - ${session.kvkName ?? "My KVK"}`
+                : "Form Summary - All KVKs"}
             </h1>
           </div>
           <p className="mt-2 text-sm text-muted-foreground">
@@ -41,11 +43,20 @@ export default function FormSummaryPage() {
               : "Track which KVKs have submitted each form"}
           </p>
         </div>
-        <FilterSelect label="Reporting year" options={[String(new Date().getFullYear())]} />
+        <FilterSelect
+          label="Reporting year"
+          options={[String(new Date().getFullYear())]}
+        />
       </div>
 
       <div className="rounded-lg border border-border bg-card p-5">
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+        {/* Same rule as the Dashboard: a KVK Admin has one tile fewer, so the column count follows the tile count instead of leaving a gap. */}
+        <div
+          className={cn(
+            "grid grid-cols-2 gap-4",
+            isKvk ? "sm:grid-cols-3" : "sm:grid-cols-4",
+          )}
+        >
           {(isKvk ? KVK_SUMMARY_STATS : SUMMARY_STATS).map((stat) => (
             <div key={stat.label}>
               <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
@@ -54,7 +65,9 @@ export default function FormSummaryPage() {
               <p
                 className={cn(
                   "mt-1 text-2xl font-semibold tabular-nums",
-                  stat.label === "Overall Progress" ? "text-primary" : "text-foreground"
+                  stat.label === "Overall Progress"
+                    ? "text-primary"
+                    : "text-foreground",
                 )}
               >
                 {stat.value}
@@ -68,41 +81,41 @@ export default function FormSummaryPage() {
       </div>
 
       <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-        {isKvk ? (
-          <p className="text-sm font-medium text-foreground">By Form</p>
-        ) : (
-          <div className="flex items-center gap-1 rounded-md border border-border bg-muted/50 p-0.5">
-            <button
-              type="button"
-              onClick={() => setView("kvk")}
-              className={cn(
-                "flex items-center gap-1.5 rounded-[calc(var(--radius-md)-2px)] px-3 py-1.5 text-sm font-medium transition-colors",
-                view === "kvk"
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:text-foreground"
-              )}
-            >
-              <LayoutGrid className="size-3.5" />
-              By KVK
-            </button>
-            <button
-              type="button"
-              onClick={() => setView("matrix")}
-              className={cn(
-                "flex items-center gap-1.5 rounded-[calc(var(--radius-md)-2px)] px-3 py-1.5 text-sm font-medium transition-colors",
-                view === "matrix"
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:text-foreground"
-              )}
-            >
-              <Table2 className="size-3.5" />
-              Matrix
-            </button>
-          </div>
-        )}
+        {/* Same control for both roles - only the primary view's label differs, since a KVK Admin lists their own forms where a Super Admin lists KVKs. */}
+        <div className="flex items-center gap-1 rounded-md border border-border bg-muted/50 p-0.5">
+          <button
+            type="button"
+            onClick={() => setView("kvk")}
+            className={cn(
+              "flex items-center gap-1.5 rounded-[calc(var(--radius-md)-2px)] px-3 py-1.5 text-sm font-medium transition-colors",
+              view === "kvk"
+                ? "bg-primary text-primary-foreground"
+                : "text-muted-foreground hover:text-foreground",
+            )}
+          >
+            <LayoutGrid className="size-3.5" />
+            {isKvk ? "By Form" : "By KVK"}
+          </button>
+          <button
+            type="button"
+            onClick={() => setView("matrix")}
+            className={cn(
+              "flex items-center gap-1.5 rounded-[calc(var(--radius-md)-2px)] px-3 py-1.5 text-sm font-medium transition-colors",
+              view === "matrix"
+                ? "bg-primary text-primary-foreground"
+                : "text-muted-foreground hover:text-foreground",
+            )}
+          >
+            <Table2 className="size-3.5" />
+            Matrix
+          </button>
+        </div>
         <div className="flex items-center gap-3">
           <FilterSelect label="Progress" options={["All"]} />
-          <Input placeholder={isKvk ? "Filter forms..." : "Filter KVKs..."} className="w-64" />
+          <Input
+            placeholder={isKvk ? "Filter forms..." : "Filter KVKs..."}
+            className="w-64"
+          />
         </div>
       </div>
 
@@ -123,20 +136,30 @@ export default function FormSummaryPage() {
           <tbody>
             {isKvk ? (
               FORM_MANAGEMENT.map((form) => (
-                <tr key={form.slug} className="border-b border-border last:border-0">
+                <tr
+                  key={form.slug}
+                  className="border-b border-border last:border-0"
+                >
                   <td className="px-4 py-3 text-foreground">{form.label}</td>
-                  <td className="px-4 py-3 text-muted-foreground">Not filled</td>
+                  <td className="px-4 py-3 text-muted-foreground">
+                    Not filled
+                  </td>
                   <td className="px-4 py-3">
                     <div className="h-2 w-32 overflow-hidden rounded-full bg-muted">
                       <div className="h-full w-0 rounded-full bg-primary" />
                     </div>
                   </td>
-                  <td className="px-4 py-3 text-right text-muted-foreground">0%</td>
+                  <td className="px-4 py-3 text-right text-muted-foreground">
+                    0%
+                  </td>
                 </tr>
               ))
             ) : (
               <tr>
-                <td colSpan={4} className="px-4 py-16 text-center text-muted-foreground">
+                <td
+                  colSpan={4}
+                  className="px-4 py-16 text-center text-muted-foreground"
+                >
                   No KVKs yet.
                 </td>
               </tr>

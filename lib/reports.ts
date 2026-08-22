@@ -2,7 +2,7 @@
  * Reports module data model.
  *
  * Source of truth: "ATARI AMS reports workflow.pdf" (client spec, sections
- * 1-26) — the KVK Report and Super Admin/Admin Report screens, their filter
+ * 1-26) - the KVK Report and Super Admin/Admin Report screens, their filter
  * sets, cascading Zone→State→Host Organisation→KVK behaviour, and the
  * dynamic preview states (idle / generating / no-data / stale-filters) are
  * all transcribed from that document, not guessed.
@@ -13,25 +13,38 @@
  * ATARI AMS".
  */
 
-import { FORM_MANAGEMENT, flattenLeafPaths, type NavLeafPath } from "./navigation";
-import { KVK_MASTER_ROWS, STATE_MASTER_ROWS, ZONE_MASTER_ROWS } from "./masters";
+import {
+  FORM_MANAGEMENT,
+  flattenLeafPaths,
+  type NavLeafPath,
+} from "./navigation";
+import {
+  KVK_MASTER_ROWS,
+  STATE_MASTER_ROWS,
+  ZONE_MASTER_ROWS,
+} from "./masters";
 
 export type ReportFormOption = { slug: string; label: string };
 
 /** The 6 real Form Management categories, usable as "Select Form" options on both report screens. */
-export const REPORT_FORM_OPTIONS: ReportFormOption[] = FORM_MANAGEMENT.map((item) => ({
-  slug: item.slug,
-  label: item.label,
-}));
+export const REPORT_FORM_OPTIONS: ReportFormOption[] = FORM_MANAGEMENT.map(
+  (item) => ({
+    slug: item.slug,
+    label: item.label,
+  }),
+);
 
 /**
  * Every individual form leaf across all of Form Management (e.g. "Employee
- * Details" inside About KVK), not just the 6 top-level categories — lets a
+ * Details" inside About KVK), not just the 6 top-level categories - lets a
  * report be scoped to one particular sub-form, not only a whole category.
  */
-export const REPORT_FORM_LEAVES: NavLeafPath[] = flattenLeafPaths(FORM_MANAGEMENT);
+export const REPORT_FORM_LEAVES: NavLeafPath[] =
+  flattenLeafPaths(FORM_MANAGEMENT);
 
-export const ALL_FORM_PATHS = new Set(REPORT_FORM_LEAVES.map((leaf) => leaf.path));
+export const ALL_FORM_PATHS = new Set(
+  REPORT_FORM_LEAVES.map((leaf) => leaf.path),
+);
 
 export type ReportStatus = "Submitted" | "Verified" | "Pending";
 
@@ -43,9 +56,18 @@ export const REPORT_TABLE_COLUMNS = [
   "Status",
 ] as const;
 
-export type QuickSelectRange = "today" | "this-week" | "this-month" | "last-month" | "this-year" | "custom";
+export type QuickSelectRange =
+  | "today"
+  | "this-week"
+  | "this-month"
+  | "last-month"
+  | "this-year"
+  | "custom";
 
-export const QUICK_SELECT_OPTIONS: { value: QuickSelectRange; label: string }[] = [
+export const QUICK_SELECT_OPTIONS: {
+  value: QuickSelectRange;
+  label: string;
+}[] = [
   { value: "today", label: "Today" },
   { value: "this-week", label: "This Week" },
   { value: "this-month", label: "This Month" },
@@ -59,7 +81,9 @@ function toInputDate(date: Date): string {
 }
 
 /** Resolves a quick-select pill to a concrete {from, to} date pair; "custom" leaves the current dates untouched. */
-export function resolveQuickSelectRange(range: QuickSelectRange): { from: string; to: string } | null {
+export function resolveQuickSelectRange(
+  range: QuickSelectRange,
+): { from: string; to: string } | null {
   const now = new Date();
   const today = toInputDate(now);
 
@@ -89,46 +113,57 @@ export function resolveQuickSelectRange(range: QuickSelectRange): { from: string
   }
 }
 
-/** Zones available to the Zone dropdown — currently just the one real zone this deployment covers. */
+/** Zones available to the Zone dropdown - currently just the one real zone this deployment covers. */
 export const REPORT_ZONE_OPTIONS = ZONE_MASTER_ROWS.map((row) => row.zoneName);
 
 /** States under a given zone, derived from the real State Master rows. */
 export function statesForZone(zoneName: string): string[] {
-  return STATE_MASTER_ROWS.filter((row) => row.zoneName === zoneName).map((row) => row.stateName);
+  return STATE_MASTER_ROWS.filter((row) => row.zoneName === zoneName).map(
+    (row) => row.stateName,
+  );
 }
 
 /** Host Organisations under a given state, derived from the real KVK Master rows (the only master that links hostOrg to state). */
 export function hostOrgsForState(stateName: string): string[] {
   const orgs = new Set(
-    KVK_MASTER_ROWS.filter((row) => row.stateName === stateName).map((row) => row.hostOrg)
+    KVK_MASTER_ROWS.filter((row) => row.stateName === stateName).map(
+      (row) => row.hostOrg,
+    ),
   );
   return Array.from(orgs);
 }
 
 /** KVKs under a given Host Organisation, derived from the real KVK Master rows. */
 export function kvksForHostOrg(hostOrg: string): string[] {
-  return KVK_MASTER_ROWS.filter((row) => row.hostOrg === hostOrg).map((row) => row.kvk);
+  return KVK_MASTER_ROWS.filter((row) => row.hostOrg === hostOrg).map(
+    (row) => row.kvk,
+  );
 }
 
 /**
  * Districts under a given Host Organisation, derived from the real KVK
- * Master rows. A Host Organisation isn't confined to one district — the
+ * Master rows. A Host Organisation isn't confined to one district - the
  * real data shows e.g. BAU Sabour spanning Araria/Arwal/Aurangabad/Banka/
- * Bhagalpur — so District narrows the KVK picker one step further inside
+ * Bhagalpur - so District narrows the KVK picker one step further inside
  * an already-chosen Host Organisation, not the other way around.
  */
 export function districtsForHostOrg(hostOrg: string): string[] {
   const districts = new Set(
-    KVK_MASTER_ROWS.filter((row) => row.hostOrg === hostOrg).map((row) => row.districtName)
+    KVK_MASTER_ROWS.filter((row) => row.hostOrg === hostOrg).map(
+      (row) => row.districtName,
+    ),
   );
   return Array.from(districts);
 }
 
 /** KVKs under a given Host Organisation, further narrowed to one district. */
-export function kvksForDistrict(hostOrg: string, districtName: string): string[] {
-  return KVK_MASTER_ROWS.filter((row) => row.hostOrg === hostOrg && row.districtName === districtName).map(
-    (row) => row.kvk
-  );
+export function kvksForDistrict(
+  hostOrg: string,
+  districtName: string,
+): string[] {
+  return KVK_MASTER_ROWS.filter(
+    (row) => row.hostOrg === hostOrg && row.districtName === districtName,
+  ).map((row) => row.kvk);
 }
 
 /** Formats a Date as DD/MM/YYYY, matching the spec's mockup date format. */
@@ -145,7 +180,7 @@ export function generateReportId(): string {
   reportSequence += 1;
   const today = new Date();
   const stamp = `${today.getFullYear()}${String(today.getMonth() + 1).padStart(2, "0")}${String(
-    today.getDate()
+    today.getDate(),
   ).padStart(2, "0")}`;
   return `RPT-${stamp}-${String(reportSequence).padStart(4, "0")}`;
 }

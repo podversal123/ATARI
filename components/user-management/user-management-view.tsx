@@ -72,7 +72,7 @@ function scopeOptionsFor(kind: ReturnType<typeof scopeFieldFor>) {
 
 /**
  * User Management screen. No accounts exist yet in this phase (no backend),
- * so the table always renders its real empty state — same "static/mock"
+ * so the table always renders its real empty state - same "static/mock"
  * convention as the rest of the app. Create User renders and validates
  * exactly like the reference but doesn't persist a row; Edit/Delete per-row
  * actions wire up once real accounts exist (Phase 3).
@@ -89,7 +89,11 @@ export function UserManagementView() {
   const [formError, setFormError] = useState<string | null>(null);
 
   const [resetOpen, setResetOpen] = useState(false);
-  const [resetForm, setResetForm] = useState({ email: "", newPassword: "", confirmPassword: "" });
+  const [resetForm, setResetForm] = useState({
+    email: "",
+    newPassword: "",
+    confirmPassword: "",
+  });
   const [resetError, setResetError] = useState<string | null>(null);
 
   const selectedRole = roleByName(form.roleName);
@@ -99,15 +103,22 @@ export function UserManagementView() {
   function openCreate() {
     setForm(
       isKvk
-        ? { ...EMPTY_FORM, roleName: KVK_USER_ROLE, scopeValue: session.kvkName ?? "" }
-        : EMPTY_FORM
+        ? {
+            ...EMPTY_FORM,
+            roleName: KVK_USER_ROLE,
+            scopeValue: session.kvkName ?? "",
+          }
+        : EMPTY_FORM,
     );
     setFormError(null);
     setShowPassword(false);
     setFormOpen(true);
   }
 
-  function updateForm<K extends keyof UserFormState>(key: K, value: UserFormState[K]) {
+  function updateForm<K extends keyof UserFormState>(
+    key: K,
+    value: UserFormState[K],
+  ) {
     setForm((prev) => ({ ...prev, [key]: value }));
   }
 
@@ -143,7 +154,10 @@ export function UserManagementView() {
       setResetError("User email is required.");
       return;
     }
-    if (!resetForm.newPassword || resetForm.newPassword !== resetForm.confirmPassword) {
+    if (
+      !resetForm.newPassword ||
+      resetForm.newPassword !== resetForm.confirmPassword
+    ) {
       setResetError("New password and confirm password do not match.");
       return;
     }
@@ -188,7 +202,10 @@ export function UserManagementView() {
         </TableHeader>
         <TableBody>
           <TableRow>
-            <TableCell colSpan={7} className="px-4 py-16 text-center text-muted-foreground">
+            <TableCell
+              colSpan={7}
+              className="px-4 py-16 text-center text-muted-foreground"
+            >
               No users found.
             </TableCell>
           </TableRow>
@@ -254,7 +271,9 @@ export function UserManagementView() {
                   type={showPassword ? "text" : "password"}
                   autoComplete="new-password"
                   value={form.password}
-                  onChange={(event) => updateForm("password", event.target.value)}
+                  onChange={(event) =>
+                    updateForm("password", event.target.value)
+                  }
                   className="pr-9"
                 />
                 <button
@@ -263,7 +282,11 @@ export function UserManagementView() {
                   aria-label={showPassword ? "Hide password" : "Show password"}
                   className="absolute top-1/2 right-2.5 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                 >
-                  {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                  {showPassword ? (
+                    <EyeOff className="size-4" />
+                  ) : (
+                    <Eye className="size-4" />
+                  )}
                 </button>
               </div>
               <p className="text-xs text-muted-foreground">
@@ -279,7 +302,9 @@ export function UserManagementView() {
                 autoComplete="new-password"
                 placeholder="Confirm password"
                 value={form.confirmPassword}
-                onChange={(event) => updateForm("confirmPassword", event.target.value)}
+                onChange={(event) =>
+                  updateForm("confirmPassword", event.target.value)
+                }
               />
             </div>
 
@@ -288,7 +313,10 @@ export function UserManagementView() {
               {isKvk ? (
                 <Input id="user-role" value={KVK_USER_ROLE} disabled />
               ) : (
-                <Select value={form.roleName} onValueChange={(value) => onRoleChange(value as string)}>
+                <Select
+                  value={form.roleName}
+                  onValueChange={(value) => onRoleChange(value as string)}
+                >
                   <SelectTrigger id="user-role" className="w-full">
                     <SelectValue placeholder="Select Role" />
                   </SelectTrigger>
@@ -307,14 +335,20 @@ export function UserManagementView() {
               (isKvk ? (
                 <div className="space-y-1.5">
                   <Label htmlFor="user-scope-text">{scopeField.label} *</Label>
-                  <Input id="user-scope-text" value={form.scopeValue} disabled />
+                  <Input
+                    id="user-scope-text"
+                    value={form.scopeValue}
+                    disabled
+                  />
                 </div>
               ) : scopeOptions ? (
                 <div className="space-y-1.5">
                   <Label htmlFor="user-scope">{scopeField.label} *</Label>
                   <Select
                     value={form.scopeValue}
-                    onValueChange={(value) => updateForm("scopeValue", value as string)}
+                    onValueChange={(value) =>
+                      updateForm("scopeValue", value as string)
+                    }
                   >
                     <SelectTrigger id="user-scope" className="w-full">
                       <SelectValue placeholder={scopeField.placeholder} />
@@ -335,12 +369,16 @@ export function UserManagementView() {
                     id="user-scope-text"
                     placeholder={scopeField.placeholder}
                     value={form.scopeValue}
-                    onChange={(event) => updateForm("scopeValue", event.target.value)}
+                    onChange={(event) =>
+                      updateForm("scopeValue", event.target.value)
+                    }
                   />
                 </div>
               ))}
 
-            {formError && <p className="text-sm text-destructive">{formError}</p>}
+            {formError && (
+              <p className="text-sm text-destructive">{formError}</p>
+            )}
           </div>
 
           <DialogFooter>
@@ -352,11 +390,11 @@ export function UserManagementView() {
         </DialogContent>
       </Dialog>
 
-      {/* Reset User Password — admin-mediated, since there's no email-based
+      {/* Reset User Password - admin-mediated, since there's no email-based
           self-reset per the client's spec. Only valid for a user who hasn't
           already set their own password via Change Password; once they have,
           this must stop working for that account (a real per-user flag the
-          backend needs to track — not fakeable without persistence yet). */}
+          backend needs to track - not fakeable without persistence yet). */}
       <Dialog open={resetOpen} onOpenChange={setResetOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -365,8 +403,8 @@ export function UserManagementView() {
 
           <div className="space-y-4">
             <p className="text-xs text-muted-foreground">
-              Only works before the user has set their own password via Change Password —
-              after that, only they can change it.
+              Only works before the user has set their own password via Change
+              Password - after that, only they can change it.
             </p>
 
             <div className="space-y-1.5">
@@ -377,7 +415,10 @@ export function UserManagementView() {
                 placeholder="name@atariams.org"
                 value={resetForm.email}
                 onChange={(event) =>
-                  setResetForm((prev) => ({ ...prev, email: event.target.value }))
+                  setResetForm((prev) => ({
+                    ...prev,
+                    email: event.target.value,
+                  }))
                 }
               />
             </div>
@@ -390,7 +431,10 @@ export function UserManagementView() {
                 autoComplete="new-password"
                 value={resetForm.newPassword}
                 onChange={(event) =>
-                  setResetForm((prev) => ({ ...prev, newPassword: event.target.value }))
+                  setResetForm((prev) => ({
+                    ...prev,
+                    newPassword: event.target.value,
+                  }))
                 }
               />
               <p className="text-xs text-muted-foreground">
@@ -399,19 +443,26 @@ export function UserManagementView() {
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="reset-confirm-password">Confirm New Password</Label>
+              <Label htmlFor="reset-confirm-password">
+                Confirm New Password
+              </Label>
               <Input
                 id="reset-confirm-password"
                 type="password"
                 autoComplete="new-password"
                 value={resetForm.confirmPassword}
                 onChange={(event) =>
-                  setResetForm((prev) => ({ ...prev, confirmPassword: event.target.value }))
+                  setResetForm((prev) => ({
+                    ...prev,
+                    confirmPassword: event.target.value,
+                  }))
                 }
               />
             </div>
 
-            {resetError && <p className="text-sm text-destructive">{resetError}</p>}
+            {resetError && (
+              <p className="text-sm text-destructive">{resetError}</p>
+            )}
           </div>
 
           <DialogFooter>

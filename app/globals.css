@@ -50,7 +50,7 @@
 
 /*
  * Theme tokens sampled directly from the reference app (atari-client
- * screen recording) and the live atariams.org login page — not
+ * screen recording) and the live atariams.org login page - not
  * approximated. Sidebar green, active-item green, and the progress-bar
  * accent were pixel-picked from recording frames; the login screen keeps
  * its own darker teal from atariams.org's stylesheet, set locally on that
@@ -138,7 +138,7 @@
     @apply font-sans;
   }
 
-  /* Themed scrollbars — replaces the plain OS-default gray bar everywhere in the app. */
+  /* Themed scrollbars - replaces the plain OS-default gray bar everywhere in the app. */
   * {
     scrollbar-width: thin;
     scrollbar-color: var(--border) transparent;

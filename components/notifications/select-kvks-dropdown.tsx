@@ -19,11 +19,14 @@ type SelectKvksDropdownProps = {
 
 /**
  * Multi-select checklist for the Super Admin's notification Recipient field
- * — picking several specific KVKs at once, not just "All" or one, per client
+ * - picking several specific KVKs at once, not just "All" or one, per client
  * direction ("checkbox laga do ki jiska notification chahe wo dekh paaye").
  * Same checklist pattern as Reports' Select Form dropdown.
  */
-export function SelectKvksDropdown({ selected, onChange }: SelectKvksDropdownProps) {
+export function SelectKvksDropdown({
+  selected,
+  onChange,
+}: SelectKvksDropdownProps) {
   const allSelected = selected.size === ALL_KVK_NAMES.size;
   const noneSelected = selected.size === 0;
 
@@ -61,8 +64,14 @@ export function SelectKvksDropdown({ selected, onChange }: SelectKvksDropdownPro
           </button>
         }
       />
-      <DropdownMenuContent align="start" className="w-72 min-w-0 overflow-y-auto">
-        <DropdownMenuCheckboxItem checked={allSelected} onCheckedChange={toggleAll}>
+      <DropdownMenuContent
+        align="start"
+        className="w-72 min-w-0 overflow-y-auto"
+      >
+        <DropdownMenuCheckboxItem
+          checked={allSelected}
+          onCheckedChange={toggleAll}
+        >
           Select All KVKs
         </DropdownMenuCheckboxItem>
         <DropdownMenuSeparator />

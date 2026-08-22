@@ -13,11 +13,11 @@ import { SidebarSearch } from "./sidebar-search";
 
 /**
  * Sidebar items hidden for a KVK Admin (and, per explicit direction, KVK
- * User too — its sidebar mirrors KVK Admin's one-for-one for now; real
+ * User too - its sidebar mirrors KVK Admin's one-for-one for now; real
  * per-role restriction is a backend/permissions concern for later, not
  * something to hand-restrict in the UI ahead of that). Every role except
  * Super Admin loses All Masters (global reference data only Super Admin
- * curates) — every other page is shared, scoped later to that KVK's own
+ * curates) - every other page is shared, scoped later to that KVK's own
  * data via the same pages, not a separate route tree.
  */
 const KVK_HIDDEN_SLUGS = new Set(["masters"]);
@@ -27,12 +27,12 @@ const KVK_HIDDEN_SLUGS = new Set(["masters"]);
  * app: a top section (Dashboard, Form Summary), the All Masters group, then
  * Role/User Management, Form Management, and the remaining utility links.
  *
- * Header is plain "ATARI Zone IV" text + a collapse chevron — no logo next
- * to it in the real reference (confirmed against the screenshot; the ICAR
+ * Header is plain "ATARI Zone IV" text + a collapse chevron - no logo next
+ * to it in the real reference (confirmed against the reference; the ICAR
  * mark only appears on the login page, not in the sidebar). The reference
- * recording never showed the collapsed (icon-only) state despite the
+ * reference never showed the collapsed (icon-only) state despite the
  * chevron implying it's collapsible, so that state's exact look isn't
- * reference-verified — built as a standard icon-rail collapse since the
+ * reference-verified - built as a standard icon-rail collapse since the
  * toggle needs to actually work.
  */
 export function Sidebar() {
@@ -40,40 +40,51 @@ export function Sidebar() {
   const pathname = usePathname();
   const session = useSession();
   const visibleSections = SIDEBAR.filter(
-    (section) => session.role === "super-admin" || !KVK_HIDDEN_SLUGS.has(section.slug)
+    (section) =>
+      session.role === "super-admin" || !KVK_HIDDEN_SLUGS.has(section.slug),
   );
 
   /**
    * Only one top-level collapsible section (All Masters, Form Management)
-   * stays open at a time — opening one auto-closes whichever other one was
+   * stays open at a time - opening one auto-closes whichever other one was
    * open, per client direction. Starts open on whichever section the
    * current page lives under, if any.
    */
   const [openSlug, setOpenSlug] = useState<string | null>(
-    () => visibleSections.find((section) => section.children && pathname.startsWith(`/${section.slug}`))?.slug ?? null
+    () =>
+      visibleSections.find(
+        (section) =>
+          section.children && pathname.startsWith(`/${section.slug}`),
+      )?.slug ?? null,
   );
 
   return (
     <aside
       className={cn(
         "flex h-screen shrink-0 flex-col bg-sidebar text-sidebar-foreground transition-[width] duration-200",
-        collapsed ? "w-16" : "w-64"
+        collapsed ? "w-16" : "w-64",
       )}
     >
       <div
         className={cn(
           "flex items-center px-5 pt-5 pb-4",
-          collapsed ? "justify-center px-0" : "justify-between"
+          collapsed ? "justify-center px-0" : "justify-between",
         )}
       >
-        {!collapsed && <p className="truncate text-sm font-bold">ATARI Zone IV</p>}
+        {!collapsed && (
+          <p className="truncate text-sm font-bold">ATARI Zone IV</p>
+        )}
         <button
           type="button"
           onClick={() => setCollapsed((prev) => !prev)}
           aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
           className="text-white/70 transition-colors hover:text-white"
         >
-          {collapsed ? <ChevronRight className="size-4" /> : <ChevronLeft className="size-4" />}
+          {collapsed ? (
+            <ChevronRight className="size-4" />
+          ) : (
+            <ChevronLeft className="size-4" />
+          )}
         </button>
       </div>
 
@@ -109,7 +120,7 @@ export function Sidebar() {
       <nav
         className={cn(
           "sidebar-scroll flex-1 overflow-y-auto pb-6",
-          collapsed ? "px-2" : "px-3"
+          collapsed ? "px-2" : "px-3",
         )}
       >
         {!collapsed && (
@@ -129,10 +140,15 @@ export function Sidebar() {
                     collapsed={collapsed}
                     open={openSlug === section.slug}
                     onToggle={() =>
-                      setOpenSlug((prev) => (prev === section.slug ? null : section.slug))
+                      setOpenSlug((prev) =>
+                        prev === section.slug ? null : section.slug,
+                      )
                     }
                   >
-                    <NavTree items={section.children} basePath={`/${section.slug}`} />
+                    <NavTree
+                      items={section.children}
+                      basePath={`/${section.slug}`}
+                    />
                   </SidebarTopLink>
                 </li>
               );

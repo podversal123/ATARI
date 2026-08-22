@@ -18,16 +18,16 @@ const COLUMNS = [
   { key: "loginTime", label: "Login Time" },
 ] as const;
 
-/** A KVK Admin's own log view drops the KVK Name column — every row is already their own KVK. */
+/** A KVK Admin's own log view drops the KVK Name column - every row is already their own KVK. */
 const KVK_COLUMNS = COLUMNS.filter((column) => column.key !== "kvkName");
 
 type SortState = { key: string; direction: "asc" | "desc" } | null;
 
 /**
- * Real columns and filter row confirmed from a client reference screenshot
+ * Real columns and filter row confirmed from a the reference
  * ("View Users Log Activity": KVK dropdown + Filter button, Search box, then
  * S.No/KVK Name/Name of User/Activity/IP Address/Login Time with per-column
- * sort arrows) — that screenshot's own chrome (sidebar/header/table style)
+ * sort arrows) - that the reference's own chrome (sidebar/header/table style)
  * is from a different, older reference build than the rest of this app, so
  * only the content/columns/filters are matched here; visual styling stays
  * consistent with the rest of this app's design system.
@@ -57,15 +57,19 @@ export default function LogHistoryPage() {
         title="View Users Log Activity"
         icon={History}
         description={
-          isKvk ? `Activity log for ${session.kvkName ?? "your KVK"}` : "Super Admin Log — activity across the system"
+          isKvk
+            ? `Activity log for ${session.kvkName ?? "your KVK"}`
+            : "Super Admin Log - activity across the system"
         }
       />
 
-      {/* A KVK Admin never gets a cross-KVK picker — data isolation: KVK A must never read KVK B's activity. */}
+      {/* A KVK Admin never gets a cross-KVK picker - data isolation: KVK A must never read KVK B's activity. */}
       {!isKvk && (
         <div className="mb-4 flex flex-wrap items-end gap-3">
           <div>
-            <label className="text-xs font-medium text-muted-foreground">KVKs</label>
+            <label className="text-xs font-medium text-muted-foreground">
+              KVKs
+            </label>
             <select
               value={kvkFilter}
               onChange={(e) => setKvkFilter(e.target.value)}
@@ -110,7 +114,7 @@ export default function LogHistoryPage() {
                         onClick={() => toggleSort(column.key)}
                         className={cn(
                           "inline-flex items-center gap-1 transition-colors",
-                          active ? "text-primary" : "hover:text-foreground"
+                          active ? "text-primary" : "hover:text-foreground",
                         )}
                       >
                         {column.label}
@@ -131,7 +135,10 @@ export default function LogHistoryPage() {
             </thead>
             <tbody>
               <tr>
-                <td colSpan={columns.length} className="px-4 py-16 text-center text-muted-foreground">
+                <td
+                  colSpan={columns.length}
+                  className="px-4 py-16 text-center text-muted-foreground"
+                >
                   No records found.
                 </td>
               </tr>

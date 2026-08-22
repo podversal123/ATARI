@@ -9,7 +9,7 @@ export type PreviewPhase = "idle" | "generating" | "no-data" | "stale";
  * Drives the Generate Preview / stale-filter state machine described in the
  * reports spec (dynamic states section). Phase 1 has no backend, so a
  * successful generate always resolves to "no-data" rather than fabricated
- * rows — this is also the spec's own documented empty state, not a
+ * rows - this is also the spec's own documented empty state, not a
  * shortcut: "No data available for the selected filters and date range."
  */
 export function useReportPreview() {
@@ -35,7 +35,9 @@ export function useReportPreview() {
 
   /** Call from any filter's onChange once a preview has already been generated at least once. */
   const markStale = useCallback(() => {
-    setPhase((prev) => (prev === "no-data" || prev === "stale" ? "stale" : prev));
+    setPhase((prev) =>
+      prev === "no-data" || prev === "stale" ? "stale" : prev,
+    );
     setValidationError(null);
   }, []);
 

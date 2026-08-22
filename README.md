@@ -1,16 +1,16 @@
-# ATARI AMS — Super Admin Panel
+# ATARI AMS - Super Admin Panel
 
 Pixel-accurate rebuild of the ICAR-ATARI Agriculture Management System's Super Admin panel (Zone IV, Patna) on Next.js.
 
 ## Status
 
-Phase 1: static UI only, built against a reference recording and the live login page — no backend wired up yet. All figures shown in the app are genuinely zero, not sample data; real numbers arrive once the database step lands.
+Phase 1: static UI only, built against a reference recording and the live login page - no backend wired up yet. All figures shown in the app are genuinely zero, not sample data; real numbers arrive once the database step lands.
 
 ## Stack
 
 - Next.js (App Router) + TypeScript
 - Tailwind CSS v4 + shadcn/ui (base-ui primitives)
-- PostgreSQL with Row Level Security, multi-zone from day one (planned — see Phase 3 below)
+- PostgreSQL with Row Level Security, multi-zone from day one (planned - see Phase 3 below)
 
 ## Getting started
 
@@ -40,7 +40,7 @@ lib/
 
 ## Roadmap
 
-1. **UI** (current) — login, dashboard shell, full navigation tree, static/zero data.
-2. **Database & auth** — Postgres schema (zones, profiles, masters, forms), Row Level Security policies, real sign-in.
-3. **Master/form buildout** — roll the reusable data-table pattern across the remaining masters and forms.
-4. **Multi-zone rollout & deployment** — onboard a second zone, deploy to AWS.
+1. **UI** (current) - login, dashboard shell, full navigation tree, static/zero data.
+2. **Database & auth** - Postgres schema (zones, profiles, masters, forms), Row Level Security policies, real sign-in.
+3. **Master/form buildout** - roll the reusable data-table pattern across the remaining masters and forms.
+4. **Multi-zone rollout & deployment** - onboard a second zone, deploy to AWS.

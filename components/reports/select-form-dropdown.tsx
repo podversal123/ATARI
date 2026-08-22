@@ -18,15 +18,18 @@ type SelectFormDropdownProps = {
 };
 
 /**
- * The spec's "Select Form" filter is a dropdown containing a checklist —
- * "Select All Forms (checklist box)" per section 4 — and a report needs to
+ * The spec's "Select Form" filter is a dropdown containing a checklist -
+ * "Select All Forms (checklist box)" per section 4 - and a report needs to
  * scope down to one particular sub-form (e.g. just "Employee Details"
  * inside About KVK), not only a whole top-level category. So this renders
  * every leaf across Form Management, grouped under its top-level category,
  * each independently checkable, plus a group-level "select all in this
  * category" row and a top "Select All Forms" row.
  */
-export function SelectFormDropdown({ selected, onChange }: SelectFormDropdownProps) {
+export function SelectFormDropdown({
+  selected,
+  onChange,
+}: SelectFormDropdownProps) {
   const groups = useMemo(() => {
     const byGroup = new Map<string, typeof REPORT_FORM_LEAVES>();
     for (const leaf of REPORT_FORM_LEAVES) {
@@ -45,7 +48,8 @@ export function SelectFormDropdown({ selected, onChange }: SelectFormDropdownPro
     : noneSelected
       ? "No Forms Selected"
       : selected.size === 1
-        ? (REPORT_FORM_LEAVES.find((f) => selected.has(f.path))?.label ?? "1 Form Selected")
+        ? (REPORT_FORM_LEAVES.find((f) => selected.has(f.path))?.label ??
+          "1 Form Selected")
         : `${selected.size} Forms Selected`;
 
   function toggleAll() {
@@ -86,8 +90,14 @@ export function SelectFormDropdown({ selected, onChange }: SelectFormDropdownPro
           </button>
         }
       />
-      <DropdownMenuContent align="start" className="w-80 min-w-0 overflow-y-auto">
-        <DropdownMenuCheckboxItem checked={allSelected} onCheckedChange={toggleAll}>
+      <DropdownMenuContent
+        align="start"
+        className="w-80 min-w-0 overflow-y-auto"
+      >
+        <DropdownMenuCheckboxItem
+          checked={allSelected}
+          onCheckedChange={toggleAll}
+        >
           Select All Forms
         </DropdownMenuCheckboxItem>
 
@@ -96,7 +106,9 @@ export function SelectFormDropdown({ selected, onChange }: SelectFormDropdownPro
             <DropdownMenuSeparator />
             {leaves.length > 1 ? (
               <>
-                <p className="px-1.5 pt-1 text-[11px] font-medium text-muted-foreground">{groupLabel}</p>
+                <p className="px-1.5 pt-1 text-[11px] font-medium text-muted-foreground">
+                  {groupLabel}
+                </p>
                 <DropdownMenuCheckboxItem
                   checked={leaves.every((leaf) => selected.has(leaf.path))}
                   onCheckedChange={() => toggleGroup(leaves.map((l) => l.path))}

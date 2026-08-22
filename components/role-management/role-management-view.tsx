@@ -1,7 +1,14 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Plus, Search, MoreVertical, Pencil, ShieldCheck, Trash2 } from "lucide-react";
+import {
+  Plus,
+  Search,
+  MoreVertical,
+  Pencil,
+  ShieldCheck,
+  Trash2,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -45,20 +52,27 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { BASE_ROLES, HIERARCHY_LEVELS, PERMISSIONS, type RoleDefinition } from "@/lib/rbac";
+import {
+  BASE_ROLES,
+  HIERARCHY_LEVELS,
+  PERMISSIONS,
+  type RoleDefinition,
+} from "@/lib/rbac";
 import { useSession } from "@/lib/session";
 
 type Role = RoleDefinition & { id: string };
 
-/** The 9 roles from the Role Management spec — reference data, not user data, so it's real rather than empty. */
+/** The 9 roles from the Role Management spec - reference data, not user data, so it's real rather than empty. */
 const ROLES: Role[] = BASE_ROLES.map((role) => ({
   ...role,
   id: role.name.toLowerCase().replace(/\s+/g, "_"),
 }));
 
-/** A KVK Admin only ever deals with their own two roles — the rest of the hierarchy is Super Admin's concern. */
+/** A KVK Admin only ever deals with their own two roles - the rest of the hierarchy is Super Admin's concern. */
 const KVK_VISIBLE_ROLE_NAMES = new Set(["KVK Admin", "KVK User"]);
-const KVK_ROLES: Role[] = ROLES.filter((role) => KVK_VISIBLE_ROLE_NAMES.has(role.name));
+const KVK_ROLES: Role[] = ROLES.filter((role) =>
+  KVK_VISIBLE_ROLE_NAMES.has(role.name),
+);
 
 type RoleFormState = {
   name: string;
@@ -66,12 +80,16 @@ type RoleFormState = {
   description: string;
 };
 
-const EMPTY_FORM: RoleFormState = { name: "", hierarchyLevel: "", description: "" };
+const EMPTY_FORM: RoleFormState = {
+  name: "",
+  hierarchyLevel: "",
+  description: "",
+};
 
 /**
  * Role Management screen. This phase is UI-only (no backend yet), so Add /
  * Edit / Delete / Manage Permissions all render and validate exactly like
- * the reference, but don't persist anything — same "static/mock" convention
+ * the reference, but don't persist anything - same "static/mock" convention
  * as the rest of the app's list pages until the database step lands.
  */
 export function RoleManagementView() {
@@ -86,7 +104,9 @@ export function RoleManagementView() {
   const [form, setForm] = useState<RoleFormState>(EMPTY_FORM);
 
   const [permissionsRole, setPermissionsRole] = useState<Role | null>(null);
-  const [checkedPermissions, setCheckedPermissions] = useState<Set<string>>(new Set());
+  const [checkedPermissions, setCheckedPermissions] = useState<Set<string>>(
+    new Set(),
+  );
 
   const [deleteRole, setDeleteRole] = useState<Role | null>(null);
 
@@ -154,21 +174,32 @@ export function RoleManagementView() {
           <TableRow className="bg-muted/50 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
             <TableHead className="w-16 px-4 py-3">S.No.</TableHead>
             <TableHead className="px-4 py-3">Name</TableHead>
-            {!isKvk && <TableHead className="w-16 px-4 py-3 text-right">Actions</TableHead>}
+            {!isKvk && (
+              <TableHead className="w-16 px-4 py-3 text-right">
+                Actions
+              </TableHead>
+            )}
           </TableRow>
         </TableHeader>
         <TableBody>
           {filteredRoles.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={isKvk ? 2 : 3} className="px-4 py-16 text-center text-muted-foreground">
+              <TableCell
+                colSpan={isKvk ? 2 : 3}
+                className="px-4 py-16 text-center text-muted-foreground"
+              >
                 No roles found.
               </TableCell>
             </TableRow>
           ) : (
             filteredRoles.map((role, index) => (
               <TableRow key={role.id}>
-                <TableCell className="px-4 py-4 text-muted-foreground">{index + 1}</TableCell>
-                <TableCell className="px-4 py-4 font-medium text-foreground">{role.name}</TableCell>
+                <TableCell className="px-4 py-4 text-muted-foreground">
+                  {index + 1}
+                </TableCell>
+                <TableCell className="px-4 py-4 font-medium text-foreground">
+                  {role.name}
+                </TableCell>
                 {!isKvk && (
                   <TableCell className="px-4 py-4 text-right">
                     <DropdownMenu>
@@ -188,7 +219,10 @@ export function RoleManagementView() {
                           <ShieldCheck className="size-3.5" />
                           Manage Permissions
                         </DropdownMenuItem>
-                        <DropdownMenuItem variant="destructive" onClick={() => setDeleteRole(role)}>
+                        <DropdownMenuItem
+                          variant="destructive"
+                          onClick={() => setDeleteRole(role)}
+                        >
                           <Trash2 className="size-3.5" />
                           Delete Role
                         </DropdownMenuItem>
@@ -204,8 +238,8 @@ export function RoleManagementView() {
 
       <div className="flex items-center justify-between border-t border-border px-4 py-3 text-sm text-muted-foreground">
         <span>
-          Showing {filteredRoles.length === 0 ? 0 : 1} to {filteredRoles.length} of {filteredRoles.length}{" "}
-          entries
+          Showing {filteredRoles.length === 0 ? 0 : 1} to {filteredRoles.length}{" "}
+          of {filteredRoles.length} entries
         </span>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" disabled>
@@ -234,7 +268,9 @@ export function RoleManagementView() {
                 id="role-name"
                 placeholder="e.g. custom_admin"
                 value={form.name}
-                onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))}
+                onChange={(event) =>
+                  setForm((prev) => ({ ...prev, name: event.target.value }))
+                }
               />
               <p className="text-xs text-muted-foreground">
                 Use snake_case (e.g. state_admin, state_user)
@@ -246,7 +282,10 @@ export function RoleManagementView() {
               <Select
                 value={form.hierarchyLevel}
                 onValueChange={(value) =>
-                  setForm((prev) => ({ ...prev, hierarchyLevel: value as string }))
+                  setForm((prev) => ({
+                    ...prev,
+                    hierarchyLevel: value as string,
+                  }))
                 }
               >
                 <SelectTrigger id="hierarchy-level" className="w-full">
@@ -261,7 +300,8 @@ export function RoleManagementView() {
                 </SelectContent>
               </Select>
               <p className="text-xs text-muted-foreground">
-                Lower number = higher authority. Affects who can see and manage this role.
+                Lower number = higher authority. Affects who can see and manage
+                this role.
               </p>
             </div>
 
@@ -272,7 +312,10 @@ export function RoleManagementView() {
                 placeholder="Optional description of this role"
                 value={form.description}
                 onChange={(event) =>
-                  setForm((prev) => ({ ...prev, description: event.target.value }))
+                  setForm((prev) => ({
+                    ...prev,
+                    description: event.target.value,
+                  }))
                 }
               />
             </div>
@@ -293,10 +336,15 @@ export function RoleManagementView() {
       </Dialog>
 
       {/* Manage Permissions */}
-      <Dialog open={permissionsRole !== null} onOpenChange={(open) => !open && setPermissionsRole(null)}>
+      <Dialog
+        open={permissionsRole !== null}
+        onOpenChange={(open) => !open && setPermissionsRole(null)}
+      >
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Manage Permissions — {permissionsRole?.name}</DialogTitle>
+            <DialogTitle>
+              Manage Permissions - {permissionsRole?.name}
+            </DialogTitle>
           </DialogHeader>
 
           <div className="grid grid-cols-2 gap-3">
@@ -318,24 +366,34 @@ export function RoleManagementView() {
             <Button variant="outline" onClick={() => setPermissionsRole(null)}>
               Cancel
             </Button>
-            <Button onClick={() => setPermissionsRole(null)}>Save Permissions</Button>
+            <Button onClick={() => setPermissionsRole(null)}>
+              Save Permissions
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
       {/* Delete confirm */}
-      <AlertDialog open={deleteRole !== null} onOpenChange={(open) => !open && setDeleteRole(null)}>
+      <AlertDialog
+        open={deleteRole !== null}
+        onOpenChange={(open) => !open && setDeleteRole(null)}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete role “{deleteRole?.name}”?</AlertDialogTitle>
+            <AlertDialogTitle>
+              Delete role “{deleteRole?.name}”?
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              This removes the role and its permission configuration. Users currently assigned this
-              role will need to be reassigned. This cannot be undone.
+              This removes the role and its permission configuration. Users
+              currently assigned this role will need to be reassigned. This
+              cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={() => setDeleteRole(null)}>Delete</AlertDialogAction>
+            <AlertDialogAction onClick={() => setDeleteRole(null)}>
+              Delete
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

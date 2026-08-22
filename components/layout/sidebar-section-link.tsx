@@ -28,7 +28,7 @@ export function SidebarSectionLink({ href, label, iconName, collapsed }: Sidebar
         collapsed && "justify-center",
         isActive
           ? "bg-sidebar-accent font-medium text-sidebar-accent-foreground"
-          : "text-white/85 hover:bg-black/10 hover:text-white"
+          : "text-white/85 hover:bg-black/10 hover:text-white",
       )}
     >
       <Icon className="size-4 shrink-0" />
