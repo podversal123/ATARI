@@ -8,6 +8,7 @@ import {
   CalendarDays,
   Car,
   ClipboardCheck,
+  ClipboardList,
   CloudSun,
   Cog,
   Crown,
@@ -39,6 +40,7 @@ import {
   Trophy,
   Users,
   Users2,
+  Wheat,
   Wrench,
   type LucideIcon,
 } from "lucide-react";
@@ -106,6 +108,11 @@ const GROUP_ICONS: Record<string, LucideIcon> = {
   "nicra-others": Shield,
   "arya-safal": Users2,
   "fpo-cbbo": Handshake,
+  drmr: Sprout,
+  cra: CloudSun,
+  csisa: Wheat,
+  "seed-hub": Package,
+  "other-programmes": ClipboardList,
   // Form Management -> Performance Indicators
   impact: Target,
   "district-village-performance": LandPlot,

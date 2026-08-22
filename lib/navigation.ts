@@ -743,6 +743,7 @@ const achievements = group("achievements", "Achievements", [
       { key: "kvk", label: "KVK" },
       { key: "typeOfActivities", label: "Type of Activities" },
       { key: "noOfActivities", label: "No of Activities" },
+      { key: "relatedCropTechnology", label: "Related Crop/Livestock Technology" },
     ]),
     leaf("celebration-days", "Celebration Days", [
       { key: "kvk", label: "KVK" },
@@ -901,6 +902,7 @@ const achievements = group("achievements", "Achievements", [
         { key: "award", label: "Award" },
         { key: "amount", label: "Amount" },
         { key: "achievement", label: "Achievement" },
+        { key: "conferringAuthority", label: "Conferring Authority" },
       ],
       "KVK",
     ),
@@ -982,24 +984,6 @@ const projects = group(
       ),
       leaf("pi-co-pi-list", "Name of PI & Co-PI List"),
     ]),
-    /**
-     * These 6 were confirmed as real card headers on this page (same visual
-     * style as CFLD/NICRA above, atari-master-data/master/Projects form/
-     * the reference 2026-08-13 145837.png), but the reference scrolled away
-     * before their own inline leaf lists came into view - rather than guess
-     * their real sub-items, each wraps a single leaf that reuses the card's
-     * own confirmed name, so the card renders correctly without fabricating
-     * new content.
-     */
-    /**
-     * ARYA/SAFAL, Natural Farming and TSP/SCSP sub-items are real, confirmed in
-     * a later reference pass from IMG-20260815-WA0323.jpg (the Projects landing
-     * page scrolled far enough to reveal these three cards' inline lists) -
-     * they replace the earlier single-placeholder-leaf guess. NARI, Agri-Drone
-     * and FPO and CBBO sit below that the reference's fold and remain unconfirmed
-     * in every available source, so they keep the placeholder shape until a
-     * fresh capture arrives.
-     */
     group("arya-safal", "ARYA/SAFAL", [
       leaf("arya-safal-current-year", "Current Year Details"),
       leaf("arya-safal-previous-year", "Previous Year Evaluation"),
@@ -1020,9 +1004,42 @@ const projects = group(
       leaf("tsp-activities", "TSP Activities"),
       leaf("scsp-activities", "SCSP Activities"),
     ]),
-    group("nari", "NARI", [leaf("nari", "NARI")]),
-    group("agri-drone", "Agri-Drone", [leaf("agri-drone", "Agri-Drone")]),
-    group("fpo-cbbo", "FPO and CBBO", [leaf("fpo-cbbo", "FPO and CBBO")]),
+    /**
+     * The first two NARI labels are truncated in the card itself; they are
+     * completed from the third, which renders in full and fixes the shared
+     * "Nutri-Smart village" wording.
+     */
+    group("nari", "NARI", [
+      leaf("nari-nutrition-garden", "Details of established Nutrition Garden in Nutri-Smart village"),
+      leaf("nari-bio-fortified", "Details of Bio-fortified crops used in Nutri-Smart village"),
+      leaf("nari-value-addition", "Details of Value addition in Nutri-Smart village"),
+      leaf("nari-training", "Training programmes in Nutri-Smart village"),
+      leaf("nari-extension", "Extension activities under NARI Project"),
+    ]),
+    group("agri-drone", "Agri-Drone", [
+      leaf("agri-drone-introduction", "Introduction"),
+      leaf("agri-drone-demonstration", "Demonstration Details"),
+    ]),
+    group("fpo-cbbo", "FPO and CBBO", [
+      leaf("fpo-cbbo-details", "Details FPO and CBBO"),
+      leaf("fpo-management", "FPO Management"),
+    ]),
+    group("drmr", "DRMR", [
+      leaf("drmr-details", "DRMR Details"),
+      leaf("drmr-activity", "DRMR Activity"),
+    ]),
+    group("cra", "Climate Resilient Agriculture (CRA)", [
+      leaf("cra-details", "CRA Details"),
+      leaf("cra-extension-activity", "Extension Activity (CRA)"),
+    ]),
+    group("csisa", "CSISA", [
+      leaf("csisa-details", "Details of Cereal Systems Initiative for South Asia"),
+    ]),
+    group("seed-hub", "Seed Hub Program", [leaf("seed-hub-program", "Seed Hub Program")]),
+    /** Card label is truncated on screen; kept to the legible portion rather than invented. */
+    group("other-programmes", "Other Programmes", [
+      leaf("other-programme", "Any other programme organized by KVK"),
+    ]),
   ],
   {
     description:
