@@ -7,6 +7,8 @@ import { Input } from "@/components/ui/input";
 import { FilterSelect } from "@/components/dashboard/filter-select";
 import { useSession } from "@/lib/session";
 import { FORM_MANAGEMENT } from "@/lib/navigation";
+import { REPORT_FORM_LEAVES } from "@/lib/reports";
+import { KVKS } from "@/lib/rbac";
 
 const SUMMARY_STATS = [
   { label: "KVKs", value: "0" },
@@ -24,6 +26,8 @@ export default function FormSummaryPage() {
   const session = useSession();
   const isKvk = session.role !== "super-admin";
   const [view, setView] = useState<ViewMode>("kvk");
+
+  const matrixKvks = isKvk ? [session.kvkName ?? "My KVK"] : KVKS.map((kvk) => kvk.name);
 
   return (
     <div>
@@ -119,54 +123,106 @@ export default function FormSummaryPage() {
         </div>
       </div>
 
-      <div className="mt-4 overflow-hidden rounded-lg border border-border">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-border bg-muted/50 text-left text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-              <th className="px-4 py-3">
-                <span className="flex items-center gap-1.5">
-                  {isKvk ? "Form" : "KVK"} <Filter className="size-3" />
-                </span>
-              </th>
-              <th className="px-4 py-3">Filled</th>
-              <th className="px-4 py-3">Progress</th>
-              <th className="px-4 py-3 text-right">%</th>
-            </tr>
-          </thead>
-          <tbody>
-            {isKvk ? (
-              FORM_MANAGEMENT.map((form) => (
-                <tr
-                  key={form.slug}
-                  className="border-b border-border last:border-0"
-                >
-                  <td className="px-4 py-3 text-foreground">{form.label}</td>
-                  <td className="px-4 py-3 text-muted-foreground">
-                    Not filled
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="h-2 w-32 overflow-hidden rounded-full bg-muted">
-                      <div className="h-full w-0 rounded-full bg-primary" />
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 text-right text-muted-foreground">
-                    0%
+      {view === "kvk" ? (
+        <div className="mt-4 overflow-hidden rounded-lg border border-border">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-border bg-muted/50 text-left text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+                <th className="px-4 py-3">
+                  <span className="flex items-center gap-1.5">
+                    {isKvk ? "Form" : "KVK"} <Filter className="size-3" />
+                  </span>
+                </th>
+                <th className="px-4 py-3">Filled</th>
+                <th className="px-4 py-3">Progress</th>
+                <th className="px-4 py-3 text-right">%</th>
+              </tr>
+            </thead>
+            <tbody>
+              {isKvk ? (
+                FORM_MANAGEMENT.map((form) => (
+                  <tr
+                    key={form.slug}
+                    className="border-b border-border last:border-0"
+                  >
+                    <td className="px-4 py-3 text-foreground">{form.label}</td>
+                    <td className="px-4 py-3 text-muted-foreground">
+                      Not filled
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="h-2 w-32 overflow-hidden rounded-full bg-muted">
+                        <div className="h-full w-0 rounded-full bg-primary" />
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 text-right text-muted-foreground">
+                      0%
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td
+                    colSpan={4}
+                    className="px-4 py-16 text-center text-muted-foreground"
+                  >
+                    No KVKs yet.
                   </td>
                 </tr>
-              ))
-            ) : (
-              <tr>
-                <td
-                  colSpan={4}
-                  className="px-4 py-16 text-center text-muted-foreground"
-                >
-                  No KVKs yet.
-                </td>
+              )}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        /**
+         * Matrix view: form (row) x KVK (column) completion grid, per the
+         * client's reference layout - KVK names across the top each with a
+         * percentage, form names down the left, a dash where nothing has
+         * been filled. No submission data exists yet, so every cell reads
+         * the honest "-" rather than a fabricated count.
+         */
+        <div className="mt-4 overflow-auto rounded-lg border border-border">
+          <table className="w-full border-collapse text-sm">
+            <thead>
+              <tr className="border-b border-border bg-muted/50 text-left text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+                <th className="sticky left-0 z-10 w-14 border-r border-border bg-muted/50 px-4 py-3">
+                  #
+                </th>
+                <th className="sticky left-14 z-10 min-w-52 border-r border-border bg-muted/50 px-4 py-3">
+                  Form Name
+                </th>
+                {matrixKvks.map((kvk) => (
+                  <th key={kvk} className="min-w-28 border-r border-border px-3 py-2 text-center last:border-r-0">
+                    <div className="whitespace-nowrap normal-case">{kvk}</div>
+                    <div className="mt-0.5 font-normal text-muted-foreground/70 normal-case">
+                      0%
+                    </div>
+                  </th>
+                ))}
               </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody>
+              {REPORT_FORM_LEAVES.map((form, index) => (
+                <tr key={form.path} className="border-b border-border last:border-0">
+                  <td className="sticky left-0 z-10 border-r border-border bg-card px-4 py-2.5 text-muted-foreground">
+                    {index + 1}
+                  </td>
+                  <td className="sticky left-14 z-10 border-r border-border bg-card px-4 py-2.5 text-foreground">
+                    {form.label}
+                  </td>
+                  {matrixKvks.map((kvk) => (
+                    <td
+                      key={kvk}
+                      className="border-r border-border px-3 py-2.5 text-center text-muted-foreground last:border-r-0"
+                    >
+                      —
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }

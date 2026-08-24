@@ -13,6 +13,7 @@ import {
   type MasterTab,
 } from "@/components/data-table/empty-data-table";
 import { AddLeafPage } from "@/components/data-table/add-leaf-page";
+import { ViewKvksAddForm } from "@/components/data-table/view-kvks-add-form";
 import { TechnicalAchievementSummaryPanel } from "@/components/data-table/technical-achievement-summary-panel";
 
 const EVENT_DEMOGRAPHIC_SLUGS = new Set([
@@ -58,18 +59,51 @@ export default async function FormsPage({ params }: FormsPageProps) {
           .join("/")}`,
       });
     });
+    const backHref = `/forms/${slug.join("/")}`;
+    if (node.slug === "view-kvks") {
+      return <ViewKvksAddForm trail={addTrail} backHref={backHref} />;
+    }
     return (
       <AddLeafPage
         title={node.label}
         trail={addTrail}
-        backHref={`/forms/${slug.join("/")}`}
+        backHref={backHref}
         columns={node.columns}
       />
     );
   }
 
+  /**
+   * About KVK's 5 sub-groups (Basic Information, Employee Information, Land
+   * & Infrastructure Information, Vehicles Information, Equipments
+   * Information) exist only to group their leaves into landing-page cards -
+   * the real reference's own breadcrumb for every leaf underneath them skips
+   * straight from "About KVK" to the leaf name (confirmed directly against
+   * every one of the 5: /forms/about-kvk/view-kvks, bank-account,
+   * employee-details, infrastructure, vehicles, equipments all render
+   * "Form Management > About KVK > {leaf}" with no group crumb in between).
+   * Achievements/Projects/CFLD and the rest of Form Management do NOT share
+   * this - their own group crumbs (Projects, CFLD, Front Line Demonstrations
+   * (FLD), ...) are confirmed to appear in the real breadcrumb, so this
+   * suppression is scoped to these 5 slugs only, not a general rule.
+   */
+  const ABOUT_KVK_CARD_ONLY_GROUP_SLUGS = new Set([
+    "basic",
+    "employee",
+    "land-infrastructure",
+    "vehicles",
+    "equipments",
+  ]);
+
   const trailCrumbs: Crumb[] = [{ label: "Form Management", href: "/forms" }];
   trail.slice(0, -1).forEach((item, index) => {
+    if (
+      trail[0]?.slug === "about-kvk" &&
+      item.type === "group" &&
+      ABOUT_KVK_CARD_ONLY_GROUP_SLUGS.has(item.slug)
+    ) {
+      return;
+    }
     trailCrumbs.push({
       label: item.label,
       href: `/forms/${trail

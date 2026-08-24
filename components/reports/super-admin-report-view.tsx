@@ -2,28 +2,28 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { CalendarDays, Eye, Filter, RotateCcw } from "lucide-react";
+import { Building2, CalendarDays, Eye, Filter, LandPlot, MapPin, RotateCcw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   ALL_FORM_PATHS,
+  ALL_HOST_ORGS,
+  ALL_HOST_ORG_DISTRICTS,
+  ALL_STATES,
   REPORT_FORM_LEAVES,
   REPORT_ZONE_OPTIONS,
   QUICK_SELECT_OPTIONS,
-  districtsForHostOrg,
-  hostOrgsForState,
-  kvksForDistrict,
-  kvksForHostOrg,
+  districtsForHostOrgs,
+  hostOrgsForStates,
+  kvksForHostOrgsAndDistricts,
   resolveQuickSelectRange,
-  statesForZone,
   type QuickSelectRange,
 } from "@/lib/reports";
 import { ReportHeaderBar } from "./report-header-bar";
 import { SelectFormDropdown } from "./select-form-dropdown";
 import { SelectOrgKvksDropdown } from "./select-org-kvks-dropdown";
-
-const ALL = "all";
+import { MultiSelectChecklist } from "./multi-select-checklist";
 
 function firstOfMonth(): string {
   const now = new Date();
@@ -36,21 +36,26 @@ function today(): string {
 }
 
 /**
- * Super Admin / Admin Report screen. Zone -> State -> Host Organisation
- * cascades as before. Once a Host Organisation is picked, every KVK under
- * it shows as a checklist instead of a single dropdown - leaving them all
- * checked gives a collective report across that organisation, unchecking
- * some gives a selective report for just those KVKs. Client direction:
- * "ek organisation se sare host show ho aur fir collective ya selective
- * report checkbox ke help se le sku."
+ * Super Admin / Admin Report screen. State, Host Organisation and District
+ * are all checkbox multi-selects that cascade into each other, same
+ * collective-by-default / uncheck-to-go-selective interaction the KVK picker
+ * already used: picking a State auto-checks every Host Organisation under
+ * it, picking a Host Org auto-checks every District under it, and so on down
+ * to KVK. Leaving every State checked (the default) naturally exposes every
+ * real Host Org/District/KVK, matching the "select all states -> show All
+ * Hosts/All Districts/All KVKs" requirement without a separate code path.
  */
 export function SuperAdminReportView() {
   const router = useRouter();
   const [zone, setZone] = useState(REPORT_ZONE_OPTIONS[0]);
-  const [state, setState] = useState(ALL);
-  const [hostOrg, setHostOrg] = useState(ALL);
-  const [district, setDistrict] = useState(ALL);
-  const [selectedKvks, setSelectedKvks] = useState<Set<string>>(new Set());
+  const [selectedStates, setSelectedStates] = useState<Set<string>>(new Set(ALL_STATES));
+  const [selectedHostOrgs, setSelectedHostOrgs] = useState<Set<string>>(new Set(ALL_HOST_ORGS));
+  const [selectedDistricts, setSelectedDistricts] = useState<Set<string>>(
+    new Set(ALL_HOST_ORG_DISTRICTS),
+  );
+  const [selectedKvks, setSelectedKvks] = useState<Set<string>>(
+    new Set(kvksForHostOrgsAndDistricts(ALL_HOST_ORGS, ALL_HOST_ORG_DISTRICTS)),
+  );
   const [selectedForms, setSelectedForms] = useState<Set<string>>(
     new Set(ALL_FORM_PATHS),
   );
@@ -59,42 +64,40 @@ export function SuperAdminReportView() {
   const [quickSelect, setQuickSelect] = useState<QuickSelectRange>("custom");
   const [validationError, setValidationError] = useState<string | null>(null);
 
-  const stateOptions = statesForZone(zone);
-  const hostOrgOptions = state === ALL ? [] : hostOrgsForState(state);
-  const districtOptions = hostOrg === ALL ? [] : districtsForHostOrg(hostOrg);
-  const kvkOptions =
-    hostOrg === ALL
-      ? []
-      : district === ALL
-        ? kvksForHostOrg(hostOrg)
-        : kvksForDistrict(hostOrg, district);
+  const hostOrgOptions = hostOrgsForStates(Array.from(selectedStates));
+  const districtOptions = districtsForHostOrgs(Array.from(selectedHostOrgs));
+  const kvkOptions = kvksForHostOrgsAndDistricts(
+    Array.from(selectedHostOrgs),
+    Array.from(selectedDistricts),
+  );
 
   function onZoneChange(value: string) {
     setZone(value);
-    setState(ALL);
-    setHostOrg(ALL);
-    setDistrict(ALL);
-    setSelectedKvks(new Set());
+    // Only one real zone exists today, but keep the cascade consistent if that ever changes.
+    setSelectedStates(new Set(ALL_STATES));
+    setSelectedHostOrgs(new Set(ALL_HOST_ORGS));
+    setSelectedDistricts(new Set(ALL_HOST_ORG_DISTRICTS));
+    setSelectedKvks(new Set(kvksForHostOrgsAndDistricts(ALL_HOST_ORGS, ALL_HOST_ORG_DISTRICTS)));
   }
-  function onStateChange(value: string) {
-    setState(value);
-    setHostOrg(ALL);
-    setDistrict(ALL);
-    setSelectedKvks(new Set());
+  function onStatesChange(next: Set<string>) {
+    setSelectedStates(next);
+    const orgs = hostOrgsForStates(Array.from(next));
+    setSelectedHostOrgs(new Set(orgs));
+    const districts = districtsForHostOrgs(orgs);
+    setSelectedDistricts(new Set(districts));
+    setSelectedKvks(new Set(kvksForHostOrgsAndDistricts(orgs, districts)));
   }
-  function onHostOrgChange(value: string) {
-    setHostOrg(value);
-    setDistrict(ALL);
-    // Defaults to every KVK under the newly picked organisation selected - a collective report out of the box.
-    setSelectedKvks(value === ALL ? new Set() : new Set(kvksForHostOrg(value)));
+  function onHostOrgsChange(next: Set<string>) {
+    setSelectedHostOrgs(next);
+    const orgs = Array.from(next);
+    const districts = districtsForHostOrgs(orgs);
+    setSelectedDistricts(new Set(districts));
+    setSelectedKvks(new Set(kvksForHostOrgsAndDistricts(orgs, districts)));
   }
-  function onDistrictChange(value: string) {
-    setDistrict(value);
-    // Narrowing to a district still defaults to every KVK inside it - collective within that narrower scope.
+  function onDistrictsChange(next: Set<string>) {
+    setSelectedDistricts(next);
     setSelectedKvks(
-      value === ALL
-        ? new Set(kvksForHostOrg(hostOrg))
-        : new Set(kvksForDistrict(hostOrg, value)),
+      new Set(kvksForHostOrgsAndDistricts(Array.from(selectedHostOrgs), Array.from(next))),
     );
   }
   function onFormsChange(next: Set<string>) {
@@ -122,25 +125,31 @@ export function SuperAdminReportView() {
       setValidationError("To Date cannot be earlier than From Date.");
       return;
     }
-    if (hostOrg !== ALL && selectedKvks.size === 0) {
+    if (selectedKvks.size === 0) {
       setValidationError("Please select at least one KVK.");
       return;
     }
     setValidationError(null);
 
+    const stateLabel =
+      selectedStates.size === ALL_STATES.length ? "All States" : Array.from(selectedStates).join(", ");
+    const hostOrgLabel =
+      selectedHostOrgs.size === hostOrgOptions.length
+        ? "All Host Organizations"
+        : Array.from(selectedHostOrgs).join(", ");
+    const districtLabel =
+      selectedDistricts.size === districtOptions.length
+        ? "All Districts"
+        : Array.from(selectedDistricts).join(", ");
     const kvkLabel =
-      hostOrg === ALL
-        ? "All KVKs"
-        : selectedKvks.size === kvkOptions.length
-          ? "All KVKs"
-          : Array.from(selectedKvks).join(", ");
+      selectedKvks.size === kvkOptions.length ? "All KVKs" : Array.from(selectedKvks).join(", ");
 
     const query = new URLSearchParams({
       type: "admin",
       zone,
-      state: state === ALL ? "All States" : state,
-      hostOrg: hostOrg === ALL ? "All Host Organizations" : hostOrg,
-      district: district === ALL ? "All Districts" : district,
+      state: stateLabel,
+      hostOrg: hostOrgLabel,
+      district: districtLabel,
       kvk: kvkLabel,
       form: selectedFormLabel,
       from: fromDate,
@@ -151,10 +160,10 @@ export function SuperAdminReportView() {
 
   function resetFilters() {
     setZone(REPORT_ZONE_OPTIONS[0]);
-    setState(ALL);
-    setHostOrg(ALL);
-    setDistrict(ALL);
-    setSelectedKvks(new Set());
+    setSelectedStates(new Set(ALL_STATES));
+    setSelectedHostOrgs(new Set(ALL_HOST_ORGS));
+    setSelectedDistricts(new Set(ALL_HOST_ORG_DISTRICTS));
+    setSelectedKvks(new Set(kvksForHostOrgsAndDistricts(ALL_HOST_ORGS, ALL_HOST_ORG_DISTRICTS)));
     setSelectedForms(new Set(ALL_FORM_PATHS));
     setFromDate(firstOfMonth());
     setToDate(today());
@@ -209,54 +218,45 @@ export function SuperAdminReportView() {
             <label className="text-xs font-medium text-muted-foreground">
               State
             </label>
-            <select
-              value={state}
-              onChange={(e) => onStateChange(e.target.value)}
-              className="mt-1 h-9 w-full rounded-md border border-border bg-card px-2.5 text-sm text-foreground outline-none focus-visible:border-ring disabled:opacity-50"
-            >
-              <option value={ALL}>All States</option>
-              {stateOptions.map((s) => (
-                <option key={s} value={s}>
-                  {s}
-                </option>
-              ))}
-            </select>
+            <div className="mt-1">
+              <MultiSelectChecklist
+                options={ALL_STATES}
+                selected={selectedStates}
+                onChange={onStatesChange}
+                icon={MapPin}
+                allLabel="All States"
+              />
+            </div>
           </div>
           <div>
             <label className="text-xs font-medium text-muted-foreground">
               Host Organisation
             </label>
-            <select
-              value={hostOrg}
-              onChange={(e) => onHostOrgChange(e.target.value)}
-              disabled={state === ALL}
-              className="mt-1 h-9 w-full rounded-md border border-border bg-card px-2.5 text-sm text-foreground outline-none focus-visible:border-ring disabled:opacity-50"
-            >
-              <option value={ALL}>All Host Organizations</option>
-              {hostOrgOptions.map((org) => (
-                <option key={org} value={org}>
-                  {org}
-                </option>
-              ))}
-            </select>
+            <div className="mt-1">
+              <MultiSelectChecklist
+                options={hostOrgOptions}
+                selected={selectedHostOrgs}
+                onChange={onHostOrgsChange}
+                icon={Building2}
+                allLabel="All Host Organizations"
+                disabled={selectedStates.size === 0}
+              />
+            </div>
           </div>
           <div>
             <label className="text-xs font-medium text-muted-foreground">
               District
             </label>
-            <select
-              value={district}
-              onChange={(e) => onDistrictChange(e.target.value)}
-              disabled={hostOrg === ALL}
-              className="mt-1 h-9 w-full rounded-md border border-border bg-card px-2.5 text-sm text-foreground outline-none focus-visible:border-ring disabled:opacity-50"
-            >
-              <option value={ALL}>All Districts</option>
-              {districtOptions.map((d) => (
-                <option key={d} value={d}>
-                  {d}
-                </option>
-              ))}
-            </select>
+            <div className="mt-1">
+              <MultiSelectChecklist
+                options={districtOptions}
+                selected={selectedDistricts}
+                onChange={onDistrictsChange}
+                icon={LandPlot}
+                allLabel="All Districts"
+                disabled={selectedHostOrgs.size === 0}
+              />
+            </div>
           </div>
           <div>
             <label className="text-xs font-medium text-muted-foreground">
@@ -266,7 +266,7 @@ export function SuperAdminReportView() {
               kvks={kvkOptions}
               selected={selectedKvks}
               onChange={setSelectedKvks}
-              disabled={hostOrg === ALL}
+              disabled={selectedDistricts.size === 0}
             />
           </div>
         </div>

@@ -7,7 +7,6 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
@@ -57,7 +56,7 @@ export function Topbar() {
             }
           />
           <DropdownMenuContent align="end" className="w-72 min-w-0">
-            <DropdownMenuLabel>Notifications</DropdownMenuLabel>
+            <p className="px-1.5 py-1.5 text-sm font-medium text-foreground">Notifications</p>
             <DropdownMenuSeparator />
             <p className="px-1.5 py-3 text-center text-sm text-muted-foreground">
               No notifications yet.

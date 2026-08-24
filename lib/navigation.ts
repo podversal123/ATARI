@@ -142,7 +142,7 @@ const trainingExtensionMasters = group(
       ]),
     ]),
     group("events", "Events", [
-      leaf("events", "Events Master", [
+      leaf("events-master", "Events Master", [
         { key: "eventName", label: "Event Name" },
       ]),
     ]),
@@ -199,13 +199,19 @@ const otherMasters = group(
       leaf(
         "soil-water",
         "Soil Water",
-        GENERIC_MASTER_COLUMNS,
+        [{ key: "name", label: "Analysis Name" }],
         "Soil Water Analysis Master",
       ),
+      /** Same 4-column shape as Equipment Present Status below - confirmed against the reference. */
       leaf(
         "vehicle-present-status",
         "Vehicle Present Status",
-        GENERIC_MASTER_COLUMNS,
+        [
+          { key: "statusCode", label: "Status Code" },
+          { key: "statusLabel", label: "Status Label" },
+          { key: "hideInNextYear", label: "Hide in Next Year" },
+          { key: "isActive", label: "Is Active" },
+        ],
         "Vehicle Present Status Master",
       ),
       leaf(
@@ -241,16 +247,22 @@ const otherMasters = group(
         { key: "subCategoryName", label: "Sub Category Name" },
         { key: "categoryName", label: "Category Name" },
       ]),
-      leaf("nicra-seed-fodder-bank", "NICRA Seed/Fodder Bank Master"),
-      leaf("nicra-dignitary-type", "NICRA Dignitary Type Master"),
-      leaf("nicra-pi-co-pi-type", "NICRA PI/CO-PI Type Master"),
+      leaf("nicra-seed-fodder-bank", "NICRA Seed/Fodder Bank Master", [
+        { key: "name", label: "Seed Bank Fodder Bank" },
+      ]),
+      leaf("nicra-dignitary-type", "NICRA Dignitary Type Master", [
+        { key: "name", label: "Type" },
+      ]),
+      leaf("nicra-pi-co-pi-type", "NICRA PI/CO-PI Type Master", [
+        { key: "name", label: "Type" },
+      ]),
     ]),
     /** Same page-H1-vs-card-label split as Resource Masters above. */
     group("performance-indicator", "Performance Indicator Masters", [
       leaf(
         "impact-specific-area",
         "Impact Areas",
-        GENERIC_MASTER_COLUMNS,
+        [{ key: "name", label: "Specific Area Name" }],
         "Impact Specific Area Master",
       ),
       leaf(
@@ -392,7 +404,13 @@ const oftFldMasters = group(
         { key: "name", label: "Activity Name" },
       ]),
     ]),
-    group("cfld", "CFLD Master", [leaf("cfld-crop", "CFLD Crop Master")]),
+    group("cfld", "CFLD Master", [
+      leaf("cfld-crop", "CFLD Crop Master", [
+        { key: "season", label: "Season" },
+        { key: "type", label: "Type" },
+        { key: "cropName", label: "Crop Name" },
+      ]),
+    ]),
   ],
   {
     description:
@@ -449,7 +467,9 @@ const productionProjects = group(
       ]),
     ]),
     group("tsp-scsp", "TSP/SCSP", [
-      leaf("tsp-scsp-type", "TSP/SCSP Type Master"),
+      leaf("tsp-scsp-type", "TSP/SCSP Type Master", [
+        { key: "name", label: "Type Name" },
+      ]),
       leaf("tsp-scsp-activity", "TSP/SCSP Activity Master", [
         { key: "name", label: "Activity Name" },
       ]),
@@ -1354,6 +1374,25 @@ const miscellaneous = group("miscellaneous", "Miscellaneous Information", [
     { key: "dignitaryType", label: "Type of Dignitaries" },
     { key: "ministerName", label: "Name of Hon'ble Minister" },
     { key: "observations", label: "Salient Points in His/Her Observation" },
+  ]),
+  /**
+   * Real sub-items and placement (nested under Miscellaneous Information)
+   * confirmed by the client directly. No column list was supplied for any
+   * of the five, so each stays on the generic single "Name" column until
+   * the client shares one, same as every other still-unconfirmed leaf.
+   */
+  group("digital-information", "Digital Information", [
+    leaf("digital-mobile-app", "Details of Mobile App"),
+    leaf("digital-web-portal", "Details of Web Portal"),
+    leaf("digital-kisan-sarathi", "Details of Kisan Sarathi"),
+    leaf(
+      "digital-kmas",
+      "Kisan Mobile Advisory Services/KMAS(m-Kisan Portal/National Farmers Portal/ SMS Portal)",
+    ),
+    leaf(
+      "digital-other-channels",
+      "Details of messages send through other channels",
+    ),
   ]),
 ]);
 

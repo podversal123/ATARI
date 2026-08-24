@@ -176,6 +176,40 @@ export default function DashboardPage() {
           showAllLabel="Show all (0)"
           detailedHref="/dashboard/analytics/fld"
         />
+        <ProgressChartCard
+          title="Training Progress"
+          description={
+            isKvkAdmin
+              ? "Trainings conducted for your KVK"
+              : "Ongoing, completed; not started = KVK with no entries"
+          }
+          defaultView="bar"
+          totalCount={0}
+          summary={
+            isKvkAdmin
+              ? "0 trainings recorded"
+              : "0 of 0 KVKs with entries · 0 not started"
+          }
+          showAllLabel="Show all (0)"
+          detailedHref="/dashboard/analytics/training"
+        />
+        <ProgressChartCard
+          title="Extension Activities Progress"
+          description={
+            isKvkAdmin
+              ? "Extension activities conducted for your KVK"
+              : "Ongoing, completed; not started = KVK with no entries"
+          }
+          defaultView="bar"
+          totalCount={0}
+          summary={
+            isKvkAdmin
+              ? "0 activities recorded"
+              : "0 of 0 KVKs with entries · 0 not started"
+          }
+          showAllLabel="Show all (0)"
+          detailedHref="/dashboard/analytics/extension"
+        />
       </div>
     </div>
   );

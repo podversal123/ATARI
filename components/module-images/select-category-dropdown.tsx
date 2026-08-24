@@ -6,7 +6,6 @@ import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
-  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
@@ -110,7 +109,9 @@ export function SelectCategoryDropdown({
             <DropdownMenuSeparator />
             {leaves.length > 1 ? (
               <>
-                <DropdownMenuLabel>{groupLabel}</DropdownMenuLabel>
+                <p className="px-1.5 pt-1 text-[11px] font-medium text-muted-foreground">
+                  {groupLabel}
+                </p>
                 <DropdownMenuCheckboxItem
                   checked={leaves.every((leaf) => selected.has(leaf.path))}
                   onCheckedChange={() => toggleGroup(leaves.map((l) => l.path))}

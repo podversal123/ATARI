@@ -166,6 +166,57 @@ export function kvksForDistrict(
   ).map((row) => row.kvk);
 }
 
+/**
+ * Multi-state cascade helpers - Reports' State/Host Organisation/District
+ * pickers are all checkbox multi-selects (client direction: individual
+ * states show their own Host Orgs with single/multi checkboxes; selecting
+ * every state shows an "All Hosts/All Districts/All KVKs" scope). All
+ * derived from the same real KVK Master rows as the single-select versions
+ * above.
+ */
+
+export const ALL_STATES = STATE_MASTER_ROWS.map((row) => row.stateName);
+
+/** Union of Host Organisations across every given state. */
+export function hostOrgsForStates(stateNames: string[]): string[] {
+  const orgs = new Set(
+    KVK_MASTER_ROWS.filter((row) => stateNames.includes(row.stateName)).map(
+      (row) => row.hostOrg,
+    ),
+  );
+  return Array.from(orgs);
+}
+
+/** Every real Host Organisation, regardless of state - used once every state is selected. */
+export const ALL_HOST_ORGS = Array.from(
+  new Set(KVK_MASTER_ROWS.map((row) => row.hostOrg)),
+);
+
+/** Union of Districts across every given Host Organisation. */
+export function districtsForHostOrgs(hostOrgs: string[]): string[] {
+  const districts = new Set(
+    KVK_MASTER_ROWS.filter((row) => hostOrgs.includes(row.hostOrg)).map(
+      (row) => row.districtName,
+    ),
+  );
+  return Array.from(districts);
+}
+
+/** Every real district a Host Organisation is confirmed to reach - used once every Host Org is selected. */
+export const ALL_HOST_ORG_DISTRICTS = Array.from(
+  new Set(KVK_MASTER_ROWS.map((row) => row.districtName)),
+);
+
+/** KVKs matching any of the given Host Organisations AND any of the given Districts. */
+export function kvksForHostOrgsAndDistricts(
+  hostOrgs: string[],
+  districts: string[],
+): string[] {
+  return KVK_MASTER_ROWS.filter(
+    (row) => hostOrgs.includes(row.hostOrg) && districts.includes(row.districtName),
+  ).map((row) => row.kvk);
+}
+
 /** Formats a Date as DD/MM/YYYY, matching the spec's mockup date format. */
 export function formatDisplayDate(isoDate: string): string {
   if (!isoDate) return "";
