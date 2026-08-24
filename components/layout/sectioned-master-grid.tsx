@@ -33,6 +33,7 @@ import {
   School,
   Shield,
   ShieldCheck,
+  Smartphone,
   Sparkles,
   Sprout,
   Target,
@@ -128,6 +129,7 @@ const GROUP_ICONS: Record<string, LucideIcon> = {
   "ppv-fra-sensitization": Scale,
   "rawe-fet-fit-programme": School,
   "vip-visitors": Crown,
+  "digital-information": Smartphone,
 };
 
 type SectionedMasterGridProps = {

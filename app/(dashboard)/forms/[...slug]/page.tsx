@@ -228,11 +228,12 @@ export default async function FormsPage({ params }: FormsPageProps) {
           }
           eventSlug={node.slug}
           oftFldStatus={OFT_FLD_STATUS_SLUGS.has(node.slug)}
+          /** Exact wording from the client's PDF (item 5), verbatim - no added quote marks around "Completed". */
           note={
             node.slug === "oft"
-              ? 'Please mark your result as "Completed" after adding the OFT details, same as in FLD.'
+              ? "Please mark your result as Completed after adding the OFT details, same as in FLD."
               : node.slug === "view-fld"
-                ? 'Please mark your result as "Completed" after adding the FLD details, same as in OFT.'
+                ? "Please mark your result as Completed after adding the FLD details, same as in OFT."
                 : undefined
           }
         />

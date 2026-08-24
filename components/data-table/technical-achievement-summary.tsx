@@ -295,7 +295,8 @@ export function TechnicalAchievementSummary({
   const years = Array.from({ length: 6 }, (_, index) =>
     String(currentYear - index),
   );
-  const [reportingYear, setReportingYear] = useState("");
+  /** Defaults to the current year (client pointer: "display the current year's data first by default"), matching OFT/FLD's own Reporting Year filter - was defaulting to blank/"Select year" before. */
+  const [reportingYear, setReportingYear] = useState(String(currentYear));
   const [kvkFilter, setKvkFilter] = useState("");
 
   return (
@@ -311,7 +312,6 @@ export function TechnicalAchievementSummary({
               onChange={(event) => setReportingYear(event.target.value)}
               className="h-9 w-64 rounded-md border border-border bg-card px-2.5 text-sm text-foreground outline-none focus-visible:border-ring"
             >
-              <option value="">Select year</option>
               {years.map((year) => (
                 <option key={year} value={year}>
                   {year}
