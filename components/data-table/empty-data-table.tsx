@@ -13,10 +13,13 @@ import {
   Pencil,
   Trash2,
   GripVertical,
+  ArrowRightCircle,
+  ClipboardCheck,
 } from "lucide-react";
 import type { SidebarIconName } from "@/lib/navigation";
 import { SIDEBAR_ICONS } from "@/components/layout/sidebar-icons";
 import { cn } from "@/lib/utils";
+import { useSession } from "@/lib/session";
 import { Input } from "@/components/ui/input";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -44,8 +47,12 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { ColumnFilterMenu, type ColumnFilterState } from "./column-filter-menu";
+import { downloadTablePdf } from "@/lib/table-pdf";
 import type { MasterColumn } from "@/lib/navigation";
-import { CfldTechnicalParameterDialog } from "./cfld-technical-parameter-dialog";
+import {
+  CfldTechnicalParameterDialog,
+  type TabName as CfldTabName,
+} from "./cfld-technical-parameter-dialog";
 import { EventDemographicDialog } from "./event-demographic-dialog";
 import { MasterFormFields } from "./master-form-fields";
 
@@ -83,13 +90,39 @@ type EmptyDataTableProps = {
   cascadeType?: "district" | "kvk";
   /** When set, Add New/Edit open a bespoke dialog instead of the generic per-column form - for the handful of leaves whose real Add/Edit shape genuinely isn't a flat field list (CFLD's 4-tab wizard, and the event forms carrying the recurring demographic-breakdown block). */
   customForm?: "cfld-technical-parameter" | "event-demographic";
+  /** Leaf slug for the "event-demographic" customForm, so it can render the right leaf-specific fields (e.g. Technology Week Celebration's confirmed Start/End Date + activity fields vs the generic fallback). */
+  eventSlug?: string;
   /**
    * When set, "Add New" navigates here instead of opening the dialog - per
-   * client direction, Form Management's Add New opens a dedicated page,
-   * while Masters/Targets/Notifications keep the popup. Editing an existing
-   * row still uses the dialog either way (not part of that request).
+   * client direction (2026-08-24), every leaf's Add New now opens a
+   * dedicated page rather than a popup, matching the reference's own Add
+   * screens (which are always full pages with a Back button, never a
+   * modal). Editing an existing row still uses the dialog either way (not
+   * part of that request).
    */
   addNewHref?: string;
+  /** Targets/Notifications already have their own dedicated inline "Assign"/"Send" panel above the table - the generic Add New button would just duplicate that with unrelated fields, so it's hidden there instead of getting a pointless page of its own. */
+  hideAddNew?: boolean;
+  /**
+   * View OFT / View FLD only (client pointer, 2026-08-24): rows carry a
+   * "status" value ("Ongoing" | "Completed" | "Transferred to Next Year"),
+   * rendered as a colored badge instead of plain text, and the row Action
+   * dropdown gains Transfer (only while Ongoing - the client's spec: once
+   * Completed or already Transferred, Transfer stops appearing so a record
+   * can't be transferred twice) and Add Result alongside Edit/Delete. Per
+   * the same spec ("only valid for KVKs not superadmin"), a Super Admin
+   * gets a read-only Action column instead - no dropdown.
+   */
+  oftFldStatus?: boolean;
+  /** Shown as a note banner above the table - e.g. OFT/FLD's "mark your result as Completed" instruction. */
+  note?: string;
+};
+
+const STATUS_BADGE_STYLES: Record<string, string> = {
+  Ongoing: "bg-[#eaa624]/15 text-[#b5790a] border-[#eaa624]/40",
+  Completed: "bg-primary/10 text-primary border-primary/30",
+  "Transferred to Next Year":
+    "bg-muted text-muted-foreground border-border",
 };
 
 /**
@@ -119,8 +152,14 @@ export function EmptyDataTable({
   totalCount,
   cascadeType,
   customForm,
+  eventSlug,
   addNewHref,
+  hideAddNew,
+  oftFldStatus,
+  note,
 }: EmptyDataTableProps) {
+  const session = useSession();
+  const isSuperAdmin = session.role === "super-admin";
   const Icon = icon ? SIDEBAR_ICONS[icon] : undefined;
   /** Unique per instance - a page can render more than one EmptyDataTable (e.g. Notifications' Received + Sent tables), and duplicate ids break label association. */
   const instanceId = useId();
@@ -129,6 +168,17 @@ export function EmptyDataTable({
   const [search, setSearch] = useState("");
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
+  /** OFT/FLD only - defaults to the current year, per the client's "display current year's data first by default" note. */
+  const [reportingYear, setReportingYear] = useState(() =>
+    String(new Date().getFullYear()),
+  );
+  const reportingYearOptions = useMemo(
+    () =>
+      Array.from({ length: 6 }, (_, index) =>
+        String(new Date().getFullYear() - index),
+      ),
+    [],
+  );
   const [columnFilters, setColumnFilters] = useState<
     Record<string, ColumnFilterState>
   >({});
@@ -186,6 +236,16 @@ export function EmptyDataTable({
   const [deleteRow, setDeleteRow] = useState<Record<string, ReactNode> | null>(
     null,
   );
+  const [transferRow, setTransferRow] = useState<Record<
+    string,
+    ReactNode
+  > | null>(null);
+  /** CFLD Technical Parameter only - which tab to land on when the dialog opens from a direct Action-dropdown shortcut (Edit/Economic/Socio-Economic/Farmers Perception). */
+  const [cfldInitialTab, setCfldInitialTab] = useState<CfldTabName>();
+  const isCfldTechnicalParameter = customForm === "cfld-technical-parameter";
+  const [resultRow, setResultRow] = useState<Record<string, ReactNode> | null>(
+    null,
+  );
 
   /** Real confirmed pattern for every "simple" single-Name master (Subject, Funding Source, Asset Funding Source, NARI Nutrition Garden Type, Pay Scale, TSP/SCSP Activity, and every other single-column master sharing this exact shape): the real Create form is one Name field plus a "Mark as 'Other' option" checkbox. */
   const isSimpleMaster = columns.length === 1 && columns[0].key === "name";
@@ -221,10 +281,11 @@ export function EmptyDataTable({
     setEditingRow(null);
     setFormValues({});
     setMarkAsOther(false);
+    setCfldInitialTab(undefined);
     setFormOpen(true);
   }
 
-  function openEdit(row: Record<string, ReactNode>) {
+  function openEdit(row: Record<string, ReactNode>, tab?: CfldTabName) {
     const values: Record<string, string> = {};
     for (const column of columns) {
       const value = row[column.key];
@@ -236,6 +297,7 @@ export function EmptyDataTable({
     setEditingRow(row);
     setFormValues(values);
     setMarkAsOther(false);
+    setCfldInitialTab(tab);
     setFormOpen(true);
   }
 
@@ -261,7 +323,7 @@ export function EmptyDataTable({
     );
   }
 
-  const displayedRows = useMemo(() => {
+  const filteredRows = useMemo(() => {
     if (!rows) return rows;
     let next = rows.filter((row) =>
       Object.entries(columnFilters).every(([key, state]) => {
@@ -282,8 +344,34 @@ export function EmptyDataTable({
     return next;
   }, [rows, columnFilters]);
 
+  /**
+   * 10 rows per page, matching the reference's own "Showing 1-10 of N"
+   * footer - resets to page 1 whenever the filtered set changes so a stale
+   * page number never points past the end. Reset happens during render
+   * (React's documented pattern for "adjusting state when a prop changes")
+   * rather than in a useEffect, which would cause an extra render pass.
+   */
+  const PAGE_SIZE = 10;
+  const [page, setPage] = useState(1);
+  const [prevFilteredRows, setPrevFilteredRows] = useState(filteredRows);
+  if (filteredRows !== prevFilteredRows) {
+    setPrevFilteredRows(filteredRows);
+    setPage(1);
+  }
+  const filteredCount = filteredRows?.length ?? 0;
+  const pageCount = Math.max(1, Math.ceil(filteredCount / PAGE_SIZE));
+  const currentPage = Math.min(page, pageCount);
+
+  const displayedRows = useMemo(() => {
+    if (!filteredRows) return filteredRows;
+    const start = (currentPage - 1) * PAGE_SIZE;
+    return filteredRows.slice(start, start + PAGE_SIZE);
+  }, [filteredRows, currentPage]);
+
   const rowCount = displayedRows?.length ?? 0;
-  const total = totalCount ?? rows?.length ?? 0;
+  const total = totalCount ?? filteredCount;
+  const rangeStart = filteredCount === 0 ? 0 : (currentPage - 1) * PAGE_SIZE + 1;
+  const rangeEnd = filteredCount === 0 ? 0 : rangeStart + rowCount - 1;
 
   return (
     <div>
@@ -318,28 +406,32 @@ export function EmptyDataTable({
             )}
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm">
+            <Button
+              variant="outline"
+              size="lg"
+              onClick={() => downloadTablePdf(title, columns, displayedRows)}
+            >
               <FileDown className="size-3.5" />
               PDF
             </Button>
-            <Button variant="outline" size="sm">
+            <Button variant="outline" size="lg">
               <FileSpreadsheet className="size-3.5" />
               Excel
             </Button>
-            <Button variant="outline" size="sm">
+            <Button variant="outline" size="lg">
               <FileType className="size-3.5" />
               Word
             </Button>
-            {addNewHref ? (
+            {hideAddNew ? null : addNewHref ? (
               <Link
                 href={addNewHref}
-                className={cn(buttonVariants({ size: "sm" }))}
+                className={cn(buttonVariants({ size: "lg" }))}
               >
                 <Plus className="size-3.5" />
                 Add New
               </Link>
             ) : (
-              <Button size="sm" onClick={openAdd}>
+              <Button size="lg" onClick={openAdd}>
                 <Plus className="size-3.5" />
                 Add New
               </Button>
@@ -348,7 +440,7 @@ export function EmptyDataTable({
         </div>
 
         <div
-          className="relative z-10 flex flex-wrap items-center gap-2 border-b border-border bg-card p-4"
+          className="relative z-10 flex flex-wrap items-center gap-2 border-b border-border bg-card px-4 py-5"
           style={
             filterBarOffset.x !== 0 || filterBarOffset.y !== 0
               ? {
@@ -373,48 +465,76 @@ export function EmptyDataTable({
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               placeholder="Search..."
-              className="w-56 pl-8"
+              className="h-9 w-56 pl-8"
             />
           </div>
-          <div className="flex items-center gap-1.5">
-            <Label
-              htmlFor={fromDateId}
-              className="text-xs text-muted-foreground"
-            >
-              From Date
-            </Label>
-            <Input
-              id={fromDateId}
-              type="date"
-              value={fromDate}
-              onChange={(event) => setFromDate(event.target.value)}
-              className="w-40 text-muted-foreground"
-            />
-          </div>
-          <div className="flex items-center gap-1.5">
-            <Label htmlFor={toDateId} className="text-xs text-muted-foreground">
-              To Date
-            </Label>
-            <Input
-              id={toDateId}
-              type="date"
-              value={toDate}
-              onChange={(event) => setToDate(event.target.value)}
-              className="w-40 text-muted-foreground"
-            />
-          </div>
+          {oftFldStatus ? (
+            <div className="flex items-center gap-1.5">
+              <Label
+                htmlFor={fromDateId}
+                className="text-xs text-muted-foreground"
+              >
+                Reporting Year
+              </Label>
+              <select
+                id={fromDateId}
+                value={reportingYear}
+                onChange={(event) => setReportingYear(event.target.value)}
+                className="h-9 rounded-md border border-border bg-card px-2 text-sm text-foreground outline-none focus-visible:border-ring"
+              >
+                {reportingYearOptions.map((year) => (
+                  <option key={year} value={year}>
+                    {year}
+                  </option>
+                ))}
+              </select>
+            </div>
+          ) : (
+            <>
+              <div className="flex items-center gap-1.5">
+                <Label
+                  htmlFor={fromDateId}
+                  className="text-xs text-muted-foreground"
+                >
+                  From Date
+                </Label>
+                <Input
+                  id={fromDateId}
+                  type="date"
+                  value={fromDate}
+                  onChange={(event) => setFromDate(event.target.value)}
+                  className="h-9 w-40 text-muted-foreground"
+                />
+              </div>
+              <div className="flex items-center gap-1.5">
+                <Label
+                  htmlFor={toDateId}
+                  className="text-xs text-muted-foreground"
+                >
+                  To Date
+                </Label>
+                <Input
+                  id={toDateId}
+                  type="date"
+                  value={toDate}
+                  onChange={(event) => setToDate(event.target.value)}
+                  className="h-9 w-40 text-muted-foreground"
+                />
+              </div>
+              <Button
+                variant="default"
+                size="lg"
+                onClick={resetDates}
+                disabled={!hasActiveDates}
+              >
+                <RotateCcw className="size-3.5" />
+                Reset dates
+              </Button>
+            </>
+          )}
           <Button
             variant="outline-primary"
-            size="sm"
-            onClick={resetDates}
-            disabled={!hasActiveDates}
-          >
-            <RotateCcw className="size-3.5" />
-            Reset dates
-          </Button>
-          <Button
-            variant="outline-primary"
-            size="sm"
+            size="lg"
             onClick={resetFilters}
             disabled={!hasActiveFilters}
           >
@@ -423,14 +543,20 @@ export function EmptyDataTable({
           </Button>
         </div>
 
+        {note && (
+          <p className="border-b border-border bg-primary/5 px-4 py-2.5 text-xs font-medium text-primary">
+            {note}
+          </p>
+        )}
+
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="divide-x divide-border border-b border-border bg-muted/50 text-left text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+              <tr className="divide-x divide-border border-b border-border bg-muted/50 text-left text-xs font-semibold tracking-wide whitespace-nowrap text-muted-foreground uppercase">
                 <th className="w-14 px-4 py-3">S.No</th>
                 {columns.map((column) => (
                   <th key={column.key} className="px-4 py-3">
-                    <span className="inline-flex items-center gap-1">
+                    <span className="inline-flex items-center gap-1 whitespace-nowrap">
                       {column.label}
                       <ColumnFilterMenu
                         columnLabel={column.label}
@@ -451,7 +577,9 @@ export function EmptyDataTable({
                     </span>
                   </th>
                 ))}
-                <th className="w-20 px-4 py-3 text-right">Action</th>
+                <th className="w-20 px-4 py-3 text-right">
+                  {oftFldStatus && isSuperAdmin ? "" : "Action"}
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -475,6 +603,25 @@ export function EmptyDataTable({
                     </td>
                     {columns.map((column) => {
                       const value = row[column.key];
+                      if (
+                        (oftFldStatus || isCfldTechnicalParameter) &&
+                        column.key === "status"
+                      ) {
+                        const label = typeof value === "string" ? value : "";
+                        return (
+                          <td key={column.key} className="px-4 py-3 align-top">
+                            <span
+                              className={cn(
+                                "inline-block rounded-md border px-2 py-0.5 text-xs font-semibold",
+                                STATUS_BADGE_STYLES[label] ??
+                                  "border-border text-muted-foreground",
+                              )}
+                            >
+                              {label}
+                            </span>
+                          </td>
+                        );
+                      }
                       return (
                         <td
                           key={column.key}
@@ -494,28 +641,97 @@ export function EmptyDataTable({
                       );
                     })}
                     <td className="px-4 py-3 text-right align-top">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger
-                          render={
-                            <Button variant="ghost" size="icon-sm">
-                              <MoreVertical className="size-4" />
-                            </Button>
-                          }
-                        />
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => openEdit(row)}>
-                            <Pencil className="size-3.5" />
-                            Edit
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            variant="destructive"
-                            onClick={() => setDeleteRow(row)}
-                          >
-                            <Trash2 className="size-3.5" />
-                            Delete
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                      {oftFldStatus && isSuperAdmin ? null : (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger
+                            render={
+                              <Button variant="ghost" size="icon-sm">
+                                <MoreVertical className="size-4" />
+                              </Button>
+                            }
+                          />
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => openEdit(row)}>
+                              <Pencil className="size-3.5" />
+                              Edit
+                            </DropdownMenuItem>
+                            {oftFldStatus && (
+                              <>
+                                {row.status === "Ongoing" && (
+                                  <DropdownMenuItem
+                                    onClick={() => setTransferRow(row)}
+                                  >
+                                    <ArrowRightCircle className="size-3.5" />
+                                    Transfer
+                                  </DropdownMenuItem>
+                                )}
+                                <DropdownMenuItem
+                                  onClick={() => setResultRow(row)}
+                                >
+                                  <ClipboardCheck className="size-3.5" />
+                                  Add Result
+                                </DropdownMenuItem>
+                              </>
+                            )}
+                            {isCfldTechnicalParameter && (
+                              <>
+                                {row.status === "Ongoing" && (
+                                  <DropdownMenuItem
+                                    onClick={() => setTransferRow(row)}
+                                  >
+                                    <ArrowRightCircle className="size-3.5" />
+                                    Transfer
+                                  </DropdownMenuItem>
+                                )}
+                                {/* Delete sits here (not trailing) to match the real reference's exact dropdown order: Edit, Transfer, Delete, Economic parameters, Socio-economic impact parameters, Farmer's perception. */}
+                                <DropdownMenuItem
+                                  variant="destructive"
+                                  onClick={() => setDeleteRow(row)}
+                                >
+                                  <Trash2 className="size-3.5" />
+                                  Delete
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={() =>
+                                    openEdit(row, "Economic Parameters")
+                                  }
+                                >
+                                  <ClipboardCheck className="size-3.5" />
+                                  Economic Parameters
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={() =>
+                                    openEdit(
+                                      row,
+                                      "Socio Economic Parameters",
+                                    )
+                                  }
+                                >
+                                  <ClipboardCheck className="size-3.5" />
+                                  Socio-economic Impact Parameters
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={() =>
+                                    openEdit(row, "Farmers Perception")
+                                  }
+                                >
+                                  <ClipboardCheck className="size-3.5" />
+                                  Farmer&rsquo;s Perception
+                                </DropdownMenuItem>
+                              </>
+                            )}
+                            {!isCfldTechnicalParameter && (
+                              <DropdownMenuItem
+                                variant="destructive"
+                                onClick={() => setDeleteRow(row)}
+                              >
+                                <Trash2 className="size-3.5" />
+                                Delete
+                              </DropdownMenuItem>
+                            )}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      )}
                     </td>
                   </tr>
                 ))
@@ -528,13 +744,23 @@ export function EmptyDataTable({
           <span>
             {rowCount === 0
               ? "Showing 0-0 of 0"
-              : `Showing 1-${rowCount} of ${total}`}
+              : `Showing ${rangeStart}-${rangeEnd} of ${total}`}
           </span>
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" disabled>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={currentPage <= 1}
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+            >
               Prev
             </Button>
-            <Button variant="outline" size="sm" disabled={total <= rowCount}>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={currentPage >= pageCount}
+              onClick={() => setPage((p) => Math.min(pageCount, p + 1))}
+            >
               Next
             </Button>
           </div>
@@ -547,10 +773,12 @@ export function EmptyDataTable({
           open={formOpen}
           onOpenChange={setFormOpen}
           editingRow={editingRow}
+          initialTab={cfldInitialTab}
         />
       ) : customForm === "event-demographic" ? (
         <EventDemographicDialog
           title={title}
+          slug={eventSlug}
           open={formOpen}
           onOpenChange={setFormOpen}
           editingRow={editingRow}
@@ -608,6 +836,63 @@ export function EmptyDataTable({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Transfer to next reporting year - OFT/FLD and CFLD Technical Parameter, manual per client spec (never automatic). */}
+      {(oftFldStatus || isCfldTechnicalParameter) && (
+        <AlertDialog
+          open={transferRow !== null}
+          onOpenChange={(open) => !open && setTransferRow(null)}
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Transfer to next reporting year?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This record stays visible in its original reporting year,
+                marked &ldquo;Transferred to Next Year&rdquo;. A copy opens
+                under next year&rsquo;s reporting year with status
+                &ldquo;Ongoing&rdquo;.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={() => setTransferRow(null)}>
+                Transfer
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
+
+      {/* Add Result - OFT/FLD only; saving a result is how a record moves from Ongoing to Completed. */}
+      {oftFldStatus && (
+        <Dialog
+          open={resultRow !== null}
+          onOpenChange={(open) => !open && setResultRow(null)}
+        >
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Add Result</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-1.5">
+              <Label htmlFor="result-notes">Result / Outcome</Label>
+              <textarea
+                id="result-notes"
+                rows={4}
+                placeholder="Describe the outcome of this trial/demonstration"
+                className="w-full rounded-lg border border-input bg-transparent px-2.5 py-2 text-sm outline-none focus-visible:border-ring"
+              />
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setResultRow(null)}>
+                Cancel
+              </Button>
+              <Button onClick={() => setResultRow(null)}>
+                Mark as Completed
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }

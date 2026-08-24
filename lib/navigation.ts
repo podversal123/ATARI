@@ -322,14 +322,14 @@ const basicMasters = group(
   "basic",
   "Basic Masters",
   [
-    leaf("zone-master", "Zones Master", [
+    leaf("zone-master", "Zone Master", [
       { key: "zoneName", label: "Zone Name" },
     ]),
-    leaf("state-master", "States Master", [
+    leaf("state-master", "State Master", [
       { key: "zoneName", label: "Zone Name" },
       { key: "stateName", label: "State Name" },
     ]),
-    leaf("district-master", "Districts Master", [
+    leaf("district-master", "District Master", [
       { key: "zoneName", label: "Zone Name" },
       { key: "stateName", label: "State Name" },
       { key: "districtName", label: "District Name" },
@@ -339,6 +339,9 @@ const basicMasters = group(
     ]),
     leaf("host-master", "Host Master", [
       { key: "hostName", label: "Host Name" },
+      { key: "address", label: "Address" },
+      { key: "phone", label: "Phone" },
+      { key: "email", label: "Email" },
     ]),
     /** Column order/labels confirmed exactly against the reference: Mobile, Email, Address, Year of Sanction - not the Mobile/Address/E-Mail/Sanction Year order this leaf had before. */
     leaf("kvk-master", "KVK Master", [
@@ -535,13 +538,27 @@ const aboutKvk = group(
   [
     group("basic", "Basic Information", [
       /** All 6 columns re-confirmed against the reference - the previous set was entirely wrong. */
+      /**
+       * Column set + order re-confirmed live against atariams.org's own
+       * "View KVK Details" table (2026-08-24, client pointer #1 "add more
+       * headings"): the real table carries two more columns past the
+       * earlier 8 - a trailing "Host Organization Name" repeat of the same
+       * host field alongside the leading "Organization Name" column (a real
+       * quirk of the live app, not a mistake here - both show the same
+       * institute per row), and "Year of Sanction" at the very end before
+       * Action.
+       */
       leaf("view-kvks", "View KVKs", [
         { key: "zoneName", label: "Zone Name" },
         { key: "stateName", label: "State Name" },
-        { key: "hostOrg", label: "Host Org" },
+        { key: "hostOrg", label: "Organization Name" },
         { key: "districtName", label: "District Name" },
-        { key: "kvk", label: "KVK" },
+        { key: "kvk", label: "KVK Name" },
         { key: "mobile", label: "Mobile" },
+        { key: "email", label: "Email" },
+        { key: "address", label: "Address" },
+        { key: "hostOrg", label: "Host Organization Name" },
+        { key: "sanctionYear", label: "Year of Sanction" },
       ]),
       leaf("bank-account-details", "Bank Account Details", [
         { key: "kvk", label: "KVK" },
@@ -561,14 +578,30 @@ const aboutKvk = group(
        * as many columns again hidden to the right, which no capture in either
        * source reaches, so only the confirmed 7 are declared here.
        */
+      /**
+       * Column set re-confirmed live against atariams.org's own "View
+       * Staff" table (2026-08-24, client pointer #2 "add more headings"):
+       * the real table has 4 more columns than the earlier pass caught -
+       * Position (right after Staff Name) and Email (right after Position,
+       * contradicting the earlier "no Email column" read - a fuller scroll
+       * of the real table shows it does have one) both up front, plus
+       * Category and Transfer Status trailing after Details of Allowances.
+       */
       leaf("employee-details", "Employee Details", [
-        { key: "kvk", label: "KVK" },
+        { key: "kvk", label: "KVK Name" },
         { key: "photo", label: "Photo" },
         { key: "resume", label: "Resume" },
         { key: "staffName", label: "Staff Name" },
         { key: "position", label: "Position" },
-        { key: "mobile", label: "Mobile" },
         { key: "email", label: "Email" },
+        { key: "sanctionedPost", label: "Sanctioned Post" },
+        { key: "mobile", label: "Mobile" },
+        { key: "payScale", label: "Pay Scale" },
+        { key: "dateOfJoining", label: "Date of Joining" },
+        { key: "jobType", label: "Job Type" },
+        { key: "allowances", label: "Details of Allowances" },
+        { key: "category", label: "Category" },
+        { key: "transferStatus", label: "Transfer Status" },
       ]),
       leaf(
         "staff-transferred",
@@ -677,21 +710,30 @@ const achievements = group("achievements", "Achievements", [
     GENERIC_MASTER_COLUMNS,
     "Technical Achievement",
   ),
-  /** Real columns confirmed live. */
+  /** Columns re-confirmed live against atariams.org's own "View OFT Details" table (2026-08-25): Reporting Year IS a real column here, right after S.No - the earlier AMS User Manual read had wrongly called it filter-only. */
   leaf(
     "oft",
     "OFT",
     [
       { key: "reportingYear", label: "Reporting Year" },
-      { key: "kvk", label: "KVK" },
+      { key: "kvk", label: "KVK Name" },
       { key: "staff", label: "Staff" },
-      { key: "trialOnForm", label: "Trial on Form" },
+      { key: "trialOnForm", label: "Title of On Farm Trial (OFT)" },
       { key: "problemDiagnosed", label: "Problem Diagnosed" },
+      { key: "status", label: "Ongoing/Completed" },
     ],
     "On Farm Trial",
   ),
   /**
-   * Real group and leaf names confirmed against the Form Summary KVK breakdown, with leaf labels and columns re-confirmed against the reference.
+   * Client direction (2026-08-25): keep this app's existing flow/structure
+   * exactly as-is - only fix naming/columns to match atariams.org, don't
+   * remove or restructure. Note for the record: the real Super Admin
+   * sidebar's FLD section only shows "View FLD" as a child - "Extension &
+   * Training activities under FLD" and "Technical Feedback on FLD" below
+   * were not found there (verified live, both visually and via DOM) - kept
+   * anyway per explicit instruction, not because they were re-confirmed.
+   * View FLD's own columns did get a real fix: Reporting Year/Start
+   * Date/End Date, confirmed present in the real table.
    */
   group("front-line-demonstration", "Front Line Demonstrations (FLD)", [
     leaf(
@@ -699,94 +741,106 @@ const achievements = group("achievements", "Achievements", [
       "Front Line Demonstrations (FLD)",
       [
         { key: "reportingYear", label: "Reporting Year" },
-        { key: "kvk", label: "KVK" },
-        { key: "category", label: "Category" },
-        { key: "subCategory", label: "Sub Category" },
+        { key: "startDate", label: "Start Date" },
+        { key: "endDate", label: "End Date" },
+        { key: "kvk", label: "KVK Name" },
+        { key: "category", label: "Crop Category" },
+        { key: "subCategory", label: "Crop Name" },
         {
           key: "technologyDemonstrated",
           label: "Name of Technology Demonstrated",
         },
+        { key: "status", label: "Ongoing/Completed" },
       ],
       "View FLD",
     ),
-    /** Real tab wording confirmed 2026-08-22; the tables behind these two tabs were never captured in either source, so their columns stay unconfirmed. */
     leaf(
       "fld-extension-training",
       "Extension & Training activities under FLD",
-      GENERIC_MASTER_COLUMNS,
+      [
+        { key: "fldName", label: "FLD Name" },
+        { key: "activity", label: "Activity" },
+        { key: "date", label: "Date" },
+        { key: "activityCount", label: "No. of Activity" },
+        { key: "participantCount", label: "No. of Participant" },
+        { key: "remark", label: "Remark" },
+      ],
       "Extension and Training activities under FLD",
     ),
     leaf(
       "fld-technical-feedback",
       "Technical Feedback on FLD",
-      GENERIC_MASTER_COLUMNS,
+      [
+        { key: "fld", label: "FLD" },
+        { key: "crop", label: "Crop" },
+        { key: "feedback", label: "Feedback" },
+      ],
       "Technical Feedback on the demonstrated technology",
     ),
   ]),
+  /** Columns re-confirmed live against atariams.org's own "Achievements On Training" screenshot (2026-08-24, client pointer #9) - the real table has 3 more columns than the earlier AMS User Manual pass caught: Start Date, End Date, and Training Title all sit between KVK Name and Venue; "Training Type" was never a real column, replaced by these. */
   leaf(
     "trainings",
     "Trainings",
     [
       { key: "reportingYear", label: "Reporting Year" },
-      { key: "kvk", label: "KVK" },
+      { key: "kvk", label: "KVK Name" },
       { key: "startDate", label: "Start Date" },
       { key: "endDate", label: "End Date" },
       { key: "program", label: "Training Program" },
       { key: "title", label: "Training Title" },
+      { key: "venue", label: "Venue" },
+      { key: "trainingDiscipline", label: "Training Discipline" },
+      { key: "thematicArea", label: "Thematic Area" },
     ],
     "Training",
   ),
-  /** Real columns confirmed live at /forms/achievements/extension-activities. */
+  /** Columns re-confirmed live against atariams.org's own "Extension programmes" / "Other Extension Activity" screenshots (2026-08-24, client pointer #10) - both real tables lead with Reporting Year, and Extension Activities also carries Start/End Date; the earlier AMS User Manual pass had missed all three. */
   group("extension", "Extension", [
     leaf("extension-activities", "Extension Activities", [
       { key: "reportingYear", label: "Reporting Year" },
-      { key: "kvk", label: "KVK" },
+      { key: "kvk", label: "KVK Name" },
       { key: "startDate", label: "Start Date" },
       { key: "endDate", label: "End Date" },
-      {
-        key: "nameOfExtensionActivities",
-        label: "Name of Extension Activities",
-      },
-      { key: "noOf", label: "No Of" },
-    ]),
-    /** 4 real columns confirmed 2026-08-22 - this leaf previously had none. */
-    leaf("other-extension-activities", "Other Extension Activities", [
-      { key: "reportingYear", label: "Reporting Year" },
-      { key: "kvk", label: "KVK" },
       {
         key: "natureOfExtensionActivity",
         label: "Nature of Extension Activity",
       },
-      { key: "noOfActivities", label: "No of Activities" },
+      { key: "noOfActivities", label: "No. of Activities" },
+      { key: "noOfParticipants", label: "No. of Participants" },
+    ]),
+    leaf("other-extension-activities", "Other Extension Activities", [
+      { key: "reportingYear", label: "Reporting Year" },
+      { key: "kvk", label: "KVK Name" },
+      {
+        key: "natureOfExtensionActivity",
+        label: "Nature of Extension Activity",
+      },
+      { key: "noOfActivities", label: "No. of Activities" },
     ]),
   ]),
   group("special-days", "Special Days", [
-    /** Real table leads with the two dates, then KVK - unusual ordering, preserved deliberately. */
+    /** Columns re-confirmed live against atariams.org's own "View Technology Week Celebration" screenshot (2026-08-24, client pointer #11): the real table DOES carry Start Date and End Date after all - the earlier AMS User Manual read missed them. */
     leaf("technology-week-celebration", "Technology Week Celebration", [
       { key: "startDate", label: "Start Date" },
       { key: "endDate", label: "End Date" },
       { key: "kvk", label: "KVK" },
       { key: "typeOfActivities", label: "Type of Activities" },
-      { key: "noOfActivities", label: "No of Activities" },
-      { key: "relatedCropTechnology", label: "Related Crop/Livestock Technology" },
+      { key: "noOfActivities", label: "No. of Activities" },
+      {
+        key: "relatedCropTechnology",
+        label: "Related Crop/Livestock Technology",
+      },
+      { key: "numberOfParticipants", label: "Number of Participants" },
     ]),
-    leaf("celebration-days", "Celebration Days", [
+    /** Real sidebar label confirmed live: "Celebration of important days", not "Celebration Days". */
+    leaf("celebration-days", "Celebration of important days", [
       { key: "kvk", label: "KVK" },
       { key: "importantDay", label: "Important Days" },
       { key: "eventDate", label: "Event Date" },
       { key: "noOfActivities", label: "No of Activities" },
     ]),
-    /** 4 confirmed columns; a 5th beginning "NO OF V" and more sit off-screen right and stay undeclared rather than guessed. */
-    leaf("world-soil-day", "World Soil Day", [
-      { key: "kvk", label: "KVK" },
-      { key: "reportingYear", label: "Reporting Year" },
-      { key: "noOfActivitiesConducted", label: "No of Activities Conducted" },
-      {
-        key: "soilHealthCardsDistributed",
-        label: "Soil Health Cards Distributed",
-      },
-    ]),
-    /** Real columns confirmed live. */
+    /** Real columns confirmed live, extended 2026-08-24 with the participant breakdown from the client's own Poshan Maah reporting sheet. */
     leaf("poshan-maaha", "Poshan Maaha", [
       { key: "kvk", label: "KVK" },
       { key: "activityDate", label: "Activity Date" },
@@ -794,6 +848,22 @@ const achievements = group("achievements", "Achievements", [
       { key: "eventName", label: "Event Name" },
       { key: "saplingsPlanted", label: "Saplings Planted" },
       { key: "vegetableKits", label: "Vegetable Kits" },
+      { key: "participantsGirls", label: "Participants - Girls" },
+      {
+        key: "participantsPublicRepresentatives",
+        label: "Participants - Public Representatives",
+      },
+      { key: "participantsFarmWoman", label: "Participants - Farm Woman" },
+      { key: "participantsFarmers", label: "Participants - Farmers" },
+      {
+        key: "participantsAganwadiWorkers",
+        label: "Participants - Aganwadi Workers",
+      },
+      {
+        key: "participantsGovtOfficials",
+        label: "Participants - Govt Officials",
+      },
+      { key: "totalParticipants", label: "Total Participants" },
     ]),
   ]),
   /**
@@ -857,44 +927,89 @@ const achievements = group("achievements", "Achievements", [
           label: "Vermicomposting Total Expenditure",
         },
       ],
-      "Details of Quarterly Budget Expenditure on Swachhta",
+      "Details of quarterly budget expenditure on Swachh activities including SAP",
     ),
   ]),
-  /** 5 real columns confirmed 2026-08-22. Real H1 keeps the lowercase wording; the landing card is longer. */
+  /** Re-confirmed live 2026-08-24 against atariams.org: Reporting Year is a filter there, not a column - the earlier version wrongly included it as one. */
   leaf(
     "production-supply",
     "Production and supply of Technological products",
     [
       { key: "kvk", label: "KVK" },
-      { key: "reportingYear", label: "Reporting Year" },
       { key: "category", label: "Category" },
       { key: "variety", label: "Variety" },
       { key: "quantity", label: "Quantity" },
     ],
     "Production & Supply of Technological Products",
   ),
-  /** 6 real columns confirmed 2026-08-22. */
-  leaf(
-    "soil-water-testing",
-    "Soil, Water and Plant analysis",
-    [
-      { key: "kvk", label: "KVK" },
-      { key: "startDate", label: "Start Date" },
-      { key: "endDate", label: "End Date" },
+  /**
+   * Real group + structure confirmed live against atariams.org (2026-08-24,
+   * client pointers #12 and #15): "Soil and Water Testing" is its own
+   * section with 3 leaves - a soil-testing-equipment inventory (new, not
+   * previously modeled), the Soil/Water/Plant analysis table (now with the
+   * Start/End Date columns the earlier pass missed), and World Soil Day
+   * Celebration. World Soil Day genuinely lives here in the real app, not
+   * nested under Technology Week Celebration as the client's own pointer
+   * text suggested - moved out of the `special-days` group above to match
+   * what's actually live.
+   */
+  group("soil-water", "Soil and Water Testing", [
+    leaf("soil-testing-equipment", "Equipment Details", [
+      { key: "kvk", label: "KVK Name" },
       { key: "analysis", label: "Analysis" },
-      { key: "noOfSamplesAnalyzed", label: "No of Samples Analyzed" },
-      { key: "noOfVillagesCovered", label: "No of Villages Covered" },
-    ],
-    "Detail of Soil, Water and Plant Analysis",
-  ),
-  /** Real page title + columns confirmed live. */
-  leaf("publications", "KVKs Publication Details", [
-    { key: "kvk", label: "KVK" },
-    { key: "publicationYear", label: "Publication Year" },
-    { key: "publicationItem", label: "Publication Item" },
-    { key: "title", label: "Title" },
-    { key: "authorName", label: "Author Name" },
+      { key: "equipmentName", label: "Equipment Name" },
+      { key: "quantity", label: "Quantity" },
+    ]),
+    leaf(
+      "soil-water-testing",
+      "Soil, Water and Plant analysis",
+      [
+        { key: "kvk", label: "KVK Name" },
+        { key: "startDate", label: "Start Date" },
+        { key: "endDate", label: "End Date" },
+        { key: "analysis", label: "Analysis" },
+        { key: "noOfSamplesAnalyzed", label: "No. of Samples Analyzed" },
+        { key: "noOfVillagesCovered", label: "No. of Villages Covered" },
+        { key: "amountRealized", label: "Amount Realized (Rs.)" },
+      ],
+      "Detail of Soil, Water and Plant Analysis",
+    ),
+    leaf(
+      "world-soil-day",
+      "World Soil Day",
+      [
+        { key: "kvk", label: "KVK Name" },
+        {
+          key: "noOfActivitiesConducted",
+          label: "No. of Activity Conducted",
+        },
+        {
+          key: "soilHealthCardsDistributed",
+          label: "Soil Health Cards Distributed",
+        },
+        { key: "noOfVip", label: "No of VIP" },
+        { key: "vipNames", label: "Name(s) of VIP(s) Involved if Any" },
+        {
+          key: "totalParticipants",
+          label: "Total No. of Participants Attended the Programme",
+        },
+      ],
+      "Details of World Soil Day Celebration",
+    ),
   ]),
+  /** Re-confirmed live against atariams.org (2026-08-25): real page H1 is "Publication List", and the real table has only 5 named columns - Author Type/Naas Rating/ISBN Number were never real, removed. Publication Item and Year are filters there, not columns. */
+  leaf(
+    "publications",
+    "Publication List",
+    [
+      { key: "kvk", label: "KVK Name" },
+      { key: "itemName", label: "Item Name" },
+      { key: "title", label: "Title" },
+      { key: "authorName", label: "Author Name" },
+      { key: "journalName", label: "Journal Name" },
+    ],
+    "KVKs Publication Details",
+  ),
   /** 6 real columns confirmed 2026-08-22. Real H1 is hyphenated and singular; the landing card uses the longer plural form. */
   leaf(
     "hrd",
@@ -905,6 +1020,7 @@ const achievements = group("achievements", "Achievements", [
       { key: "course", label: "Course" },
       { key: "startDate", label: "Start Date" },
       { key: "endDate", label: "End Date" },
+      { key: "venue", label: "Venue" },
       { key: "organizer", label: "Organizer" },
     ],
     "Human Resources Development",
@@ -917,13 +1033,13 @@ const achievements = group("achievements", "Achievements", [
    * so further columns exist (the edit forms carry Achievement and
    * Conferring Authority) - those stay undeclared rather than guessed.
    */
+  /** Columns confirmed against the client's own "View Award" screenshots for KVK/Scientist/Farmer (AMS User Manual p.82-84). Reporting Year is a filter there, not a column. */
   group("awards", "Award and Recognition", [
     leaf(
       "kvk",
       "Awards (KVK)",
       [
-        { key: "kvk", label: "KVK" },
-        { key: "reportingYear", label: "Reporting Year" },
+        { key: "kvk", label: "KVK Name" },
         { key: "award", label: "Award" },
         { key: "amount", label: "Amount" },
         { key: "achievement", label: "Achievement" },
@@ -932,18 +1048,22 @@ const achievements = group("achievements", "Achievements", [
       "KVK",
     ),
     leaf("scientist", "Scientist", [
-      { key: "kvk", label: "KVK" },
-      { key: "reportingYear", label: "Reporting Year" },
-      { key: "headScientist", label: "Head Scientist" },
+      { key: "kvk", label: "KVK Name" },
+      { key: "headScientist", label: "Scientist" },
       { key: "award", label: "Award" },
       { key: "amount", label: "Amount" },
+      { key: "achievement", label: "Achievement" },
+      { key: "conferringAuthority", label: "Conferring Authority" },
     ]),
     leaf("farmer", "Farmer", [
-      { key: "kvk", label: "KVK" },
-      { key: "reportingYear", label: "Reporting Year" },
+      { key: "kvk", label: "KVK Name" },
       { key: "farmerName", label: "Farmer Name" },
       { key: "address", label: "Address" },
-      { key: "contactNumber", label: "Contact Number" },
+      { key: "contactNumber", label: "Contact No." },
+      { key: "award", label: "Award" },
+      { key: "amount", label: "Amount" },
+      { key: "achievement", label: "Achievement" },
+      { key: "conferringAuthority", label: "Conferring Authority" },
     ]),
   ]),
 ]);
@@ -968,103 +1088,509 @@ const projects = group(
   "Projects",
   [
     group("cfld", "CFLD", [
-      /** Real list columns confirmed via video-frames/frame_0640.png (the multi-tab report in the source PDF is the per-record edit form, not this list). */
       /**
-       * 10 columns, confirmed against the reference by combining the two
-       * scroll positions of the real table. The old single
-       * "District" column was actually "District Yield", and the four columns
-       * after it were scrolled off-screen in the earlier pass.
+       * Columns confirmed against the client's own live atariams.org
+       * "Technical Parameters of CFLD" screenshot (2026-08-24, full-width,
+       * real rows with an Ongoing/Completed status badge matching this
+       * app's own OFT/FLD badge colours) - supersedes an earlier merge from
+       * two lower-confidence sources that had added "Existing Variety
+       * Name"/"Existing Yield" as list columns; those belong on the Add
+       * form only (already present there), not this list. Reporting Year
+       * appears here as its own real column - a genuine exception to how
+       * every other Reporting-Year-filtered list in this app works.
        */
       leaf("technical-parameter", "Technical Parameter", [
         { key: "reportingYear", label: "Reporting Year" },
+        { key: "kvk", label: "KVK Name" },
         { key: "crop", label: "Crop" },
         { key: "technologyDemonstrated", label: "Technology Demonstrated" },
-        { key: "areaHa", label: "Area Ha" },
-        { key: "numberOfFarmers", label: "Number of Farmers" },
-        { key: "districtYield", label: "District Yield" },
-        { key: "stateYield", label: "State Yield" },
-        { key: "potentialYield", label: "Potential Yield" },
+        { key: "areaHa", label: "Area (ha)" },
+        { key: "numberOfFarmers", label: "Number of Farmer" },
+        { key: "districtYield", label: "District Yield (D)" },
+        { key: "stateYield", label: "State Yield (S)" },
+        { key: "potentialYield", label: "Potential Yield (P)" },
         { key: "status", label: "Status" },
-        { key: "completedAt", label: "Completed At" },
       ]),
-      leaf("extension-activity-cfld", "Extension Activity (CFLD)"),
-      leaf("budget-utilization", "Budget Utilization"),
+      /** Columns confirmed against the client's own "Extension Activities" (CFLD) screenshot (AMS User Manual p.28). */
+      leaf("extension-activity-cfld", "Extension Activity (CFLD)", [
+        { key: "kvk", label: "KVK Name" },
+        { key: "season", label: "Season" },
+        { key: "activitiesOrganized", label: "Extension Activities Organized" },
+        { key: "date", label: "Date" },
+        { key: "placeOfActivity", label: "Place of Activity" },
+        { key: "farmersAttended", label: "Number of Farmers Attended" },
+      ]),
+      /** Columns confirmed against the client's own "Budget Utilization" (CFLD) screenshot (AMS User Manual p.29). */
+      /** Columns confirmed against the client's own live atariams.org "Budget Utilization" screenshot (2026-08-24) - a simpler, more current structure than the earlier manual screenshot's Items/Budget Received/Budget Utilization/Balance breakdown. */
+      leaf("budget-utilization", "Budget Utilization", [
+        { key: "kvk", label: "KVK Name" },
+        { key: "crop", label: "Crop" },
+        { key: "season", label: "Season" },
+        { key: "overallFundAllocation", label: "Overall Fund Allocation" },
+      ]),
+      /** New leaf, confirmed against the client's own "Crop wise Photographs" screenshot (AMS User Manual p.27) - not present before this pass. */
+      leaf("crop-wise-images", "Crop Wise Images", [
+        { key: "kvk", label: "KVK Name" },
+        { key: "crop", label: "Crop" },
+      ]),
     ]),
-    group("nicra", "NICRA", [
-      leaf("basic-information", "Basic Information"),
-      leaf("details", "Details"),
-      leaf("training", "Training"),
-      leaf("extension-activity-nicra", "Extension Activity (NICRA)"),
+    /**
+     * Real columns + structure confirmed live against atariams.org
+     * (2026-08-24, client pointer #19 "replicate the complete form headings
+     * and structure"): real group label is "NICRA (Technology Demonstration
+     * component)", and "NICRA Others" is nested INSIDE NICRA as its own
+     * expandable "Others" child in the real sidebar - not a sibling
+     * top-level group as coded before.
+     */
+    group("nicra", "NICRA (Technology Demonstration component)", [
+      leaf("basic-information", "Basic Information", [
+        { key: "kvk", label: "KVK" },
+        { key: "rfDistrictNormal", label: "RF (mm) district Normal" },
+        { key: "rfDistrictReceived", label: "RF (mm) district Received" },
+        { key: "maxTemperature", label: "Max. Temperature 0C" },
+        { key: "minTemperature", label: "Min. Temperature 0C" },
+      ]),
+      leaf("details", "Details", [
+        { key: "kvk", label: "KVK" },
+        { key: "cropName", label: "Crop Name" },
+        { key: "seasonName", label: "Season Name" },
+        { key: "technologyDemonstration", label: "Technology demonstration" },
+        { key: "noOfFarmers", label: "No. of farmers" },
+      ]),
+      leaf("training", "Training", [
+        { key: "kvk", label: "KVK Name" },
+        { key: "title", label: "Title" },
+        { key: "startDate", label: "Start Date" },
+        { key: "endDate", label: "End Date" },
+        { key: "farmersAttended", label: "Number of farmers attended" },
+      ]),
+      leaf("extension-activity-nicra", "Extension Activity (NICRA)", [
+        { key: "kvk", label: "KVK Name" },
+        { key: "activityName", label: "Activity Name" },
+        { key: "places", label: "Places" },
+        { key: "startDate", label: "Start Date" },
+        { key: "endDate", label: "End Date" },
+        { key: "farmersAttended", label: "Number of farmers attended" },
+      ]),
+      group("others", "Others", [
+        leaf("intervention", "Intervention", [
+          { key: "kvk", label: "KVK Name" },
+          { key: "startDate", label: "Start Date" },
+          { key: "endDate", label: "End Date" },
+          { key: "seedBankFodderBank", label: "Seed Bank/Fodder Bank" },
+          { key: "crop", label: "Crop" },
+          { key: "variety", label: "Variety" },
+          { key: "quantity", label: "Quantity in (q)" },
+        ]),
+        leaf("revenue-generated", "Revenue Generated", [
+          { key: "kvk", label: "KVK" },
+          { key: "year", label: "Year" },
+          { key: "revenue", label: "Revenue" },
+          { key: "total", label: "Total" },
+        ]),
+        leaf(
+          "custom-hiring-farm-implement",
+          "Custom Hiring of Farm-Implement",
+          [
+            { key: "kvk", label: "KVK" },
+            {
+              key: "farmImplementName",
+              label: "Name of farm implement/equipment",
+            },
+            {
+              key: "farmersUsed",
+              label: "No. of farmers used Implement",
+            },
+            {
+              key: "areaCovered",
+              label: "Area covered by Farm Implement",
+            },
+            { key: "hoursUsed", label: "Farm Implement used (In Hours)" },
+            {
+              key: "revenueGenerated",
+              label: "Revenue generated by Farm Implement (Rs.)",
+            },
+            {
+              key: "repairExpenditure",
+              label: "Expenditure incurred on repairing (Rs.)",
+            },
+          ],
+        ),
+        leaf("village-wise-vcrmc", "Village wise VCRMC", [
+          { key: "kvk", label: "KVK" },
+          { key: "villageName", label: "Village name" },
+          { key: "constitutionDate", label: "VCRMC Constitution date" },
+          { key: "members", label: "VCRMC members (no.)" },
+          {
+            key: "meetingsOrganized",
+            label: "Meetings organized by VCRMC (no.)",
+          },
+          { key: "meetingDate", label: "Date of VCRMC meeting" },
+          { key: "secretaryName", label: "Name of Secretary" },
+        ]),
+        leaf(
+          "soil-health-card",
+          "Soil Health Card prepared and distributed",
+          [
+            { key: "startDate", label: "Start Date" },
+            { key: "endDate", label: "End Date" },
+            { key: "kvk", label: "KVK" },
+            {
+              key: "samplesCollected",
+              label: "No. of soil samples collected",
+            },
+            { key: "samplesAnalysed", label: "No. of samples analysed" },
+            { key: "shcIssued", label: "SHC issued" },
+            {
+              key: "farmersBenefitted",
+              label: "No. of farmers benefitted",
+            },
+          ],
+        ),
+        leaf("convergence-programme", "Convergence Programme", [
+          { key: "startDate", label: "Start Date" },
+          { key: "endDate", label: "End Date" },
+          { key: "kvk", label: "KVK" },
+          { key: "scheme", label: "Development Scheme /Programme" },
+          { key: "natureOfWork", label: "Nature of work" },
+          { key: "amount", label: "Amount (Rs.)" },
+        ]),
+        leaf(
+          "dignitaries-visited-nicra-villages",
+          "Dignitaries visited NICRA Villages",
+          [
+            { key: "kvk", label: "KVK" },
+            { key: "vipExperts", label: "VIP/Experts" },
+            { key: "name", label: "Name" },
+            { key: "dateOfVisit", label: "Date of visited" },
+          ],
+        ),
+        leaf("pi-co-pi-list", "Name of PI & Co-PI List", [
+          { key: "startDate", label: "Start Date" },
+          { key: "endDate", label: "End Date" },
+          { key: "kvk", label: "KVK" },
+          { key: "piCoPi", label: "PI/CO PI" },
+          { key: "name", label: "Name" },
+        ]),
+      ]),
     ]),
-    group("nicra-others", "NICRA Others", [
-      leaf("intervention", "Intervention"),
-      leaf("revenue-generated", "Revenue Generated"),
-      leaf("custom-hiring-farm-implement", "Custom Hiring of Farm-Implement"),
-      leaf("village-wise-vcrmc", "Village wise VCRMC"),
-      leaf("soil-health-card", "Soil Health Card prepared and distributed"),
-      leaf("convergence-programme", "Convergence Programme"),
-      leaf(
-        "dignitaries-visited-nicra-villages",
-        "Dignitaries visited NICRA Villages",
-      ),
-      leaf("pi-co-pi-list", "Name of PI & Co-PI List"),
+    /** Real group label confirmed live: no "/SAFAL" - drops it. */
+    group("arya-safal", "Attracting and Retaining Youth in Agriculture(ARYA)", [
+      leaf("arya-safal-current-year", "Current Year Details", [
+        { key: "kvk", label: "KVK Name" },
+        { key: "enterprise", label: "Enterprise" },
+        { key: "viableUnits", label: "Viable units" },
+        { key: "closedUnits", label: "Closed units" },
+        { key: "startDate", label: "Start Date" },
+        { key: "endDate", label: "End Date" },
+        { key: "groupsFormed", label: "No. of Groups Formed" },
+        { key: "groupsActive", label: "No. of Groups active" },
+      ]),
+      leaf("arya-safal-previous-year", "Previous Year Evaluation", [
+        { key: "kvk", label: "KVK Name" },
+        { key: "enterprise", label: "Enterprise" },
+        { key: "totalClosed", label: "Total Closed" },
+        { key: "closingDate", label: "Closing Date" },
+        { key: "totalRestarted", label: "Total Restarted" },
+        { key: "restartedDate", label: "Restarted date" },
+      ]),
     ]),
-    group("arya-safal", "ARYA/SAFAL", [
-      leaf("arya-safal-current-year", "Current Year Details"),
-      leaf("arya-safal-previous-year", "Previous Year Evaluation"),
-    ]),
-    group("natural-farming", "Natural Farming", [
-      leaf("nf-geographical", "Geographical information"),
-      leaf("nf-physical", "Physical information"),
-      leaf("nf-demonstration", "Demonstration Information"),
+    /** Real group label confirmed live: "Out-scaling of Natural Farming", not plain "Natural Farming". */
+    group("natural-farming", "Out-scaling of Natural Farming", [
+      leaf("nf-geographical", "Geographical information", [
+        { key: "kvk", label: "KVK Name" },
+        { key: "startDate", label: "Start Date" },
+        { key: "endDate", label: "End Date" },
+        { key: "agroClimaticZone", label: "Agro Climatic Zone" },
+        {
+          key: "farmingSituation",
+          label: "Farming Situation of the Selected Farmer",
+        },
+        { key: "latitude", label: "Latitude (N)" },
+        { key: "longitude", label: "Longitude (E)" },
+      ]),
+      /** Re-confirmed live 2026-08-25 via direct URL (atariams.org/project/natural-farming/physical-information) - the page's own H1 just says the generic "Natural Farming" (matches every other leaf in this group), but the URL and columns line up exactly, so this is the right leaf. */
+      leaf("nf-physical", "Physical information", [
+        { key: "kvk", label: "KVK Name" },
+        { key: "activityName", label: "Activity Name" },
+        {
+          key: "trainingTitle",
+          label: "Title of Natural Farming training Programme",
+        },
+        { key: "trainingDate", label: "Date of Training" },
+        { key: "venue", label: "Venue of programme" },
+        { key: "participants", label: "Participants" },
+      ]),
+      leaf("nf-demonstration", "Demonstration Information", [
+        { key: "kvk", label: "KVK Name" },
+        { key: "farmerName", label: "Farmer Name" },
+        { key: "activityName", label: "Name of Activity" },
+        { key: "crop", label: "Crop" },
+        { key: "variety", label: "Variety" },
+      ]),
       leaf(
         "nf-already-practicing",
         "Farmer Already Practicing Natural Farming",
+        [
+          { key: "kvk", label: "KVK Name" },
+          { key: "farmerName", label: "Farmer Name" },
+          { key: "address", label: "Address" },
+          { key: "normalCropsGrown", label: "Normal crops grown" },
+          {
+            key: "practicingYear",
+            label: "Practicing year of natural farming",
+          },
+        ],
       ),
-      leaf("nf-beneficiaries", "Details of Beneficiaries"),
-      leaf("nf-soil-data", "Soil Data information"),
-      leaf("nf-budget-expenditure", "Budget Expenditure"),
+      leaf("nf-beneficiaries", "Details of Beneficiaries", [
+        { key: "kvk", label: "KVK Name" },
+        { key: "numberOfBlock", label: "Number of block" },
+        { key: "numberOfVillage", label: "Number of village" },
+        { key: "numberOfTraining", label: "Number of training" },
+        {
+          key: "farmersInfluenced",
+          label: "No. of farmers influenced to adopt Natural Farming",
+        },
+      ]),
+      leaf("nf-soil-data", "Soil Data information", [
+        { key: "kvk", label: "KVK Name" },
+        { key: "season", label: "Season" },
+        { key: "type", label: "Type" },
+        { key: "crop", label: "Crop" },
+        { key: "beforePh", label: "Before pH" },
+        { key: "beforeEc", label: "Before EC (dS/m)" },
+        { key: "beforeEcOc", label: "Before EC OC (%)" },
+        { key: "afterPh", label: "After pH" },
+        { key: "afterEc", label: "After EC (dS/m)" },
+        { key: "afterEcOc", label: "After EC OC (%)" },
+      ]),
+      leaf("nf-budget-expenditure", "Budget Expenditure", [
+        { key: "kvk", label: "KVK Name" },
+        { key: "activityName", label: "Name of Activity" },
+        { key: "activitiesOrganised", label: "Number of activity organised" },
+        { key: "budgetSanction", label: "Budget sanction (Rs)" },
+        { key: "budgetExpenditure", label: "Budget expenditure (Rs)" },
+        {
+          key: "totalBudgetExpenditure",
+          label: "Total Budget Expenditure (Rs)",
+        },
+      ]),
     ]),
+    /** Real structure confirmed live: ONE combined leaf "View Sub Plan Activity" with a Type column (TSP/SCSP), not two separate leaves. */
     group("tsp-scsp", "TSP/SCSP", [
-      leaf("tsp-activities", "TSP Activities"),
-      leaf("scsp-activities", "SCSP Activities"),
+      leaf("view-sub-plan-activity", "View Sub Plan Activity", [
+        { key: "kvk", label: "KVK Name" },
+        { key: "type", label: "Type" },
+        { key: "activities", label: "Activities" },
+        { key: "noOfTraining", label: "No of Training" },
+        { key: "beneficiaries", label: "No. of beneficiaries" },
+      ]),
     ]),
     /**
      * The first two NARI labels are truncated in the card itself; they are
      * completed from the third, which renders in full and fixes the shared
      * "Nutri-Smart village" wording.
      */
+    /** Real columns confirmed live against atariams.org for all 5 leaves (2026-08-24, client pointer #19). */
     group("nari", "NARI", [
-      leaf("nari-nutrition-garden", "Details of established Nutrition Garden in Nutri-Smart village"),
-      leaf("nari-bio-fortified", "Details of Bio-fortified crops used in Nutri-Smart village"),
-      leaf("nari-value-addition", "Details of Value addition in Nutri-Smart village"),
-      leaf("nari-training", "Training programmes in Nutri-Smart village"),
-      leaf("nari-extension", "Extension activities under NARI Project"),
+      leaf(
+        "nari-nutrition-garden",
+        "Details of established Nutrition Garden in Nutri-Smart village",
+        [
+          { key: "kvk", label: "KVK Name" },
+          { key: "nutriSmartVillage", label: "Name of Nutri-Smart Village" },
+          {
+            key: "typeOfNutritionalGarden",
+            label: "Type of Nutritional Garden",
+          },
+          { key: "numbers", label: "Numbers" },
+          { key: "areaSqm", label: "Area (sqm)" },
+        ],
+      ),
+      leaf(
+        "nari-bio-fortified",
+        "Details of Bio-fortified crops used in Nutri-Smart village",
+        [
+          { key: "kvk", label: "KVK Name" },
+          { key: "nutriSmartVillage", label: "Name of Nutri-Smart Village" },
+          { key: "season", label: "Season" },
+          { key: "activity", label: "Activity" },
+          { key: "categoryOfCrop", label: "Category of crop" },
+        ],
+      ),
+      leaf(
+        "nari-value-addition",
+        "Details of Value addition in Nutri-Smart village",
+        [
+          { key: "kvk", label: "KVK Name" },
+          { key: "nutriSmartVillage", label: "Name of Nutri-Smart Village" },
+          { key: "cropName", label: "Name of Crop" },
+          { key: "valueAddedProduct", label: "Name of Value-added product" },
+          { key: "activity", label: "Activity" },
+        ],
+      ),
+      leaf("nari-training", "Training programmes in Nutri-Smart village", [
+        { key: "kvk", label: "KVK Name" },
+        { key: "nutriSmartVillage", label: "Name of Nutri-Smart Village" },
+        { key: "areaOfTraining", label: "Area of Training" },
+        { key: "activity", label: "Activity" },
+        { key: "titleOfTraining", label: "Title of Training" },
+      ]),
+      leaf("nari-extension", "Extension activities under NARI Project", [
+        { key: "kvk", label: "KVK Name" },
+        { key: "nutriSmartVillage", label: "Name of Nutri-Smart Village" },
+        { key: "activity", label: "Activity" },
+        { key: "nameOfActivity", label: "Name of Activity" },
+        { key: "noOfActivities", label: "No of Activities" },
+      ]),
     ]),
     group("agri-drone", "Agri-Drone", [
-      leaf("agri-drone-introduction", "Introduction"),
-      leaf("agri-drone-demonstration", "Demonstration Details"),
+      leaf("agri-drone-introduction", "Introduction", [
+        { key: "kvk", label: "KVK Name" },
+        { key: "year", label: "Year" },
+        { key: "centreName", label: "Project implementing centre name" },
+        { key: "companyOfDrone", label: "Company of Drone" },
+        { key: "modelOfDrone", label: "Model of Drone" },
+        { key: "dronesSanctioned", label: "No. of Agri Drones Sanctioned" },
+        { key: "dronesPurchased", label: "No. of Agri Drones Purchased" },
+        { key: "amountSanctioned", label: "Amount sanctioned (Rs)" },
+      ]),
+      leaf("agri-drone-demonstration", "Demonstration Details", [
+        { key: "kvk", label: "KVK Name" },
+        { key: "centreName", label: "Project Implementing Centre Name" },
+        { key: "district", label: "District" },
+        { key: "dateOfDemos", label: "Date of Demons." },
+        { key: "placeOfDemos", label: "Place of demons." },
+        { key: "cropName", label: "Crop Name" },
+        { key: "noOfDemos", label: "No. of demos" },
+        { key: "areaCovered", label: "Area covered under demos." },
+        { key: "noOfFarmers", label: "No of farmers" },
+      ]),
     ]),
     group("fpo-cbbo", "FPO and CBBO", [
-      leaf("fpo-cbbo-details", "Details FPO and CBBO"),
-      leaf("fpo-management", "FPO Management"),
+      /** Columns confirmed against the client's own "Formation and Promotion of FPOs as CBBOs under NCDC funding" list + Add screenshots (AMS User Manual p.33-34) - the Add form collects several more fields than the list shows, but a custom multi-field form wasn't built for this leaf; it uses the generic per-column form like every other Projects sub-leaf. */
+      leaf("fpo-cbbo-details", "Details FPO and CBBO", [
+        { key: "kvk", label: "KVK Name" },
+        { key: "noOfBlocksAllocated", label: "No. of Blocks Allocated" },
+        {
+          key: "noOfFposRegistered",
+          label: "No. of FPOs Registered as CBBO",
+        },
+        {
+          key: "trainingReceived",
+          label: "Training Received by FPO Members",
+        },
+        {
+          key: "businessPlanPrepared",
+          label: "Is Business Plan Prepared for FPOs as CBBOs",
+        },
+        { key: "noOfFposDoingBusiness", label: "No. of FPOs Doing Business" },
+      ]),
+      /** Columns confirmed against the client's own "Details of commodity-based organizations/farmers cooperative society/FPO formed/Associated with KVK under NCDC funding" screenshot (AMS User Manual p.34). */
+      leaf("fpo-management", "FPO Management", [
+        { key: "kvk", label: "KVK Name" },
+        { key: "registrationNo", label: "Registration No." },
+        { key: "dateOfRegistration", label: "Date of Registration" },
+        { key: "fpoName", label: "Name of the FPO" },
+        { key: "fpoAddress", label: "Address of FPO" },
+        { key: "totalBomMembers", label: "Total No. of BOM Members" },
+        { key: "financialPosition", label: "Financial Position" },
+      ]),
     ]),
     group("drmr", "DRMR", [
-      leaf("drmr-details", "DRMR Details"),
-      leaf("drmr-activity", "DRMR Activity"),
+      /** Columns confirmed against the client's own "Augmenting Rapeseed-Mustard Production..." (DRMR) screenshot (AMS User Manual p.35). A 6th column ("Net Return Farmer Practice") was cut off mid-word in the source screenshot but is an unambiguous completion, not a guess. */
+      leaf("drmr-details", "DRMR Details", [
+        { key: "kvk", label: "KVK Name" },
+        { key: "varietiesUsedInIp", label: "Varieties Used in IP" },
+        {
+          key: "situations",
+          label: "Situations (Irrigated/Rainfed)",
+        },
+        { key: "varietiesUsedInFp", label: "Varieties Used in FP" },
+        {
+          key: "netReturnImprovedPractice",
+          label: "Net Return Improved Practice (Rs./ha)",
+        },
+        {
+          key: "netReturnFarmerPractice",
+          label: "Net Return Farmer Practice (Rs./ha)",
+        },
+      ]),
+      /** Columns confirmed against the client's own "DRMR Activity" screenshot (AMS User Manual p.37). */
+      leaf("drmr-activity", "DRMR Activity", [
+        { key: "kvk", label: "KVK Name" },
+        { key: "startDate", label: "Start Date" },
+        { key: "endDate", label: "End Date" },
+        { key: "training", label: "Training" },
+        {
+          key: "flds",
+          label: "Frontline Demonstration (FLDs) and Other Demonstrations",
+        },
+        { key: "awarenessCamps", label: "Awareness Camps" },
+        { key: "distributionOfLiterature", label: "Distribution of Literature" },
+      ]),
     ]),
+    /** Columns confirmed against the client's own "Climate Resilient" and "CRA Extension Activity" screenshots (AMS User Manual p.30-32). */
     group("cra", "Climate Resilient Agriculture (CRA)", [
-      leaf("cra-details", "CRA Details"),
-      leaf("cra-extension-activity", "Extension Activity (CRA)"),
+      leaf("cra-details", "CRA Details", [
+        { key: "kvk", label: "KVK Name" },
+        { key: "season", label: "Season" },
+        { key: "technologyDemonstrated", label: "Technology Demonstrated" },
+        { key: "croppingSystem", label: "Cropping System" },
+        { key: "areaHa", label: "Area (ha)" },
+        { key: "noOfFarmer", label: "No. of Farmer" },
+      ]),
+      leaf("cra-extension-activity", "Extension Activity (CRA)", [
+        { key: "kvk", label: "KVK Name" },
+        { key: "extensionActivity", label: "Extension Activity" },
+        { key: "startDate", label: "Start Date" },
+        { key: "endDate", label: "End Date" },
+        { key: "withinOrWithoutState", label: "Within State/Without State" },
+        { key: "exposureVisits", label: "Exposure Visit (No.)" },
+        {
+          key: "farmersUnderExposure",
+          label: "Number of Farmers Under Exposure",
+        },
+      ]),
     ]),
     group("csisa", "CSISA", [
-      leaf("csisa-details", "Details of Cereal Systems Initiative for South Asia"),
+      leaf(
+        "csisa-details",
+        "Details of Cereal Systems Initiative for South Asia",
+        [
+          { key: "kvk", label: "KVK Name" },
+          { key: "season", label: "Season" },
+          { key: "villageCovered", label: "Village Covered(no.)" },
+          { key: "blockCovered", label: "Block Covered(no.)" },
+          { key: "districtCovered", label: "District Covered(no.)" },
+        ],
+      ),
     ]),
-    group("seed-hub", "Seed Hub Program", [leaf("seed-hub-program", "Seed Hub Program")]),
-    /** Card label is truncated on screen; kept to the legible portion rather than invented. */
-    group("other-programmes", "Other Programmes", [
-      leaf("other-programme", "Any other programme organized by KVK"),
+    group("seed-hub", "Seed Hub Program", [
+      leaf("seed-hub-program", "Seed Hub Program", [
+        { key: "kvk", label: "KVK Name" },
+        { key: "season", label: "Season" },
+        { key: "cropName", label: "Crop Name" },
+        { key: "variety", label: "Variety" },
+        { key: "areaHa", label: "Area (ha)" },
+        { key: "yieldHa", label: "Yield (ha)" },
+      ]),
     ]),
+    /** Real full label confirmed live: "Any other programme organized by KVK, not covered above" - the earlier "Other Programmes" was a truncated-on-screen guess. */
+    group(
+      "other-programmes",
+      "Any other programme organized by KVK, not covered above",
+      [
+        leaf("other-programme", "Any other programme organized by KVK", [
+          { key: "kvk", label: "KVK" },
+          { key: "programmeName", label: "Name of the programme" },
+          { key: "programmeDate", label: "Date of the programme" },
+          { key: "venue", label: "Venue" },
+          { key: "purpose", label: "Purpose" },
+          { key: "participants", label: "No. of participants" },
+        ]),
+      ],
+    ),
   ],
   {
     description:
@@ -1115,7 +1641,10 @@ const performanceIndicators = group(
         },
         { key: "experience", label: "Farming Experience/Experience in Enterprise" },
         { key: "majorAchievement", label: "Major Achievement of the Farmers" },
-        { key: "storyTitle", label: "Title of the Success Story" },
+        {
+          key: "storyTitle",
+          label: "Title of the Success Story / Case Study",
+        },
       ]),
     ]),
     group("district-village-performance", "District and Village Performance", [
@@ -1278,24 +1807,42 @@ const performanceIndicators = group(
 
 /** Form Management -> Meetings. Real columns confirmed live via the client's Form Management the reference reference (2026-08-20) - real rows seen for Other Meetings, KVK Latehar. */
 const meetings = group("meetings", "Meetings", [
-  leaf("sac-meetings", "SAC Meetings", [
-    { key: "kvk", label: "KVK Name" },
-    { key: "startDate", label: "Start Date" },
-    { key: "endDate", label: "End Date" },
-    { key: "participants", label: "No of Participants" },
-    {
-      key: "statutoryMembers",
-      label: "Total Statutory Members Present (State Line Department)",
-    },
-    { key: "recommendations", label: "Salient Recommendations" },
-  ]),
-  leaf("other-meetings", "Other Meetings related to ATARI", [
-    { key: "kvk", label: "KVK Name" },
-    { key: "date", label: "Date" },
-    { key: "meetingType", label: "Type of Meeting" },
-    { key: "agenda", label: "Agenda" },
-    { key: "remarks", label: "Remarks" },
-  ]),
+  /** Columns re-confirmed live 2026-08-25 - exact match, no change needed there. Real page H1/sidebar label is the fuller "Details of Scientific Advisory Committee(SAC) Meetings", not the shortened "SAC Meetings". */
+  leaf(
+    "sac-meetings",
+    "Details of Scientific Advisory Committee(SAC) Meetings",
+    [
+      { key: "kvk", label: "KVK Name" },
+      { key: "startDate", label: "Start Date" },
+      { key: "endDate", label: "End Date" },
+      { key: "participants", label: "No of Participants" },
+      {
+        key: "statutoryMembers",
+        label: "Total Statutory Members Present (State Line Department)",
+      },
+      { key: "recommendations", label: "Salient Recommendations" },
+      { key: "actionTaken", label: "Action Taken" },
+      { key: "reason", label: "Reason" },
+      { key: "file", label: "File" },
+    ],
+    "SAC Meetings",
+  ),
+  /** Columns re-confirmed live 2026-08-25 - exact match. Real page H1/sidebar label is "Details of other meeting related to ATARI". */
+  leaf(
+    "other-meetings",
+    "Details of other meeting related to ATARI",
+    [
+      { key: "kvk", label: "KVK Name" },
+      { key: "date", label: "Date" },
+      { key: "meetingType", label: "Type of Meeting" },
+      { key: "agenda", label: "Agenda" },
+      {
+        key: "representativeFromAtari",
+        label: "Representative from ATARI",
+      },
+    ],
+    "Other Meetings related to ATARI",
+  ),
 ]);
 
 /**
@@ -1381,22 +1928,91 @@ const miscellaneous = group("miscellaneous", "Miscellaneous Information", [
     { key: "observations", label: "Salient Points in His/Her Observation" },
   ]),
   /**
-   * Real sub-items and placement (nested under Miscellaneous Information)
-   * confirmed by the client directly. No column list was supplied for any
-   * of the five, so each stays on the generic single "Name" column until
-   * the client shares one, same as every other still-unconfirmed leaf.
+   * Real sub-items, placement (nested under Miscellaneous Information), and
+   * columns confirmed against the client's own live atariams.org
+   * screenshots for all 5 Digital Information sub-forms (2026-08-24).
+   * Reporting Year/KVKs are filters there, not columns.
    */
   group("digital-information", "Digital Information", [
-    leaf("digital-mobile-app", "Details of Mobile App"),
-    leaf("digital-web-portal", "Details of Web Portal"),
-    leaf("digital-kisan-sarathi", "Details of Kisan Sarathi"),
+    leaf("digital-mobile-app", "Details of Mobile App", [
+      { key: "kvk", label: "KVK Name" },
+      {
+        key: "mobileAppsDeveloped",
+        label: "Number of Mobile Apps Developed by KVK",
+      },
+      { key: "appName", label: "Name of the Apps" },
+      { key: "appLanguage", label: "Language of the Apps" },
+      {
+        key: "meantFor",
+        label: "Meant for Crop/Livestock/Fishery/Others",
+      },
+      { key: "timesDownloaded", label: "No. of Times Downloaded" },
+    ]),
+    leaf("digital-web-portal", "Details of Web Portal", [
+      { key: "kvk", label: "KVK Name" },
+      { key: "visitors", label: "No. of Visitors Visited the Portal" },
+      {
+        key: "farmersRegistered",
+        label: "No. of Farmers Registered on the Portal",
+      },
+    ]),
+    leaf("digital-kisan-sarathi", "Details of Kisan Sarathi", [
+      { key: "kvk", label: "KVK Name" },
+      {
+        key: "farmersRegisteredKsp",
+        label: "No. of Farmers Registered on KSP Portal",
+      },
+      { key: "phoneCallAddressed", label: "Phone Call Addressed" },
+      { key: "answeredCall", label: "Answered Call" },
+    ]),
     leaf(
       "digital-kmas",
       "Kisan Mobile Advisory Services/KMAS(m-Kisan Portal/National Farmers Portal/ SMS Portal)",
+      [
+        { key: "kvk", label: "KVK Name" },
+        { key: "farmersCovered", label: "No. of Farmers Covered" },
+        { key: "advisoriesSent", label: "No of Advisories Sent" },
+        { key: "messagesCrop", label: "Type of Messages - Crop" },
+        { key: "messagesLivestock", label: "Type of Messages - Livestock" },
+        { key: "messagesWeather", label: "Type of Messages - Weather" },
+        { key: "messagesMarketing", label: "Type of Messages - Marketing" },
+        { key: "messagesAwareness", label: "Type of Messages - Awareness" },
+        {
+          key: "messagesOtherEnterprises",
+          label: "Type of Messages - Other Enterprises",
+        },
+        { key: "messagesAnyOther", label: "Type of Messages - Any Other" },
+      ],
     ),
     leaf(
       "digital-other-channels",
       "Details of messages send through other channels",
+      [
+        { key: "kvk", label: "KVK Name" },
+        { key: "textAdvisories", label: "Advisories Through Text Messages" },
+        {
+          key: "textFarmers",
+          label: "No. of Farmers Sent Text Messages",
+        },
+        { key: "whatsappAdvisories", label: "Advisories Through WhatsApp" },
+        { key: "whatsappFarmers", label: "No. of Farmers Sent WhatsApp" },
+        {
+          key: "socialMediaAdvisories",
+          label: "Advisories Through Social Media",
+        },
+        {
+          key: "socialMediaFarmers",
+          label: "No. of Farmers Sent Social Media",
+        },
+        {
+          key: "weatherBulletinAdvisories",
+          label: "Advisories Through Weather Advisory Bulletin",
+        },
+        {
+          key: "weatherBulletinFarmers",
+          label: "No. of Farmers Sent Weather Advisory Bulletin",
+        },
+      ],
     ),
   ]),
 ]);

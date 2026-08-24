@@ -7,6 +7,8 @@
  * come from one of those two, not guessed.
  */
 
+import { KVK_MASTER_ROWS } from "./masters";
+
 export type ScopeKind =
   | "system"
   | "state"
@@ -122,46 +124,41 @@ export type Permission = (typeof PERMISSIONS)[number];
 /** Zone IV covers Bihar & Jharkhand (per spec: "Assign State (Zone IV - PATNA & JHARKHAND)"). */
 export const STATES = ["Bihar", "Jharkhand"];
 
-/** Bihar district names - the original 15 from the reference User Management screen, plus 5 more (Rohtas, Nalanda, Darbhanga, East Champaran, Munger) confirmed real against the Form Management reference. */
-export const DISTRICTS = [
-  "Araria",
-  "Arwal",
-  "Aurangabad",
-  "Banka",
-  "Bhojpur",
-  "Darbhanga",
-  "East Champaran",
-  "Gaya",
-  "Jehanabad",
-  "Katihar",
-  "Khagaria",
-  "Lakhisarai",
-  "Madhubani",
-  "Munger",
-  "Nalanda",
-  "Patna",
-  "Purnea",
-  "Rohtas",
-  "Saharsa",
-  "West Champaran",
-];
+/**
+ * True geographic district names (I/II-split KVK districts like "East
+ * Champaran-I"/"-II" collapsed to their one real district), derived from the
+ * full 66-KVK list in `KVK_MASTER_ROWS` (lib/masters.ts), which is itself
+ * transcribed from the client's live AAMS export - not guessed. Bihar comes
+ * out to its real 38 districts; Jharkhand to 23 of its real 24 (the one
+ * district with no KVK in that export naturally doesn't appear here).
+ */
+function baseDistrictName(districtName: string): string {
+  return districtName.replace(/-(I{1,2}|1|2)$/i, "");
+}
 
-/** Jharkhand district names - confirmed real against the Form Management reference; Zone IV covers both Bihar and Jharkhand (see STATES above). */
-export const JHARKHAND_DISTRICTS = ["Dumka", "Godda", "Gumla", "Latehar"];
+export const DISTRICTS = Array.from(
+  new Set(
+    KVK_MASTER_ROWS.filter((row) => row.stateName === "Bihar").map((row) =>
+      baseDistrictName(row.districtName),
+    ),
+  ),
+);
 
-/** KVKs, one per district above - matches the "KVK <District>" naming seen in the reference. */
-export const KVKS = [
-  ...DISTRICTS.map((district) => ({
-    name: `KVK ${district}`,
-    district,
-    state: "Bihar",
-  })),
-  ...JHARKHAND_DISTRICTS.map((district) => ({
-    name: `KVK ${district}`,
-    district,
-    state: "Jharkhand",
-  })),
-];
+/** Jharkhand district names - see `DISTRICTS` above for sourcing. */
+export const JHARKHAND_DISTRICTS = Array.from(
+  new Set(
+    KVK_MASTER_ROWS.filter((row) => row.stateName === "Jharkhand").map(
+      (row) => baseDistrictName(row.districtName),
+    ),
+  ),
+);
+
+/** All 66 real KVKs (name, district, state), derived from `KVK_MASTER_ROWS` - replaces the earlier `KVK <District>` template, which only ever covered 24 of the 66 real KVKs and mis-derived names for districts split across two KVKs (e.g. East Champaran). */
+export const KVKS = KVK_MASTER_ROWS.map((row) => ({
+  name: row.kvk,
+  district: row.districtName,
+  state: row.stateName,
+}));
 
 /** Which scope field (if any) to show once a Role is picked in Create/Edit User. */
 export function scopeFieldFor(

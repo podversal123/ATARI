@@ -50,13 +50,29 @@ export function Sidebar() {
    * open, per client direction. Starts open on whichever section the
    * current page lives under, if any.
    */
-  const [openSlug, setOpenSlug] = useState<string | null>(
-    () =>
+  function sectionForPathname(path: string): string | null {
+    return (
       visibleSections.find(
-        (section) =>
-          section.children && pathname.startsWith(`/${section.slug}`),
-      )?.slug ?? null,
+        (section) => section.children && path.startsWith(`/${section.slug}`),
+      )?.slug ?? null
+    );
+  }
+  const [openSlug, setOpenSlug] = useState<string | null>(() =>
+    sectionForPathname(pathname),
   );
+  /**
+   * Keeps the open section in sync with browser navigation, not just clicks
+   * on the collapsible header itself - e.g. navigating to Dashboard (which
+   * isn't inside any collapsible section) while All Masters was open must
+   * close All Masters too, not leave it open. Adjusted during render
+   * (React's documented pattern for syncing state to a changed value)
+   * rather than in a useEffect, which would cause an extra render pass.
+   */
+  const [prevPathname, setPrevPathname] = useState(pathname);
+  if (pathname !== prevPathname) {
+    setPrevPathname(pathname);
+    setOpenSlug(sectionForPathname(pathname));
+  }
 
   return (
     <aside

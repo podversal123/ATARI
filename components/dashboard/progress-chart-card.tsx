@@ -57,7 +57,7 @@ export function ProgressChartCard({
   return (
     <div className="rounded-lg border border-border bg-card p-5">
       <div className="flex items-start justify-between gap-3">
-        <p className="text-xs font-semibold tracking-wide text-primary uppercase">
+        <p className="text-xs font-bold tracking-wide text-primary uppercase">
           {title}
         </p>
         <div className="flex shrink-0 items-center gap-0.5 rounded-md border border-border bg-muted/50 p-0.5">
@@ -97,7 +97,7 @@ export function ProgressChartCard({
             <button
               type="button"
               disabled
-              className="rounded-md border border-border px-2.5 py-1 font-medium text-foreground disabled:cursor-default disabled:opacity-70"
+              className="rounded-md border border-border px-2.5 py-1 font-medium text-primary disabled:cursor-default disabled:opacity-70"
             >
               {showAllLabel}
             </button>

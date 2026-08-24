@@ -19,6 +19,7 @@ export function TechnicalAchievementSummaryPanel() {
           ? `Figures for ${session.kvkName ?? "your KVK"}`
           : "Figures aggregated across all KVKs"
       }
+      showKvkFilter={!isKvk}
     />
   );
 }

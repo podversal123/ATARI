@@ -181,17 +181,42 @@ export default function FormSummaryPage() {
          * the honest "-" rather than a fabricated count.
          */
         <div className="mt-4 overflow-auto rounded-lg border border-border">
-          <table className="w-full border-collapse text-sm">
+          {/*
+           * "#" and "Form Name" render as ONE sticky cell (colSpan 2) with an
+           * internal flex row splitting them, rather than two independently
+           * sticky cells - two separate sticky columns need their offsets to
+           * agree exactly, which table auto-layout's sub-pixel column widths
+           * don't reliably do.
+           *
+           * The divider at the sticky cell's right edge is an inset
+           * box-shadow, not a border. A `border-r` there depends on the
+           * sticky cell's edge lining up pixel-for-pixel with the adjacent
+           * (non-sticky) KVK column's own edge - `position: sticky` promotes
+           * the cell to its own compositor layer, and that layer's edge can
+           * round to a different sub-pixel than the normal-flow column next
+           * to it, especially under fractional display scaling (125%/150%),
+           * leaving a hairline gap that isn't caught by testing at 1x/2x/3x.
+           * A box-shadow is painted entirely within the sticky cell's own
+           * layer, so the divider line no longer depends on that alignment
+           * at all.
+           */}
+          <table className="w-full border-separate border-spacing-0 text-sm">
             <thead>
               <tr className="border-b border-border bg-muted/50 text-left text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-                <th className="sticky left-0 z-10 w-14 border-r border-border bg-muted/50 px-4 py-3">
-                  #
-                </th>
-                <th className="sticky left-14 z-10 min-w-52 border-r border-border bg-muted/50 px-4 py-3">
-                  Form Name
+                <th
+                  colSpan={2}
+                  className="sticky left-0 z-10 bg-muted p-0 shadow-[inset_-1px_0_0_0_var(--border)]"
+                >
+                  <div className="flex">
+                    <div className="w-14 shrink-0 border-r border-border px-4 py-3">#</div>
+                    <div className="min-w-52 flex-1 px-4 py-3">Form Name</div>
+                  </div>
                 </th>
                 {matrixKvks.map((kvk) => (
-                  <th key={kvk} className="min-w-28 border-r border-border px-3 py-2 text-center last:border-r-0">
+                  <th
+                    key={kvk}
+                    className="min-w-28 border-r border-border bg-muted px-3 py-2 text-center last:border-r-0"
+                  >
                     <div className="whitespace-nowrap normal-case">{kvk}</div>
                     <div className="mt-0.5 font-normal text-muted-foreground/70 normal-case">
                       0%
@@ -203,11 +228,18 @@ export default function FormSummaryPage() {
             <tbody>
               {REPORT_FORM_LEAVES.map((form, index) => (
                 <tr key={form.path} className="border-b border-border last:border-0">
-                  <td className="sticky left-0 z-10 border-r border-border bg-card px-4 py-2.5 text-muted-foreground">
-                    {index + 1}
-                  </td>
-                  <td className="sticky left-14 z-10 border-r border-border bg-card px-4 py-2.5 text-foreground">
-                    {form.label}
+                  <td
+                    colSpan={2}
+                    className="sticky left-0 z-10 bg-card p-0 shadow-[inset_-1px_0_0_0_var(--border)]"
+                  >
+                    <div className="flex">
+                      <div className="w-14 shrink-0 border-r border-border px-4 py-2.5 text-muted-foreground">
+                        {index + 1}
+                      </div>
+                      <div className="min-w-52 flex-1 px-4 py-2.5 text-foreground">
+                        {form.label}
+                      </div>
+                    </div>
                   </td>
                   {matrixKvks.map((kvk) => (
                     <td

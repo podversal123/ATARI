@@ -26,7 +26,7 @@ const TABS = [
   "Socio Economic Parameters",
   "Farmers Perception",
 ] as const;
-type TabName = (typeof TABS)[number];
+export type TabName = (typeof TABS)[number];
 
 /** Standard CFLD economic-parameter set used across ICAR CFLD reporting (Demonstration vs Farmers' Practice comparison) - not itself confirmed from a the reference, unlike the other 3 tabs, since no Economic Parameters screen was captured in the reference set. */
 const ECONOMIC_FIELDS = [
@@ -64,6 +64,8 @@ type CfldTechnicalParameterDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   editingRow: Record<string, ReactNode> | null;
+  /** Which tab to land on when opened - the real reference's Action dropdown (client pointer, 2026-08-24: "check in Atari ams live") jumps straight into Economic/Socio-Economic/Farmers Perception instead of always opening on Technical Parameter first. */
+  initialTab?: TabName;
 };
 
 /**
@@ -74,18 +76,39 @@ type CfldTechnicalParameterDialogProps = {
  * yellow banner requiring Technical + Economic + Socio-Economic + Farmers
  * Perception all filled in before a record can be marked completed). Built
  * as its own dialog rather than forced into the generic per-column form
- * every other leaf uses, since the shape is genuinely different.
+ * every other leaf uses, since the shape is genuinely different. The
+ * Technical Parameter tab's own field set was replaced 2026-08-24 with the
+ * client's full "Add Technical Parameters of CFLD" screenshot (AMS User
+ * Manual p.27) - Year/Season/Crop/Variety/Area, Technology Demonstrated,
+ * Detail of Existing Farmer Practice, farmer-field Yield, a Yield Obtained
+ * in Demonstration block (Max/Min/Average + % increase), and a Yield Gap
+ * block (District/State/Potential) - which lines up with the yield-gap
+ * formulas in the client's own CFLD formula.docx.
  */
 export function CfldTechnicalParameterDialog({
   open,
   onOpenChange,
   editingRow,
+  initialTab,
 }: CfldTechnicalParameterDialogProps) {
   const [activeTab, setActiveTab] = useState<TabName>("Technical Parameter");
   const [technical, setTechnical] = useState<Record<string, string>>({});
   const [economic, setEconomic] = useState<Record<string, string>>({});
   const [demographics, setDemographics] = useState<DemographicValues>({});
   const [perception, setPerception] = useState<Record<string, string>>({});
+
+  /**
+   * Land on the tab the Action dropdown was actually clicked from (e.g.
+   * "Economic Parameters" jumps straight there) instead of always resetting
+   * to Technical Parameter - adjusted during render, same pattern as the
+   * sidebar's own "sync state to a changed prop" case, so it takes effect
+   * the instant the dialog opens rather than one render late.
+   */
+  const [prevOpen, setPrevOpen] = useState(open);
+  if (open !== prevOpen) {
+    setPrevOpen(open);
+    if (open) setActiveTab(initialTab ?? "Technical Parameter");
+  }
 
   function handleOpenChange(next: boolean) {
     if (!next) {
@@ -134,31 +157,78 @@ export function CfldTechnicalParameterDialog({
 
         <div className="max-h-[50vh] space-y-4 overflow-y-auto">
           {activeTab === "Technical Parameter" && (
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-1.5">
-                <Label htmlFor="cfld-year">Reporting Year</Label>
-                <Input
-                  id="cfld-year"
-                  value={technical.reportingYear ?? ""}
-                  onChange={(e) =>
-                    setTechnical((p) => ({
-                      ...p,
-                      reportingYear: e.target.value,
-                    }))
-                  }
-                />
+            <div className="space-y-4">
+              <div className="grid gap-4 sm:grid-cols-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="cfld-year">Year</Label>
+                  <Input
+                    id="cfld-year"
+                    value={technical.reportingYear ?? ""}
+                    onChange={(e) =>
+                      setTechnical((p) => ({
+                        ...p,
+                        reportingYear: e.target.value,
+                      }))
+                    }
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="cfld-season">Season</Label>
+                  <select
+                    id="cfld-season"
+                    value={technical.season ?? ""}
+                    onChange={(e) =>
+                      setTechnical((p) => ({ ...p, season: e.target.value }))
+                    }
+                    className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring"
+                  >
+                    <option value="">Select One</option>
+                    <option value="Kharif">Kharif</option>
+                    <option value="Rabi">Rabi</option>
+                    <option value="Zaid">Zaid</option>
+                  </select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="cfld-crop">Crop</Label>
+                  <Input
+                    id="cfld-crop"
+                    value={technical.crop ?? ""}
+                    onChange={(e) =>
+                      setTechnical((p) => ({ ...p, crop: e.target.value }))
+                    }
+                  />
+                </div>
               </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="cfld-crop">Crop</Label>
-                <Input
-                  id="cfld-crop"
-                  value={technical.crop ?? ""}
-                  onChange={(e) =>
-                    setTechnical((p) => ({ ...p, crop: e.target.value }))
-                  }
-                />
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <Label htmlFor="cfld-variety">Name of Variety</Label>
+                  <Input
+                    id="cfld-variety"
+                    value={technical.variety ?? ""}
+                    onChange={(e) =>
+                      setTechnical((p) => ({
+                        ...p,
+                        variety: e.target.value,
+                      }))
+                    }
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="cfld-area">Area (Ha)</Label>
+                  <Input
+                    id="cfld-area"
+                    type="number"
+                    min="0"
+                    value={technical.areaHa ?? ""}
+                    onChange={(e) =>
+                      setTechnical((p) => ({ ...p, areaHa: e.target.value }))
+                    }
+                  />
+                </div>
               </div>
-              <div className="space-y-1.5 sm:col-span-2">
+
+              <div className="space-y-1.5">
                 <Label htmlFor="cfld-tech">Technology Demonstrated</Label>
                 <Input
                   id="cfld-tech"
@@ -172,23 +242,169 @@ export function CfldTechnicalParameterDialog({
                 />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="cfld-area">Area (Ha)</Label>
-                <Input
-                  id="cfld-area"
-                  type="number"
-                  min="0"
-                  value={technical.areaHa ?? ""}
+                <Label htmlFor="cfld-existing-practice">
+                  Detail of Existing Farmer Practice
+                </Label>
+                <Textarea
+                  id="cfld-existing-practice"
+                  rows={2}
+                  value={technical.existingFarmerPractice ?? ""}
                   onChange={(e) =>
-                    setTechnical((p) => ({ ...p, areaHa: e.target.value }))
+                    setTechnical((p) => ({
+                      ...p,
+                      existingFarmerPractice: e.target.value,
+                    }))
                   }
                 />
               </div>
+              <div className="space-y-1.5 sm:max-w-xs">
+                <Label htmlFor="cfld-farmer-yield">
+                  Yield (q/ha) in Farmer Field (Local)
+                </Label>
+                <Input
+                  id="cfld-farmer-yield"
+                  type="number"
+                  value={technical.farmerYield ?? ""}
+                  onChange={(e) =>
+                    setTechnical((p) => ({
+                      ...p,
+                      farmerYield: e.target.value,
+                    }))
+                  }
+                />
+              </div>
+
+              <div className="space-y-2 rounded-md border border-border p-3">
+                <p className="text-sm font-semibold text-primary">
+                  Yield Obtained in Demonstration (q/ha)
+                </p>
+                <div className="grid gap-4 sm:grid-cols-3">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="cfld-yield-max">Maximum</Label>
+                    <Input
+                      id="cfld-yield-max"
+                      type="number"
+                      value={technical.demoYieldMax ?? ""}
+                      onChange={(e) =>
+                        setTechnical((p) => ({
+                          ...p,
+                          demoYieldMax: e.target.value,
+                        }))
+                      }
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="cfld-yield-min">Minimum</Label>
+                    <Input
+                      id="cfld-yield-min"
+                      type="number"
+                      value={technical.demoYieldMin ?? ""}
+                      onChange={(e) =>
+                        setTechnical((p) => ({
+                          ...p,
+                          demoYieldMin: e.target.value,
+                        }))
+                      }
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="cfld-yield-avg">Average</Label>
+                    <Input
+                      id="cfld-yield-avg"
+                      type="number"
+                      value={technical.demoYieldAvg ?? ""}
+                      onChange={(e) =>
+                        setTechnical((p) => ({
+                          ...p,
+                          demoYieldAvg: e.target.value,
+                        }))
+                      }
+                    />
+                  </div>
+                </div>
+                <div className="space-y-1.5 sm:max-w-xs">
+                  <Label htmlFor="cfld-yield-increase">
+                    % Increase in Yield
+                  </Label>
+                  <Input
+                    id="cfld-yield-increase"
+                    disabled
+                    placeholder="Calculated once yields are entered"
+                    className="bg-muted"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2 rounded-md border border-border p-3">
+                <p className="text-sm font-semibold text-primary">
+                  Yield Gap (q/ha)
+                </p>
+                <div className="grid gap-4 sm:grid-cols-3">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="cfld-district-yield">
+                      District Yield (D)
+                    </Label>
+                    <select
+                      id="cfld-district-yield"
+                      value={technical.district ?? ""}
+                      onChange={(e) =>
+                        setTechnical((p) => ({
+                          ...p,
+                          district: e.target.value,
+                        }))
+                      }
+                      className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring"
+                    >
+                      <option value="" disabled>
+                        Select District
+                      </option>
+                      {DISTRICTS.map((d) => (
+                        <option key={d} value={d}>
+                          {d}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="cfld-state-yield">State Yield (S)</Label>
+                    <Input
+                      id="cfld-state-yield"
+                      type="number"
+                      value={technical.stateYield ?? ""}
+                      onChange={(e) =>
+                        setTechnical((p) => ({
+                          ...p,
+                          stateYield: e.target.value,
+                        }))
+                      }
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="cfld-potential-yield">
+                      Potential Yield (P)
+                    </Label>
+                    <Input
+                      id="cfld-potential-yield"
+                      type="number"
+                      value={technical.potentialYield ?? ""}
+                      onChange={(e) =>
+                        setTechnical((p) => ({
+                          ...p,
+                          potentialYield: e.target.value,
+                        }))
+                      }
+                    />
+                  </div>
+                </div>
+              </div>
+
               <div className="space-y-1.5">
                 <Label htmlFor="cfld-farmers">Number of Farmers</Label>
                 <Input
                   id="cfld-farmers"
                   type="number"
                   min="0"
+                  className="sm:max-w-xs"
                   value={technical.numberOfFarmers ?? ""}
                   onChange={(e) =>
                     setTechnical((p) => ({
@@ -197,26 +413,6 @@ export function CfldTechnicalParameterDialog({
                     }))
                   }
                 />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="cfld-district">District</Label>
-                <select
-                  id="cfld-district"
-                  value={technical.district ?? ""}
-                  onChange={(e) =>
-                    setTechnical((p) => ({ ...p, district: e.target.value }))
-                  }
-                  className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring"
-                >
-                  <option value="" disabled>
-                    Select District
-                  </option>
-                  {DISTRICTS.map((d) => (
-                    <option key={d} value={d}>
-                      {d}
-                    </option>
-                  ))}
-                </select>
               </div>
             </div>
           )}

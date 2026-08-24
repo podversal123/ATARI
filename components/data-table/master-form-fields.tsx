@@ -105,6 +105,7 @@ export function MasterFormFields({
             <Input
               id={fieldId}
               value={formValues[column.key] ?? ""}
+              placeholder={`Enter ${column.label.toLowerCase()}`}
               onChange={(event) =>
                 onChange({ ...formValues, [column.key]: event.target.value })
               }

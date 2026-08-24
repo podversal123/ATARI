@@ -123,6 +123,7 @@ export default function NotificationsPage() {
               : "Notifications sent out by KVK Admins to their users"
           }
           columns={RECEIVED_COLUMNS}
+          hideAddNew
         />
       </div>
 
@@ -130,6 +131,7 @@ export default function NotificationsPage() {
         title={isKvk ? "Sent to My KVK Users" : "Sent Notifications"}
         icon="notifications"
         columns={SENT_COLUMNS}
+        hideAddNew
       />
     </div>
   );

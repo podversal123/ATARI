@@ -14,12 +14,15 @@ import {
 } from "@/components/data-table/empty-data-table";
 import { AddLeafPage } from "@/components/data-table/add-leaf-page";
 import { ViewKvksAddForm } from "@/components/data-table/view-kvks-add-form";
+import { EmployeeDetailsAddForm } from "@/components/data-table/employee-details-add-form";
 import { TechnicalAchievementSummaryPanel } from "@/components/data-table/technical-achievement-summary-panel";
 
 const EVENT_DEMOGRAPHIC_SLUGS = new Set([
   "technology-week-celebration",
   "world-soil-day",
 ]);
+/** View OFT / View FLD only - see EmptyDataTable's `oftFldStatus` prop for the full spec (client pointer, 2026-08-24). */
+const OFT_FLD_STATUS_SLUGS = new Set(["oft", "view-fld"]);
 /** Leaves whose real Add/Edit shape isn't a flat field list - these keep opening their existing bespoke dialog instead of the new full-page Add flow. */
 const CUSTOM_FORM_SLUGS = new Set([
   "technical-parameter",
@@ -93,6 +96,9 @@ export default async function FormsPage({ params }: FormsPageProps) {
     if (node.slug === "view-kvks") {
       return <ViewKvksAddForm trail={addTrail} backHref={backHref} />;
     }
+    if (node.slug === "employee-details") {
+      return <EmployeeDetailsAddForm trail={addTrail} backHref={backHref} />;
+    }
     return (
       <AddLeafPage
         title={node.label}
@@ -123,15 +129,42 @@ export default async function FormsPage({ params }: FormsPageProps) {
   trailCrumbs.push({ label: node.label });
 
   /**
+   * Back must return to the immediate parent page - the crumb directly to
+   * the current one's left - not jump straight to the Form Management root.
+   * Client pointer (2026-08-24): "Back navigation should follow the user's
+   * actual previous page/section", e.g. Achievement -> Extension Activities
+   * -> Back should land on Extension's own group page, not the Achievement
+   * Dashboard. Reusing `trailCrumbs` (rather than re-deriving from `slug`)
+   * means this automatically respects About KVK's card-only sub-group
+   * suppression too - its leaves' real previous page is About KVK itself,
+   * not the invisible "Basic Information" stop the URL nests them under.
+   */
+  const listBackHref =
+    trailCrumbs[trailCrumbs.length - 2]?.href ?? "/forms";
+
+  /**
    * Sibling-leaf tabs above the table, same pattern All Masters uses -
    * every leaf under the immediate parent group becomes a pill, so clicking
-   * across siblings (e.g. DRMR Details <-> DRMR Activity) doesn't require
-   * going back to the group's landing page first.
+   * across siblings (e.g. DRMR Details <-> DRMR Activity, or View FLD <->
+   * Extension & Training <-> Technical Feedback) doesn't require going back
+   * to the group's landing page first. Only shown when the parent's
+   * children are ALL leaves (a genuine, cohesive sibling set) - client
+   * pointer (2026-08-25): a "single" leaf sitting directly under a MIXED
+   * parent (Achievements has both real sub-groups like FLD/Extension AND
+   * flat standalone leaves like OFT/Trainings/Publications/HRD/Production &
+   * Supply/Technical Achievement as direct children) got tabbed together
+   * with those unrelated flat leaves purely by accident of the data shape,
+   * which read as broken rather than useful - the real atariams.org page
+   * for any of these has no such tab strip either. Excluding all of them
+   * this way (not just OFT) rather than hardcoding each slug.
    */
   let tabs: MasterTab[] | undefined;
   if (node.type === "leaf" && trail.length >= 2) {
     const parent = trail[trail.length - 2];
-    if (parent.type === "group") {
+    if (
+      parent.type === "group" &&
+      parent.children.every((item) => item.type === "leaf")
+    ) {
       const basePath = `/forms/${slug.slice(0, -1).join("/")}`;
       tabs = parent.children
         .filter((item): item is Extract<typeof item, { type: "leaf" }> =>
@@ -158,7 +191,7 @@ export default async function FormsPage({ params }: FormsPageProps) {
   return (
     <div>
       <PageHeader
-        backHref="/forms"
+        backHref={listBackHref}
         trail={trailCrumbs}
         title={
           node.type === "group" ? (node.pageTitle ?? node.label) : undefined
@@ -191,6 +224,15 @@ export default async function FormsPage({ params }: FormsPageProps) {
               ? "cfld-technical-parameter"
               : EVENT_DEMOGRAPHIC_SLUGS.has(node.slug)
                 ? "event-demographic"
+                : undefined
+          }
+          eventSlug={node.slug}
+          oftFldStatus={OFT_FLD_STATUS_SLUGS.has(node.slug)}
+          note={
+            node.slug === "oft"
+              ? 'Please mark your result as "Completed" after adding the OFT details, same as in FLD.'
+              : node.slug === "view-fld"
+                ? 'Please mark your result as "Completed" after adding the FLD details, same as in OFT.'
                 : undefined
           }
         />

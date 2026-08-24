@@ -1,5 +1,6 @@
 "use client";
 
+import { useLayoutEffect, useRef, useState } from "react";
 import {
   BarChart3,
   Users,
@@ -11,6 +12,8 @@ import {
 } from "lucide-react";
 import { StatCard } from "@/components/dashboard/stat-card";
 import { ProgressChartCard } from "@/components/dashboard/progress-chart-card";
+import { StaffSummaryCard } from "@/components/dashboard/staff-summary-card";
+import { RecentLogHistoryCard } from "@/components/dashboard/recent-log-history-card";
 import { FilterSelect } from "@/components/dashboard/filter-select";
 import { Button } from "@/components/ui/button";
 import { useSession } from "@/lib/session";
@@ -89,6 +92,37 @@ const KVK_SCOPED_STATS = STATS.filter((stat) => stat.label !== "KVK");
 export default function DashboardPage() {
   const session = useSession();
 
+  const filterCardRef = useRef<HTMLDivElement>(null);
+  const statGridRef = useRef<HTMLDivElement>(null);
+  const [filterCardWidth, setFilterCardWidth] = useState<number>();
+
+  /**
+   * The filter card's left edge must land exactly on Ext. Activity's left
+   * edge (so the card spans just the last two stat cards - Ext. Activity and
+   * Total Staff - not further left into Training's column). Its right edge
+   * already lands correctly flush against the row's own right edge via
+   * `justify-between`, so capping the card's width (not a margin) is enough:
+   * with the right edge pinned, a narrower width only pulls the left edge
+   * inward. Measured directly against the real stat cards rather than
+   * mirrored via a second grid, since a separate grid with identical
+   * Tailwind classes did not reliably agree on column widths across
+   * breakpoints when tried for this same alignment earlier.
+   */
+  useLayoutEffect(() => {
+    function measure() {
+      const grid = statGridRef.current;
+      const filterCard = filterCardRef.current;
+      if (!grid || !filterCard || grid.children.length < 2) return;
+      const secondToLast = grid.children[grid.children.length - 2];
+      const left = secondToLast.getBoundingClientRect().left;
+      const right = grid.getBoundingClientRect().right;
+      setFilterCardWidth(Math.max(0, right - left));
+    }
+    measure();
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+  }, [session.role]);
+
   if (session.role === "kvk-user") {
     return <KvkUserDashboard kvkName={session.kvkName} />;
   }
@@ -97,7 +131,7 @@ export default function DashboardPage() {
 
   return (
     <div>
-      <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
+      <div className="mb-6 flex flex-col items-start gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <div className="flex items-center gap-2">
             <LayoutDashboard className="size-5 shrink-0 text-primary" />
@@ -109,9 +143,25 @@ export default function DashboardPage() {
               : "Central overview of system activities and performance metrics"}
           </p>
         </div>
-        <div className="flex items-center gap-3">
-          <FilterSelect label="Year" options={["All"]} />
-          {!isKvkAdmin && <FilterSelect label="KVK" options={["All"]} />}
+        <div
+          ref={filterCardRef}
+          className="flex flex-nowrap items-center justify-between gap-1.5 overflow-x-auto rounded-lg border border-border bg-card p-3"
+          style={filterCardWidth ? { width: filterCardWidth } : undefined}
+        >
+          <FilterSelect
+            label="Year"
+            options={["All"]}
+            className="flex-1"
+            selectClassName="min-w-0 flex-1"
+          />
+          {!isKvkAdmin && (
+            <FilterSelect
+              label="KVK"
+              options={["All"]}
+              className="flex-1"
+              selectClassName="min-w-0 flex-1"
+            />
+          )}
           <Button variant="outline-primary" size="sm">
             Reset
           </Button>
@@ -120,6 +170,7 @@ export default function DashboardPage() {
 
       {/* Column count follows the stat count - a KVK Admin has one tile fewer, and a fixed 6-column grid would leave a visible gap at the end of the row. */}
       <div
+        ref={statGridRef}
         className={cn(
           "grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3",
           isKvkAdmin ? "xl:grid-cols-5" : "xl:grid-cols-6",
@@ -210,6 +261,11 @@ export default function DashboardPage() {
           showAllLabel="Show all (0)"
           detailedHref="/dashboard/analytics/extension"
         />
+      </div>
+
+      <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <StaffSummaryCard />
+        <RecentLogHistoryCard />
       </div>
     </div>
   );

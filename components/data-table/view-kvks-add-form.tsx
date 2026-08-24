@@ -16,12 +16,11 @@ type ViewKvksAddFormProps = {
 };
 
 /**
- * Real shape: a KVK Address field, then a read-only Host Organization
- * Details block that fills in once a Host is picked. This app has no host
- * contact data yet (only the host name itself), so those fields stay
- * disabled with a "select a host first" hint until one is chosen, then open
- * up as plain editable fields rather than fabricating phone numbers that
- * don't exist in any source.
+ * Real shape: a KVK Address field, then a Host Organization Details block
+ * that fills in once a Host is picked. Mobile/E-mail/Host Address now
+ * auto-populate from the real contact details in `HOST_MASTER_ROWS` (the
+ * client's live AAMS host-organization export); Landline/Fax stay editable
+ * but blank, since that export doesn't break phone numbers down that way.
  */
 export function ViewKvksAddForm({ trail, backHref }: ViewKvksAddFormProps) {
   const router = useRouter();
@@ -34,6 +33,14 @@ export function ViewKvksAddForm({ trail, backHref }: ViewKvksAddFormProps) {
   const [hostAddress, setHostAddress] = useState("");
 
   const hostSelected = hostName !== "";
+
+  function handleHostChange(name: string) {
+    setHostName(name);
+    const host = HOST_MASTER_ROWS.find((row) => row.hostName === name);
+    setMobile(host?.phone ?? "");
+    setEmail(host?.email ?? "");
+    setHostAddress(host?.address ?? "");
+  }
 
   return (
     <div>
@@ -65,7 +72,7 @@ export function ViewKvksAddForm({ trail, backHref }: ViewKvksAddFormProps) {
               <select
                 id="host-name"
                 value={hostName}
-                onChange={(e) => setHostName(e.target.value)}
+                onChange={(e) => handleHostChange(e.target.value)}
                 className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring"
               >
                 <option value="">Select Host</option>

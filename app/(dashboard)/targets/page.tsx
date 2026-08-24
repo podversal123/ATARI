@@ -146,6 +146,7 @@ export default function TargetsPage() {
             : "Targets assigned across all KVKs, tracked against what each KVK reports"
         }
         columns={isKvk ? KVK_COLUMNS : SUPER_ADMIN_COLUMNS}
+        hideAddNew
       />
     </div>
   );

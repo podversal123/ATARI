@@ -35,20 +35,14 @@ export default function GalleryPage() {
   const [search, setSearch] = useState("");
   const [year, setYear] = useState(YEAR_OPTIONS[0]);
   const [view, setView] = useState<ViewMode>("grid");
-  const [expanded, setExpanded] = useState<Set<string>>(new Set([GALLERY_MODULES[0]?.slug]));
+  /** Accordion, same as the main Sidebar's own top-level groups (client request, 2026-08-24): opening one module auto-closes whichever other one was open, rather than letting several stay expanded at once. */
+  const [openModule, setOpenModule] = useState<string | null>(
+    GALLERY_MODULES[0]?.slug ?? null,
+  );
   const [activeLeaf, setActiveLeaf] = useState<GalleryLeaf | null>(null);
 
-  function toggleExpanded(slug: string) {
-    setExpanded((prev) => {
-      const next = new Set(prev);
-      if (next.has(slug)) next.delete(slug);
-      else next.add(slug);
-      return next;
-    });
-  }
-
-  function expandAll() {
-    setExpanded(new Set(GALLERY_MODULES.map((m) => m.slug)));
+  function toggleModule(slug: string) {
+    setOpenModule((prev) => (prev === slug ? null : slug));
   }
 
   function clearAll() {
@@ -131,18 +125,9 @@ export default function GalleryPage() {
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[260px_1fr]">
         <div className="rounded-lg border border-border bg-card p-3">
-          <div className="mb-2 flex items-center justify-between">
-            <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-              Modules
-            </p>
-            <button
-              type="button"
-              onClick={expandAll}
-              className="text-xs text-primary hover:underline"
-            >
-              Expand all
-            </button>
-          </div>
+          <p className="mb-2 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+            Modules
+          </p>
 
           <button
             type="button"
@@ -160,23 +145,24 @@ export default function GalleryPage() {
 
           <div className="mt-1 space-y-0.5">
             {GALLERY_MODULES.map((module) => {
-              const isOpen = expanded.has(module.slug);
+              const isOpen = openModule === module.slug;
               return (
                 <div key={module.slug}>
                   <button
                     type="button"
-                    onClick={() => toggleExpanded(module.slug)}
-                    className="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left text-xs font-semibold tracking-wide text-muted-foreground uppercase hover:bg-muted"
+                    onClick={() => toggleModule(module.slug)}
+                    title={module.label}
+                    className="flex w-full items-center justify-between gap-2 rounded-md px-2 py-1.5 text-left text-xs font-semibold tracking-wide text-muted-foreground uppercase hover:bg-muted"
                   >
-                    <span className="flex items-center gap-1">
+                    <span className="flex min-w-0 items-center gap-1">
                       {isOpen ? (
-                        <ChevronDown className="size-3.5" />
+                        <ChevronDown className="size-3.5 shrink-0" />
                       ) : (
-                        <ChevronRight className="size-3.5" />
+                        <ChevronRight className="size-3.5 shrink-0" />
                       )}
-                      {module.label}
+                      <span className="min-w-0 truncate">{module.label}</span>
                     </span>
-                    <span>0</span>
+                    <span className="shrink-0">0</span>
                   </button>
                   {isOpen && (
                     <div className="ml-4 space-y-0.5 border-l border-border pl-2">
@@ -185,15 +171,18 @@ export default function GalleryPage() {
                           key={leaf.slug}
                           type="button"
                           onClick={() => setActiveLeaf(leaf)}
+                          title={leaf.label}
                           className={cn(
-                            "flex w-full items-center justify-between rounded-md px-2 py-1.5 text-sm transition-colors",
+                            "flex w-full items-center justify-between gap-2 rounded-md px-2 py-1.5 text-sm transition-colors",
                             activeLeaf?.slug === leaf.slug
                               ? "bg-accent font-medium text-accent-foreground"
                               : "text-foreground hover:bg-muted",
                           )}
                         >
-                          {leaf.label}
-                          <span className="text-xs text-muted-foreground">0</span>
+                          <span className="min-w-0 truncate">{leaf.label}</span>
+                          <span className="shrink-0 text-xs text-muted-foreground">
+                            0
+                          </span>
                         </button>
                       ))}
                     </div>

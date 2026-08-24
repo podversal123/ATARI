@@ -13,20 +13,26 @@ type AddLeafPageProps = {
   trail: Crumb[];
   backHref: string;
   columns: MasterColumn[];
+  cascadeType?: "district" | "kvk";
+  /** "Create" for All Masters ("Create Zone", "Create Host", ...), "Add" for Form Management ("Add Staff", "Add OFT", ...) - both confirmed real, per-module titles (client screenshots, 2026-08-24). */
+  titlePrefix?: "Add" | "Create";
 };
 
 /**
- * Form Management's "Add New" - per client direction, opens a dedicated
- * page instead of the popup EmptyDataTable/Masters keep. Same field set and
- * "Mark as Other" behaviour as the dialog version (shared via
- * MasterFormFields), just laid out full-page. No backend yet, so Save just
- * returns to the list like every other Phase 1 form.
+ * "Add New" for both All Masters and Form Management opens this same
+ * dedicated full page instead of a popup (client direction). Same field set
+ * and "Mark as Other" behaviour as the dialog version (shared via
+ * MasterFormFields). The button reads "Submit", matching every real
+ * Add/Create screen in the client's own reference - not "Save". No backend
+ * yet, so submitting just returns to the list like every other Phase 1 form.
  */
 export function AddLeafPage({
   title,
   trail,
   backHref,
   columns,
+  cascadeType,
+  titlePrefix = "Add",
 }: AddLeafPageProps) {
   const router = useRouter();
   const [formValues, setFormValues] = useState<Record<string, string>>({});
@@ -35,12 +41,17 @@ export function AddLeafPage({
 
   return (
     <div>
-      <PageHeader backHref={backHref} trail={trail} title={`Add ${title}`} />
+      <PageHeader
+        backHref={backHref}
+        trail={trail}
+        title={`${titlePrefix} ${title}`}
+      />
 
       <div className="rounded-lg border border-border bg-card p-5">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <MasterFormFields
             columns={columns}
+            cascadeType={cascadeType}
             formValues={formValues}
             onChange={setFormValues}
             isSimpleMaster={isSimpleMaster}
@@ -55,7 +66,7 @@ export function AddLeafPage({
           </Button>
           <Button onClick={() => router.push(backHref)}>
             <Save className="size-3.5" />
-            Save
+            Submit
           </Button>
         </div>
       </div>

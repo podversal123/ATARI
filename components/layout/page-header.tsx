@@ -36,7 +36,7 @@ export function PageHeader({
         {backHref && (
           <Link
             href={backHref}
-            className="flex items-center gap-1 hover:text-foreground"
+            className="flex items-center gap-1 rounded-md border border-border px-2 py-1 hover:border-foreground/30 hover:text-foreground"
           >
             <ChevronLeft className="size-4" />
             Back

@@ -51,16 +51,115 @@ export const DISTRICT_MASTER_ROWS: DistrictMasterRow[] = [
 ];
 export const DISTRICT_MASTER_TOTAL = 69;
 
-export type HostMasterRow = { hostName: string };
+export type HostMasterRow = {
+  hostName: string;
+  address: string;
+  phone: string;
+  email: string;
+};
 
-/** First page only (6 of 15 rows were visible in the reference). */
+/**
+ * 14 of 15 rows - transcribed directly from the client's live AAMS export
+ * ("1.1.A.2 Name and address of host organization"), which is the
+ * authoritative source for these contact details (supersedes the earlier
+ * "National Rice Research Institute (NRRI), Cuttack" entry, which that same
+ * export shows is actually ICAR-Central Rice Research Institute, Cuttack).
+ * The 15th host organization was never shown in any reference and is not
+ * guessed here. `hostName` for the Pusa entry is "DRPCAU" - the client's
+ * own live atariams.org "KVK Master" table (screenshot, 2026-08-24) shows
+ * this exact short form as the real Host Org value, not the longer
+ * "Dr RPCAU Pusa" an earlier pass used.
+ */
 export const HOST_MASTER_ROWS: HostMasterRow[] = [
-  { hostName: "Samta Seva Kendra Sitamarhi" },
-  { hostName: "National Rice Research Institute (NRRI), Cuttack" },
-  { hostName: "ICAR-NISA, Ranchi" },
-  { hostName: "Viksh Bharti Bishunpur Gumla" },
-  { hostName: "Gramin Vikash Trust, Noida" },
-  { hostName: "KVK Deoghar" },
+  {
+    hostName: "BAU Sabour",
+    address: "Bihar Agricultural University, Sabour Bhagalpur, Bihar India- 813210",
+    phone: "06412452611 / 9431310417",
+    email: "deebausabour@gmail.com",
+  },
+  {
+    hostName: "Ramkrishna Mission Ashrama Morabadi",
+    address: "Ramakrishna Mission Ashrama, Morabadi, Ranchi – 834008 (Jharkhand) India",
+    phone: "06512551008 / 9835158705",
+    email: "ranchi.morabadi@rkmm.org",
+  },
+  {
+    hostName: "DRPCAU",
+    address:
+      "Dr. Rajendra Prasad Central Agricultural University, Pusa, Samastipur, Bihar, India PIN Code – 848131",
+    phone: "06274240226 / 9430804115",
+    email: "dee@rpcau.ac.in",
+  },
+  {
+    hostName: "ICAR-RCER Patna",
+    address:
+      "ICAR-RCER, ICAR Parisar Rd, near BIT, adjacent to Airport Police Station, Patna, Bihar 800015",
+    phone: "06122228805",
+    email: "directoricarrcer@gmail.com",
+  },
+  {
+    hostName: "Gram Nirman Mandal, Nawada",
+    address: "Sarvodaya Ashram, Sokhodeora, District-Nawada (Bihar) 805106",
+    phone: "9939046425",
+    email: "arvindgnm_nwd@yahoo.in",
+  },
+  {
+    hostName: "Vanvashi Seva Kendra, Kaimur",
+    address: "Vanvasi Seva Kendra, Adhaura (Kaimur) Bihar -821102",
+    phone: "9430567345",
+    email: "vsk_adhaura@yahoo.co.in",
+  },
+  {
+    hostName: "BASU Patna",
+    address:
+      "Bihar Animal Sciences University, Bihar Veterinary College Campus, Patna, Bihar, India PIN Code - 800014",
+    phone: "9828926284",
+    email: "deebasupatna@gmail.com",
+  },
+  {
+    hostName: "BAU Ranchi",
+    address: "Birsa Agricultural University Kanke, Ranchi – 834006 Jharkhand, India",
+    phone: "06512450500 / 9431371709",
+    email: "deebauranchi@gmail.com",
+  },
+  {
+    hostName: "State Govt. Deoghar",
+    address: "Krishi Vigyan Kendra, Deoghar P.O. - Ghorlash, Dist. - Deoghar, 814152",
+    phone: "06432232680 / 7717756760",
+    email: "kvkdeoghar@gmail.com",
+  },
+  {
+    hostName: "Gramin Vikas Trust, Noida",
+    address:
+      "Gramin Vikas Trust, KRIBHCO BHAWAN, \"A\" Wing, 5th Floor, A-8-10, Sector-1, Gautam Budh Nagar, Noida, U.P. (India)",
+    phone: "7903419700 / 9899831380",
+    email: "honoida@gvtindia.org",
+  },
+  {
+    hostName: "Vikas Bharti Bishunpur Gumla",
+    address: "Vikas Bharti Bishunpur Post-Bishunpur Dist- Gumla PIN-835231, Jharkhand",
+    phone: "9431118213",
+    email: "ashokbhagat1983@hotmail.com",
+  },
+  {
+    hostName: "ICAR-NISA Ranchi",
+    address:
+      "ICAR-National Institute of Secondary Agriculture Namkum, Ranchi- 834010 (Jharkhand) India",
+    phone: "651-2261156 / 6512261156",
+    email: "director.icar.nisa@gmail.com",
+  },
+  {
+    hostName: "ICAR-CRRI Cuttack",
+    address: "ICAR-Central Rice Research Institute Cuttack –753006, Odisha",
+    phone: "9437484576",
+    email: "directorcrricuttack@gmail.com",
+  },
+  {
+    hostName: "Samta Seva Kendra Sitamarhi",
+    address: "Samta Sewa Kendra Vill+PO-Chainpura Via- Janakpur Road, Pupri, Sitamarhi -843320",
+    phone: "9430259635",
+    email: "kumarsudist@rediffmail.com",
+  },
 ];
 export const HOST_MASTER_TOTAL = 15;
 
@@ -77,78 +176,82 @@ export type KvkMasterRow = {
   sanctionYear: string;
 };
 
-/** First page only (6 of 65 rows were visible in the reference; Email/Address/Sanction Year cross-confirmed for these same 6 from the client's "1.1.1" KVK Basic Information document). */
+/**
+ * All 66 KVKs, transcribed directly from the client's live AAMS export
+ * ("1.1.A.1 Name and address of KVK with phone, fax and e-mail" and the
+ * separate host-organization list, "kvk list - Sheet2.pdf") - supersedes the
+ * earlier 6-row sample. `KVK_MASTER_TOTAL` is corrected from 65 to the real
+ * 66 shown in that export's own "KVKS INCLUDED (66)" list.
+ */
 export const KVK_MASTER_ROWS: KvkMasterRow[] = [
-  {
-    zoneName: "Zone IV - Patna",
-    stateName: "Bihar",
-    hostOrg: "BAU Sabour",
-    districtName: "Araria",
-    kvk: "KVK Araria",
-    mobile: "9431645217",
-    address: "KVK Araria",
-    email: "arariaakvk@gmail.com",
-    sanctionYear: "2004",
-  },
-  {
-    zoneName: "Zone IV - Patna",
-    stateName: "Bihar",
-    hostOrg: "BAU Sabour",
-    districtName: "Arwal",
-    kvk: "KVK Arwal",
-    mobile: "8210554284",
-    address:
-      "At - Lodipur, Post - Sarwarpur, PS - Mehandia, Block - Kaler, District - Arwal, Pin - 804428 (Bihar)",
-    email: "arwalkvk@gmail.com",
-    sanctionYear: "2008",
-  },
-  {
-    zoneName: "Zone IV - Patna",
-    stateName: "Bihar",
-    hostOrg: "BAU Sabour",
-    districtName: "Aurangabad",
-    kvk: "KVK Aurangabad",
-    mobile: "8298641285",
-    address: "KVK Aurangabad",
-    email: "aurangabadkvk@gmail.com",
-    sanctionYear: "2006",
-  },
-  {
-    zoneName: "Zone IV - Patna",
-    stateName: "Bihar",
-    hostOrg: "BAU Sabour",
-    districtName: "Banka",
-    kvk: "KVK Banka",
-    mobile: "9431659922",
-    address: "KVK Banka",
-    email: "bankakvk@gmail.com",
-    sanctionYear: "1983",
-  },
-  {
-    zoneName: "Zone IV - Patna",
-    stateName: "Bihar",
-    hostOrg: "DRPCAU",
-    districtName: "Begusarai",
-    kvk: "KVK Begusarai",
-    mobile: "6287797169",
-    address:
-      "KVK Begusarai At- Khodawandpur, Post- Meghaul, Block-Khodawnandpur, Dist- Begusarai-848202",
-    email: "head.kvk.begusarai@rpcau.ac.in",
-    sanctionYear: "1992",
-  },
-  {
-    zoneName: "Zone IV - Patna",
-    stateName: "Bihar",
-    hostOrg: "BAU Sabour",
-    districtName: "Bhagalpur",
-    kvk: "Kvk Bhagalpur",
-    mobile: "9939626493",
-    address: "KVK Bhagalpur, Bihar, Pin – 813210",
-    email: "bhagalpurkvk@gmail.com",
-    sanctionYear: "2004",
-  },
+  { zoneName: "Zone IV - Patna", stateName: "Bihar", hostOrg: "DRPCAU", districtName: "Gopalganj", kvk: "KVK Gopalganj", mobile: "6287797171", address: "KVK Gopalganj", email: "head.kvk.sipaya@rpcau.ac.in", sanctionYear: "2006" },
+  { zoneName: "Zone IV - Patna", stateName: "Bihar", hostOrg: "DRPCAU", districtName: "Muzaffarpur-II", kvk: "KVK Muzaffarpur-II", mobile: "9414856397", address: "KVK, Turki, Muzaffarpur-II", email: "head.kvk.turki@rpcau.ac.in", sanctionYear: "2016" },
+  { zoneName: "Zone IV - Patna", stateName: "Bihar", hostOrg: "DRPCAU", districtName: "Samastipur-II", kvk: "KVK Samastipur-II", mobile: "6287797166", address: "KVK Samastipur-II, Lada", email: "head.kvk.lada@rpcau.ac.in", sanctionYear: "2019" },
+  { zoneName: "Zone IV - Patna", stateName: "Bihar", hostOrg: "DRPCAU", districtName: "Saran", kvk: "KVK Saran", mobile: "6287797158", address: "KVK Saran", email: "head.kvk.manjhi@rpcau.ac.in", sanctionYear: "2006" },
+  { zoneName: "Zone IV - Patna", stateName: "Bihar", hostOrg: "DRPCAU", districtName: "Sheohar", kvk: "KVK Sheohar", mobile: "7752828740", address: "KVK Sheohar", email: "head.kvk.sheohar@rpcau.ac.in", sanctionYear: "2006" },
+  { zoneName: "Zone IV - Patna", stateName: "Bihar", hostOrg: "DRPCAU", districtName: "West Champaran-I", kvk: "KVK West Champaran-I", mobile: "8409999358", address: "KVK West Champaran-I, Madhopur", email: "head.kvk.madhopur@rpcau.ac.on", sanctionYear: "2004" },
+  { zoneName: "Zone IV - Patna", stateName: "Bihar", hostOrg: "DRPCAU", districtName: "West Champaran-II", kvk: "KVK West Champaran-II", mobile: "6287797161", address: "KVK West Champaran-II, Narkatiyaganj", email: "head.kvk.narkatiyaganj@rpcau.ac.in", sanctionYear: "2019" },
+  { zoneName: "Zone IV - Patna", stateName: "Bihar", hostOrg: "Gram Nirman Mandal, Nawada", districtName: "Nawada", kvk: "KVK Nawada", mobile: "-", address: "Krishi Vigyan Kendra, Nawada, Gram Nirman Mandal, Sarvodaya Ashram, Sokhodeora, Kawakol, Nawada- 805106 (Bihar)", email: "nawadakvk@gmail.com", sanctionYear: "1979" },
+  { zoneName: "Zone IV - Patna", stateName: "Bihar", hostOrg: "Vanvashi Seva Kendra, Kaimur", districtName: "Kaimur", kvk: "KVK Kaimur", mobile: "91618029010", address: "KVK Kaimur", email: "kaimurkvk@gmail.com", sanctionYear: "1992" },
+  { zoneName: "Zone IV - Patna", stateName: "Bihar", hostOrg: "BASU Patna", districtName: "Jamui", kvk: "KVK Jamui", mobile: "8292847841", address: "Krishi Vigyan Kendra, Vill: Garo Nawada, Panchayat: Thegua, Post: Jamui 811307 (Bihar)", email: "basukvkjamui@gmail.com", sanctionYear: "2019" },
+  { zoneName: "Zone IV - Patna", stateName: "Bihar", hostOrg: "DRPCAU", districtName: "Madhubani-II", kvk: "KVK Madhubani-II", mobile: "06273291265", address: "Sukhet, Jhanjharpur, Madhubani - 847404", email: "head.kvk.sukhet@rpcau.ac.in", sanctionYear: "2019" },
+  { zoneName: "Zone IV - Patna", stateName: "Jharkhand", hostOrg: "BAU Ranchi", districtName: "Bokaro", kvk: "KVK Bokaro", mobile: "9431339380", address: "KVK Bokaro", email: "kvkpetarwarbokaro@gmail.com", sanctionYear: "2004" },
+  { zoneName: "Zone IV - Patna", stateName: "Jharkhand", hostOrg: "BAU Ranchi", districtName: "Giridih", kvk: "KVK Giridih", mobile: "7979887927", address: "Topaiya Farm, Bengabad, Giridih- 815312", email: "kvkgiridih@gmail.com", sanctionYear: "2004" },
+  { zoneName: "Zone IV - Patna", stateName: "Jharkhand", hostOrg: "BAU Ranchi", districtName: "Lohardaga", kvk: "KVK Lohardaga", mobile: "9142256839", address: "KVK Lohardaga, @ Kisko on Lohardaga Latehar Road PIN 835302", email: "kvklohardaga2011@gmail.com", sanctionYear: "2004" },
+  { zoneName: "Zone IV - Patna", stateName: "Jharkhand", hostOrg: "BAU Ranchi", districtName: "Sahibganj", kvk: "KVK Sahibganj", mobile: "9430112886", address: "NH-80, Near Saksharata More, PO- Jirwabari, Sahibganj - 816109 (Jharkhand)", email: "sahibganjkvk@gmail.com", sanctionYear: "2004" },
+  { zoneName: "Zone IV - Patna", stateName: "Jharkhand", hostOrg: "State Govt. Deoghar", districtName: "Deoghar", kvk: "KVK Deoghar", mobile: "7549106450", address: "Vill: Sujani, P.O. Ghorlash, Deoghar, Jharkhand, Pin: 814152", email: "kvkdeoghar@gmail.com", sanctionYear: "1985" },
+  { zoneName: "Zone IV - Patna", stateName: "Jharkhand", hostOrg: "Gramin Vikas Trust, Noida", districtName: "Godda", kvk: "KVK Godda", mobile: "9939498711", address: "Gramin Vikas Trust – Krishi Vigyan Kendra Chakeshwari Farm, Godda, Jharkhand, Pin-814133", email: "kvkgodda@gmail.com", sanctionYear: "2006" },
+  { zoneName: "Zone IV - Patna", stateName: "Jharkhand", hostOrg: "BAU Ranchi", districtName: "Latehar", kvk: "KVK Latehar", mobile: "06568267149", address: "KVK Latehar", email: "kvk_latehar@rediffmail.com", sanctionYear: "2007" },
+  { zoneName: "Zone IV - Patna", stateName: "Jharkhand", hostOrg: "BAU Ranchi", districtName: "Pakur", kvk: "KVK Pakur", mobile: "8210877355", address: "KVK Pakur", email: "kvkpakur@gmail.com", sanctionYear: "2004" },
+  { zoneName: "Zone IV - Patna", stateName: "Jharkhand", hostOrg: "Vikas Bharti Bishunpur Gumla", districtName: "Gumla", kvk: "KVK Gumla", mobile: "6523297004", address: "Krishi Vigyan Kendra Gumla Vikas Bharti Bishunpur PO-Bishunpur Dist-Gumla PIN-835231", email: "kvk.gumla@gmail.com", sanctionYear: "2004" },
+  { zoneName: "Zone IV - Patna", stateName: "Jharkhand", hostOrg: "BAU Ranchi", districtName: "Dumka", kvk: "KVK Dumka", mobile: "9142256839", address: "Khuntabandh, District - Dumka, Pincode 814101, Jharkhand", email: "dumkakvk@gmail.com", sanctionYear: "2004" },
+  { zoneName: "Zone IV - Patna", stateName: "Jharkhand", hostOrg: "BAU Ranchi", districtName: "East Singhbhum", kvk: "KVK East Singhbhum", mobile: "9431580771", address: "KVK East Singhbhum", email: "kvk_eastsinghbhum@rediffmail.com", sanctionYear: "2005" },
+  { zoneName: "Zone IV - Patna", stateName: "Jharkhand", hostOrg: "BAU Ranchi", districtName: "Garhwa", kvk: "KVK Garhwa", mobile: "7903088299", address: "KVK Garhwa", email: "garhwakvk@gmail.com", sanctionYear: "2005" },
+  { zoneName: "Zone IV - Patna", stateName: "Bihar", hostOrg: "BAU Sabour", districtName: "Patna", kvk: "KVK Patna", mobile: "0612-2500123", address: "Krishi Vigyan Kendra, Patna, Bihar - 800001", email: "patnakvk@gmail.com", sanctionYear: "2018" },
+  { zoneName: "Zone IV - Patna", stateName: "Jharkhand", hostOrg: "BAU Ranchi", districtName: "Palamu", kvk: "KVK Palamu", mobile: "7979753401", address: "KVK Palamu", email: "kvkchianki@gmail.com", sanctionYear: "2002" },
+  { zoneName: "Zone IV - Patna", stateName: "Jharkhand", hostOrg: "ICAR-NISA Ranchi", districtName: "Khunti", kvk: "KVK Khunti", mobile: "9558277233", address: "KVK Khunti", email: "kvkkhunti@gmail.com", sanctionYear: "2014" },
+  { zoneName: "Zone IV - Patna", stateName: "Jharkhand", hostOrg: "ICAR-CRRI Cuttack", districtName: "Koderma", kvk: "KVK Koderma", mobile: "9558277233", address: "KVK Koderma", email: "kvkkodermanrri@gmail.com", sanctionYear: "2026" },
+  { zoneName: "Zone IV - Patna", stateName: "Jharkhand", hostOrg: "ICAR-RCER Patna", districtName: "Ramgarh", kvk: "KVK Ramgarh", mobile: "9430003184", address: "KVK Ramgarh", email: "kvkramgarh2020@gamil.com", sanctionYear: "2026" },
+  { zoneName: "Zone IV - Patna", stateName: "Bihar", hostOrg: "DRPCAU", districtName: "Samastipur-I", kvk: "KVK Samastipur-I", mobile: "7295046855", address: "KVK Samastipur", email: "head.kvk.birauli@rpcau.ac.in", sanctionYear: "2026" },
+  { zoneName: "Zone IV - Patna", stateName: "Jharkhand", hostOrg: "BAU Ranchi", districtName: "Saraikela", kvk: "KVK Saraikela", mobile: "7759985086", address: "KVK Saraikela-Kharsawan", email: "kvksaraikela@gmail.com", sanctionYear: "2026" },
+  { zoneName: "Zone IV - Patna", stateName: "Jharkhand", hostOrg: "BAU Ranchi", districtName: "Chatra", kvk: "KVK Chatra", mobile: "9431339380", address: "KVK Chatra", email: "chatrakvk@gmail.com", sanctionYear: "2000" },
+  { zoneName: "Zone IV - Patna", stateName: "Jharkhand", hostOrg: "BAU Ranchi", districtName: "Jamtara", kvk: "KVK Jamtara", mobile: "8051931636", address: "KVK Jamtara", email: "kvkbenajamtara@gmail.com", sanctionYear: "2000" },
+  { zoneName: "Zone IV - Patna", stateName: "Jharkhand", hostOrg: "BAU Ranchi", districtName: "Simdega", kvk: "KVK Simdega", mobile: "7004049495", address: "KVK Simdega", email: "simdegakvk@gmail.com", sanctionYear: "2000" },
+  { zoneName: "Zone IV - Patna", stateName: "Jharkhand", hostOrg: "BAU Ranchi", districtName: "West Singhbhum", kvk: "KVK West Singhbhum", mobile: "8292524455", address: "KVK West Singhbhum", email: "kvkwsm2@gmail.com", sanctionYear: "2000" },
+  { zoneName: "Zone IV - Patna", stateName: "Bihar", hostOrg: "Samta Seva Kendra Sitamarhi", districtName: "Sitamarhi", kvk: "KVK Sitamarhi", mobile: "6228291040", address: "KVK Sitamarhi", email: "sitamarhikvk@gmail.com", sanctionYear: "2000" },
+  { zoneName: "Zone IV - Patna", stateName: "Jharkhand", hostOrg: "BAU Ranchi", districtName: "Dhanbad", kvk: "KVK Dhanbad", mobile: "9431176741", address: "KVK Dhanbad, Baliapur Farm, Dhanbad- 828201", email: "kvkdhanbadbau.2012@gmail.com", sanctionYear: "2005" },
+  { zoneName: "Zone IV - Patna", stateName: "Bihar", hostOrg: "BAU Sabour", districtName: "Araria", kvk: "KVK Araria", mobile: "9431645217", address: "KVK Araria", email: "arariaakvk@gmail.com", sanctionYear: "2004" },
+  { zoneName: "Zone IV - Patna", stateName: "Bihar", hostOrg: "BAU Sabour", districtName: "Arwal", kvk: "KVK Arwal", mobile: "8210554284", address: "At - Lodipur, Post - Sarwarpur, PS - Mehandia, Block - Kaler, District - Arwal, Pin - 804428 (Bihar)", email: "arwalkvk@gmail.com", sanctionYear: "2008" },
+  { zoneName: "Zone IV - Patna", stateName: "Bihar", hostOrg: "BAU Sabour", districtName: "Aurangabad", kvk: "KVK Aurangabad", mobile: "8298641285", address: "KVK Aurangabad", email: "aurangabadkvk@gmail.com", sanctionYear: "2006" },
+  { zoneName: "Zone IV - Patna", stateName: "Bihar", hostOrg: "BAU Sabour", districtName: "Banka", kvk: "KVK Banka", mobile: "9431659922", address: "KVK Banka", email: "bankakvk@gmail.com", sanctionYear: "1983" },
+  { zoneName: "Zone IV - Patna", stateName: "Bihar", hostOrg: "BAU Sabour", districtName: "Bhagalpur", kvk: "KVK Bhagalpur", mobile: "0641-2451186", address: "KVK Bhagalpur, Bihar, Pin – 813210", email: "bhagalpurkvk@gmail.com", sanctionYear: "2004" },
+  { zoneName: "Zone IV - Patna", stateName: "Bihar", hostOrg: "BAU Sabour", districtName: "Bhojpur", kvk: "KVK Bhojpur", mobile: "9431479522", address: "KVK Bhojpur", email: "bhojpurkvk@gmail.com", sanctionYear: "1994" },
+  { zoneName: "Zone IV - Patna", stateName: "Bihar", hostOrg: "BAU Sabour", districtName: "Gaya-II", kvk: "KVK Gaya-II", mobile: "9304808425", address: "KVK Gaya-II Amas, Pathra More, Manjholia, PIN Code 824219", email: "kvkamasgaya@gmail.com", sanctionYear: "2019" },
+  { zoneName: "Zone IV - Patna", stateName: "Bihar", hostOrg: "BAU Sabour", districtName: "Jehanabad", kvk: "KVK Jehanabad", mobile: "8102372649", address: "Krishi Vigyan Kendra, Gandhar, Jehanabad (Bihar), PIN-804432", email: "jehanabadkvk@gmail.com", sanctionYear: "2006" },
+  { zoneName: "Zone IV - Patna", stateName: "Bihar", hostOrg: "BAU Sabour", districtName: "Katihar", kvk: "KVK Katihar", mobile: "06452291095", address: "Krishi Vigyan Kendra Katihar, Tingachhiya, Katihar, PIN-854103", email: "katiharkvk@gmail.com", sanctionYear: "2004" },
+  { zoneName: "Zone IV - Patna", stateName: "Bihar", hostOrg: "BAU Sabour", districtName: "Khagaria", kvk: "KVK Khagaria", mobile: "7903714090", address: "At- Permanandpur, Po- Koshi College", email: "kvkkhagaria@gmail.com", sanctionYear: "2010" },
+  { zoneName: "Zone IV - Patna", stateName: "Bihar", hostOrg: "BAU Sabour", districtName: "Kishanganj", kvk: "KVK Kishanganj", mobile: "06456-291272", address: "Hawai Adda Road, Near BSF Head Quarter, Khagra, Kishanganj, Bihar, PIN – 855107", email: "kishanganjkvk@gmail.com", sanctionYear: "2006" },
+  { zoneName: "Zone IV - Patna", stateName: "Bihar", hostOrg: "BAU Sabour", districtName: "Lakhisarai", kvk: "KVK Lakhisarai", mobile: "9931095869", address: "Block - Halsi, Lakhisarai-8113118", email: "lakhisaraikvk@gmail.com", sanctionYear: "2006" },
+  { zoneName: "Zone IV - Patna", stateName: "Bihar", hostOrg: "BAU Sabour", districtName: "Madhepura", kvk: "KVK Madhepura", mobile: "8987193648", address: "KVK Madhepura", email: "madhepura.kvk@gmail.com", sanctionYear: "2003" },
+  { zoneName: "Zone IV - Patna", stateName: "Bihar", hostOrg: "BAU Sabour", districtName: "Munger", kvk: "KVK Munger", mobile: "9608658459", address: "KVK Munger", email: "mungerkvk@gmail.com", sanctionYear: "1979" },
+  { zoneName: "Zone IV - Patna", stateName: "Jharkhand", hostOrg: "Ramkrishna Mission Ashrama Morabadi", districtName: "Ranchi", kvk: "KVK Ranchi", mobile: "06512551970", address: "Divyayan KVK, Ramakrishna Mission Ashrama, Morabadi, Ranchi - 834008 (Jharkhand)", email: "kvk.divyayan@gmail.com", sanctionYear: "1977" },
+  { zoneName: "Zone IV - Patna", stateName: "Bihar", hostOrg: "DRPCAU", districtName: "Muzaffarpur-I", kvk: "KVK Muzaffarpur-I", mobile: "6287797159", address: "KVK Muzaffarpur", email: "head.kvk.saraiya@rpcau.ac.in", sanctionYear: "1996" },
+  { zoneName: "Zone IV - Patna", stateName: "Bihar", hostOrg: "BAU Sabour", districtName: "Gaya-I", kvk: "KVK Manpur Gaya-I", mobile: "9122386485", address: "KVK Gaya", email: "kvkmanpurgaya@gmail.com", sanctionYear: "2006" },
+  { zoneName: "Zone IV - Patna", stateName: "Bihar", hostOrg: "BAU Sabour", districtName: "Rohtas", kvk: "KVK Rohtas", mobile: "06185222800", address: "Ara Road, Bikramganj, Rohtas PIN-802212", email: "rohtaskvk@gmail.com", sanctionYear: "2004" },
+  { zoneName: "Zone IV - Patna", stateName: "Bihar", hostOrg: "DRPCAU", districtName: "Vaishali", kvk: "KVK Vaishali", mobile: "6287797172", address: "KVK Vaishali", email: "head.kvk.vaishali@rpcau.ac.in", sanctionYear: "1997" },
+  { zoneName: "Zone IV - Patna", stateName: "Bihar", hostOrg: "DRPCAU", districtName: "Begusarai", kvk: "KVK Begusarai", mobile: "6287797169", address: "KVK Begusarai At- Khodawandpur, Post- Meghaul, Block- Khodawnandpur, Dist- Begusarai- 848202", email: "head.kvk.begusarai@rpcau.ac.in", sanctionYear: "1992" },
+  { zoneName: "Zone IV - Patna", stateName: "Bihar", hostOrg: "DRPCAU", districtName: "East Champaran-I", kvk: "KVK East Champaran-I", mobile: "6287797163", address: "KVK East Champaran", email: "head.kvk.piprakothi@rpcau.ac.in", sanctionYear: "2006" },
+  { zoneName: "Zone IV - Patna", stateName: "Bihar", hostOrg: "DRPCAU", districtName: "Darbhanga", kvk: "KVK Darbhanga", mobile: "6287797170", address: "KVK Darbhanga", email: "head.kvk.jale@rpcau.ac.in", sanctionYear: "1995" },
+  { zoneName: "Zone IV - Patna", stateName: "Bihar", hostOrg: "DRPCAU", districtName: "Siwan", kvk: "KVK Siwan", mobile: "6287797168", address: "KVK Siwan", email: "head.kvk.siwan@rpcau.ac.in", sanctionYear: "2004" },
+  { zoneName: "Zone IV - Patna", stateName: "Bihar", hostOrg: "BAU Sabour", districtName: "Purnea", kvk: "KVK Purnea", mobile: "9430613389", address: "KVK PURNEA, POST-JALALGARH, DIST-PURNEA, PIN-854327", email: "purneakvk@gmail.com", sanctionYear: "2004" },
+  { zoneName: "Zone IV - Patna", stateName: "Bihar", hostOrg: "ICAR-RCER Patna", districtName: "Buxar", kvk: "KVK Buxar", mobile: "06183222208", address: "Village-Lalganj, Itarhi Road, Post-Sondhila, District-Buxar, State-Bihar, Pin-802103", email: "buxarkvk@gmail.com", sanctionYear: "2007" },
+  { zoneName: "Zone IV - Patna", stateName: "Bihar", hostOrg: "BAU Sabour", districtName: "Nalanda", kvk: "KVK Nalanda", mobile: "9931499302", address: "KVK Nalanda Gonawan Road, Post Harnaut, Nalanda, Bihar", email: "nalandakvk2017@gmail.com", sanctionYear: "1992" },
+  { zoneName: "Zone IV - Patna", stateName: "Bihar", hostOrg: "BAU Sabour", districtName: "Saharsa", kvk: "KVK Saharsa", mobile: "9431413543", address: "KVK Saharsa", email: "saharsakvk@gmail.com", sanctionYear: "1984" },
+  { zoneName: "Zone IV - Patna", stateName: "Bihar", hostOrg: "BAU Sabour", districtName: "Supaul", kvk: "KVK Supaul", mobile: "9430949800", address: "Krishi Vigyan Kendra, Raghopur, Supaul Pin 852111", email: "supaulkvk@gmail.com", sanctionYear: "2006" },
+  { zoneName: "Zone IV - Patna", stateName: "Bihar", hostOrg: "BAU Sabour", districtName: "Sheikhpura", kvk: "KVK Sheikhpura", mobile: "7903914728", address: "KVK Sheikhpura", email: "kvksheikhpura@gmail.com", sanctionYear: "1996" },
+  { zoneName: "Zone IV - Patna", stateName: "Bihar", hostOrg: "DRPCAU", districtName: "East Champaran-II", kvk: "KVK East Champaran-II", mobile: "6287797164", address: "KVK East Champaran-II, Parsauni", email: "head.kvk.parsauni@rpcau.ac.in", sanctionYear: "2019" },
 ];
-export const KVK_MASTER_TOTAL = 65;
+export const KVK_MASTER_TOTAL = 66;
 
 export type InstituteMasterRow = { instituteName: string };
 

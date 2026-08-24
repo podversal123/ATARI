@@ -13,6 +13,9 @@ import {
   EmptyDataTable,
   type MasterTab,
 } from "@/components/data-table/empty-data-table";
+import { AddLeafPage } from "@/components/data-table/add-leaf-page";
+import { HostMasterAddForm } from "@/components/data-table/host-master-add-form";
+import { KvkMasterAddForm } from "@/components/data-table/kvk-master-add-form";
 import {
   ZONE_MASTER_ROWS,
   STATE_MASTER_ROWS,
@@ -104,11 +107,61 @@ const MASTERS_DATA: Record<
 };
 
 export default async function MastersPage({ params }: MastersPageProps) {
-  const { slug } = await params;
+  const { slug: rawSlug } = await params;
+
+  /**
+   * "Add New" for All Masters now opens a dedicated page too (client
+   * direction, 2026-08-24 - previously only Form Management did this, with
+   * Masters/Targets/Notifications kept on the popup dialog). Rather than a
+   * sibling route file (which Next.js can't nest under a catch-all segment
+   * folder), a trailing "add" slug segment is handled right here - same
+   * pattern as forms/[...slug]/page.tsx.
+   */
+  const isAddPage = rawSlug[rawSlug.length - 1] === "add";
+  const slug = isAddPage ? rawSlug.slice(0, -1) : rawSlug;
+
   const resolved = resolveNavPath(ALL_MASTERS, slug);
   if (!resolved) notFound();
 
   const { node, trail } = resolved;
+
+  const cascadeType =
+    node.type === "leaf" && node.slug === "district-master"
+      ? "district"
+      : node.type === "leaf" && node.slug === "kvk-master"
+        ? "kvk"
+        : undefined;
+
+  if (isAddPage) {
+    if (node.type !== "leaf") notFound();
+    const addTrail: Crumb[] = [{ label: "All Masters", href: "/masters" }];
+    trail.forEach((item, index) => {
+      addTrail.push({
+        label: item.label,
+        href: `/masters/${trail
+          .slice(0, index + 1)
+          .map((t) => t.slug)
+          .join("/")}`,
+      });
+    });
+    const addBackHref = `/masters/${slug.join("/")}`;
+    if (node.slug === "host-master") {
+      return <HostMasterAddForm trail={addTrail} backHref={addBackHref} />;
+    }
+    if (node.slug === "kvk-master") {
+      return <KvkMasterAddForm trail={addTrail} backHref={addBackHref} />;
+    }
+    return (
+      <AddLeafPage
+        title={node.label}
+        trail={addTrail}
+        backHref={addBackHref}
+        columns={node.columns}
+        cascadeType={cascadeType}
+        titlePrefix="Create"
+      />
+    );
+  }
 
   const trailCrumbs: Crumb[] = [{ label: "All Masters", href: "/masters" }];
   trail.slice(0, -1).forEach((item, index) => {
@@ -141,12 +194,6 @@ export default async function MastersPage({ params }: MastersPageProps) {
   }
 
   const masterData = node.type === "leaf" ? MASTERS_DATA[node.slug] : undefined;
-  const cascadeType =
-    node.type === "leaf" && node.slug === "district-master"
-      ? "district"
-      : node.type === "leaf" && node.slug === "kvk-master"
-        ? "kvk"
-        : undefined;
 
   /**
    * Every "All Masters" group's landing page - confirmed via live the reference
@@ -167,10 +214,14 @@ export default async function MastersPage({ params }: MastersPageProps) {
     }
   }
 
+  /** Back must return to the immediate parent page (the crumb to the left), not the All Masters root - same fix as Form Management's catch-all route (client pointer, 2026-08-24). */
+  const listBackHref =
+    trailCrumbs[trailCrumbs.length - 2]?.href ?? "/masters";
+
   return (
     <div>
       <PageHeader
-        backHref="/masters"
+        backHref={listBackHref}
         trail={trailCrumbs}
         title={
           node.type === "group" ? (node.pageTitle ?? node.label) : undefined
@@ -193,6 +244,7 @@ export default async function MastersPage({ params }: MastersPageProps) {
           rows={masterData?.rows}
           totalCount={masterData?.totalCount}
           cascadeType={cascadeType}
+          addNewHref={`/masters/${slug.join("/")}/add`}
         />
       ) : null}
     </div>
