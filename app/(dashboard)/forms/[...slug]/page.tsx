@@ -122,9 +122,15 @@ export default async function FormsPage({ params }: FormsPageProps) {
    */
   let moduleTrail: MasterTab[] | undefined;
   if (node.type === "leaf") {
-    const groupTrail = trail.filter(
-      (item): item is NavGroup => item.type === "group",
-    );
+    const groupTrail = trail
+      .filter((item): item is NavGroup => item.type === "group")
+      .filter(
+        (item) =>
+          !(
+            trail[0]?.slug === "about-kvk" &&
+            ABOUT_KVK_CARD_ONLY_GROUP_SLUGS.has(item.slug)
+          ),
+      );
     if (groupTrail.length > 0) {
       moduleTrail = groupTrail.map((item, index) => ({
         label: item.label,

@@ -265,30 +265,35 @@ const otherMasters = group(
         [{ key: "name", label: "Specific Area Name" }],
         "Impact Specific Area Master",
       ),
+      /** Real column confirmed live. */
       leaf(
         "type-of-enterprise",
         "Enterprises",
-        GENERIC_MASTER_COLUMNS,
+        [{ key: "name", label: "Enterprise Type Name" }],
         "Type of Enterprise Master",
       ),
+      /** Real column confirmed live. */
       leaf(
         "account-type",
         "Account Types",
-        GENERIC_MASTER_COLUMNS,
+        [{ key: "name", label: "Account Type" }],
         "Account Type Master",
       ),
+      /** Real column confirmed live. */
       leaf(
         "programme-type",
         "Programs",
-        GENERIC_MASTER_COLUMNS,
+        [{ key: "name", label: "Programme Type" }],
         "Programme Type Master",
       ),
+      /** Real column confirmed live. */
       leaf(
         "ppv-fra-training-type",
         "PPV & FRA",
-        GENERIC_MASTER_COLUMNS,
+        [{ key: "name", label: "Type Name" }],
         "PPV & FRA Training Type Master",
       ),
+      /** Real column confirmed live - genuinely a plain "Name" column. */
       leaf(
         "vip-dignitary",
         "VIP Dignitaries",
