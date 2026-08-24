@@ -37,8 +37,8 @@ export function AddLeafPage({
     <div>
       <PageHeader backHref={backHref} trail={trail} title={`Add ${title}`} />
 
-      <div className="max-w-xl rounded-lg border border-border bg-card p-5">
-        <div className="space-y-4">
+      <div className="rounded-lg border border-border bg-card p-5">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <MasterFormFields
             columns={columns}
             formValues={formValues}

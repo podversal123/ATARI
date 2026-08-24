@@ -460,6 +460,46 @@ export const CROP_MASTER_ROWS: CropMasterRow[] = [
 ];
 export const CROP_MASTER_TOTAL = 1365;
 
+export type CfldCropRow = { season: string; type: string; cropName: string };
+
+/** All 33 real rows, supplied directly by the client (CFLD Crop Master, 2026-08-24). */
+export const CFLD_CROP_ROWS: CfldCropRow[] = [
+  { season: "Summer", type: "oilseed", cropName: "Sesame" },
+  { season: "Summer", type: "pulses", cropName: "Other" },
+  { season: "Summer", type: "pulses", cropName: "Rajmash" },
+  { season: "Summer", type: "pulses", cropName: "Greengram" },
+  { season: "Rabi", type: "pulses", cropName: "Other" },
+  { season: "Rabi", type: "pulses", cropName: "Bengal gram" },
+  { season: "Rabi", type: "pulses", cropName: "Lathyrus" },
+  { season: "Rabi", type: "pulses", cropName: "Rajmash" },
+  { season: "Rabi", type: "pulses", cropName: "Fieldpea" },
+  { season: "Rabi", type: "pulses", cropName: "Chickpea" },
+  { season: "Kharif", type: "pulses", cropName: "Other" },
+  { season: "Kharif", type: "pulses", cropName: "Mothbean" },
+  { season: "Kharif", type: "pulses", cropName: "Rajmash" },
+  { season: "Kharif", type: "pulses", cropName: "Cowpea" },
+  { season: "Kharif", type: "pulses", cropName: "Horsegram" },
+  { season: "Kharif", type: "pulses", cropName: "Greengram" },
+  { season: "Kharif", type: "pulses", cropName: "Blackgram" },
+  { season: "Summer", type: "pulses", cropName: "Green Gram" },
+  { season: "Kharif", type: "oilseed", cropName: "Niger" },
+  { season: "Rabi", type: "pulses", cropName: "Grasspea Lathyrus" },
+  { season: "Rabi", type: "pulses", cropName: "Field Pea" },
+  { season: "Rabi", type: "pulses", cropName: "Lentil" },
+  { season: "Rabi", type: "pulses", cropName: "Chickpea Gram" },
+  { season: "Rabi", type: "oilseed", cropName: "Linseed" },
+  { season: "Rabi", type: "oilseed", cropName: "Sunflower" },
+  { season: "Rabi", type: "oilseed", cropName: "Rapeseed" },
+  { season: "Rabi", type: "oilseed", cropName: "Mustard" },
+  { season: "Kharif", type: "pulses", cropName: "Urad" },
+  { season: "Kharif", type: "pulses", cropName: "Moong" },
+  { season: "Kharif", type: "pulses", cropName: "Pigeonpea" },
+  { season: "Kharif", type: "oilseed", cropName: "Sesame" },
+  { season: "Kharif", type: "oilseed", cropName: "Soybean" },
+  { season: "Kharif", type: "oilseed", cropName: "Groundnut" },
+];
+export const CFLD_CROP_TOTAL = CFLD_CROP_ROWS.length;
+
 /**
  * Training & Extension Masters - real reference data.
  */

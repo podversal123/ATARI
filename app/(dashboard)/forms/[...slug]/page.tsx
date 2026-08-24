@@ -26,6 +26,29 @@ const CUSTOM_FORM_SLUGS = new Set([
   ...EVENT_DEMOGRAPHIC_SLUGS,
 ]);
 
+/**
+ * About KVK's 5 sub-groups (Basic Information, Employee Information, Land &
+ * Infrastructure Information, Vehicles Information, Equipments Information)
+ * exist only to group their leaves into landing-page cards - the real
+ * reference's own breadcrumb for every leaf underneath them skips straight
+ * from "About KVK" to the leaf name (confirmed directly against every one of
+ * the 5: /forms/about-kvk/view-kvks, bank-account, employee-details,
+ * infrastructure, vehicles, equipments all render "Form Management > About
+ * KVK > {leaf}" with no group crumb in between). Achievements/Projects/CFLD
+ * and the rest of Form Management do NOT share this - their own group crumbs
+ * (Projects, CFLD, Front Line Demonstrations (FLD), ...) are confirmed to
+ * appear in the real breadcrumb, so this suppression is scoped to these 5
+ * slugs only, not a general rule. Applied to both the list page's breadcrumb
+ * and the Add page's breadcrumb, so the two stay consistent.
+ */
+const ABOUT_KVK_CARD_ONLY_GROUP_SLUGS = new Set([
+  "basic",
+  "employee",
+  "land-infrastructure",
+  "vehicles",
+  "equipments",
+]);
+
 type FormsPageProps = {
   params: Promise<{ slug: string[] }>;
 };
@@ -51,6 +74,13 @@ export default async function FormsPage({ params }: FormsPageProps) {
     if (node.type !== "leaf" || CUSTOM_FORM_SLUGS.has(node.slug)) notFound();
     const addTrail: Crumb[] = [{ label: "Form Management", href: "/forms" }];
     trail.forEach((item, index) => {
+      if (
+        trail[0]?.slug === "about-kvk" &&
+        item.type === "group" &&
+        ABOUT_KVK_CARD_ONLY_GROUP_SLUGS.has(item.slug)
+      ) {
+        return;
+      }
       addTrail.push({
         label: item.label,
         href: `/forms/${trail
@@ -73,28 +103,6 @@ export default async function FormsPage({ params }: FormsPageProps) {
     );
   }
 
-  /**
-   * About KVK's 5 sub-groups (Basic Information, Employee Information, Land
-   * & Infrastructure Information, Vehicles Information, Equipments
-   * Information) exist only to group their leaves into landing-page cards -
-   * the real reference's own breadcrumb for every leaf underneath them skips
-   * straight from "About KVK" to the leaf name (confirmed directly against
-   * every one of the 5: /forms/about-kvk/view-kvks, bank-account,
-   * employee-details, infrastructure, vehicles, equipments all render
-   * "Form Management > About KVK > {leaf}" with no group crumb in between).
-   * Achievements/Projects/CFLD and the rest of Form Management do NOT share
-   * this - their own group crumbs (Projects, CFLD, Front Line Demonstrations
-   * (FLD), ...) are confirmed to appear in the real breadcrumb, so this
-   * suppression is scoped to these 5 slugs only, not a general rule.
-   */
-  const ABOUT_KVK_CARD_ONLY_GROUP_SLUGS = new Set([
-    "basic",
-    "employee",
-    "land-infrastructure",
-    "vehicles",
-    "equipments",
-  ]);
-
   const trailCrumbs: Crumb[] = [{ label: "Form Management", href: "/forms" }];
   trail.slice(0, -1).forEach((item, index) => {
     if (
@@ -115,31 +123,25 @@ export default async function FormsPage({ params }: FormsPageProps) {
   trailCrumbs.push({ label: node.label });
 
   /**
-   * Green bar above a Form Management table carries the module → sub-module
-   * path only (e.g. "About KVK" › "Employee Information"), not the sibling
-   * form list - client direction: "form management mai module and sub module
-   * hi rhega, extra nahi dikhna chahiye". The deepest group is marked active.
+   * Sibling-leaf tabs above the table, same pattern All Masters uses -
+   * every leaf under the immediate parent group becomes a pill, so clicking
+   * across siblings (e.g. DRMR Details <-> DRMR Activity) doesn't require
+   * going back to the group's landing page first.
    */
-  let moduleTrail: MasterTab[] | undefined;
-  if (node.type === "leaf") {
-    const groupTrail = trail
-      .filter((item): item is NavGroup => item.type === "group")
-      .filter(
-        (item) =>
-          !(
-            trail[0]?.slug === "about-kvk" &&
-            ABOUT_KVK_CARD_ONLY_GROUP_SLUGS.has(item.slug)
-          ),
-      );
-    if (groupTrail.length > 0) {
-      moduleTrail = groupTrail.map((item, index) => ({
-        label: item.label,
-        href: `/forms/${trail
-          .slice(0, trail.indexOf(item) + 1)
-          .map((t) => t.slug)
-          .join("/")}`,
-        active: index === groupTrail.length - 1,
-      }));
+  let tabs: MasterTab[] | undefined;
+  if (node.type === "leaf" && trail.length >= 2) {
+    const parent = trail[trail.length - 2];
+    if (parent.type === "group") {
+      const basePath = `/forms/${slug.slice(0, -1).join("/")}`;
+      tabs = parent.children
+        .filter((item): item is Extract<typeof item, { type: "leaf" }> =>
+          item.type === "leaf",
+        )
+        .map((item) => ({
+          label: item.label,
+          href: `${basePath}/${item.slug}`,
+          active: item.slug === node.slug,
+        }));
     }
   }
 
@@ -178,7 +180,7 @@ export default async function FormsPage({ params }: FormsPageProps) {
           icon="form-management"
           columns={node.columns}
           subtitle={`Manage and view all ${node.label.toLowerCase()} in the system`}
-          moduleTrail={moduleTrail}
+          tabs={tabs}
           addNewHref={
             CUSTOM_FORM_SLUGS.has(node.slug)
               ? undefined

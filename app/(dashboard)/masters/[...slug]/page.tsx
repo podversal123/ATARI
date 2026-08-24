@@ -40,6 +40,8 @@ import {
   FARMING_SYSTEM_TOTAL,
   PUBLICATION_ITEM_ROWS,
   PUBLICATION_ITEM_TOTAL,
+  CFLD_CROP_ROWS,
+  CFLD_CROP_TOTAL,
 } from "@/lib/masters";
 
 type MastersPageProps = {
@@ -98,6 +100,7 @@ const MASTERS_DATA: Record<
     rows: PUBLICATION_ITEM_ROWS,
     totalCount: PUBLICATION_ITEM_TOTAL,
   },
+  "cfld-crop": { rows: CFLD_CROP_ROWS, totalCount: CFLD_CROP_TOTAL },
 };
 
 export default async function MastersPage({ params }: MastersPageProps) {

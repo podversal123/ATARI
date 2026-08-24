@@ -66,15 +66,8 @@ type EmptyDataTableProps = {
   columns: MasterColumn[];
   /** "Manage and view all zone master in the system" - shown under the title. */
   subtitle?: string;
-  /** Sibling masters in the same group, rendered as pills above the card (e.g. Zone/State/District/...). */
+  /** Sibling leaves in the same group, rendered as pills above the card (e.g. Zone/State/District/... in All Masters, DRMR Details/DRMR Activity in Form Management). */
   tabs?: MasterTab[];
-  /**
-   * Module → sub-module path shown in the green bar instead of `tabs`, for
-   * Form Management (client direction: "form management mai module and sub
-   * module hi rhega, extra nahi dikhna chahiye upar green wale div mai").
-   * All Masters keeps the sibling-tab bar, which matches its own reference.
-   */
-  moduleTrail?: MasterTab[];
   /** Real reference rows, keyed by column `key`. Omit to keep the original all-empty placeholder behavior. */
   rows?: Record<string, ReactNode>[];
   /** Real total row count for the pagination footer, when it differs from `rows.length` (a partial first page). */
@@ -122,7 +115,6 @@ export function EmptyDataTable({
   columns,
   subtitle,
   tabs,
-  moduleTrail,
   rows,
   totalCount,
   cascadeType,
@@ -295,9 +287,9 @@ export function EmptyDataTable({
 
   return (
     <div>
-      {(moduleTrail ?? (tabs && tabs.length > 1 ? tabs : undefined))?.length ? (
+      {tabs && tabs.length > 1 ? (
         <div className="mb-4 inline-flex flex-wrap gap-1 rounded-lg bg-primary p-1">
-          {(moduleTrail ?? tabs!).map((tab) => (
+          {tabs.map((tab) => (
             <Link
               key={tab.href}
               href={tab.href}

@@ -39,7 +39,7 @@ export function ViewKvksAddForm({ trail, backHref }: ViewKvksAddFormProps) {
     <div>
       <PageHeader backHref={backHref} trail={trail} title="Add View KVKs" />
 
-      <div className="max-w-xl rounded-lg border border-border bg-card p-5">
+      <div className="rounded-lg border border-border bg-card p-5">
         <div className="space-y-4">
           <div className="space-y-1.5">
             <Label htmlFor="kvk-address">
