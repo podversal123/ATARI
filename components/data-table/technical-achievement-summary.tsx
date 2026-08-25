@@ -13,6 +13,7 @@ import {
   type SummarySection,
 } from "@/lib/technical-achievement-summary";
 import { KVKS } from "@/lib/rbac";
+import { KvkCheckboxFilter } from "./kvk-checkbox-filter";
 
 const HEAD_CELL =
   "border border-border bg-muted/60 px-3 py-2 text-center text-xs font-semibold text-foreground";
@@ -325,14 +326,15 @@ export function TechnicalAchievementSummary({
   );
   /** Defaults to the current year (client pointer: "display the current year's data first by default"), matching OFT/FLD's own Reporting Year filter - was defaulting to blank/"Select year" before. */
   const [reportingYear, setReportingYear] = useState(String(currentYear));
-  const [kvkFilter, setKvkFilter] = useState("");
+  /** Empty array = "All KVKs" (client request, 2026-08-25: checkboxes + a real "Select All" instead of the old single-choice dropdown). */
+  const [kvkFilter, setKvkFilter] = useState<string[]>([]);
   const [appliedYear, setAppliedYear] = useState(reportingYear);
   const [appliedKvk, setAppliedKvk] = useState(kvkFilter);
   const [sectionValues, setSectionValues] = useState<Record<string, SectionValues>>();
 
   useEffect(() => {
     const params = new URLSearchParams({ year: appliedYear });
-    if (appliedKvk) params.set("kvk", appliedKvk);
+    for (const name of appliedKvk) params.append("kvk", name);
     fetch(`/api/technical-achievement-summary?${params}`)
       .then((res) => res.json())
       .then((data) => setSectionValues(data.sections))
@@ -362,25 +364,11 @@ export function TechnicalAchievementSummary({
         </div>
 
         {showKvkFilter && (
-          <div>
-            <label className="text-sm font-medium text-foreground">
-              KVK
-            </label>
-            <div className="mt-1">
-              <select
-                value={kvkFilter}
-                onChange={(event) => setKvkFilter(event.target.value)}
-                className="h-9 w-64 rounded-md border border-border bg-card px-2.5 text-sm text-foreground outline-none focus-visible:border-ring"
-              >
-                <option value="">All KVKs</option>
-                {KVKS.map((kvk) => (
-                  <option key={kvk.name} value={kvk.name}>
-                    {kvk.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
+          <KvkCheckboxFilter
+            kvkNames={KVKS.map((kvk) => kvk.name)}
+            selected={kvkFilter}
+            onApply={setKvkFilter}
+          />
         )}
 
         <Button

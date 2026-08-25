@@ -48,6 +48,59 @@ model User {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
+  loginActivities LoginActivity[]
+
+  @@index([zoneId])
+  @@index([kvkId])
+}
+
+/// One row per successful login - powers the real "View Users Log Activity"
+/// page (S.No/KVK Name/Name Of User/Activity/IP Address/Login Time) and the
+/// Dashboard's Recent Log History card. username/role/kvkName are snapshotted
+/// at write time (not just joined via userId/kvkId) so history stays readable
+/// even if a user is later renamed or removed.
+model LoginActivity {
+  id       String @id @default(cuid())
+  userId   String
+  user     User   @relation(fields: [userId], references: [id])
+  username String
+  role     Role
+
+  kvkId   String?
+  kvk     Kvk?    @relation(fields: [kvkId], references: [id])
+  kvkName String?
+  zoneId  String
+
+  activity  String   @default("Login")
+  ipAddress String?
+  createdAt DateTime @default(now())
+
+  @@index([zoneId])
+  @@index([kvkId])
+  @@index([userId])
+}
+
+/// Real backend for /targets (client request, "changes required 1.0.pdf"
+/// 2026-08-25: "Add Target Option in KVK - the option should allow the KVK
+/// user to enter and save the required target details"). Only the target
+/// number is stored here - "Achieved" is always computed live from the
+/// matching real submissions (Oft/Fld/Training/ExtensionActivity counts for
+/// that kvkId+reportingYear), never a second manually-entered number that
+/// could drift from what was actually submitted.
+model Target {
+  id            String @id @default(cuid())
+  kvkId         String
+  kvk           Kvk    @relation(fields: [kvkId], references: [id])
+  zoneId        String
+  reportingYear Int
+  category      String // "OFT" | "FLD" | "Training" | "Extension Activity"
+  targetValue   Int
+  setByRole     Role
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([kvkId, reportingYear, category])
   @@index([zoneId])
   @@index([kvkId])
 }
@@ -172,6 +225,8 @@ model Kvk {
   hostOrg    HostOrganization @relation(fields: [hostOrgId], references: [id])
 
   users             User[]
+  loginActivities   LoginActivity[]
+  targets           Target[]
   bankAccounts      BankAccount[]
   staff             Staff[]
   staffTransfersIn  StaffTransfer[]  @relation("TransferTo")

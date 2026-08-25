@@ -21,7 +21,6 @@ const VIEW_OPTIONS: {
 const PAGE_SIZE = 10;
 const ONGOING_COLOR = "#eaa624";
 const COMPLETED_COLOR = "var(--color-primary)";
-const NOT_STARTED_COLOR = "var(--color-muted-foreground)";
 
 export type ProgressChartRow = {
   id: string;
@@ -242,6 +241,13 @@ export function ProgressChartCard({
                       <div className="h-full w-full rounded-t-sm bg-muted-foreground/30" />
                     ) : (
                       <>
+                        {/* Real reference (client's own atari-client.vercel.app/dashboard): Completed (green) stacks on top, Ongoing (orange) sits at the base against the axis - not the reverse. */}
+                        {row.completed > 0 && (
+                          <div
+                            className="w-full rounded-t-sm bg-primary"
+                            style={{ height: `${(row.completed / total) * 100}%` }}
+                          />
+                        )}
                         {mode === "split" && row.ongoing > 0 && (
                           <div
                             className="w-full"
@@ -249,12 +255,6 @@ export function ProgressChartCard({
                               backgroundColor: ONGOING_COLOR,
                               height: `${(row.ongoing / total) * 100}%`,
                             }}
-                          />
-                        )}
-                        {row.completed > 0 && (
-                          <div
-                            className="w-full rounded-t-sm bg-primary"
-                            style={{ height: `${(row.completed / total) * 100}%` }}
                           />
                         )}
                       </>

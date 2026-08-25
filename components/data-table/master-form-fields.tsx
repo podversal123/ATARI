@@ -4,6 +4,7 @@ import { useId } from "react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
+import { FileUploadField } from "./file-upload-field";
 import type { MasterColumn } from "@/lib/navigation";
 import {
   REPORT_ZONE_OPTIONS,
@@ -52,6 +53,18 @@ export function MasterFormFields({
         const isHostOrgField =
           cascadeType === "kvk" && column.key === "hostOrg";
         const isStateField = column.key === "stateName";
+
+        if (column.fileKind) {
+          return (
+            <FileUploadField
+              key={column.key}
+              column={column}
+              fieldId={fieldId}
+              value={formValues[column.key] ?? ""}
+              onChange={(url) => onChange({ ...formValues, [column.key]: url })}
+            />
+          );
+        }
 
         if (isCascading) {
           const options =

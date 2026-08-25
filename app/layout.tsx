@@ -2,12 +2,6 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 
-// Co-locate with the Neon database (ap-southeast-1 / Singapore) - safety-net
-// default for any route that doesn't set its own preferredRegion. Without
-// this Vercel runs functions in its default us-east region, adding a
-// cross-Pacific round trip to every query.
-export const preferredRegion = "sin1";
-
 const inter = Inter({
   variable: "--font-inter",
   subsets: ["latin"],

@@ -84,11 +84,11 @@ export function ColumnFilterMenu({
     setOpen(false);
   }
 
+  /** Resets the filter but leaves the popover open (client fix, 2026-08-25: "Clear filters" was closing the popup, matching Done's behavior instead of its own - the reference keeps it open so the user can see the reset state and keep adjusting). */
   function clear() {
     const cleared: ColumnFilterState = { selected: null, sort: null };
     setDraft(cleared);
     onApply(cleared);
-    setOpen(false);
   }
 
   return (

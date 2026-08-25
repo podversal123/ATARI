@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ChevronLeft, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,7 @@ import { ReportPreviewCard } from "@/components/reports/report-preview-card";
 import { DownloadReportButtons } from "@/components/reports/download-report-buttons";
 import { useReportPreview } from "@/components/reports/use-report-preview";
 import { formatDisplayDate } from "@/lib/reports";
+import type { ReportSection } from "@/lib/report-data";
 
 /**
  * Generate Preview navigates here instead of updating the filter page
@@ -33,11 +34,42 @@ function ReportPreviewContent() {
 
   const type = params.get("type") === "kvk" ? "kvk" : "admin";
   const backHref = "/reports";
+  const [pdfLoading, setPdfLoading] = useState(false);
+  const [pdfError, setPdfError] = useState<string | null>(null);
 
   useEffect(() => {
     generate(() => null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  async function handleDownloadPdf() {
+    setPdfError(null);
+    setPdfLoading(true);
+    try {
+      const kvkFilter = params.get("kvk");
+      const query = kvkFilter ? `?kvk=${encodeURIComponent(kvkFilter)}` : "";
+      const response = await fetch(`/api/reports/generate${query}`);
+      const data: { zoneLabel: string; kvkNames: string[]; sections: ReportSection[] } | { error: string } =
+        await response.json();
+      if (!response.ok || "error" in data) {
+        setPdfError("error" in data ? data.error : "Could not generate the report.");
+        return;
+      }
+      const { generateReportPdf } = await import("@/lib/report-pdf");
+      const doc = generateReportPdf({
+        title: "ATARI AMS REPORT",
+        zoneLabel: data.zoneLabel,
+        reportingYearLabel: "All Data",
+        kvkNames: data.kvkNames,
+        sections: data.sections,
+      });
+      doc.save(`ATARI-AMS-Report-${new Date().toISOString().slice(0, 10)}.pdf`);
+    } catch {
+      setPdfError("Could not reach the server. Please try again.");
+    } finally {
+      setPdfLoading(false);
+    }
+  }
 
   const metaColumns =
     type === "kvk"
@@ -119,7 +151,12 @@ function ReportPreviewContent() {
           <p className="mb-2 text-xs font-medium text-muted-foreground">
             Download Report
           </p>
-          <DownloadReportButtons enabled={false} />
+          <DownloadReportButtons onDownloadPdf={handleDownloadPdf} pdfLoading={pdfLoading} />
+          {pdfError && (
+            <p role="alert" className="mt-2 text-sm font-medium text-destructive">
+              {pdfError}
+            </p>
+          )}
         </div>
       </div>
     </div>

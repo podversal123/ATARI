@@ -106,6 +106,8 @@ export const LEAF_RECORD_REGISTRY: Record<string, CreateFn> = {
         jobType: str(v.jobType),
         allowances: str(v.allowances),
         category: str(v.casteCategory),
+        photoUrl: str(v.photo),
+        resumeUrl: str(v.resume),
       },
     }),
 
@@ -252,8 +254,11 @@ export const LEAF_RECORD_REGISTRY: Record<string, CreateFn> = {
     prisma.cfldBudgetUtilization.create({
       data: { ...ctx, crop: reqStr(v.crop), season: reqStr(v.season), overallFundAllocation: reqDec(v.overallFundAllocation) },
     }),
-  "projects/cfld/crop-wise-images": (v, ctx) =>
-    prisma.cfldCropWiseImage.create({ data: { ...ctx, crop: reqStr(v.crop), imageUrl: "" } }),
+  "projects/cfld/crop-wise-images": (v, ctx) => {
+    const imageUrl = reqStr(v.image);
+    if (!imageUrl) throw new Error("An image is required.");
+    return prisma.cfldCropWiseImage.create({ data: { ...ctx, crop: reqStr(v.crop), imageUrl } });
+  },
   "projects/nicra/basic-information": (v, ctx) =>
     prisma.nicraBasicInformation.create({
       data: { ...ctx, rfDistrictNormal: dec(v.rfDistrictNormal), rfDistrictReceived: dec(v.rfDistrictReceived), maxTemperature: dec(v.maxTemperature), minTemperature: dec(v.minTemperature) },
@@ -717,6 +722,8 @@ export const LEAF_UPDATE_REGISTRY: Record<string, UpdateFn> = {
         jobType: str(v.jobType),
         allowances: str(v.allowances),
         category: str(v.casteCategory),
+        photoUrl: str(v.photo),
+        resumeUrl: str(v.resume),
       },
     }),
   "about-kvk/infrastructure/infrastructure-details": (id, v, ctx) =>
@@ -897,8 +904,11 @@ export const LEAF_UPDATE_REGISTRY: Record<string, UpdateFn> = {
     prisma.cfldExtensionActivity.updateMany({ where: { id, kvkId: ctx.kvkId }, data: { season: reqStr(v.season), activitiesOrganized: reqStr(v.activitiesOrganized), date: reqDate(v.date), placeOfActivity: reqStr(v.placeOfActivity), farmersAttended: reqInt(v.farmersAttended) } }),
   "projects/cfld/budget-utilization": (id, v, ctx) =>
     prisma.cfldBudgetUtilization.updateMany({ where: { id, kvkId: ctx.kvkId }, data: { crop: reqStr(v.crop), season: reqStr(v.season), overallFundAllocation: reqDec(v.overallFundAllocation) } }),
-  "projects/cfld/crop-wise-images": (id, v, ctx) =>
-    prisma.cfldCropWiseImage.updateMany({ where: { id, kvkId: ctx.kvkId }, data: { crop: reqStr(v.crop) } }),
+  "projects/cfld/crop-wise-images": (id, v, ctx) => {
+    const imageUrl = reqStr(v.image);
+    if (!imageUrl) throw new Error("An image is required.");
+    return prisma.cfldCropWiseImage.updateMany({ where: { id, kvkId: ctx.kvkId }, data: { crop: reqStr(v.crop), imageUrl } });
+  },
   "projects/nicra/basic-information": (id, v, ctx) =>
     prisma.nicraBasicInformation.updateMany({ where: { id, kvkId: ctx.kvkId }, data: { rfDistrictNormal: dec(v.rfDistrictNormal), rfDistrictReceived: dec(v.rfDistrictReceived), maxTemperature: dec(v.maxTemperature), minTemperature: dec(v.minTemperature) } }),
   "projects/nicra/details": (id, v, ctx) =>

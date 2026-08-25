@@ -1,16 +1,51 @@
-import Link from "next/link";
+"use client";
 
-/** Same column set as the full Log History page (KVK Name/Name Of User/Activity/IP Address/Login Time), just without the S.No column the reference's own compact widget drops. */
-const COLUMNS = [
-  "KVK Name",
-  "Name Of User",
-  "Activity",
-  "IP Address",
-  "Login Time",
-];
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import { useSession } from "@/lib/session";
+
+type LogRow = {
+  id: string;
+  kvkName: string;
+  nameOfUser: string;
+  activity: string;
+  ipAddress: string;
+  loginTime: string;
+};
+
+const ALL_COLUMNS = ["KVK Name", "Name Of User", "Activity", "IP Address", "Login Time"];
+
+function formatLoginTime(iso: string) {
+  return new Date(iso).toLocaleString("en-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
 
 /** Fixed to 450px so this card matches the real rendered height of the OFT/FLD/Training/Extension progress cards above it - this dashboard's other row of content cards - rather than drifting to whatever height its own content happens to need. */
 export function RecentLogHistoryCard() {
+  const session = useSession();
+  const isKvkScoped = session.role !== "super-admin";
+  const columns = isKvkScoped ? ALL_COLUMNS.filter((c) => c !== "KVK Name") : ALL_COLUMNS;
+
+  const [rows, setRows] = useState<LogRow[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/log-history?limit=6")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: { rows: LogRow[] } | null) => {
+        if (!cancelled && data) setRows(data.rows);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   return (
     <div className="flex h-[450px] flex-col rounded-lg border border-border bg-card p-5">
       <div className="flex items-center justify-between">
@@ -28,7 +63,7 @@ export function RecentLogHistoryCard() {
         <table className="h-full w-full text-sm">
           <thead>
             <tr className="border-b border-border bg-muted/50 text-left text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-              {COLUMNS.map((column) => (
+              {columns.map((column) => (
                 <th key={column} className="px-5 py-2">
                   {column}
                 </th>
@@ -36,14 +71,30 @@ export function RecentLogHistoryCard() {
             </tr>
           </thead>
           <tbody>
-            <tr>
-              <td
-                colSpan={COLUMNS.length}
-                className="px-5 py-10 text-center align-middle text-muted-foreground"
-              >
-                No records found.
-              </td>
-            </tr>
+            {rows.length === 0 ? (
+              <tr>
+                <td
+                  colSpan={columns.length}
+                  className="px-5 py-10 text-center align-middle text-muted-foreground"
+                >
+                  No records found.
+                </td>
+              </tr>
+            ) : (
+              rows.map((row) => (
+                <tr key={row.id} className="border-b border-border last:border-0">
+                  {!isKvkScoped && (
+                    <td className="px-5 py-2 text-foreground">{row.kvkName}</td>
+                  )}
+                  <td className="px-5 py-2 text-foreground">{row.nameOfUser}</td>
+                  <td className="px-5 py-2 text-muted-foreground">{row.activity}</td>
+                  <td className="px-5 py-2 text-muted-foreground">{row.ipAddress}</td>
+                  <td className="px-5 py-2 text-muted-foreground">
+                    {formatLoginTime(row.loginTime)}
+                  </td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>

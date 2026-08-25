@@ -12,6 +12,7 @@ type DeleteFn = (id: string, zoneId: string) => Promise<{ count: number }>;
 const reqStr = (v: string | undefined) => v?.trim() ?? "";
 const bool = (v: string | undefined) =>
   v?.trim().toLowerCase() === "yes" || v?.trim().toLowerCase() === "true";
+const int = (v: string | undefined) => (v?.trim() ? parseInt(v, 10) : undefined);
 
 /**
  * Every single-column "Name" master (Job Type, Season, NICRA Dignitary Type,
@@ -42,6 +43,24 @@ function simpleMasterList(type: MasterListType, columnKey: string) {
     delete: ((id, zoneId) =>
       prisma.masterListItem.deleteMany({ where: { id, zoneId, type } })) as DeleteFn,
   };
+}
+
+/** Shared by kvk-master's create/update: resolve State -> District (scoped to that state) -> Host Org by exact name within the zone, same "typing an unknown name returns a clear 400" convention used everywhere else in this registry. */
+async function resolveKvkParents(v: Record<string, string>, zoneId: string) {
+  const name = reqStr(v.kvk);
+  const stateName = reqStr(v.stateName);
+  const districtName = reqStr(v.districtName);
+  const hostOrgName = reqStr(v.hostOrg);
+  if (!name || !stateName || !districtName || !hostOrgName) {
+    throw new Error("KVK, State Name, District Name and Host Org are required.");
+  }
+  const state = await prisma.state.findFirst({ where: { zoneId, name: stateName } });
+  if (!state) throw new Error(`Unknown state: ${stateName}`);
+  const district = await prisma.district.findFirst({ where: { stateId: state.id, name: districtName } });
+  if (!district) throw new Error(`Unknown district: ${districtName}`);
+  const hostOrg = await prisma.hostOrganization.findFirst({ where: { zoneId, name: hostOrgName } });
+  if (!hostOrg) throw new Error(`Unknown host organization: ${hostOrgName}`);
+  return { name, stateId: state.id, districtId: district.id, hostOrgId: hostOrg.id };
 }
 
 const SIMPLE_MASTERS: Record<string, { type: MasterListType; column: string }> = {
@@ -213,6 +232,61 @@ const dedicated: Record<string, MasterLeafEntry> = {
       });
     },
     delete: (id, zoneId) => prisma.hostOrganization.deleteMany({ where: { id, zoneId } }),
+  },
+  /** List/Edit/Delete only - Create goes through the bespoke KvkMasterAddForm -> /api/kvks (real Zone/State/District/Host Org cascade the generic 9-column form can't represent). Delete relies on the DB's own FK constraints to refuse a KVK that still has staff/users/trial records - deliberately not cascaded, a wrong delete here would silently erase a KVK's whole history. */
+  "kvk-master": {
+    list: async (zoneId) => {
+      const kvks = await prisma.kvk.findMany({
+        where: { zoneId },
+        include: { state: true, district: true, hostOrg: true, zone: true },
+        orderBy: { name: "asc" },
+      });
+      return kvks.map((k) => ({
+        id: k.id,
+        zoneName: k.zone.name,
+        stateName: k.state.name,
+        hostOrg: k.hostOrg.name,
+        districtName: k.district.name,
+        kvk: k.name,
+        mobile: k.officePhone ?? "-",
+        email: k.email ?? "",
+        address: k.address ?? "",
+        sanctionYear: k.sanctionYear ? String(k.sanctionYear) : "",
+      }));
+    },
+    create: async (v, zoneId) => {
+      const { name, stateId, districtId, hostOrgId } = await resolveKvkParents(v, zoneId);
+      return prisma.kvk.create({
+        data: {
+          name,
+          zoneId,
+          stateId,
+          districtId,
+          hostOrgId,
+          officePhone: reqStr(v.mobile) || undefined,
+          email: reqStr(v.email) || undefined,
+          address: reqStr(v.address) || undefined,
+          sanctionYear: int(v.sanctionYear),
+        },
+      });
+    },
+    update: async (id, v, zoneId) => {
+      const { name, stateId, districtId, hostOrgId } = await resolveKvkParents(v, zoneId);
+      return prisma.kvk.updateMany({
+        where: { id, zoneId },
+        data: {
+          name,
+          stateId,
+          districtId,
+          hostOrgId,
+          officePhone: reqStr(v.mobile) || undefined,
+          email: reqStr(v.email) || undefined,
+          address: reqStr(v.address) || undefined,
+          sanctionYear: int(v.sanctionYear),
+        },
+      });
+    },
+    delete: (id, zoneId) => prisma.kvk.deleteMany({ where: { id, zoneId } }),
   },
 
   // --- OFT & FLD Masters ---

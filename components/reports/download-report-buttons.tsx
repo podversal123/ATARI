@@ -1,24 +1,30 @@
-import { FileDown, FileSpreadsheet, FileType } from "lucide-react";
+import { FileDown, FileSpreadsheet, FileType, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 /**
- * Downloads must reflect exactly the currently-previewed filter set, so they
- * stay disabled unless the preview is showing real, current data - which
- * never happens yet in Phase 1 (no backend has generated a report), so this
- * is always disabled today and becomes live once Phase 2/3 wires real data.
+ * PDF is real (generates and downloads the actual multi-section report from
+ * live data - see lib/report-data.ts + lib/report-pdf.ts). Excel/Word have
+ * no generator built yet, so they stay honestly disabled rather than faking
+ * a second export format.
  */
-export function DownloadReportButtons({ enabled }: { enabled: boolean }) {
+export function DownloadReportButtons({
+  onDownloadPdf,
+  pdfLoading,
+}: {
+  onDownloadPdf?: () => void;
+  pdfLoading?: boolean;
+}) {
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <Button variant="outline" size="sm" disabled={!enabled}>
-        <FileDown className="size-3.5" />
-        PDF
+      <Button variant="outline" size="sm" onClick={onDownloadPdf} disabled={!onDownloadPdf || pdfLoading}>
+        {pdfLoading ? <Loader2 className="size-3.5 animate-spin" /> : <FileDown className="size-3.5" />}
+        {pdfLoading ? "Generating…" : "PDF"}
       </Button>
-      <Button variant="outline" size="sm" disabled={!enabled}>
+      <Button variant="outline" size="sm" disabled>
         <FileSpreadsheet className="size-3.5" />
         Excel
       </Button>
-      <Button variant="outline" size="sm" disabled={!enabled}>
+      <Button variant="outline" size="sm" disabled>
         <FileType className="size-3.5" />
         Word
       </Button>

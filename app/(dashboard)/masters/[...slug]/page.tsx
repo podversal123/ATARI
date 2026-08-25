@@ -20,9 +20,6 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { MASTER_LIST_REGISTRY } from "@/lib/masters-registry";
 
-// Co-locate with the Neon database (ap-southeast-1 / Singapore) - without this Vercel runs functions in its default us-east region, adding a cross-Pacific round trip to every query.
-export const preferredRegion = "sin1";
-
 type MastersPageProps = {
   params: Promise<{ slug: string[] }>;
 };
@@ -128,6 +125,7 @@ export default async function MastersPage({ params }: MastersPageProps) {
         orderBy: { name: "asc" },
       });
       const rows = kvks.map((kvk) => ({
+        id: kvk.id,
         zoneName: kvk.zone.name,
         stateName: kvk.state.name,
         hostOrg: kvk.hostOrg.name,

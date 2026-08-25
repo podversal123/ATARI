@@ -2,6 +2,7 @@
 
 import { type ReactNode, useId, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import {
   Search,
@@ -13,9 +14,12 @@ import {
   MoreVertical,
   Pencil,
   Trash2,
-  GripVertical,
   ArrowRightCircle,
   ClipboardCheck,
+  ImageIcon,
+  FileText,
+  AlertTriangle,
+  GripVertical,
 } from "lucide-react";
 import type { SidebarIconName } from "@/lib/navigation";
 import { SIDEBAR_ICONS } from "@/components/layout/sidebar-icons";
@@ -48,7 +52,6 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { ColumnFilterMenu, type ColumnFilterState } from "./column-filter-menu";
-import { downloadTablePdf } from "@/lib/table-pdf";
 import type { MasterColumn } from "@/lib/navigation";
 import {
   CfldTechnicalParameterDialog,
@@ -192,46 +195,35 @@ export function EmptyDataTable({
   >({});
 
   /**
-   * The search/date-filter bar can be dragged and repositioned by the user
-   * (client request: "sorting/filter box should be movable"), via a grip
-   * handle. Position is plain in-memory offset state - resets on
-   * navigation/refresh, same as every other Phase 1 UI-only interaction;
-   * persisting a chosen layout across sessions needs the backend.
+   * Movable columns (client request, 2026-08-25): drag a header by its grip
+   * to reorder it. Order is tracked as a list of keys, separate from
+   * `columns` itself, so the confirmed real column definitions never
+   * mutate - only their on-screen order does. Resets whenever the leaf
+   * changes (a different `columns` array arrives) rather than carrying a
+   * stale order from a previous table into a new one.
    */
-  const [filterBarOffset, setFilterBarOffset] = useState({ x: 0, y: 0 });
-  const dragState = useRef<{
-    startX: number;
-    startY: number;
-    originX: number;
-    originY: number;
-  } | null>(null);
-
-  function handleFilterBarDragStart(
-    event: React.PointerEvent<HTMLButtonElement>,
-  ) {
-    event.preventDefault();
-    dragState.current = {
-      startX: event.clientX,
-      startY: event.clientY,
-      originX: filterBarOffset.x,
-      originY: filterBarOffset.y,
-    };
-    window.addEventListener("pointermove", handleFilterBarDragMove);
-    window.addEventListener("pointerup", handleFilterBarDragEnd);
+  const [columnOrder, setColumnOrder] = useState(() => columns.map((c) => c.key));
+  const columnKeySignature = columns.map((c) => c.key).join("|");
+  const [lastColumnKeySignature, setLastColumnKeySignature] = useState(columnKeySignature);
+  if (columnKeySignature !== lastColumnKeySignature) {
+    setLastColumnKeySignature(columnKeySignature);
+    setColumnOrder(columns.map((c) => c.key));
   }
+  const orderedColumns = columnOrder
+    .map((key) => columns.find((c) => c.key === key))
+    .filter((c): c is MasterColumn => c !== undefined);
+  const draggedColumnKey = useRef<string | null>(null);
+  const [dragOverColumnKey, setDragOverColumnKey] = useState<string | null>(null);
 
-  function handleFilterBarDragMove(event: PointerEvent) {
-    if (!dragState.current) return;
-    setFilterBarOffset({
-      x: dragState.current.originX + (event.clientX - dragState.current.startX),
-      y: dragState.current.originY + (event.clientY - dragState.current.startY),
+  function moveColumn(targetKey: string) {
+    const draggedKey = draggedColumnKey.current;
+    if (!draggedKey || draggedKey === targetKey) return;
+    setColumnOrder((prev) => {
+      const next = prev.filter((k) => k !== draggedKey);
+      const targetIndex = next.indexOf(targetKey);
+      next.splice(targetIndex, 0, draggedKey);
+      return next;
     });
-  }
-
-  function handleFilterBarDragEnd() {
-    dragState.current = null;
-    window.removeEventListener("pointermove", handleFilterBarDragMove);
-    window.removeEventListener("pointerup", handleFilterBarDragEnd);
   }
 
   const [formOpen, setFormOpen] = useState(false);
@@ -476,7 +468,14 @@ export function EmptyDataTable({
             <Button
               variant="outline"
               size="lg"
-              onClick={() => downloadTablePdf(title, columns, displayedRows)}
+              onClick={async () => {
+                // Lazy-loaded: jsPDF + autotable are large and only needed by
+                // the handful of visits that actually click this button -
+                // bundling them at module scope would ship their weight to
+                // every single Masters/Form Management page load.
+                const { downloadTablePdf } = await import("@/lib/table-pdf");
+                downloadTablePdf(title, columns, displayedRows);
+              }}
             >
               <FileDown className="size-3.5" />
               PDF
@@ -506,26 +505,7 @@ export function EmptyDataTable({
           </div>
         </div>
 
-        <div
-          className="relative z-10 flex flex-wrap items-center gap-2 border-b border-border bg-card px-4 py-5"
-          style={
-            filterBarOffset.x !== 0 || filterBarOffset.y !== 0
-              ? {
-                  transform: `translate(${filterBarOffset.x}px, ${filterBarOffset.y}px)`,
-                  boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
-                }
-              : undefined
-          }
-        >
-          <button
-            type="button"
-            onPointerDown={handleFilterBarDragStart}
-            onDoubleClick={() => setFilterBarOffset({ x: 0, y: 0 })}
-            title="Drag to reposition - double-click to reset"
-            className="flex size-7 shrink-0 cursor-grab touch-none items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground active:cursor-grabbing"
-          >
-            <GripVertical className="size-4" />
-          </button>
+        <div className="relative z-10 flex flex-wrap items-center gap-2 border-b border-border bg-card px-4 py-5">
           <div className="relative">
             <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input
@@ -611,7 +591,8 @@ export function EmptyDataTable({
         </div>
 
         {note && (
-          <p className="border-b border-border bg-primary/5 px-4 py-2.5 text-xs font-medium text-primary">
+          <p className="flex items-center gap-2 border-b border-[#eaa624]/40 bg-[#eaa624]/15 px-4 py-2.5 text-xs font-semibold text-[#8a5a00]">
+            <AlertTriangle className="size-4 shrink-0" />
             {note}
           </p>
         )}
@@ -621,9 +602,37 @@ export function EmptyDataTable({
             <thead>
               <tr className="divide-x divide-border border-b border-border bg-muted/50 text-left text-xs font-semibold tracking-wide whitespace-nowrap text-muted-foreground uppercase">
                 <th className="w-14 px-4 py-3">S.No</th>
-                {columns.map((column) => (
-                  <th key={column.key} className="px-4 py-3">
-                    <span className="inline-flex items-center gap-1 whitespace-nowrap">
+                {orderedColumns.map((column) => (
+                  <th
+                    key={column.key}
+                    className={cn(
+                      "px-4 py-3",
+                      dragOverColumnKey === column.key && "bg-primary/10",
+                    )}
+                    draggable
+                    onDragStart={() => {
+                      draggedColumnKey.current = column.key;
+                    }}
+                    onDragOver={(event) => {
+                      event.preventDefault();
+                      setDragOverColumnKey(column.key);
+                    }}
+                    onDragLeave={() =>
+                      setDragOverColumnKey((prev) => (prev === column.key ? null : prev))
+                    }
+                    onDrop={(event) => {
+                      event.preventDefault();
+                      moveColumn(column.key);
+                      draggedColumnKey.current = null;
+                      setDragOverColumnKey(null);
+                    }}
+                    onDragEnd={() => {
+                      draggedColumnKey.current = null;
+                      setDragOverColumnKey(null);
+                    }}
+                  >
+                    <span className="inline-flex cursor-move items-center gap-1 whitespace-nowrap">
+                      <GripVertical className="size-3 shrink-0 text-muted-foreground/50" />
                       {column.label}
                       <ColumnFilterMenu
                         columnLabel={column.label}
@@ -668,7 +677,7 @@ export function EmptyDataTable({
                     <td className="px-4 py-3 align-top text-muted-foreground">
                       {index + 1}
                     </td>
-                    {columns.map((column) => {
+                    {orderedColumns.map((column) => {
                       const value = row[column.key];
                       if (
                         (oftFldStatus || isCfldTechnicalParameter) &&
@@ -686,6 +695,47 @@ export function EmptyDataTable({
                             >
                               {label}
                             </span>
+                          </td>
+                        );
+                      }
+                      if (column.fileKind) {
+                        const url = typeof value === "string" ? value : "";
+                        return (
+                          <td key={column.key} className="px-4 py-3 align-top">
+                            {url ? (
+                              column.fileKind === "image" ? (
+                                <a
+                                  href={`/api/files/view?url=${encodeURIComponent(url)}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="block"
+                                >
+                                  {/* unoptimized: Next's image optimizer fetches this URL server-side and won't forward the browser's session cookie, but /api/files/view requires one - a plain browser-side request (which does carry it) is required here. */}
+                                  <Image
+                                    src={`/api/files/view?url=${encodeURIComponent(url)}`}
+                                    alt={column.label}
+                                    width={36}
+                                    height={36}
+                                    unoptimized
+                                    className="size-9 rounded-md border border-border object-cover"
+                                  />
+                                </a>
+                              ) : (
+                                <a
+                                  href={`/api/files/view?url=${encodeURIComponent(url)}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-1 text-primary hover:underline"
+                                >
+                                  <FileText className="size-3.5" />
+                                  View
+                                </a>
+                              )
+                            ) : (
+                              <span className="inline-flex items-center gap-1 text-muted-foreground">
+                                <ImageIcon className="size-3.5" />-
+                              </span>
+                            )}
                           </td>
                         );
                       }

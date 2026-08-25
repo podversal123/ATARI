@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ArrowDown, ArrowUp, ArrowUpDown, Search, History } from "lucide-react";
 import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
@@ -21,6 +21,27 @@ const COLUMNS = [
 /** A KVK Admin's own log view drops the KVK Name column - every row is already their own KVK. */
 const KVK_COLUMNS = COLUMNS.filter((column) => column.key !== "kvkName");
 
+const PAGE_SIZE = 20;
+
+type LogRow = {
+  id: string;
+  kvkName: string;
+  nameOfUser: string;
+  activity: string;
+  ipAddress: string;
+  loginTime: string;
+};
+
+function formatLoginTime(iso: string) {
+  return new Date(iso).toLocaleString("en-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
 type SortState = { key: string; direction: "asc" | "desc" } | null;
 
 /**
@@ -37,10 +58,28 @@ export default function LogHistoryPage() {
   const isKvk = session.role !== "super-admin";
 
   const [kvkFilter, setKvkFilter] = useState("all");
+  const [appliedKvkFilter, setAppliedKvkFilter] = useState("all");
   /** Super Admin's own log entries have no KVK, so that column drops out the same way it does for a KVK Admin's own scoped view. */
-  const columns = isKvk || kvkFilter === "super-admin" ? KVK_COLUMNS : COLUMNS;
+  const columns = isKvk || appliedKvkFilter === "super-admin" ? KVK_COLUMNS : COLUMNS;
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<SortState>(null);
+  const [page, setPage] = useState(0);
+  const [rows, setRows] = useState<LogRow[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const params = new URLSearchParams({ limit: "500" });
+    if (!isKvk && appliedKvkFilter !== "all") params.set("kvk", appliedKvkFilter);
+    fetch(`/api/log-history?${params}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: { rows: LogRow[] } | null) => {
+        if (!cancelled && data) setRows(data.rows);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [isKvk, appliedKvkFilter]);
 
   function toggleSort(key: string) {
     setSort((prev) => {
@@ -49,6 +88,31 @@ export default function LogHistoryPage() {
       return null;
     });
   }
+
+  const filteredRows = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    let result = !term
+      ? rows
+      : rows.filter((row) =>
+          [row.kvkName, row.nameOfUser, row.activity, row.ipAddress].some((value) =>
+            value.toLowerCase().includes(term),
+          ),
+        );
+    if (sort) {
+      const { key, direction } = sort;
+      result = [...result].sort((a, b) => {
+        const va = key === "loginTime" ? new Date(a.loginTime).getTime() : String(a[key as keyof LogRow] ?? "");
+        const vb = key === "loginTime" ? new Date(b.loginTime).getTime() : String(b[key as keyof LogRow] ?? "");
+        const cmp = va < vb ? -1 : va > vb ? 1 : 0;
+        return direction === "asc" ? cmp : -cmp;
+      });
+    }
+    return result;
+  }, [rows, search, sort]);
+
+  const pageCount = Math.max(1, Math.ceil(filteredRows.length / PAGE_SIZE));
+  const currentPage = Math.min(page, pageCount - 1);
+  const pageRows = filteredRows.slice(currentPage * PAGE_SIZE, currentPage * PAGE_SIZE + PAGE_SIZE);
 
   return (
     <div>
@@ -84,7 +148,15 @@ export default function LogHistoryPage() {
               ))}
             </select>
           </div>
-          <Button size="sm">Filter</Button>
+          <Button
+            size="sm"
+            onClick={() => {
+              setAppliedKvkFilter(kvkFilter);
+              setPage(0);
+            }}
+          >
+            Filter
+          </Button>
         </div>
       )}
 
@@ -94,7 +166,10 @@ export default function LogHistoryPage() {
             <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setPage(0);
+              }}
               placeholder="Search..."
               className="pl-8"
             />
@@ -134,25 +209,54 @@ export default function LogHistoryPage() {
               </tr>
             </thead>
             <tbody>
-              <tr>
-                <td
-                  colSpan={columns.length}
-                  className="px-4 py-16 text-center text-muted-foreground"
-                >
-                  No records found.
-                </td>
-              </tr>
+              {pageRows.length === 0 ? (
+                <tr>
+                  <td
+                    colSpan={columns.length}
+                    className="px-4 py-16 text-center text-muted-foreground"
+                  >
+                    No records found.
+                  </td>
+                </tr>
+              ) : (
+                pageRows.map((row, index) => (
+                  <tr key={row.id} className="divide-x divide-border border-b border-border last:border-0">
+                    {columns.map((column) => (
+                      <td key={column.key} className="px-4 py-2.5 text-foreground">
+                        {column.key === "sNo"
+                          ? currentPage * PAGE_SIZE + index + 1
+                          : column.key === "loginTime"
+                            ? formatLoginTime(row.loginTime)
+                            : row[column.key as Exclude<typeof column.key, "sNo">]}
+                      </td>
+                    ))}
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
 
         <div className="flex items-center justify-between border-t border-border px-4 py-3 text-sm text-muted-foreground">
-          <span>Showing 0-0 of 0</span>
+          <span>
+            Showing {pageRows.length === 0 ? 0 : currentPage * PAGE_SIZE + 1}-
+            {currentPage * PAGE_SIZE + pageRows.length} of {filteredRows.length}
+          </span>
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" disabled>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={currentPage === 0}
+              onClick={() => setPage((p) => Math.max(0, p - 1))}
+            >
               Prev
             </Button>
-            <Button variant="outline" size="sm" disabled>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={currentPage >= pageCount - 1}
+              onClick={() => setPage((p) => Math.min(pageCount - 1, p + 1))}
+            >
               Next
             </Button>
           </div>

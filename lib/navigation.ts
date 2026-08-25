@@ -17,6 +17,10 @@ export type MasterColumn = {
   label: string;
   /** Server-computed display column (e.g. a child-row count) - shown in the list table, but never rendered as an input on the Add/Edit form since there's nothing for a user to type into it. */
   readonly?: boolean;
+  /** Renders a real file-upload control instead of a text input, and a thumbnail/"View" link instead of raw text in the list table. The stored value is the uploaded file's Vercel Blob URL. */
+  fileKind?: "image" | "document";
+  /** Which /api/upload validation rule (size/mime-type) and storage folder applies - required whenever fileKind is set. Mirrors lib/blob.ts's UploadKind (kept as a separate literal type, not imported, since that file is server-only and this one is loaded client-side too). */
+  uploadKind?: "staff-photo" | "staff-resume" | "cfld-crop-image";
 };
 
 export type NavLeaf = {
@@ -591,8 +595,8 @@ const aboutKvk = group(
        */
       leaf("employee-details", "Employee Details", [
         { key: "kvk", label: "KVK Name" },
-        { key: "photo", label: "Photo" },
-        { key: "resume", label: "Resume" },
+        { key: "photo", label: "Photo", fileKind: "image", uploadKind: "staff-photo" },
+        { key: "resume", label: "Resume", fileKind: "document", uploadKind: "staff-resume" },
         { key: "staffName", label: "Staff Name" },
         { key: "position", label: "Position" },
         { key: "email", label: "Email" },
@@ -1134,6 +1138,7 @@ const projects = group(
       leaf("crop-wise-images", "Crop Wise Images", [
         { key: "kvk", label: "KVK Name" },
         { key: "crop", label: "Crop" },
+        { key: "image", label: "Image", fileKind: "image", uploadKind: "cfld-crop-image" },
       ]),
     ]),
     /**

@@ -2,9 +2,6 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/api-auth";
 
-// Co-locate with the Neon database (ap-southeast-1 / Singapore) - without this Vercel runs functions in its default us-east region, adding a cross-Pacific round trip to every query.
-export const preferredRegion = "sin1";
-
 /**
  * Real counts for the sections of the Technical Achievement Summary matrix
  * report that map unambiguously to an operational table (OFT/FLD counts,
@@ -21,19 +18,27 @@ export async function GET(request: Request) {
 
   const url = new URL(request.url);
   const reportingYear = Number(url.searchParams.get("year")) || new Date().getFullYear();
-  const kvkNameFilter = url.searchParams.get("kvk") || undefined;
+  /** Checkbox multi-select (client request, 2026-08-25) - repeated ?kvk=A&kvk=B params, empty means "All KVKs". */
+  const kvkNameFilters = url.searchParams.getAll("kvk");
 
   let kvkId: string | undefined;
+  let kvkIds: string[] | undefined;
   if (auth.session.role === "KVK_ADMIN" && auth.session.kvkId) {
     kvkId = auth.session.kvkId;
-  } else if (kvkNameFilter) {
+  } else if (kvkNameFilters.length === 1) {
     const kvk = await prisma.kvk.findFirst({
-      where: { zoneId: auth.session.zoneId, name: kvkNameFilter },
+      where: { zoneId: auth.session.zoneId, name: kvkNameFilters[0] },
     });
     kvkId = kvk?.id;
+  } else if (kvkNameFilters.length > 1) {
+    const kvks = await prisma.kvk.findMany({
+      where: { zoneId: auth.session.zoneId, name: { in: kvkNameFilters } },
+      select: { id: true },
+    });
+    kvkIds = kvks.map((k) => k.id);
   }
 
-  const scope = kvkId ? { kvkId } : { zoneId: auth.session.zoneId };
+  const scope = kvkId ? { kvkId } : kvkIds ? { kvkId: { in: kvkIds } } : { zoneId: auth.session.zoneId };
 
   const [
     oftCount,
@@ -55,7 +60,11 @@ export async function GET(request: Request) {
     }),
     prisma.fld.count({ where: { ...scope, reportingYear } }),
     prisma.fldDemonstrationDetail.aggregate({
-      where: kvkId ? { fld: { kvkId, reportingYear } } : { zoneId: auth.session.zoneId, fld: { reportingYear } },
+      where: kvkId
+        ? { fld: { kvkId, reportingYear } }
+        : kvkIds
+          ? { fld: { kvkId: { in: kvkIds }, reportingYear } }
+          : { zoneId: auth.session.zoneId, fld: { reportingYear } },
       _sum: { areaHa: true },
     }),
     prisma.training.count({ where: { ...scope, reportingYear } }),
