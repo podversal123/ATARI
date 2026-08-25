@@ -20,6 +20,9 @@ import { useSession } from "@/lib/session";
 import { cn } from "@/lib/utils";
 import { FORM_MANAGEMENT } from "@/lib/navigation";
 
+type ChartRow = { id: string; label: string; ongoing: number; completed: number };
+type TotalRow = { id: string; label: string; total: number };
+
 type DashboardStats = {
   totalKvks: number;
   oft: { total: number; ongoing: number; completed: number; kvksWithEntries: number };
@@ -28,6 +31,7 @@ type DashboardStats = {
   extension: { total: number; kvksWithEntries: number };
   staff: { total: number };
   staffByRole: Record<string, number>;
+  charts: { oft: ChartRow[]; fld: ChartRow[]; training: TotalRow[]; extension: TotalRow[] };
 };
 
 const EMPTY_STATS: DashboardStats = {
@@ -38,7 +42,13 @@ const EMPTY_STATS: DashboardStats = {
   extension: { total: 0, kvksWithEntries: 0 },
   staff: { total: 0 },
   staffByRole: {},
+  charts: { oft: [], fld: [], training: [], extension: [] },
 };
+
+/** Training/Extension have no ongoing/completed status column - fold their single total into `completed` so mode="total" can reuse the same chart component. */
+function toTotalChartRows(rows: TotalRow[]): ChartRow[] {
+  return rows.map((r) => ({ id: r.id, label: r.label, ongoing: 0, completed: r.total }));
+}
 
 /**
  * A KVK User's whole job is filling in Form Management for their own KVK -
@@ -240,6 +250,7 @@ export default function DashboardPage() {
           }
           defaultView="bar"
           totalCount={stats.oft.total}
+          rows={stats.charts.oft}
           summary={
             isKvkAdmin
               ? `${stats.oft.completed} completed · ${stats.oft.ongoing} ongoing`
@@ -257,6 +268,7 @@ export default function DashboardPage() {
           }
           defaultView="bar"
           totalCount={stats.fld.total}
+          rows={stats.charts.fld}
           summary={
             isKvkAdmin
               ? `${stats.fld.completed} completed · ${stats.fld.ongoing} ongoing`
@@ -270,10 +282,12 @@ export default function DashboardPage() {
           description={
             isKvkAdmin
               ? "Trainings conducted for your KVK"
-              : "Ongoing, completed; not started = KVK with no entries"
+              : "Total entries per KVK; not started = KVK with no entries"
           }
           defaultView="bar"
           totalCount={stats.training.total}
+          rows={toTotalChartRows(stats.charts.training)}
+          mode="total"
           summary={
             isKvkAdmin
               ? `${stats.training.total} trainings recorded`
@@ -287,10 +301,12 @@ export default function DashboardPage() {
           description={
             isKvkAdmin
               ? "Extension activities conducted for your KVK"
-              : "Ongoing, completed; not started = KVK with no entries"
+              : "Total entries per KVK; not started = KVK with no entries"
           }
           defaultView="bar"
           totalCount={stats.extension.total}
+          rows={toTotalChartRows(stats.charts.extension)}
+          mode="total"
           summary={
             isKvkAdmin
               ? `${stats.extension.total} activities recorded`

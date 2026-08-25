@@ -2,6 +2,9 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/api-auth";
 
+// Co-locate with the Neon database (ap-southeast-1 / Singapore) - without this Vercel runs functions in its default us-east region, adding a cross-Pacific round trip to every query.
+export const preferredRegion = "sin1";
+
 const reqStr = (v: string | undefined) => v?.trim() ?? "";
 const reqInt = (v: string | undefined) => parseInt(v ?? "0", 10) || 0;
 const str = (v: string | undefined) => (v?.trim() ? v.trim() : undefined);

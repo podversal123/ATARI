@@ -1,21 +1,26 @@
 "use client";
 
 import Image from "next/image";
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Eye, EyeOff } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { persistSession } from "@/lib/session";
 
+/** Only redirect back to a same-origin app path - never follow an absolute/external `from` value. */
+function safeRedirectTarget(from: string | null) {
+  if (!from || !from.startsWith("/") || from.startsWith("//")) return "/dashboard";
+  return from;
+}
+
 /**
  * Pixel reference: docs/project-plan.html (login the reference). Split hero
  * layout, ICAR mark + zone seal, username/password with reveal toggle.
- * No auth call is wired up yet - Step 2/3 of the build (database) replaces
- * the submit handler below with a real sign-in request.
  */
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [showPassword, setShowPassword] = useState(false);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -59,15 +64,15 @@ export default function LoginPage() {
             <Image
               src="/brand/icar-logo.png"
               alt="ICAR"
-              width={812}
-              height={1084}
+              width={225}
+              height={300}
               className="h-20 w-auto"
             />
             <Image
               src="/brand/zone-seal-patna.png"
               alt="ATARI Zone IV Patna"
-              width={1254}
-              height={1254}
+              width={300}
+              height={300}
               className="h-20 w-20 rounded-full"
             />
           </div>
@@ -92,7 +97,7 @@ export default function LoginPage() {
                   return;
                 }
                 persistSession({ role: data.role, kvkName: data.kvkName });
-                router.push("/dashboard");
+                router.push(safeRedirectTarget(searchParams.get("from")));
               } catch {
                 setError("Could not reach the server. Please try again.");
               } finally {
@@ -190,5 +195,13 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={null}>
+      <LoginForm />
+    </Suspense>
   );
 }
