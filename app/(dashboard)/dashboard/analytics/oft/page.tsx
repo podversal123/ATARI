@@ -29,7 +29,7 @@ export default function OftDetailedAnalyticsPage() {
 
   useEffect(() => {
     let cancelled = false;
-    fetch("/api/dashboard-stats")
+    fetch("/api/dashboard-stats?scope=oft")
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
         if (cancelled || !data) return;

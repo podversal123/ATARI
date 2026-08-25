@@ -15,10 +15,20 @@ import { requireSession } from "@/lib/api-auth";
  * total). Each Prisma call here is a real network round trip to Neon, so
  * cutting 23 down to 8 is a real latency win independent of anything about
  * function region - don't reintroduce the separate count queries.
+ *
+ * `?scope=oft|fld|training|extension` (used by the 4 dashboard analytics
+ * detail pages, which each only ever read one of these) skips every query
+ * the other sections would need - those pages were paying for all ~10
+ * queries (main Dashboard's full payload) just to read one section's worth
+ * of fields. No `scope` = unchanged full payload, still used by the main
+ * Dashboard page itself.
  */
-export async function GET() {
+export async function GET(request: Request) {
   const auth = await requireSession();
   if (!auth.ok) return auth.response;
+
+  const scopeParam = new URL(request.url).searchParams.get("scope");
+  const needs = (key: "oft" | "fld" | "training" | "extension") => !scopeParam || scopeParam === key;
 
   const kvkId = auth.session.role === "KVK_ADMIN" ? auth.session.kvkId ?? undefined : undefined;
   const scope = kvkId ? { kvkId } : { zoneId: auth.session.zoneId };
@@ -35,29 +45,30 @@ export async function GET() {
     oftAgg,
     fldDemoAgg,
   ] = await Promise.all([
-      prisma.kvk.findMany({
-        where: kvkId ? { id: kvkId } : { zoneId: auth.session.zoneId },
-        select: { id: true, name: true },
-        orderBy: { name: "asc" },
-      }),
-      prisma.kvk.count({ where: { zoneId: auth.session.zoneId } }),
-      prisma.oft.groupBy({ by: ["kvkId", "status"], where: scope, _count: { _all: true } }),
-      prisma.fld.groupBy({ by: ["kvkId", "status"], where: scope, _count: { _all: true } }),
-      prisma.training.groupBy({ by: ["kvkId"], where: scope, _count: { _all: true } }),
-      prisma.extensionActivity.groupBy({ by: ["kvkId"], where: scope, _count: { _all: true } }),
-      prisma.otherExtensionActivity.groupBy({ by: ["kvkId"], where: scope, _count: { _all: true } }),
-      prisma.staff.groupBy({ by: ["sanctionedPost"], where: scope, _count: { _all: true } }),
-      /** Real per-OFT fields (not just the ongoing/completed status split) for the "OFT - detailed analytics" page's Cost/Quantity/Replications stat cards. */
-      prisma.oft.aggregate({
-        where: scope,
-        _sum: { quantity: true, costOfOft: true, noOfTrialReplicationFarmer: true },
-      }),
-      /** FLD's own model has no quantity/farmer/demonstration fields - those live on the child FldDemonstrationDetail rows, scoped via the parent FLD's kvkId since the child itself only carries zoneId. */
-      prisma.fldDemonstrationDetail.aggregate({
-        where: kvkId ? { fld: { kvkId } } : { zoneId: auth.session.zoneId },
-        _sum: { noOfDemonstrations: true, noOfFarmers: true },
-      }),
-    ]);
+    prisma.kvk.findMany({
+      where: kvkId ? { id: kvkId } : { zoneId: auth.session.zoneId },
+      select: { id: true, name: true },
+      orderBy: { name: "asc" },
+    }),
+    scopeParam ? Promise.resolve(0) : prisma.kvk.count({ where: { zoneId: auth.session.zoneId } }),
+    needs("oft") ? prisma.oft.groupBy({ by: ["kvkId", "status"], where: scope, _count: { _all: true } }) : Promise.resolve([]),
+    needs("fld") ? prisma.fld.groupBy({ by: ["kvkId", "status"], where: scope, _count: { _all: true } }) : Promise.resolve([]),
+    needs("training") ? prisma.training.groupBy({ by: ["kvkId"], where: scope, _count: { _all: true } }) : Promise.resolve([]),
+    needs("extension") ? prisma.extensionActivity.groupBy({ by: ["kvkId"], where: scope, _count: { _all: true } }) : Promise.resolve([]),
+    needs("extension") ? prisma.otherExtensionActivity.groupBy({ by: ["kvkId"], where: scope, _count: { _all: true } }) : Promise.resolve([]),
+    scopeParam ? Promise.resolve([]) : prisma.staff.groupBy({ by: ["sanctionedPost"], where: scope, _count: { _all: true } }),
+    /** Real per-OFT fields (not just the ongoing/completed status split) for the "OFT - detailed analytics" page's Cost/Quantity/Replications stat cards. */
+    needs("oft")
+      ? prisma.oft.aggregate({ where: scope, _sum: { quantity: true, costOfOft: true, noOfTrialReplicationFarmer: true } })
+      : Promise.resolve({ _sum: { quantity: null, costOfOft: null, noOfTrialReplicationFarmer: null } }),
+    /** FLD's own model has no quantity/farmer/demonstration fields - those live on the child FldDemonstrationDetail rows, scoped via the parent FLD's kvkId since the child itself only carries zoneId. */
+    needs("fld")
+      ? prisma.fldDemonstrationDetail.aggregate({
+          where: kvkId ? { fld: { kvkId } } : { zoneId: auth.session.zoneId },
+          _sum: { noOfDemonstrations: true, noOfFarmers: true },
+        })
+      : Promise.resolve({ _sum: { noOfDemonstrations: null, noOfFarmers: null } }),
+  ]);
 
   const staffByRole = Object.fromEntries(
     staffByRoleGroups.map((g) => [g.sanctionedPost, g._count._all]),

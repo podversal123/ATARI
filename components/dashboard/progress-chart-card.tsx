@@ -408,6 +408,22 @@ export function ProgressChartCard({
         )}
       </div>
 
+      {/* Real reference (atari-client.vercel.app/dashboard, Bar/Area tabs): a tilted KVK-name label under every bar/point - was missing entirely, the chart area had no space reserved for it. List view already shows the name inline per row, so it's excluded here. */}
+      {(view === "bar" || (view === "area" && rows.length > 1)) && (
+        <div className="flex gap-2 pl-6">
+          {(view === "bar" ? pageRows : rows).map((row) => (
+            <div key={row.id} className="h-6 w-full overflow-hidden">
+              <span
+                className="block origin-top-left -rotate-45 truncate text-[10px] whitespace-nowrap text-muted-foreground"
+                title={row.label}
+              >
+                {row.label}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+
       <div className="mt-3 flex items-center justify-between text-sm text-muted-foreground">
         <span>
           {footer ??

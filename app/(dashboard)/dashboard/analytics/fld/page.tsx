@@ -23,7 +23,7 @@ export default function FldDetailedAnalyticsPage() {
 
   useEffect(() => {
     let cancelled = false;
-    fetch("/api/dashboard-stats")
+    fetch("/api/dashboard-stats?scope=fld")
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
         if (cancelled || !data) return;

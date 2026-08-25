@@ -21,7 +21,7 @@ export default function ExtensionDetailedAnalyticsPage() {
 
   useEffect(() => {
     let cancelled = false;
-    fetch("/api/dashboard-stats")
+    fetch("/api/dashboard-stats?scope=extension")
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
         if (cancelled || !data) return;
