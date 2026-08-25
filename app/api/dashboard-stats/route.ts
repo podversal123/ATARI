@@ -23,8 +23,18 @@ export async function GET() {
   const kvkId = auth.session.role === "KVK_ADMIN" ? auth.session.kvkId ?? undefined : undefined;
   const scope = kvkId ? { kvkId } : { zoneId: auth.session.zoneId };
 
-  const [kvks, totalKvks, oftByKvkStatus, fldByKvkStatus, trainingByKvk, extensionByKvk, otherExtensionByKvk, staffByRoleGroups] =
-    await Promise.all([
+  const [
+    kvks,
+    totalKvks,
+    oftByKvkStatus,
+    fldByKvkStatus,
+    trainingByKvk,
+    extensionByKvk,
+    otherExtensionByKvk,
+    staffByRoleGroups,
+    oftAgg,
+    fldDemoAgg,
+  ] = await Promise.all([
       prisma.kvk.findMany({
         where: kvkId ? { id: kvkId } : { zoneId: auth.session.zoneId },
         select: { id: true, name: true },
@@ -37,6 +47,16 @@ export async function GET() {
       prisma.extensionActivity.groupBy({ by: ["kvkId"], where: scope, _count: { _all: true } }),
       prisma.otherExtensionActivity.groupBy({ by: ["kvkId"], where: scope, _count: { _all: true } }),
       prisma.staff.groupBy({ by: ["sanctionedPost"], where: scope, _count: { _all: true } }),
+      /** Real per-OFT fields (not just the ongoing/completed status split) for the "OFT - detailed analytics" page's Cost/Quantity/Replications stat cards. */
+      prisma.oft.aggregate({
+        where: scope,
+        _sum: { quantity: true, costOfOft: true, noOfTrialReplicationFarmer: true },
+      }),
+      /** FLD's own model has no quantity/farmer/demonstration fields - those live on the child FldDemonstrationDetail rows, scoped via the parent FLD's kvkId since the child itself only carries zoneId. */
+      prisma.fldDemonstrationDetail.aggregate({
+        where: kvkId ? { fld: { kvkId } } : { zoneId: auth.session.zoneId },
+        _sum: { noOfDemonstrations: true, noOfFarmers: true },
+      }),
     ]);
 
   const staffByRole = Object.fromEntries(
@@ -103,8 +123,17 @@ export async function GET() {
 
   return NextResponse.json({
     totalKvks,
-    oft,
-    fld,
+    oft: {
+      ...oft,
+      quantity: Number(oftAgg._sum.quantity ?? 0),
+      cost: Number(oftAgg._sum.costOfOft ?? 0),
+      replications: oftAgg._sum.noOfTrialReplicationFarmer ?? 0,
+    },
+    fld: {
+      ...fld,
+      demonstrations: fldDemoAgg._sum.noOfDemonstrations ?? 0,
+      farmersCovered: fldDemoAgg._sum.noOfFarmers ?? 0,
+    },
     training,
     extension,
     staff: { total: staffTotal },

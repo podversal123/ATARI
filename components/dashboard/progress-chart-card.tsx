@@ -347,6 +347,40 @@ export function ProgressChartCard({
               );
             })}
           </div>
+        ) : rows.length === 1 ? (
+          /* Real reference (atari-client.vercel.app/dashboard/analytics/fld, Area tab, a Group By: Zone scope with exactly one zone): a single row can't plot a trend line, so it shows this fallback card instead of a degenerate one-point path. */
+          <div className="flex h-full items-center justify-center">
+            <div className="w-full max-w-md rounded-lg border border-border bg-card p-4">
+              <p className="text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">Single Data Point</p>
+              <p className="mt-1 text-sm font-semibold text-foreground">{rows[0].label}</p>
+              <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                {mode === "split" ? (
+                  <>
+                    <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-foreground">
+                      <span className="size-1.5 rounded-full" style={{ backgroundColor: ONGOING_COLOR }} />
+                      Ongoing {rows[0].ongoing}
+                    </span>
+                    <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-foreground">
+                      <span className="size-1.5 rounded-full" style={{ backgroundColor: COMPLETED_COLOR }} />
+                      Completed {rows[0].completed}
+                    </span>
+                    <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-foreground">
+                      <span className="size-1.5 rounded-full bg-muted-foreground/40" />
+                      Not started {rows[0].ongoing + rows[0].completed === 0 ? 1 : 0}
+                    </span>
+                  </>
+                ) : (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-foreground">
+                    <span className="size-1.5 rounded-full" style={{ backgroundColor: COMPLETED_COLOR }} />
+                    Entries {rows[0].completed}
+                  </span>
+                )}
+              </div>
+              <p className="mt-2 text-[11px] text-muted-foreground">
+                Area chart needs at least 2 entries - switch to Bar or List for single rows.
+              </p>
+            </div>
+          </div>
         ) : (
           <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="h-full w-full overflow-visible">
             {/* Total (green/gray) painted first so it shows through above the Ongoing curve; Ongoing (orange) painted on top covers the 0..ongoing band. */}

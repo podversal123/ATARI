@@ -30,7 +30,7 @@ export default function ReportPreviewPage() {
 function ReportPreviewContent() {
   const router = useRouter();
   const params = useSearchParams();
-  const { phase, reportId, generate } = useReportPreview();
+  const { phase, reportId, totalRecords, errorMessage, generate } = useReportPreview();
 
   const type = params.get("type") === "kvk" ? "kvk" : "admin";
   const backHref = "/reports";
@@ -38,11 +38,6 @@ function ReportPreviewContent() {
   const [excelLoading, setExcelLoading] = useState(false);
   const [wordLoading, setWordLoading] = useState(false);
   const [downloadError, setDownloadError] = useState<string | null>(null);
-
-  useEffect(() => {
-    generate(() => null);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   async function fetchReportData() {
     const kvkFilter = params.get("kvk");
@@ -55,6 +50,21 @@ function ReportPreviewContent() {
     }
     return data;
   }
+
+  function countRecords(sections: ReportSection[]) {
+    return sections
+      .flatMap((s) => s.subsections)
+      .flatMap((sub) => sub.tables)
+      .reduce((sum, table) => sum + table.rows.length, 0);
+  }
+
+  useEffect(() => {
+    generate(
+      () => null,
+      async () => countRecords((await fetchReportData()).sections),
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function handleDownloadPdf() {
     setDownloadError(null);
@@ -203,6 +213,8 @@ function ReportPreviewContent() {
           heading={type === "kvk" ? "KVK REPORT PREVIEW" : "REPORT SUMMARY"}
           reportId={reportId}
           phase={phase}
+          totalRecords={totalRecords}
+          errorMessage={errorMessage}
           metaColumns={metaColumns}
         />
       </div>

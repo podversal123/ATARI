@@ -1,17 +1,48 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ChevronLeft } from "lucide-react";
 import { AnalyticsFilterBar } from "@/components/dashboard/analytics-filter-bar";
 import { MetricCard } from "@/components/dashboard/metric-card";
-import { ProgressChartCard } from "@/components/dashboard/progress-chart-card";
+import { ProgressChartCard, type ProgressChartRow } from "@/components/dashboard/progress-chart-card";
 
-const METRICS = [
-  { label: "FLDs", value: 0 },
-  { label: "Demonstrations", value: 0 },
-  { label: "Farmers Covered", value: 0 },
-  { label: "Quantity", value: 0 },
-];
+type FldStats = { total: number; demonstrations: number; farmersCovered: number };
 
+const EMPTY: FldStats = { total: 0, demonstrations: 0, farmersCovered: 0 };
+
+/**
+ * Real data (was a static `value: 0` placeholder for every metric and an
+ * empty chart). "Quantity" has no matching field anywhere in Fld or
+ * FldDemonstrationDetail's schema - shown as "-" rather than a guessed
+ * number, same rule as OFT's Farmers Covered/Locations.
+ */
 export default function FldDetailedAnalyticsPage() {
+  const [stats, setStats] = useState<FldStats>(EMPTY);
+  const [rows, setRows] = useState<ProgressChartRow[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/dashboard-stats")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (cancelled || !data) return;
+        setStats({ total: data.fld.total, demonstrations: data.fld.demonstrations, farmersCovered: data.fld.farmersCovered });
+        setRows(data.charts.fld);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const metrics = [
+    { label: "FLDs", value: stats.total },
+    { label: "Demonstrations", value: stats.demonstrations },
+    { label: "Farmers Covered", value: stats.farmersCovered },
+    { label: "Quantity", value: "-" },
+  ];
+
   return (
     <div>
       <Link
@@ -34,7 +65,7 @@ export default function FldDetailedAnalyticsPage() {
       </div>
 
       <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
-        {METRICS.map((metric) => (
+        {metrics.map((metric) => (
           <MetricCard
             key={metric.label}
             label={metric.label}
@@ -47,7 +78,8 @@ export default function FldDetailedAnalyticsPage() {
         <ProgressChartCard
           title="FLD by Zone"
           description="Status"
-          totalCount={0}
+          totalCount={stats.total}
+          rows={rows}
         />
       </div>
     </div>

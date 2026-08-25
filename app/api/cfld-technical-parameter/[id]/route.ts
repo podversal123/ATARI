@@ -23,7 +23,7 @@ export async function GET(
 
   const record = await prisma.cfldTechnicalParameter.findFirst({
     where: { id, kvkId: auth.session.kvkId },
-    include: { economicParameters: true, farmersPerceptions: true },
+    include: { economicParameters: true, farmersPerceptions: true, socioEconomicImpacts: true },
   });
   if (!record) {
     return NextResponse.json({ error: "Record not found." }, { status: 404 });
@@ -31,6 +31,7 @@ export async function GET(
 
   const economic = record.economicParameters[0];
   const perception = record.farmersPerceptions[0];
+  const socioEconomicImpact = record.socioEconomicImpacts[0];
   const demographics = (record.farmersByCategory as Record<string, string> | null) ?? {};
 
   return NextResponse.json({
@@ -64,6 +65,17 @@ export async function GET(
         }
       : {},
     demographics,
+    socioEconomic: socioEconomicImpact
+      ? {
+          totalProduceObtainedKg: numStr(socioEconomicImpact.totalProduceObtainedKg),
+          produceSoldKgPerHousehold: numStr(socioEconomicImpact.produceSoldKgPerHousehold),
+          sellingRatePerKg: numStr(socioEconomicImpact.sellingRatePerKg),
+          produceUsedOwnFarmKg: numStr(socioEconomicImpact.produceUsedOwnFarmKg),
+          produceDistributedToOthersKg: numStr(socioEconomicImpact.produceDistributedToOthersKg),
+          employmentGeneratedMandays: numStr(socioEconomicImpact.employmentGeneratedMandays),
+          purposeOfIncomeUtilized: socioEconomicImpact.purposeOfIncomeUtilized ?? "",
+        }
+      : {},
     perception: perception
       ? {
           suitability: perception.suitability ?? "",
@@ -102,6 +114,7 @@ export async function PUT(
   const technical = body?.technical ?? {};
   const economic = body?.economic ?? {};
   const demographics = body?.demographics ?? {};
+  const socioEconomic = body?.socioEconomic ?? {};
   const perception = body?.perception ?? {};
   const status = body?.status === "COMPLETED" ? "COMPLETED" : "ONGOING";
 
@@ -166,6 +179,25 @@ export async function PUT(
         acceptableToGroup: str(perception.acceptableToAll),
         suggestions: str(perception.suggestions),
         farmerFeedback: str(perception.farmerFeedback),
+      },
+    });
+  }
+
+  await prisma.cfldSocioEconomicImpact.deleteMany({ where: { cfldTechnicalParameterId: id } });
+  const hasSocioEconomic = Object.values(socioEconomic).some((v) => v !== "" && v != null);
+  if (hasSocioEconomic) {
+    await prisma.cfldSocioEconomicImpact.create({
+      data: {
+        cfldTechnicalParameterId: id,
+        zoneId: auth.session.zoneId,
+        cropDemonstrated: reqStr(technical.crop),
+        totalProduceObtainedKg: dec(socioEconomic.totalProduceObtainedKg),
+        produceSoldKgPerHousehold: dec(socioEconomic.produceSoldKgPerHousehold),
+        sellingRatePerKg: dec(socioEconomic.sellingRatePerKg),
+        produceUsedOwnFarmKg: dec(socioEconomic.produceUsedOwnFarmKg),
+        produceDistributedToOthersKg: dec(socioEconomic.produceDistributedToOthersKg),
+        purposeOfIncomeUtilized: str(socioEconomic.purposeOfIncomeUtilized),
+        employmentGeneratedMandays: dec(socioEconomic.employmentGeneratedMandays),
       },
     });
   }

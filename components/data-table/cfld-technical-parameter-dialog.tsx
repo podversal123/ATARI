@@ -47,6 +47,16 @@ const ECONOMIC_FIELDS = [
   { key: "bcRatioFarmer", label: "B:C Ratio - Farmers' Practice" },
 ];
 
+/** Real fields from the CfldSocioEconomicImpact model - the report's own "3. Socio-economic impact parameters" produce/income section, previously not represented in this dialog at all (only the caste/gender demographic breakdown was). */
+const SOCIO_ECONOMIC_FIELDS = [
+  { key: "totalProduceObtainedKg", label: "Total Produce Obtained (kg)" },
+  { key: "produceSoldKgPerHousehold", label: "Produce Sold per Household (kg)" },
+  { key: "sellingRatePerKg", label: "Selling Rate (₹/kg)" },
+  { key: "produceUsedOwnFarmKg", label: "Produce Used on Own Farm (kg)" },
+  { key: "produceDistributedToOthersKg", label: "Produce Distributed to Others (kg)" },
+  { key: "employmentGeneratedMandays", label: "Employment Generated (mandays)" },
+] as const;
+
 /** Real field names confirmed live. */
 const PERCEPTION_FIELDS = [
   { key: "suitability", label: "Suitability to Farming System" },
@@ -97,6 +107,7 @@ export function CfldTechnicalParameterDialog({
   const [technical, setTechnical] = useState<Record<string, string>>({});
   const [economic, setEconomic] = useState<Record<string, string>>({});
   const [demographics, setDemographics] = useState<DemographicValues>({});
+  const [socioEconomic, setSocioEconomic] = useState<Record<string, string>>({});
   const [perception, setPerception] = useState<Record<string, string>>({});
 
   /**
@@ -118,21 +129,25 @@ export function CfldTechnicalParameterDialog({
 
   useEffect(() => {
     if (!open || !editingId) return;
-    setLoading(true);
-    fetch(`/api/cfld-technical-parameter/${editingId}`)
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.error) {
-          setError(data.error);
-          return;
-        }
-        setTechnical(data.technical ?? {});
-        setEconomic(data.economic ?? {});
-        setDemographics(data.demographics ?? {});
-        setPerception(data.perception ?? {});
-      })
-      .catch(() => setError("Could not load this record."))
-      .finally(() => setLoading(false));
+    function load() {
+      setLoading(true);
+      fetch(`/api/cfld-technical-parameter/${editingId}`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.error) {
+            setError(data.error);
+            return;
+          }
+          setTechnical(data.technical ?? {});
+          setEconomic(data.economic ?? {});
+          setDemographics(data.demographics ?? {});
+          setSocioEconomic(data.socioEconomic ?? {});
+          setPerception(data.perception ?? {});
+        })
+        .catch(() => setError("Could not load this record."))
+        .finally(() => setLoading(false));
+    }
+    load();
   }, [open, editingId]);
 
   function handleOpenChange(next: boolean) {
@@ -141,6 +156,7 @@ export function CfldTechnicalParameterDialog({
       setTechnical({});
       setEconomic({});
       setDemographics({});
+      setSocioEconomic({});
       setPerception({});
       setError(null);
     }
@@ -156,7 +172,7 @@ export function CfldTechnicalParameterDialog({
         {
           method: editingId ? "PUT" : "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ technical, economic, demographics, perception, status }),
+          body: JSON.stringify({ technical, economic, demographics, socioEconomic, perception, status }),
         },
       );
       const data = await response.json();
@@ -497,16 +513,50 @@ export function CfldTechnicalParameterDialog({
           )}
 
           {activeTab === "Socio Economic Parameters" && (
-            <div className="space-y-3">
-              <p className="text-xs text-muted-foreground">
-                Number of farmer beneficiaries by category and gender.
-              </p>
-              <DemographicBreakdown
-                values={demographics}
-                onChange={(key, value) =>
-                  setDemographics((p) => ({ ...p, [key]: value }))
-                }
-              />
+            <div className="space-y-5">
+              <div className="space-y-3">
+                <p className="text-xs text-muted-foreground">
+                  Number of farmer beneficiaries by category and gender.
+                </p>
+                <DemographicBreakdown
+                  values={demographics}
+                  onChange={(key, value) =>
+                    setDemographics((p) => ({ ...p, [key]: value }))
+                  }
+                />
+              </div>
+
+              <div className="space-y-3 border-t border-border pt-4">
+                <p className="text-sm font-semibold text-primary">
+                  Produce &amp; Income Details
+                </p>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  {SOCIO_ECONOMIC_FIELDS.map((field) => (
+                    <div key={field.key} className="space-y-1.5">
+                      <Label htmlFor={`cfld-socio-${field.key}`}>{field.label}</Label>
+                      <Input
+                        id={`cfld-socio-${field.key}`}
+                        type="number"
+                        value={socioEconomic[field.key] ?? ""}
+                        onChange={(e) =>
+                          setSocioEconomic((p) => ({ ...p, [field.key]: e.target.value }))
+                        }
+                      />
+                    </div>
+                  ))}
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="cfld-socio-purpose">Purpose of Income Utilized</Label>
+                  <Textarea
+                    id="cfld-socio-purpose"
+                    rows={2}
+                    value={socioEconomic.purposeOfIncomeUtilized ?? ""}
+                    onChange={(e) =>
+                      setSocioEconomic((p) => ({ ...p, purposeOfIncomeUtilized: e.target.value }))
+                    }
+                  />
+                </div>
+              </div>
             </div>
           )}
 

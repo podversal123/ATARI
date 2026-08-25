@@ -10,14 +10,10 @@ const reqDec = (v: string | undefined) => Number(v) || 0;
 
 /**
  * Backs the CFLD Technical Parameter dialog's 4 tabs. The dialog's own
- * "Socio Economic Parameters" tab renders a caste/gender demographic
- * breakdown (not the report's produce/income "Socio-economic impact"
- * section) - stored in farmersByCategory (JSON) on the parent record, which
- * is exactly what that field was designed for. The report's own
- * Total-Produce/Selling-Rate/Employment-Generated fields
- * (CfldSocioEconomicImpact) have no matching inputs anywhere in this dialog
- * yet, so that child table isn't populated from this route - not guessed,
- * left for whenever those fields are actually added to the UI. Create only:
+ * "Socio Economic Parameters" tab renders both the caste/gender demographic
+ * breakdown (farmersByCategory JSON on the parent record) and the report's
+ * own produce/income "Socio-economic impact" fields (CfldSocioEconomicImpact
+ * - Total Produce/Selling Rate/Employment Generated etc.). Create only:
  * editing an existing record needs a real row id threaded through
  * EmptyDataTable's rows, which no leaf in this app has yet (a broader,
  * separate gap, not specific to CFLD).
@@ -33,6 +29,7 @@ export async function POST(request: Request) {
   const technical = body?.technical ?? {};
   const economic = body?.economic ?? {};
   const demographics = body?.demographics ?? {};
+  const socioEconomic = body?.socioEconomic ?? {};
   const perception = body?.perception ?? {};
   const status = body?.status === "COMPLETED" ? "COMPLETED" : "ONGOING";
 
@@ -97,6 +94,24 @@ export async function POST(request: Request) {
         acceptableToGroup: str(perception.acceptableToAll),
         suggestions: str(perception.suggestions),
         farmerFeedback: str(perception.farmerFeedback),
+      },
+    });
+  }
+
+  const hasSocioEconomic = Object.values(socioEconomic).some((v) => v !== "" && v != null);
+  if (hasSocioEconomic) {
+    await prisma.cfldSocioEconomicImpact.create({
+      data: {
+        cfldTechnicalParameterId: record.id,
+        zoneId: auth.session.zoneId,
+        cropDemonstrated: reqStr(technical.crop),
+        totalProduceObtainedKg: dec(socioEconomic.totalProduceObtainedKg),
+        produceSoldKgPerHousehold: dec(socioEconomic.produceSoldKgPerHousehold),
+        sellingRatePerKg: dec(socioEconomic.sellingRatePerKg),
+        produceUsedOwnFarmKg: dec(socioEconomic.produceUsedOwnFarmKg),
+        produceDistributedToOthersKg: dec(socioEconomic.produceDistributedToOthersKg),
+        purposeOfIncomeUtilized: str(socioEconomic.purposeOfIncomeUtilized),
+        employmentGeneratedMandays: dec(socioEconomic.employmentGeneratedMandays),
       },
     });
   }

@@ -35,36 +35,39 @@ export function KvkCheckboxFilter({
 }: KvkCheckboxFilterProps) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
-  const [draft, setDraft] = useState<Set<string>>(new Set(selected));
+  /** Always an explicit set of checked names - no "empty means all" shorthand here, so unchecking "Select All" can actually reach a real, distinct "none checked" state instead of collapsing back into "all". The empty-means-all shorthand only exists at the `selected`/`onApply` boundary (see the prop comment). */
+  const [draft, setDraft] = useState<Set<string>>(
+    selected.length === 0 ? new Set(kvkNames) : new Set(selected),
+  );
 
   const filteredNames = kvkNames.filter((name) =>
     name.toLowerCase().includes(search.toLowerCase()),
   );
-  const allSelected = draft.size === 0 || draft.size === kvkNames.length;
+  const allSelected = kvkNames.length > 0 && draft.size === kvkNames.length;
 
   function openMenu(next: boolean) {
     setOpen(next);
     if (next) {
-      setDraft(new Set(selected));
+      setDraft(selected.length === 0 ? new Set(kvkNames) : new Set(selected));
       setSearch("");
     }
   }
 
   function toggleAll(checked: boolean) {
-    setDraft(checked ? new Set() : new Set(kvkNames));
+    setDraft(checked ? new Set(kvkNames) : new Set());
   }
 
   function toggleOne(name: string, checked: boolean) {
     setDraft((prev) => {
-      const next = new Set(prev.size === 0 ? kvkNames : prev);
+      const next = new Set(prev);
       if (checked) next.add(name);
       else next.delete(name);
-      return next.size === kvkNames.length ? new Set() : next;
+      return next;
     });
   }
 
   function apply() {
-    onApply(Array.from(draft));
+    onApply(draft.size === kvkNames.length ? [] : Array.from(draft));
     setOpen(false);
   }
 
@@ -117,7 +120,7 @@ export function KvkCheckboxFilter({
                 </p>
               ) : (
                 filteredNames.map((name) => {
-                  const checked = draft.size === 0 || draft.has(name);
+                  const checked = draft.has(name);
                   return (
                     <label
                       key={name}

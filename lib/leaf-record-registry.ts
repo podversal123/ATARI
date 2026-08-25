@@ -618,7 +618,18 @@ export const LEAF_DELETE_REGISTRY: Record<string, DeleteFn> = {
   "achievements/awards/scientist": (id, ctx) => prisma.scientistAward.deleteMany({ where: { id, kvkId: ctx.kvkId } }),
   "achievements/awards/farmer": (id, ctx) => prisma.farmerAward.deleteMany({ where: { id, kvkId: ctx.kvkId } }),
 
-  "projects/cfld/technical-parameter": (id, ctx) => prisma.cfldTechnicalParameter.deleteMany({ where: { id, kvkId: ctx.kvkId } }),
+  /** Deleting the parent alone violates the RESTRICT foreign keys from its Economic/Socio-Economic/Farmers-Perception children (they don't cascade) - clear those first, in one transaction. */
+  "projects/cfld/technical-parameter": async (id, ctx) => {
+    const existing = await prisma.cfldTechnicalParameter.findFirst({ where: { id, kvkId: ctx.kvkId }, select: { id: true } });
+    if (!existing) return { count: 0 };
+    await prisma.$transaction([
+      prisma.cfldEconomicParameter.deleteMany({ where: { cfldTechnicalParameterId: id } }),
+      prisma.cfldSocioEconomicImpact.deleteMany({ where: { cfldTechnicalParameterId: id } }),
+      prisma.cfldFarmersPerception.deleteMany({ where: { cfldTechnicalParameterId: id } }),
+      prisma.cfldTechnicalParameter.deleteMany({ where: { id, kvkId: ctx.kvkId } }),
+    ]);
+    return { count: 1 };
+  },
   "projects/cfld/extension-activity-cfld": (id, ctx) => prisma.cfldExtensionActivity.deleteMany({ where: { id, kvkId: ctx.kvkId } }),
   "projects/cfld/budget-utilization": (id, ctx) => prisma.cfldBudgetUtilization.deleteMany({ where: { id, kvkId: ctx.kvkId } }),
   "projects/cfld/crop-wise-images": (id, ctx) => prisma.cfldCropWiseImage.deleteMany({ where: { id, kvkId: ctx.kvkId } }),

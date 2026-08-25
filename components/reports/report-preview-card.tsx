@@ -1,4 +1,4 @@
-import { AlertCircle, Loader2 } from "lucide-react";
+import { AlertCircle, CheckCircle2, Loader2, XCircle } from "lucide-react";
 import type { PreviewPhase } from "./use-report-preview";
 
 type MetaField = { label: string; value: string };
@@ -7,6 +7,8 @@ type ReportPreviewCardProps = {
   heading: string;
   reportId: string | null;
   phase: PreviewPhase;
+  totalRecords?: number;
+  errorMessage?: string | null;
   /** One array per meta column (2 columns on the KVK screen, 3 on the Super Admin screen). */
   metaColumns: MetaField[][];
 };
@@ -21,9 +23,11 @@ export function ReportPreviewCard({
   heading,
   reportId,
   phase,
+  totalRecords = 0,
+  errorMessage,
   metaColumns,
 }: ReportPreviewCardProps) {
-  const showMeta = phase === "generating" || phase === "no-data";
+  const showMeta = phase === "generating" || phase === "ready" || phase === "no-data";
 
   return (
     <div className="rounded-lg border border-border bg-card p-5">
@@ -50,8 +54,8 @@ export function ReportPreviewCard({
         </div>
       )}
 
-      {phase === "no-data" && (
-        <p className="mt-3 text-sm font-semibold text-foreground">Total Records : 0</p>
+      {(phase === "ready" || phase === "no-data") && (
+        <p className="mt-3 text-sm font-semibold text-foreground">Total Records : {totalRecords}</p>
       )}
 
       <div className="mt-4 rounded-md border border-dashed border-border">
@@ -70,6 +74,15 @@ export function ReportPreviewCard({
             <p className="text-xs text-muted-foreground">Please wait.</p>
           </div>
         )}
+        {phase === "ready" && (
+          <div className="flex flex-col items-center justify-center gap-1 px-4 py-10 text-center">
+            <CheckCircle2 className="size-5 text-primary" />
+            <p className="text-sm font-medium text-foreground">Report generated successfully.</p>
+            <p className="text-xs text-muted-foreground">
+              Use the Download Report buttons below to get the PDF, Excel, or Word file.
+            </p>
+          </div>
+        )}
         {phase === "no-data" && (
           <div className="flex flex-col items-center justify-center gap-1 px-4 py-10 text-center">
             <AlertCircle className="size-5 text-muted-foreground" />
@@ -84,6 +97,12 @@ export function ReportPreviewCard({
             <p className="text-xs text-muted-foreground">
               Please click &quot;Generate Preview&quot; to update the report.
             </p>
+          </div>
+        )}
+        {phase === "error" && (
+          <div className="flex flex-col items-center justify-center gap-1 px-4 py-10 text-center">
+            <XCircle className="size-5 text-destructive" />
+            <p className="text-sm font-medium text-foreground">{errorMessage ?? "Could not generate the report."}</p>
           </div>
         )}
       </div>

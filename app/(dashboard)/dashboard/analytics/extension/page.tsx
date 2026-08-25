@@ -1,12 +1,39 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ChevronLeft } from "lucide-react";
 import { AnalyticsFilterBar } from "@/components/dashboard/analytics-filter-bar";
 import { MetricCard } from "@/components/dashboard/metric-card";
-import { ProgressChartCard } from "@/components/dashboard/progress-chart-card";
+import { ProgressChartCard, type ProgressChartRow } from "@/components/dashboard/progress-chart-card";
 
-const METRICS = [{ label: "Extension Activities", value: 0 }];
+type TotalRow = { id: string; label: string; total: number };
 
+/** Extension Activity has no ongoing/completed status column - same total-only mode as Training. */
+function toTotalChartRows(rows: TotalRow[]): ProgressChartRow[] {
+  return rows.map((r) => ({ id: r.id, label: r.label, ongoing: 0, completed: r.total }));
+}
+
+/** Real data - was a static `value: 0` placeholder and an empty chart. */
 export default function ExtensionDetailedAnalyticsPage() {
+  const [total, setTotal] = useState(0);
+  const [rows, setRows] = useState<ProgressChartRow[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/dashboard-stats")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (cancelled || !data) return;
+        setTotal(data.extension.total);
+        setRows(toTotalChartRows(data.charts.extension));
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   return (
     <div>
       <Link
@@ -29,13 +56,11 @@ export default function ExtensionDetailedAnalyticsPage() {
       </div>
 
       <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
-        {METRICS.map((metric) => (
-          <MetricCard key={metric.label} label={metric.label} value={metric.value} />
-        ))}
+        <MetricCard label="Extension Activities" value={total} />
       </div>
 
       <div className="mt-4">
-        <ProgressChartCard title="Extension Activities by Zone" description="Status" totalCount={0} />
+        <ProgressChartCard title="Extension Activities by Zone" description="Status" totalCount={total} rows={rows} mode="total" />
       </div>
     </div>
   );

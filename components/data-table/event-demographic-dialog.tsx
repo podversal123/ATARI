@@ -70,32 +70,35 @@ export function EventDemographicDialog({
 
   useEffect(() => {
     if (!open || !editingId || !slug) return;
-    setLoading(true);
-    fetch(`/api/event-demographic/${editingId}?slug=${slug}`)
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.error) {
-          setError(data.error);
-          return;
-        }
-        const v = data.values ?? {};
-        if (isTechnologyWeek) {
-          setStartDate(v.startDate ?? "");
-          setEndDate(v.endDate ?? "");
-          setTypeOfActivities(v.typeOfActivities ?? "");
-          setNoOfActivities(v.noOfActivities ?? "");
-          setRelatedCropTechnology(v.relatedCropTechnology ?? "");
-          setExistingParticipantTotal(v.numberOfParticipants ?? "");
-        } else {
-          setNoOfActivitiesConducted(v.noOfActivitiesConducted ?? "");
-          setSoilHealthCardsDistributed(v.soilHealthCardsDistributed ?? "");
-          setNoOfVip(v.noOfVip ?? "");
-          setVipNames(v.vipNames ?? "");
-          setTotalParticipants(v.totalParticipants ?? "");
-        }
-      })
-      .catch(() => setError("Could not load this record."))
-      .finally(() => setLoading(false));
+    function load() {
+      setLoading(true);
+      fetch(`/api/event-demographic/${editingId}?slug=${slug}`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.error) {
+            setError(data.error);
+            return;
+          }
+          const v = data.values ?? {};
+          if (isTechnologyWeek) {
+            setStartDate(v.startDate ?? "");
+            setEndDate(v.endDate ?? "");
+            setTypeOfActivities(v.typeOfActivities ?? "");
+            setNoOfActivities(v.noOfActivities ?? "");
+            setRelatedCropTechnology(v.relatedCropTechnology ?? "");
+            setExistingParticipantTotal(v.numberOfParticipants ?? "");
+          } else {
+            setNoOfActivitiesConducted(v.noOfActivitiesConducted ?? "");
+            setSoilHealthCardsDistributed(v.soilHealthCardsDistributed ?? "");
+            setNoOfVip(v.noOfVip ?? "");
+            setVipNames(v.vipNames ?? "");
+            setTotalParticipants(v.totalParticipants ?? "");
+          }
+        })
+        .catch(() => setError("Could not load this record."))
+        .finally(() => setLoading(false));
+    }
+    load();
   }, [open, editingId, slug, isTechnologyWeek]);
 
   function handleOpenChange(next: boolean) {
