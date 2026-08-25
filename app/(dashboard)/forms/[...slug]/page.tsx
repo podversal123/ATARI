@@ -418,7 +418,7 @@ export default async function FormsPage({ params }: FormsPageProps) {
         staff: r.staff,
         trialOnForm: r.trialOnForm,
         problemDiagnosed: r.problemDiagnosed ?? "",
-        status: r.status === "COMPLETED" ? "Completed" : "Ongoing",
+        status: r.status === "COMPLETED" ? "Completed" : r.status === "TRANSFERRED" ? "Transferred to Next Year" : "Ongoing",
       })),
       totalCount: rows.length,
     };
@@ -438,7 +438,7 @@ export default async function FormsPage({ params }: FormsPageProps) {
         category: r.category,
         subCategory: r.subCategory,
         technologyDemonstrated: r.technologyDemonstrated,
-        status: r.status === "COMPLETED" ? "Completed" : "Ongoing",
+        status: r.status === "COMPLETED" ? "Completed" : r.status === "TRANSFERRED" ? "Transferred to Next Year" : "Ongoing",
       })),
       totalCount: rows.length,
     };
@@ -840,7 +840,14 @@ export default async function FormsPage({ params }: FormsPageProps) {
         activitiesOrganized: r.activitiesOrganized,
         date: r.date.toISOString().slice(0, 10),
         placeOfActivity: r.placeOfActivity,
-        farmersAttended: String(r.farmersAttended),
+        generalMale: String(r.generalMale),
+        generalFemale: String(r.generalFemale),
+        obcMale: String(r.obcMale),
+        obcFemale: String(r.obcFemale),
+        scMale: String(r.scMale),
+        scFemale: String(r.scFemale),
+        stMale: String(r.stMale),
+        stFemale: String(r.stFemale),
       })),
       totalCount: rows.length,
     };

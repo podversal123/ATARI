@@ -183,13 +183,15 @@ model Institute {
 /// columns confirmed from both lib/navigation.ts (host-master leaf) and the
 /// report's own host organization table.
 model HostOrganization {
-  id          String   @id @default(cuid())
-  name        String
-  address     String?
-  officePhone String?
-  mobilePhone String?
-  fax         String?
-  email       String?
+  id                 String   @id @default(cuid())
+  name               String
+  /// Real field confirmed from the client's own Host Organisation contact list (Host organisation-1.docx, 2026-08-25) - the earlier model had phone/email/address but no named contact person.
+  directorExtension  String?
+  address            String?
+  officePhone        String?
+  mobilePhone        String?
+  fax                String?
+  email              String?
   zoneId      String
   zone        Zone     @relation(fields: [zoneId], references: [id])
   kvks        Kvk[]
@@ -602,6 +604,8 @@ model EquipmentStatus {
 enum TrialStatus {
   ONGOING
   COMPLETED
+  /// Real third status (client spec, "Pointers for super admin 24 aug.pdf"): manually set when a KVK transfers an Ongoing OFT/FLD to the next reporting year - the original row stays visible under its real year with this status, a new ONGOING copy is created under reportingYear+1.
+  TRANSFERRED
 }
 
 /// Technical Achievement Summary is a matrix report (year x section x metric
@@ -1240,6 +1244,10 @@ model CfldFarmersPerception {
   @@index([cfldTechnicalParameterId])
 }
 
+/// Number of farmers columns confirmed from the client's real "Extension
+/// activities under CFLD conducted" table (CFLD Extension Activity.pdf,
+/// 2026-08-25): General/OBC/SC/ST each broken into Male/Female, real
+/// per-category totals are computed from these (M+F), not stored.
 model CfldExtensionActivity {
   id                  String   @id @default(cuid())
   kvkId               String
@@ -1249,7 +1257,14 @@ model CfldExtensionActivity {
   activitiesOrganized String
   date                DateTime
   placeOfActivity     String
-  farmersAttended     Int
+  generalMale         Int      @default(0)
+  generalFemale       Int      @default(0)
+  obcMale             Int      @default(0)
+  obcFemale           Int      @default(0)
+  scMale              Int      @default(0)
+  scFemale            Int      @default(0)
+  stMale              Int      @default(0)
+  stFemale            Int      @default(0)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

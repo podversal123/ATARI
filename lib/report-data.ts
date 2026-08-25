@@ -63,7 +63,7 @@ const MODEL_FIELDS: Record<string, string[]> = {
   scientistAward: ["headScientist", "award", "amount", "achievement", "conferringAuthority"],
   farmerAward: ["farmerName", "address", "contactNumber", "award", "amount", "achievement", "conferringAuthority"],
   cfldTechnicalParameter: ["reportingYear", "season", "crop", "areaHa", "numberOfFarmers", "yieldDemoAvgQha", "districtYield", "stateYield", "potentialYield", "percentIncrease"],
-  cfldExtensionActivity: ["season", "activitiesOrganized", "date", "placeOfActivity", "farmersAttended"],
+  cfldExtensionActivity: ["season", "activitiesOrganized", "date", "placeOfActivity", "generalMale", "generalFemale", "obcMale", "obcFemale", "scMale", "scFemale", "stMale", "stFemale"],
   cfldBudgetUtilization: ["crop", "season", "overallFundAllocation"],
   nicraBasicInformation: ["rfDistrictNormal", "rfDistrictReceived", "maxTemperature", "minTemperature"],
   nicraDetails: ["cropName", "seasonName", "technologyDemonstration", "noOfFarmers"],

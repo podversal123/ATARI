@@ -9,6 +9,7 @@ export async function POST(request: Request) {
 
   const body = await request.json().catch(() => null);
   const name = typeof body?.hostName === "string" ? body.hostName.trim() : "";
+  const directorExtension = typeof body?.directorExtension === "string" ? body.directorExtension.trim() : "";
   const mobile = typeof body?.mobile === "string" ? body.mobile.trim() : "";
   const landline = typeof body?.landline === "string" ? body.landline.trim() : "";
   const fax = typeof body?.fax === "string" ? body.fax.trim() : "";
@@ -28,6 +29,7 @@ export async function POST(request: Request) {
   const hostOrg = await prisma.hostOrganization.create({
     data: {
       name,
+      directorExtension: directorExtension || undefined,
       address: address || undefined,
       officePhone: landline || undefined,
       mobilePhone: mobile || undefined,

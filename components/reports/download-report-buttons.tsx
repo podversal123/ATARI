@@ -2,17 +2,25 @@ import { FileDown, FileSpreadsheet, FileType, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 /**
- * PDF is real (generates and downloads the actual multi-section report from
- * live data - see lib/report-data.ts + lib/report-pdf.ts). Excel/Word have
- * no generator built yet, so they stay honestly disabled rather than faking
- * a second export format.
+ * All three formats are real - PDF (lib/report-pdf.ts), Excel
+ * (lib/report-excel.ts, exceljs), Word (lib/report-word.ts, docx) - each
+ * generating the same live section tree from lib/report-data.ts, not a
+ * placeholder.
  */
 export function DownloadReportButtons({
   onDownloadPdf,
+  onDownloadExcel,
+  onDownloadWord,
   pdfLoading,
+  excelLoading,
+  wordLoading,
 }: {
   onDownloadPdf?: () => void;
+  onDownloadExcel?: () => void;
+  onDownloadWord?: () => void;
   pdfLoading?: boolean;
+  excelLoading?: boolean;
+  wordLoading?: boolean;
 }) {
   return (
     <div className="flex flex-wrap items-center gap-2">
@@ -20,13 +28,13 @@ export function DownloadReportButtons({
         {pdfLoading ? <Loader2 className="size-3.5 animate-spin" /> : <FileDown className="size-3.5" />}
         {pdfLoading ? "Generating…" : "PDF"}
       </Button>
-      <Button variant="outline" size="sm" disabled>
-        <FileSpreadsheet className="size-3.5" />
-        Excel
+      <Button variant="outline" size="sm" onClick={onDownloadExcel} disabled={!onDownloadExcel || excelLoading}>
+        {excelLoading ? <Loader2 className="size-3.5 animate-spin" /> : <FileSpreadsheet className="size-3.5" />}
+        {excelLoading ? "Generating…" : "Excel"}
       </Button>
-      <Button variant="outline" size="sm" disabled>
-        <FileType className="size-3.5" />
-        Word
+      <Button variant="outline" size="sm" onClick={onDownloadWord} disabled={!onDownloadWord || wordLoading}>
+        {wordLoading ? <Loader2 className="size-3.5 animate-spin" /> : <FileType className="size-3.5" />}
+        {wordLoading ? "Generating…" : "Word"}
       </Button>
     </div>
   );

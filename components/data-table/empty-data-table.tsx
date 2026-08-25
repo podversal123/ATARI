@@ -171,6 +171,8 @@ export function EmptyDataTable({
   const session = useSession();
   const router = useRouter();
   const isSuperAdmin = session.role === "super-admin";
+  /** OFT/FLD's Action column (Edit/Transfer/Add Result) is only meaningful for the KVK that owns the record - a Super Admin gets no actions there at all, so the column itself is dropped rather than left rendering as empty header/cells with no purpose. */
+  const showActionColumn = !(oftFldStatus && isSuperAdmin);
   const Icon = icon ? SIDEBAR_ICONS[icon] : undefined;
   /** Unique per instance - a page can render more than one EmptyDataTable (e.g. Notifications' Received + Sent tables), and duplicate ids break label association. */
   const instanceId = useId();
@@ -270,6 +272,36 @@ export function EmptyDataTable({
     string,
     ReactNode
   > | null>(null);
+  const [transferError, setTransferError] = useState<string | null>(null);
+  const [transferring, setTransferring] = useState(false);
+
+  async function confirmTransfer() {
+    const id = transferRow?.id;
+    if (!recordPath || typeof id !== "string") {
+      setTransferRow(null);
+      return;
+    }
+    setTransferError(null);
+    setTransferring(true);
+    try {
+      const response = await fetch("/api/leaf-record/transfer", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ path: recordPath, id }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        setTransferError(data.error ?? "Something went wrong. Please try again.");
+        return;
+      }
+      setTransferRow(null);
+      router.refresh();
+    } catch {
+      setTransferError("Could not reach the server. Please try again.");
+    } finally {
+      setTransferring(false);
+    }
+  }
   /** CFLD Technical Parameter only - which tab to land on when the dialog opens from a direct Action-dropdown shortcut (Edit/Economic/Socio-Economic/Farmers Perception). */
   const [cfldInitialTab, setCfldInitialTab] = useState<CfldTabName>();
   const isCfldTechnicalParameter = customForm === "cfld-technical-parameter";
@@ -653,16 +685,16 @@ export function EmptyDataTable({
                     </span>
                   </th>
                 ))}
-                <th className="w-20 px-4 py-3 text-right">
-                  {oftFldStatus && isSuperAdmin ? "" : "Action"}
-                </th>
+                {showActionColumn && (
+                  <th className="w-20 px-4 py-3 text-right">Action</th>
+                )}
               </tr>
             </thead>
             <tbody>
               {rowCount === 0 ? (
                 <tr>
                   <td
-                    colSpan={columns.length + 2}
+                    colSpan={columns.length + (showActionColumn ? 2 : 1)}
                     className="px-4 py-16 text-center text-muted-foreground"
                   >
                     No records found.
@@ -757,8 +789,8 @@ export function EmptyDataTable({
                         </td>
                       );
                     })}
+                    {showActionColumn && (
                     <td className="px-4 py-3 text-right align-top">
-                      {oftFldStatus && isSuperAdmin ? null : (
                         <DropdownMenu>
                           <DropdownMenuTrigger
                             render={
@@ -848,8 +880,8 @@ export function EmptyDataTable({
                             )}
                           </DropdownMenuContent>
                         </DropdownMenu>
-                      )}
                     </td>
+                    )}
                   </tr>
                 ))
               )}
@@ -984,7 +1016,12 @@ export function EmptyDataTable({
       {(oftFldStatus || isCfldTechnicalParameter) && (
         <AlertDialog
           open={transferRow !== null}
-          onOpenChange={(open) => !open && setTransferRow(null)}
+          onOpenChange={(open) => {
+            if (!open) {
+              setTransferRow(null);
+              setTransferError(null);
+            }
+          }}
         >
           <AlertDialogContent>
             <AlertDialogHeader>
@@ -996,10 +1033,21 @@ export function EmptyDataTable({
                 &ldquo;Ongoing&rdquo;.
               </AlertDialogDescription>
             </AlertDialogHeader>
+            {transferError && (
+              <p role="alert" className="text-sm font-medium text-destructive">
+                {transferError}
+              </p>
+            )}
             <AlertDialogFooter>
-              <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction onClick={() => setTransferRow(null)}>
-                Transfer
+              <AlertDialogCancel disabled={transferring}>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={(event) => {
+                  event.preventDefault();
+                  confirmTransfer();
+                }}
+                disabled={transferring}
+              >
+                {transferring ? "Transferring…" : "Transfer"}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>

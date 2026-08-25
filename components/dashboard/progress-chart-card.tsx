@@ -105,10 +105,19 @@ export function ProgressChartCard({
     const h = 100;
     const step = rows.length > 1 ? w / (rows.length - 1) : 0;
     const scale = (v: number) => h - (v / maxTotal) * h;
+    /**
+     * Real reference (atari-client.vercel.app/dashboard, Area tab): two
+     * independent smoothed curves both starting at 0, not a stacked band -
+     * an inner "Ongoing" curve (orange, 0..ongoing) painted on top of an
+     * outer "Total" curve (green/gray, 0..ongoing+completed) painted first,
+     * so the region between the two curves reads as "Completed" without a
+     * third path. Confirmed against a real frame - orange peaks/dips there
+     * track each KVK's real `ongoing` value exactly, not `completed`.
+     */
     const points = rows.map((r, i) => ({
       x: rows.length > 1 ? i * step : w / 2,
-      completedY: scale(r.completed),
-      totalY: scale(r.completed + r.ongoing),
+      ongoingY: scale(r.ongoing),
+      totalY: scale(r.ongoing + r.completed),
     }));
 
     function smoothPath(ys: { x: number; y: number }[], baseline: number) {
@@ -126,14 +135,14 @@ export function ProgressChartCard({
     }
 
     return {
-      completed: smoothPath(
-        points.map((p) => ({ x: p.x, y: p.completedY })),
+      total: smoothPath(
+        points.map((p) => ({ x: p.x, y: p.totalY })),
         h,
       ),
-      total:
+      ongoing:
         mode === "split"
           ? smoothPath(
-              points.map((p) => ({ x: p.x, y: p.totalY })),
+              points.map((p) => ({ x: p.x, y: p.ongoingY })),
               h,
             )
           : null,
@@ -265,52 +274,98 @@ export function ProgressChartCard({
             })}
           </div>
         ) : view === "list" ? (
-          <div className="flex h-full flex-col justify-between overflow-hidden">
+          <div className="flex h-full flex-col justify-between gap-1.5 overflow-hidden">
+            {/*
+              Real reference: each row's track is always full width - the
+              orange/green split is the ongoing:completed ratio within that
+              row, not the row's magnitude relative to the busiest row (that
+              magnitude comparison is what the Bar/Area views are for). Name
+              + status badges share one line, the track sits on its own line
+              below - confirmed against a real frame, not the previous
+              width-by-total-value bar this replaced.
+            */}
             {pageRows.map((row) => {
               const total = row.ongoing + row.completed;
+              const notStarted = total === 0 ? 1 : 0;
               return (
-                <div key={row.id} className="flex items-center gap-2 text-xs">
-                  <span className="w-24 shrink-0 truncate text-muted-foreground" title={row.label}>
-                    {row.label}
-                  </span>
-                  <div className="group/tip relative h-2.5 flex-1 overflow-hidden rounded-full bg-muted-foreground/15">
-                    <div
-                      className="flex h-full"
-                      style={{ width: `${total === 0 ? 0 : (total / maxTotal) * 100}%` }}
-                    >
-                      {mode === "split" && row.ongoing > 0 && (
-                        <div
-                          className="h-full"
-                          style={{
-                            backgroundColor: ONGOING_COLOR,
-                            width: `${(row.ongoing / total) * 100}%`,
-                          }}
-                        />
+                <div key={row.id} className="flex flex-col gap-1 py-0.5 text-xs">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="truncate font-medium text-foreground" title={row.label}>
+                      {row.label}
+                    </span>
+                    <span className="flex shrink-0 items-center gap-1 text-[11px] font-medium">
+                      {mode === "split" && (
+                        <>
+                          <span
+                            className="rounded-full px-1.5 py-0.5"
+                            style={{ backgroundColor: `${ONGOING_COLOR}22`, color: ONGOING_COLOR }}
+                          >
+                            ● {row.ongoing}
+                          </span>
+                          <span className="rounded-full bg-primary/15 px-1.5 py-0.5 text-primary">
+                            ● {row.completed}
+                          </span>
+                          <span className="rounded-full bg-muted-foreground/15 px-1.5 py-0.5 text-muted-foreground">
+                            ● {notStarted}
+                          </span>
+                        </>
                       )}
-                      {row.completed > 0 && (
-                        <div className="h-full bg-primary" style={{ width: `${(row.completed / total) * 100}%` }} />
+                      <span className="rounded-md border border-border px-1.5 py-0.5 text-muted-foreground">
+                        Σ {total}
+                      </span>
+                    </span>
+                  </div>
+                  <div className="group/tip relative h-1.5 w-full overflow-hidden rounded-full bg-muted-foreground/15">
+                    <div className="flex h-full w-full">
+                      {mode === "split" ? (
+                        <>
+                          {row.ongoing > 0 && (
+                            <div
+                              className="h-full"
+                              style={{
+                                backgroundColor: ONGOING_COLOR,
+                                width: `${total === 0 ? 0 : (row.ongoing / total) * 100}%`,
+                              }}
+                            />
+                          )}
+                          {row.completed > 0 && (
+                            <div
+                              className="h-full bg-primary"
+                              style={{ width: `${total === 0 ? 0 : (row.completed / total) * 100}%` }}
+                            />
+                          )}
+                        </>
+                      ) : (
+                        total > 0 && <div className="h-full w-full bg-primary" />
                       )}
                     </div>
-                    <div
-                      className="pointer-events-none absolute top-full left-0 z-10 mt-1 w-max max-w-48 rounded-md bg-foreground px-2 py-1 text-[11px] whitespace-pre-line text-background opacity-0 shadow-md transition-opacity group-hover/tip:opacity-100"
-                    >
+                    <div className="pointer-events-none absolute top-full left-0 z-10 mt-1 w-max max-w-48 rounded-md bg-foreground px-2 py-1 text-[11px] whitespace-pre-line text-background opacity-0 shadow-md transition-opacity group-hover/tip:opacity-100">
                       {tooltipText(row, mode)}
                     </div>
                   </div>
-                  <span className="w-8 shrink-0 text-right text-muted-foreground">{total}</span>
                 </div>
               );
             })}
           </div>
         ) : (
           <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="h-full w-full overflow-visible">
-            {areaPath?.total && <path d={areaPath.total} fill={ONGOING_COLOR} fillOpacity={0.35} stroke={ONGOING_COLOR} strokeWidth={0.5} vectorEffect="non-scaling-stroke" />}
-            {areaPath?.completed && (
+            {/* Total (green/gray) painted first so it shows through above the Ongoing curve; Ongoing (orange) painted on top covers the 0..ongoing band. */}
+            {areaPath?.total && (
               <path
-                d={areaPath.completed}
+                d={areaPath.total}
                 fill={COMPLETED_COLOR}
-                fillOpacity={0.5}
+                fillOpacity={0.35}
                 stroke={COMPLETED_COLOR}
+                strokeWidth={0.5}
+                vectorEffect="non-scaling-stroke"
+              />
+            )}
+            {areaPath?.ongoing && (
+              <path
+                d={areaPath.ongoing}
+                fill={ONGOING_COLOR}
+                fillOpacity={0.5}
+                stroke={ONGOING_COLOR}
                 strokeWidth={0.5}
                 vectorEffect="non-scaling-stroke"
               />

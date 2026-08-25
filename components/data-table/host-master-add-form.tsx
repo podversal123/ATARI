@@ -27,6 +27,7 @@ type HostMasterAddFormProps = {
 export function HostMasterAddForm({ trail, backHref }: HostMasterAddFormProps) {
   const router = useRouter();
   const [hostName, setHostName] = useState("");
+  const [directorExtension, setDirectorExtension] = useState("");
   const [zone, setZone] = useState("");
   const [state, setState] = useState("");
   const [district, setDistrict] = useState("");
@@ -53,7 +54,7 @@ export function HostMasterAddForm({ trail, backHref }: HostMasterAddFormProps) {
       const response = await fetch("/api/host-orgs", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ hostName, mobile, landline, fax, email, hostAddress }),
+        body: JSON.stringify({ hostName, directorExtension, mobile, landline, fax, email, hostAddress }),
       });
       const data = await response.json();
       if (!response.ok) {
@@ -166,6 +167,16 @@ export function HostMasterAddForm({ trail, backHref }: HostMasterAddFormProps) {
                 </option>
               ))}
             </select>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="host-director-extension">Director Extension</Label>
+            <Input
+              id="host-director-extension"
+              value={directorExtension}
+              onChange={(e) => setDirectorExtension(e.target.value)}
+              placeholder="Enter director extension name"
+            />
           </div>
 
           <div className="space-y-1.5">

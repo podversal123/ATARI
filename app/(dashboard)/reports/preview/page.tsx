@@ -35,26 +35,32 @@ function ReportPreviewContent() {
   const type = params.get("type") === "kvk" ? "kvk" : "admin";
   const backHref = "/reports";
   const [pdfLoading, setPdfLoading] = useState(false);
-  const [pdfError, setPdfError] = useState<string | null>(null);
+  const [excelLoading, setExcelLoading] = useState(false);
+  const [wordLoading, setWordLoading] = useState(false);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
 
   useEffect(() => {
     generate(() => null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  async function fetchReportData() {
+    const kvkFilter = params.get("kvk");
+    const query = kvkFilter ? `?kvk=${encodeURIComponent(kvkFilter)}` : "";
+    const response = await fetch(`/api/reports/generate${query}`);
+    const data: { zoneLabel: string; kvkNames: string[]; sections: ReportSection[] } | { error: string } =
+      await response.json();
+    if (!response.ok || "error" in data) {
+      throw new Error("error" in data ? data.error : "Could not generate the report.");
+    }
+    return data;
+  }
+
   async function handleDownloadPdf() {
-    setPdfError(null);
+    setDownloadError(null);
     setPdfLoading(true);
     try {
-      const kvkFilter = params.get("kvk");
-      const query = kvkFilter ? `?kvk=${encodeURIComponent(kvkFilter)}` : "";
-      const response = await fetch(`/api/reports/generate${query}`);
-      const data: { zoneLabel: string; kvkNames: string[]; sections: ReportSection[] } | { error: string } =
-        await response.json();
-      if (!response.ok || "error" in data) {
-        setPdfError("error" in data ? data.error : "Could not generate the report.");
-        return;
-      }
+      const data = await fetchReportData();
       const { generateReportPdf } = await import("@/lib/report-pdf");
       const doc = generateReportPdf({
         title: "ATARI AMS REPORT",
@@ -64,10 +70,65 @@ function ReportPreviewContent() {
         sections: data.sections,
       });
       doc.save(`ATARI-AMS-Report-${new Date().toISOString().slice(0, 10)}.pdf`);
-    } catch {
-      setPdfError("Could not reach the server. Please try again.");
+    } catch (error) {
+      setDownloadError(error instanceof Error ? error.message : "Could not reach the server. Please try again.");
     } finally {
       setPdfLoading(false);
+    }
+  }
+
+  function downloadBlob(blob: Blob, filename: string) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  async function handleDownloadExcel() {
+    setDownloadError(null);
+    setExcelLoading(true);
+    try {
+      const data = await fetchReportData();
+      const { generateReportExcel } = await import("@/lib/report-excel");
+      const wb = await generateReportExcel({
+        title: "ATARI AMS REPORT",
+        zoneLabel: data.zoneLabel,
+        reportingYearLabel: "All Data",
+        kvkNames: data.kvkNames,
+        sections: data.sections,
+      });
+      const buffer = await wb.xlsx.writeBuffer();
+      downloadBlob(
+        new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }),
+        `ATARI-AMS-Report-${new Date().toISOString().slice(0, 10)}.xlsx`,
+      );
+    } catch (error) {
+      setDownloadError(error instanceof Error ? error.message : "Could not reach the server. Please try again.");
+    } finally {
+      setExcelLoading(false);
+    }
+  }
+
+  async function handleDownloadWord() {
+    setDownloadError(null);
+    setWordLoading(true);
+    try {
+      const data = await fetchReportData();
+      const { generateReportWord } = await import("@/lib/report-word");
+      const blob = await generateReportWord({
+        title: "ATARI AMS REPORT",
+        zoneLabel: data.zoneLabel,
+        reportingYearLabel: "All Data",
+        kvkNames: data.kvkNames,
+        sections: data.sections,
+      });
+      downloadBlob(blob, `ATARI-AMS-Report-${new Date().toISOString().slice(0, 10)}.docx`);
+    } catch (error) {
+      setDownloadError(error instanceof Error ? error.message : "Could not reach the server. Please try again.");
+    } finally {
+      setWordLoading(false);
     }
   }
 
@@ -151,10 +212,17 @@ function ReportPreviewContent() {
           <p className="mb-2 text-xs font-medium text-muted-foreground">
             Download Report
           </p>
-          <DownloadReportButtons onDownloadPdf={handleDownloadPdf} pdfLoading={pdfLoading} />
-          {pdfError && (
+          <DownloadReportButtons
+            onDownloadPdf={handleDownloadPdf}
+            onDownloadExcel={handleDownloadExcel}
+            onDownloadWord={handleDownloadWord}
+            pdfLoading={pdfLoading}
+            excelLoading={excelLoading}
+            wordLoading={wordLoading}
+          />
+          {downloadError && (
             <p role="alert" className="mt-2 text-sm font-medium text-destructive">
-              {pdfError}
+              {downloadError}
             </p>
           )}
         </div>

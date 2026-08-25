@@ -248,7 +248,21 @@ export const LEAF_RECORD_REGISTRY: Record<string, CreateFn> = {
   // --- Projects ---
   "projects/cfld/extension-activity-cfld": (v, ctx) =>
     prisma.cfldExtensionActivity.create({
-      data: { ...ctx, season: reqStr(v.season), activitiesOrganized: reqStr(v.activitiesOrganized), date: reqDate(v.date), placeOfActivity: reqStr(v.placeOfActivity), farmersAttended: reqInt(v.farmersAttended) },
+      data: {
+        ...ctx,
+        season: reqStr(v.season),
+        activitiesOrganized: reqStr(v.activitiesOrganized),
+        date: reqDate(v.date),
+        placeOfActivity: reqStr(v.placeOfActivity),
+        generalMale: int(v.generalMale) ?? 0,
+        generalFemale: int(v.generalFemale) ?? 0,
+        obcMale: int(v.obcMale) ?? 0,
+        obcFemale: int(v.obcFemale) ?? 0,
+        scMale: int(v.scMale) ?? 0,
+        scFemale: int(v.scFemale) ?? 0,
+        stMale: int(v.stMale) ?? 0,
+        stFemale: int(v.stFemale) ?? 0,
+      },
     }),
   "projects/cfld/budget-utilization": (v, ctx) =>
     prisma.cfldBudgetUtilization.create({
@@ -901,7 +915,23 @@ export const LEAF_UPDATE_REGISTRY: Record<string, UpdateFn> = {
     prisma.farmerAward.updateMany({ where: { id, kvkId: ctx.kvkId }, data: { farmerName: reqStr(v.farmerName), address: str(v.address), contactNumber: str(v.contactNumber), award: reqStr(v.award), amount: reqDec(v.amount), achievement: str(v.achievement), conferringAuthority: str(v.conferringAuthority) } }),
 
   "projects/cfld/extension-activity-cfld": (id, v, ctx) =>
-    prisma.cfldExtensionActivity.updateMany({ where: { id, kvkId: ctx.kvkId }, data: { season: reqStr(v.season), activitiesOrganized: reqStr(v.activitiesOrganized), date: reqDate(v.date), placeOfActivity: reqStr(v.placeOfActivity), farmersAttended: reqInt(v.farmersAttended) } }),
+    prisma.cfldExtensionActivity.updateMany({
+      where: { id, kvkId: ctx.kvkId },
+      data: {
+        season: reqStr(v.season),
+        activitiesOrganized: reqStr(v.activitiesOrganized),
+        date: reqDate(v.date),
+        placeOfActivity: reqStr(v.placeOfActivity),
+        generalMale: int(v.generalMale) ?? 0,
+        generalFemale: int(v.generalFemale) ?? 0,
+        obcMale: int(v.obcMale) ?? 0,
+        obcFemale: int(v.obcFemale) ?? 0,
+        scMale: int(v.scMale) ?? 0,
+        scFemale: int(v.scFemale) ?? 0,
+        stMale: int(v.stMale) ?? 0,
+        stFemale: int(v.stFemale) ?? 0,
+      },
+    }),
   "projects/cfld/budget-utilization": (id, v, ctx) =>
     prisma.cfldBudgetUtilization.updateMany({ where: { id, kvkId: ctx.kvkId }, data: { crop: reqStr(v.crop), season: reqStr(v.season), overallFundAllocation: reqDec(v.overallFundAllocation) } }),
   "projects/cfld/crop-wise-images": (id, v, ctx) => {

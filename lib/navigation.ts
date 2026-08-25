@@ -345,6 +345,7 @@ const basicMasters = group(
     ]),
     leaf("host-master", "Host Master", [
       { key: "hostName", label: "Host Name" },
+      { key: "directorExtension", label: "Director Extension" },
       { key: "address", label: "Address" },
       { key: "phone", label: "Phone" },
       { key: "email", label: "Email" },
@@ -1118,13 +1119,21 @@ const projects = group(
         { key: "status", label: "Status" },
       ]),
       /** Columns confirmed against the client's own "Extension Activities" (CFLD) screenshot (AMS User Manual p.28). */
+      /** Number-of-farmers columns confirmed from the client's real "Extension activities under CFLD conducted" table (CFLD Extension Activity.pdf, 2026-08-25) - General/OBC/SC/ST each split Male/Female, matching the report's own grouped column header exactly. */
       leaf("extension-activity-cfld", "Extension Activity (CFLD)", [
         { key: "kvk", label: "KVK Name" },
         { key: "season", label: "Season" },
         { key: "activitiesOrganized", label: "Extension Activities Organized" },
         { key: "date", label: "Date" },
         { key: "placeOfActivity", label: "Place of Activity" },
-        { key: "farmersAttended", label: "Number of Farmers Attended" },
+        { key: "generalMale", label: "General - Male" },
+        { key: "generalFemale", label: "General - Female" },
+        { key: "obcMale", label: "OBC - Male" },
+        { key: "obcFemale", label: "OBC - Female" },
+        { key: "scMale", label: "SC - Male" },
+        { key: "scFemale", label: "SC - Female" },
+        { key: "stMale", label: "ST - Male" },
+        { key: "stFemale", label: "ST - Female" },
       ]),
       /** Columns confirmed against the client's own "Budget Utilization" (CFLD) screenshot (AMS User Manual p.29). */
       /** Columns confirmed against the client's own live atariams.org "Budget Utilization" screenshot (2026-08-24) - a simpler, more current structure than the earlier manual screenshot's Items/Budget Received/Budget Utilization/Balance breakdown. */

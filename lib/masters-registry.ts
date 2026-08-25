@@ -211,6 +211,7 @@ const dedicated: Record<string, MasterLeafEntry> = {
       return rows.map((r) => ({
         id: r.id,
         hostName: r.name,
+        directorExtension: r.directorExtension ?? "",
         address: r.address ?? "",
         phone: r.officePhone ?? r.mobilePhone ?? "",
         email: r.email ?? "",
@@ -220,7 +221,7 @@ const dedicated: Record<string, MasterLeafEntry> = {
       const name = reqStr(v.hostName);
       if (!name) throw new Error("Host name is required.");
       return prisma.hostOrganization.create({
-        data: { name, address: reqStr(v.address) || undefined, officePhone: reqStr(v.phone) || undefined, email: reqStr(v.email) || undefined, zoneId },
+        data: { name, directorExtension: reqStr(v.directorExtension) || undefined, address: reqStr(v.address) || undefined, officePhone: reqStr(v.phone) || undefined, email: reqStr(v.email) || undefined, zoneId },
       });
     },
     update: async (id, v, zoneId) => {
@@ -228,7 +229,7 @@ const dedicated: Record<string, MasterLeafEntry> = {
       if (!name) throw new Error("Host name is required.");
       return prisma.hostOrganization.updateMany({
         where: { id, zoneId },
-        data: { name, address: reqStr(v.address) || undefined, officePhone: reqStr(v.phone) || undefined, email: reqStr(v.email) || undefined },
+        data: { name, directorExtension: reqStr(v.directorExtension) || undefined, address: reqStr(v.address) || undefined, officePhone: reqStr(v.phone) || undefined, email: reqStr(v.email) || undefined },
       });
     },
     delete: (id, zoneId) => prisma.hostOrganization.deleteMany({ where: { id, zoneId } }),
