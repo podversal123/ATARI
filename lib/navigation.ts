@@ -31,6 +31,16 @@ export type NavLeaf = {
   columns: MasterColumn[];
   /** Overrides `label` on the landing-page card only, for the confirmed real cases where a bare leaf's card title differs from its own page title (e.g. card "Technical Achievement" vs page "Technical Achievement Summary"). */
   cardLabel?: string;
+  /**
+   * Whether the Add/Create form shows the "Mark as 'Other' option" checkbox.
+   * The real reference shows this on almost every simple master's create
+   * form regardless of field count, with only a few confirmed exceptions
+   * (Events Master, Publication Items, Natural Farming Activity) - so it
+   * isn't reliably inferable from column shape. Leave unset for leaves
+   * without confirmed reference evidence either way (falls back to the old
+   * single-"name"-column heuristic in AddLeafPage).
+   */
+  showMarkAsOther?: boolean;
 };
 
 export type NavGroup = {
@@ -75,8 +85,9 @@ function leaf(
   label: string,
   columns: MasterColumn[] = GENERIC_MASTER_COLUMNS,
   cardLabel?: string,
+  showMarkAsOther?: boolean,
 ): NavLeaf {
-  return { type: "leaf", slug, label, columns, cardLabel };
+  return { type: "leaf", slug, label, columns, cardLabel, showMarkAsOther };
 }
 
 /**
@@ -119,18 +130,18 @@ const trainingMaster = group("training", "Training Master", [
   leaf("training-area", "Training Area Master", [
     { key: "trainingType", label: "Training Type" },
     { key: "trainingAreaName", label: "Training Area Name" },
-  ]),
+  ], undefined, true),
   /** 2 columns, confirmed against the reference). */
   leaf("training-thematic-area", "Training Thematic Area Master", [
     { key: "trainingAreaName", label: "Training Area Name" },
     { key: "thematicArea", label: "Training Thematic Area" },
-  ]),
+  ], undefined, true),
   leaf("training-clientele", "Training Clientele Master", [
     { key: "clientele", label: "Name" },
-  ]),
+  ], undefined, true),
   leaf("funding-source", "Funding Source Master", [
     { key: "fundingSource", label: "Name" },
-  ]),
+  ], undefined, true),
 ]);
 
 /** All Masters -> Training & Extension Masters (3-card landing confirmed on screen) */
@@ -142,7 +153,7 @@ const trainingExtensionMasters = group(
     group("extension-activities", "Extension Activities", [
       leaf("extension-activity", "Extension Activity Master", [
         { key: "activityName", label: "Name" },
-      ]),
+      ], undefined, true),
       leaf("other-extension-activity", "Other Extension Activity Master", [
         { key: "activityName", label: "Name" },
       ]),
@@ -150,7 +161,7 @@ const trainingExtensionMasters = group(
     group("events", "Events", [
       leaf("events-master", "Events Master", [
         { key: "eventName", label: "Event Name" },
-      ]),
+      ], undefined, false),
     ]),
   ],
 );
@@ -381,17 +392,17 @@ const oftFldMasters = group(
       leaf("subject", "Subject Master", [
         { key: "subjectName", label: "Subject Name" },
         { key: "thematicAreasCount", label: "Thematic Areas Count", readonly: true },
-      ]),
+      ], undefined, true),
       leaf("oft-thematic-area", "OFT Thematic Area Master", [
         { key: "thematicArea", label: "Thematic Area Name" },
         { key: "subjectName", label: "Subject Name" },
-      ]),
+      ], undefined, true),
     ]),
     group("fld", "FLD Masters", [
       leaf("sector", "Sector Master", [
         { key: "sectorName", label: "Sector Name" },
         { key: "categoriesCount", label: "Categories Count", readonly: true },
-      ]),
+      ], undefined, true),
       leaf("fld-thematic-area", "FLD Thematic Area Master", [
         { key: "thematicAreaName", label: "Thematic Area Name" },
         { key: "sectorName", label: "Sector Name" },
@@ -401,20 +412,20 @@ const oftFldMasters = group(
         { key: "categoryName", label: "Category Name" },
         { key: "sectorName", label: "Sector Name" },
         { key: "subCategoriesCount", label: "Sub Categories Count", readonly: true },
-      ]),
+      ], undefined, true),
       /** 4 columns, confirmed against the reference) - 3 were missing. */
       leaf("sub-category", "Sub-category Master", [
         { key: "subCategoryName", label: "Sub Category Name" },
         { key: "categoryName", label: "Category Name" },
         { key: "sectorName", label: "Sector Name" },
         { key: "cropsCount", label: "Crops Count", readonly: true },
-      ]),
+      ], undefined, true),
       /** 3 columns, confirmed against the reference). */
       leaf("crop", "Crop Master", [
         { key: "cropName", label: "Crop Name" },
         { key: "subCategoryName", label: "Sub Category Name" },
         { key: "category", label: "Category Name" },
-      ]),
+      ], undefined, true),
       leaf("activity", "Activity Master", [
         { key: "name", label: "Activity Name" },
       ]),
@@ -451,35 +462,35 @@ const productionProjects = group(
       [
         leaf("product-category", "Product Category Master", [
           { key: "name", label: "Product Category Name" },
-        ]),
+        ], undefined, true),
         /** 2 columns, confirmed against the reference). */
         leaf("product-type", "Product Type Master", [
           { key: "productCategoryName", label: "Product Category Name" },
           { key: "productCategoryType", label: "Product Category Type" },
-        ]),
+        ], undefined, true),
         /** 3 columns, confirmed against the reference). */
         leaf("products", "Products", [
           { key: "productCategoryName", label: "Product Category Name" },
           { key: "productCategoryType", label: "Product Category Type" },
           { key: "productName", label: "Product Name" },
-        ]),
+        ], undefined, true),
       ],
     ),
     group("climate-resilient-agriculture", "Climate Resilient Agriculture", [
       leaf("cropping-system", "Cropping System Master", [
         { key: "season", label: "Season Name" },
         { key: "cropName", label: "Crop Name" },
-      ]),
+      ], undefined, true),
       /** Season Name is the FIRST column in the real table - it was missing entirely. */
       leaf("farming-system", "Farming System Master", [
         { key: "season", label: "Season Name" },
         { key: "farmingSystemName", label: "Farming System Name" },
-      ]),
+      ], undefined, true),
     ]),
     group("arya", "ARYA", [
       leaf("arya-enterprise", "ARYA Enterprise Master", [
         { key: "name", label: "Enterprise Name" },
-      ]),
+      ], undefined, true),
     ]),
     group("tsp-scsp", "TSP/SCSP", [
       leaf("tsp-scsp-type", "TSP/SCSP Type Master", [
@@ -490,17 +501,18 @@ const productionProjects = group(
       ]),
     ]),
     group("natural-farming", "Natural Farming", [
+      /** Confirmed real exception: unlike every other single-"name" master, this one's real Create form has no "Mark as Other" checkbox. */
       leaf("natural-farming-activity", "Natural Farming Activity Master", [
         { key: "name", label: "Activity Name" },
-      ]),
+      ], undefined, false),
       leaf("soil-parameter", "Natural Farming Soil Parameter Master", [
         { key: "name", label: "Type" },
-      ]),
+      ], undefined, true),
     ]),
     group("agri-drone", "Agri-Drone", [
       leaf("demonstrations-on", "Agri-Drone Demonstrations On Master", [
         { key: "name", label: "Demonstrations On" },
-      ]),
+      ], undefined, true),
     ]),
   ],
   {
@@ -521,7 +533,7 @@ export const ALL_MASTERS: NavItem[] = [
     [
       leaf("publication-items", "Publication Items Master", [
         { key: "itemName", label: "Publication Item" },
-      ]),
+      ], undefined, false),
     ],
     {
       pageTitle: "Publications",

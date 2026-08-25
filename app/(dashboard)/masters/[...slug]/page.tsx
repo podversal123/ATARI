@@ -76,6 +76,7 @@ export default async function MastersPage({ params }: MastersPageProps) {
         backHref={addBackHref}
         columns={node.columns}
         cascadeType={cascadeType}
+        showMarkAsOther={node.showMarkAsOther}
         titlePrefix="Create"
         recordPath={node.slug}
         recordKind="master"
@@ -195,6 +196,7 @@ export default async function MastersPage({ params }: MastersPageProps) {
           rows={masterData?.rows}
           totalCount={masterData?.totalCount}
           cascadeType={cascadeType}
+          showMarkAsOther={node.showMarkAsOther}
           addNewHref={`/masters/${slug.join("/")}/add`}
           recordPath={node.slug}
           recordKind="master"

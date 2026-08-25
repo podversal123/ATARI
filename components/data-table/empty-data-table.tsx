@@ -92,6 +92,8 @@ type EmptyDataTableProps = {
    * generic plain-text field every other leaf gets.
    */
   cascadeType?: "district" | "kvk";
+  /** Overrides the Edit dialog's "Mark as Other" checkbox visibility when confirmed against the real reference (lib/navigation.ts's NavLeaf.showMarkAsOther) - falls back to the single-"name"-column heuristic below when unset. Edit reuses the same field set as the real Create screen for a given master. */
+  showMarkAsOther?: boolean;
   /** When set, Add New/Edit open a bespoke dialog instead of the generic per-column form - for the handful of leaves whose real Add/Edit shape genuinely isn't a flat field list (CFLD's 4-tab wizard, and the event forms carrying the recurring demographic-breakdown block). */
   customForm?: "cfld-technical-parameter" | "event-demographic";
   /** Leaf slug for the "event-demographic" customForm, so it can render the right leaf-specific fields (e.g. Technology Week Celebration's confirmed Start/End Date + activity fields vs the generic fallback). */
@@ -159,6 +161,7 @@ export function EmptyDataTable({
   rows,
   totalCount,
   cascadeType,
+  showMarkAsOther,
   customForm,
   eventSlug,
   addNewHref,
@@ -310,7 +313,8 @@ export function EmptyDataTable({
   );
 
   /** Real confirmed pattern for every "simple" single-Name master (Subject, Funding Source, Asset Funding Source, NARI Nutrition Garden Type, Pay Scale, TSP/SCSP Activity, and every other single-column master sharing this exact shape): the real Create form is one Name field plus a "Mark as 'Other' option" checkbox. */
-  const isSimpleMaster = columns.length === 1 && columns[0].key === "name";
+  const isSimpleMaster =
+    showMarkAsOther ?? (columns.length === 1 && columns[0].key === "name");
 
   const hasActiveDates = fromDate !== "" || toDate !== "";
   const hasActiveColumnFilters = Object.values(columnFilters).some(

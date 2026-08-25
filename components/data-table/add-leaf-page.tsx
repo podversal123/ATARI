@@ -14,6 +14,8 @@ type AddLeafPageProps = {
   backHref: string;
   columns: MasterColumn[];
   cascadeType?: "district" | "kvk";
+  /** Overrides the "Mark as Other" checkbox's visibility when confirmed against the real reference (lib/navigation.ts's NavLeaf.showMarkAsOther) - falls back to the single-"name"-column heuristic below when unset. */
+  showMarkAsOther?: boolean;
   /** "Create" for All Masters ("Create Zone", "Create Host", ...), "Add" for Form Management ("Add Staff", "Add OFT", ...) - both confirmed real, per-module titles (client screenshots, 2026-08-24). */
   titlePrefix?: "Add" | "Create";
   /** Registry key in lib/leaf-record-registry.ts (Form Management) or lib/masters-registry.ts (All Masters), depending on `recordKind`. Omit for leaves not wired to the database yet - submit then falls back to the old navigate-back-only behavior. */
@@ -36,6 +38,7 @@ export function AddLeafPage({
   backHref,
   columns,
   cascadeType,
+  showMarkAsOther,
   titlePrefix = "Add",
   recordPath,
   recordKind = "form",
@@ -45,7 +48,8 @@ export function AddLeafPage({
   const [markAsOther, setMarkAsOther] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const isSimpleMaster = columns.length === 1 && columns[0].key === "name";
+  const isSimpleMaster =
+    showMarkAsOther ?? (columns.length === 1 && columns[0].key === "name");
 
   async function submit() {
     if (!recordPath) {
