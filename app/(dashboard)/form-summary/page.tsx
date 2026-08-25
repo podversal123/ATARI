@@ -1,33 +1,113 @@
 "use client";
 
-import { useState } from "react";
-import { LayoutGrid, Table2, Filter, ListChecks } from "lucide-react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
+import {
+  LayoutGrid,
+  Table2,
+  ListChecks,
+  ChevronRight,
+  ChevronDown,
+  CheckCircle2,
+  Circle,
+  ArrowUpDown,
+  Search,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { FilterSelect } from "@/components/dashboard/filter-select";
 import { useSession } from "@/lib/session";
-import { FORM_MANAGEMENT } from "@/lib/navigation";
-import { REPORT_FORM_LEAVES } from "@/lib/reports";
-import { KVKS } from "@/lib/rbac";
 
-const SUMMARY_STATS = [
-  { label: "KVKs", value: "0" },
-  { label: "Forms Tracked", value: "0" },
-  { label: "Entries Filled", value: "0 / 0" },
-  { label: "Overall Progress", value: "0%" },
-];
-
-/** A KVK Admin's own stats drop the "KVKs" tile - there's only ever the one KVK, itself. */
-const KVK_SUMMARY_STATS = SUMMARY_STATS.filter((stat) => stat.label !== "KVKs");
+type LeafSummary = { path: string; label: string; count: number };
+type SectionSummary = { sectionLabel: string; leaves: LeafSummary[] };
+type KvkSummary = {
+  id: string;
+  name: string;
+  filled: number;
+  total: number;
+  percent: number;
+  sections: SectionSummary[];
+};
+type FormSummaryData = {
+  kvks: { id: string; name: string }[];
+  totalKvks: number;
+  formsTracked: number;
+  totalFilled: number;
+  totalPossible: number;
+  overallProgressPercent: number;
+  byKvk: KvkSummary[];
+};
 
 type ViewMode = "kvk" | "matrix";
+type SortDir = "desc" | "asc";
+
+function LeafCard({ leaf }: { leaf: LeafSummary }) {
+  return (
+    <Link
+      href={`/forms/${leaf.path}`}
+      className="flex items-center justify-between gap-2 rounded-md border border-border bg-card px-3 py-2 text-xs hover:border-primary/50"
+    >
+      <span className="truncate font-medium text-foreground">{leaf.label}</span>
+      {leaf.count > 0 ? (
+        <span className="flex shrink-0 items-center gap-1 text-primary">
+          <CheckCircle2 className="size-3.5" />
+          {leaf.count} {leaf.count === 1 ? "entry" : "entries"}
+        </span>
+      ) : (
+        <span className="flex shrink-0 items-center gap-1 text-muted-foreground">
+          <Circle className="size-3.5" />
+          Not started
+        </span>
+      )}
+    </Link>
+  );
+}
 
 export default function FormSummaryPage() {
   const session = useSession();
   const isKvk = session.role !== "super-admin";
   const [view, setView] = useState<ViewMode>("kvk");
+  const [data, setData] = useState<FormSummaryData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  const [sortDir, setSortDir] = useState<SortDir>("desc");
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
-  const matrixKvks = isKvk ? [session.kvkName ?? "My KVK"] : KVKS.map((kvk) => kvk.name);
+  const matrixScrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/form-summary")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((json: FormSummaryData | null) => {
+        if (!cancelled) setData(json);
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const filteredSorted = useMemo(() => {
+    if (!data) return [];
+    const filtered = data.byKvk.filter((k) => k.name.toLowerCase().includes(search.toLowerCase()));
+    return filtered.sort((a, b) => (sortDir === "desc" ? b.percent - a.percent : a.percent - b.percent));
+  }, [data, search, sortDir]);
+
+  function toggleExpanded(id: string) {
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  const ownKvk = isKvk ? data?.byKvk[0] : undefined;
 
   return (
     <div>
@@ -53,207 +133,251 @@ export default function FormSummaryPage() {
         />
       </div>
 
-      <div className="rounded-lg border border-border bg-card p-5">
-        {/* Same rule as the Dashboard: a KVK Admin has one tile fewer, so the column count follows the tile count instead of leaving a gap. */}
-        <div
-          className={cn(
-            "grid grid-cols-2 gap-4",
-            isKvk ? "sm:grid-cols-3" : "sm:grid-cols-4",
-          )}
-        >
-          {(isKvk ? KVK_SUMMARY_STATS : SUMMARY_STATS).map((stat) => (
-            <div key={stat.label}>
-              <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-                {stat.label}
-              </p>
-              <p
+      {loading || !data ? (
+        <div className="rounded-lg border border-border bg-card p-10 text-center text-sm text-muted-foreground">
+          Loading summary...
+        </div>
+      ) : isKvk ? (
+        <>
+          <div className="rounded-lg border border-border bg-card p-5">
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+              <div>
+                <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">Forms Tracked</p>
+                <p className="mt-1 text-2xl font-semibold tabular-nums text-foreground">{data.formsTracked}</p>
+              </div>
+              <div>
+                <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">Entries Filled</p>
+                <p className="mt-1 text-2xl font-semibold tabular-nums text-foreground">
+                  {ownKvk?.filled ?? 0} / {data.formsTracked}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">Overall Progress</p>
+                <p className="mt-1 text-2xl font-semibold tabular-nums text-primary">{ownKvk?.percent ?? 0}%</p>
+              </div>
+            </div>
+            <div className="mt-4 h-2 overflow-hidden rounded-full bg-muted">
+              <div className="h-full rounded-full bg-primary" style={{ width: `${ownKvk?.percent ?? 0}%` }} />
+            </div>
+          </div>
+
+          <div className="mt-4 space-y-4">
+            {ownKvk?.sections.map((section) => (
+              <div key={section.sectionLabel} className="rounded-lg border border-border bg-card p-4">
+                <p className="mb-3 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+                  {section.sectionLabel}
+                </p>
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                  {section.leaves.map((leaf) => (
+                    <LeafCard key={leaf.path} leaf={leaf} />
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
+      ) : (
+        <>
+          <div className="rounded-lg border border-border bg-card p-5">
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+              <div>
+                <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">KVKs</p>
+                <p className="mt-1 text-2xl font-semibold tabular-nums text-foreground">{data.totalKvks}</p>
+              </div>
+              <div>
+                <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">Forms Tracked</p>
+                <p className="mt-1 text-2xl font-semibold tabular-nums text-foreground">{data.formsTracked}</p>
+              </div>
+              <div>
+                <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">Entries Filled</p>
+                <p className="mt-1 text-2xl font-semibold tabular-nums text-foreground">
+                  {data.totalFilled} / {data.totalPossible}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">Overall Progress</p>
+                <p className="mt-1 text-2xl font-semibold tabular-nums text-primary">{data.overallProgressPercent}%</p>
+              </div>
+            </div>
+            <div className="mt-4 h-2 overflow-hidden rounded-full bg-muted">
+              <div className="h-full rounded-full bg-primary" style={{ width: `${data.overallProgressPercent}%` }} />
+            </div>
+          </div>
+
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-1 rounded-md border border-border bg-muted/50 p-0.5">
+              <button
+                type="button"
+                onClick={() => setView("kvk")}
                 className={cn(
-                  "mt-1 text-2xl font-semibold tabular-nums",
-                  stat.label === "Overall Progress"
-                    ? "text-primary"
-                    : "text-foreground",
+                  "flex items-center gap-1.5 rounded-[calc(var(--radius-md)-2px)] px-3 py-1.5 text-sm font-medium transition-colors",
+                  view === "kvk" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground",
                 )}
               >
-                {stat.value}
-              </p>
+                <LayoutGrid className="size-3.5" />
+                By KVK
+              </button>
+              <button
+                type="button"
+                onClick={() => setView("matrix")}
+                className={cn(
+                  "flex items-center gap-1.5 rounded-[calc(var(--radius-md)-2px)] px-3 py-1.5 text-sm font-medium transition-colors",
+                  view === "matrix" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                <Table2 className="size-3.5" />
+                Matrix
+              </button>
             </div>
-          ))}
-        </div>
-        <div className="mt-4 h-2 overflow-hidden rounded-full bg-muted">
-          <div className="h-full w-0 rounded-full bg-primary" />
-        </div>
-      </div>
+            <div className="flex items-center gap-3">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setSortDir((d) => (d === "desc" ? "asc" : "desc"))}
+              >
+                <ArrowUpDown className="size-3.5" />
+                Progress
+              </Button>
+              <div className="relative">
+                <Search className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Filter KVKs..."
+                  className="w-64 pl-8"
+                />
+              </div>
+            </div>
+          </div>
 
-      <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-        {/* Same control for both roles - only the primary view's label differs, since a KVK Admin lists their own forms where a Super Admin lists KVKs. */}
-        <div className="flex items-center gap-1 rounded-md border border-border bg-muted/50 p-0.5">
-          <button
-            type="button"
-            onClick={() => setView("kvk")}
-            className={cn(
-              "flex items-center gap-1.5 rounded-[calc(var(--radius-md)-2px)] px-3 py-1.5 text-sm font-medium transition-colors",
-              view === "kvk"
-                ? "bg-primary text-primary-foreground"
-                : "text-muted-foreground hover:text-foreground",
-            )}
-          >
-            <LayoutGrid className="size-3.5" />
-            {isKvk ? "By Form" : "By KVK"}
-          </button>
-          <button
-            type="button"
-            onClick={() => setView("matrix")}
-            className={cn(
-              "flex items-center gap-1.5 rounded-[calc(var(--radius-md)-2px)] px-3 py-1.5 text-sm font-medium transition-colors",
-              view === "matrix"
-                ? "bg-primary text-primary-foreground"
-                : "text-muted-foreground hover:text-foreground",
-            )}
-          >
-            <Table2 className="size-3.5" />
-            Matrix
-          </button>
-        </div>
-        <div className="flex items-center gap-3">
-          <FilterSelect label="Progress" options={["All"]} />
-          <Input
-            placeholder={isKvk ? "Filter forms..." : "Filter KVKs..."}
-            className="w-64"
-          />
-        </div>
-      </div>
-
-      {view === "kvk" ? (
-        <div className="mt-4 overflow-hidden rounded-lg border border-border">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-border bg-muted/50 text-left text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-                <th className="px-4 py-3">
-                  <span className="flex items-center gap-1.5">
-                    {isKvk ? "Form" : "KVK"} <Filter className="size-3" />
-                  </span>
-                </th>
-                <th className="px-4 py-3">Filled</th>
-                <th className="px-4 py-3">Progress</th>
-                <th className="px-4 py-3 text-right">%</th>
-              </tr>
-            </thead>
-            <tbody>
-              {isKvk ? (
-                FORM_MANAGEMENT.map((form) => (
-                  <tr
-                    key={form.slug}
-                    className="border-b border-border last:border-0"
-                  >
-                    <td className="px-4 py-3 text-foreground">{form.label}</td>
-                    <td className="px-4 py-3 text-muted-foreground">
-                      Not filled
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="h-2 w-32 overflow-hidden rounded-full bg-muted">
-                        <div className="h-full w-0 rounded-full bg-primary" />
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-right text-muted-foreground">
-                      0%
-                    </td>
+          {view === "kvk" ? (
+            <div className="mt-4 overflow-hidden rounded-lg border border-border">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border bg-muted/50 text-left text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+                    <th className="px-4 py-3">KVK</th>
+                    <th className="px-4 py-3">Filled</th>
+                    <th className="px-4 py-3">Progress</th>
+                    <th className="px-4 py-3 text-right">%</th>
                   </tr>
-                ))
-              ) : (
-                <tr>
-                  <td
-                    colSpan={4}
-                    className="px-4 py-16 text-center text-muted-foreground"
-                  >
-                    No KVKs yet.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      ) : (
-        /**
-         * Matrix view: form (row) x KVK (column) completion grid, per the
-         * client's reference layout - KVK names across the top each with a
-         * percentage, form names down the left, a dash where nothing has
-         * been filled. No submission data exists yet, so every cell reads
-         * the honest "-" rather than a fabricated count.
-         */
-        <div className="mt-4 overflow-auto rounded-lg border border-border">
-          {/*
-           * "#" and "Form Name" render as ONE sticky cell (colSpan 2) with an
-           * internal flex row splitting them, rather than two independently
-           * sticky cells - two separate sticky columns need their offsets to
-           * agree exactly, which table auto-layout's sub-pixel column widths
-           * don't reliably do.
-           *
-           * The divider at the sticky cell's right edge is an inset
-           * box-shadow, not a border. A `border-r` there depends on the
-           * sticky cell's edge lining up pixel-for-pixel with the adjacent
-           * (non-sticky) KVK column's own edge - `position: sticky` promotes
-           * the cell to its own compositor layer, and that layer's edge can
-           * round to a different sub-pixel than the normal-flow column next
-           * to it, especially under fractional display scaling (125%/150%),
-           * leaving a hairline gap that isn't caught by testing at 1x/2x/3x.
-           * A box-shadow is painted entirely within the sticky cell's own
-           * layer, so the divider line no longer depends on that alignment
-           * at all.
-           */}
-          <table className="w-full border-separate border-spacing-0 text-sm">
-            <thead>
-              <tr className="border-b border-border bg-muted/50 text-left text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-                <th
-                  colSpan={2}
-                  className="sticky left-0 z-10 bg-muted p-0 shadow-[inset_-1px_0_0_0_var(--border)]"
-                >
-                  <div className="flex">
-                    <div className="w-14 shrink-0 border-r border-border px-4 py-3">#</div>
-                    <div className="min-w-52 flex-1 px-4 py-3">Form Name</div>
-                  </div>
-                </th>
-                {matrixKvks.map((kvk) => (
-                  <th
-                    key={kvk}
-                    className="min-w-28 border-r border-border bg-muted px-3 py-2 text-center last:border-r-0"
-                  >
-                    <div className="whitespace-nowrap normal-case">{kvk}</div>
-                    <div className="mt-0.5 font-normal text-muted-foreground/70 normal-case">
-                      0%
-                    </div>
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {REPORT_FORM_LEAVES.map((form, index) => (
-                <tr key={form.path} className="border-b border-border last:border-0">
-                  <td
-                    colSpan={2}
-                    className="sticky left-0 z-10 bg-card p-0 shadow-[inset_-1px_0_0_0_var(--border)]"
-                  >
-                    <div className="flex">
-                      <div className="w-14 shrink-0 border-r border-border px-4 py-2.5 text-muted-foreground">
-                        {index + 1}
-                      </div>
-                      <div className="min-w-52 flex-1 px-4 py-2.5 text-foreground">
-                        {form.label}
-                      </div>
-                    </div>
-                  </td>
-                  {matrixKvks.map((kvk) => (
-                    <td
-                      key={kvk}
-                      className="border-r border-border px-3 py-2.5 text-center text-muted-foreground last:border-r-0"
+                </thead>
+                <tbody>
+                  {filteredSorted.length === 0 ? (
+                    <tr>
+                      <td colSpan={4} className="px-4 py-16 text-center text-muted-foreground">
+                        No KVKs match this filter.
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredSorted.map((kvk) => {
+                      const isOpen = expanded.has(kvk.id);
+                      return (
+                        <Fragment key={kvk.id}>
+                          <tr
+                            onClick={() => toggleExpanded(kvk.id)}
+                            className="cursor-pointer border-b border-border last:border-0 hover:bg-muted/30"
+                          >
+                            <td className="px-4 py-3 font-medium text-foreground">
+                              <span className="flex items-center gap-1.5">
+                                {isOpen ? (
+                                  <ChevronDown className="size-3.5 text-muted-foreground" />
+                                ) : (
+                                  <ChevronRight className="size-3.5 text-muted-foreground" />
+                                )}
+                                {kvk.name}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 text-muted-foreground">
+                              {kvk.filled}/{kvk.total}
+                            </td>
+                            <td className="px-4 py-3">
+                              <div className="h-2 w-32 overflow-hidden rounded-full bg-muted">
+                                <div className="h-full rounded-full bg-primary" style={{ width: `${kvk.percent}%` }} />
+                              </div>
+                            </td>
+                            <td className="px-4 py-3 text-right font-medium text-primary">{kvk.percent}%</td>
+                          </tr>
+                          {isOpen && (
+                            <tr className="border-b border-border last:border-0">
+                              <td colSpan={4} className="bg-muted/20 px-4 py-4">
+                                <div className="space-y-4">
+                                  {kvk.sections.map((section) => (
+                                    <div key={section.sectionLabel}>
+                                      <p className="mb-2 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+                                        {section.sectionLabel}
+                                      </p>
+                                      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                                        {section.leaves.map((leaf) => (
+                                          <LeafCard key={leaf.path} leaf={leaf} />
+                                        ))}
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                        </Fragment>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div ref={matrixScrollRef} className="mt-4 snap-x snap-mandatory overflow-auto rounded-lg border border-border">
+              <table className="w-full border-separate border-spacing-0 text-sm">
+                <thead>
+                  <tr className="border-b border-border bg-muted text-left text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+                    <th
+                      colSpan={2}
+                      style={{ width: 264, minWidth: 264, maxWidth: 264 }}
+                      className="sticky left-0 z-10 bg-muted p-0 shadow-[inset_-1px_0_0_0_var(--border)]"
                     >
-                      —
-                    </td>
+                      <div className="flex">
+                        <div className="w-14 shrink-0 border-r border-border px-4 py-3">#</div>
+                        <div className="w-52 shrink-0 px-4 py-3">Form Name</div>
+                      </div>
+                    </th>
+                    {filteredSorted.map((kvk) => (
+                      <th key={kvk.id} className="min-w-28 snap-start border-r border-border bg-muted px-3 py-2 text-center">
+                        <div className="whitespace-nowrap normal-case">{kvk.name}</div>
+                        <div className="mt-0.5 font-normal text-muted-foreground/70 normal-case">{kvk.percent}%</div>
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {(data.byKvk[0]?.sections ?? []).flatMap((s) => s.leaves).map((leafRef, index) => (
+                    <tr key={leafRef.path} className="border-b border-border last:border-0">
+                      <td
+                        colSpan={2}
+                        style={{ width: 264, minWidth: 264, maxWidth: 264 }}
+                        className="sticky left-0 z-10 bg-card p-0 shadow-[inset_-1px_0_0_0_var(--border)]"
+                      >
+                        <div className="flex">
+                          <div className="w-14 shrink-0 border-r border-border px-4 py-2.5 text-muted-foreground">
+                            {index + 1}
+                          </div>
+                          <div className="w-52 shrink-0 px-4 py-2.5 text-foreground">{leafRef.label}</div>
+                        </div>
+                      </td>
+                      {filteredSorted.map((kvk) => {
+                        const count =
+                          kvk.sections.flatMap((s) => s.leaves).find((l) => l.path === leafRef.path)?.count ?? 0;
+                        return (
+                          <td key={kvk.id} className="border-r border-border px-3 py-2.5 text-center text-muted-foreground">
+                            {count > 0 ? count : "-"}
+                          </td>
+                        );
+                      })}
+                    </tr>
                   ))}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+                </tbody>
+              </table>
+            </div>
+          )}
+        </>
       )}
     </div>
   );

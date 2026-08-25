@@ -414,14 +414,40 @@ export function EmptyDataTable({
     );
   }
 
+  /** Every column whose key is a date field, by this schema's own consistent naming (startDate/endDate/dateOfVisit/activityDate/meetingDate/... always end in "Date", or the bare key "date") - used by the From/To Date range filter below, since which single column is "the" date varies per leaf and there's no one universal key. */
+  const dateColumnKeys = useMemo(
+    () => columns.map((c) => c.key).filter((key) => key === "date" || /Date$/.test(key)),
+    [columns],
+  );
+
   const filteredRows = useMemo(() => {
     if (!rows) return rows;
-    let next = rows.filter((row) =>
-      Object.entries(columnFilters).every(([key, state]) => {
+    const searchText = search.trim().toLowerCase();
+    let next = rows.filter((row) => {
+      if (searchText) {
+        const matches = columns.some((c) =>
+          String(row[c.key] ?? "").toLowerCase().includes(searchText),
+        );
+        if (!matches) return false;
+      }
+      if (oftFldStatus) {
+        if (String(row.reportingYear ?? "") !== reportingYear) return false;
+      } else if (hasActiveDates) {
+        const inRange = dateColumnKeys.some((key) => {
+          const raw = String(row[key] ?? "");
+          if (!raw) return false;
+          const value = raw.slice(0, 10);
+          if (fromDate && value < fromDate) return false;
+          if (toDate && value > toDate) return false;
+          return true;
+        });
+        if (dateColumnKeys.length > 0 && !inRange) return false;
+      }
+      return Object.entries(columnFilters).every(([key, state]) => {
         if (state.selected === null) return true;
         return state.selected.has(String(row[key] ?? ""));
-      }),
-    );
+      });
+    });
     const sortEntry = Object.entries(columnFilters).find(
       ([, state]) => state.sort !== null,
     );
@@ -433,7 +459,7 @@ export function EmptyDataTable({
       });
     }
     return next;
-  }, [rows, columnFilters]);
+  }, [rows, columnFilters, search, columns, oftFldStatus, reportingYear, hasActiveDates, dateColumnKeys, fromDate, toDate]);
 
   /**
    * 10 rows per page, matching the reference's own "Showing 1-10 of N"

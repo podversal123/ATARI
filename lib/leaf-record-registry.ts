@@ -47,7 +47,7 @@ export const LEAF_RECORD_REGISTRY: Record<string, CreateFn> = {
       data: { staffId: staff.id, fromKvkId: fromKvk.id, toKvkId: toKvk.id, zoneId: ctx.zoneId, transferDate: new Date() },
     });
   },
-  "about-kvk/infrastructure/infrastructure-details": (v, ctx) =>
+  "about-kvk/land-infrastructure/infrastructure-details": (v, ctx) =>
     prisma.infrastructure.create({
       data: {
         ...ctx,
@@ -62,9 +62,9 @@ export const LEAF_RECORD_REGISTRY: Record<string, CreateFn> = {
         sourceOfFunding: str(v.sourceOfFunding),
       },
     }),
-  "about-kvk/infrastructure/land-details": (v, ctx) =>
+  "about-kvk/land-infrastructure/land-details": (v, ctx) =>
     prisma.land.create({ data: { ...ctx, item: reqStr(v.item), areaHa: reqDec(v.areaHa) } }),
-  "about-kvk/infrastructure/staff-quarters": (v, ctx) =>
+  "about-kvk/land-infrastructure/staff-quarters": (v, ctx) =>
     prisma.staffQuarters.create({
       data: { ...ctx, numberOfQuarters: reqInt(v.noOfStaffQuarters), dateOfCompletion: date(v.dateOfCompletion), remark: str(v.remark) },
     }),
@@ -588,9 +588,9 @@ type DeleteFn = (id: string, ctx: RecordContext) => Promise<{ count: number }>;
 export const LEAF_DELETE_REGISTRY: Record<string, DeleteFn> = {
   "about-kvk/basic/bank-account-details": (id, ctx) => prisma.bankAccount.deleteMany({ where: { id, kvkId: ctx.kvkId } }),
   "about-kvk/employee/staff-transferred": (id, ctx) => prisma.staffTransfer.deleteMany({ where: { id, toKvkId: ctx.kvkId } }),
-  "about-kvk/infrastructure/infrastructure-details": (id, ctx) => prisma.infrastructure.deleteMany({ where: { id, kvkId: ctx.kvkId } }),
-  "about-kvk/infrastructure/land-details": (id, ctx) => prisma.land.deleteMany({ where: { id, kvkId: ctx.kvkId } }),
-  "about-kvk/infrastructure/staff-quarters": (id, ctx) => prisma.staffQuarters.deleteMany({ where: { id, kvkId: ctx.kvkId } }),
+  "about-kvk/land-infrastructure/infrastructure-details": (id, ctx) => prisma.infrastructure.deleteMany({ where: { id, kvkId: ctx.kvkId } }),
+  "about-kvk/land-infrastructure/land-details": (id, ctx) => prisma.land.deleteMany({ where: { id, kvkId: ctx.kvkId } }),
+  "about-kvk/land-infrastructure/staff-quarters": (id, ctx) => prisma.staffQuarters.deleteMany({ where: { id, kvkId: ctx.kvkId } }),
   "about-kvk/vehicles/view-vehicles": (id, ctx) => prisma.vehicle.deleteMany({ where: { id, kvkId: ctx.kvkId } }),
   "about-kvk/vehicles/vehicle-details": (id, ctx) => prisma.vehicleStatus.deleteMany({ where: { id, vehicle: { kvkId: ctx.kvkId } } }),
   "about-kvk/equipments/view-equipments": (id, ctx) => prisma.equipment.deleteMany({ where: { id, kvkId: ctx.kvkId } }),
@@ -751,7 +751,7 @@ export const LEAF_UPDATE_REGISTRY: Record<string, UpdateFn> = {
         resumeUrl: str(v.resume),
       },
     }),
-  "about-kvk/infrastructure/infrastructure-details": (id, v, ctx) =>
+  "about-kvk/land-infrastructure/infrastructure-details": (id, v, ctx) =>
     prisma.infrastructure.updateMany({
       where: { id, kvkId: ctx.kvkId },
       data: {
@@ -766,9 +766,9 @@ export const LEAF_UPDATE_REGISTRY: Record<string, UpdateFn> = {
         sourceOfFunding: str(v.sourceOfFunding),
       },
     }),
-  "about-kvk/infrastructure/land-details": (id, v, ctx) =>
+  "about-kvk/land-infrastructure/land-details": (id, v, ctx) =>
     prisma.land.updateMany({ where: { id, kvkId: ctx.kvkId }, data: { item: reqStr(v.item), areaHa: reqDec(v.areaHa) } }),
-  "about-kvk/infrastructure/staff-quarters": (id, v, ctx) =>
+  "about-kvk/land-infrastructure/staff-quarters": (id, v, ctx) =>
     prisma.staffQuarters.updateMany({
       where: { id, kvkId: ctx.kvkId },
       data: { numberOfQuarters: reqInt(v.noOfStaffQuarters), dateOfCompletion: date(v.dateOfCompletion), remark: str(v.remark) },
