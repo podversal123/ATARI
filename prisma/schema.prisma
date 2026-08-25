@@ -1,0 +1,2945 @@
+// ATARI AMS — Prisma schema
+// Modelled directly off two confirmed real sources, not guessed:
+//  1. lib/navigation.ts (this app's own audited column lists per leaf)
+//  2. the client's real 93-page "ATARI AMS REPORT" export (About KVK / Achievements /
+//     Projects / Performance / Miscellaneous / Meetings), which this schema's module
+//     grouping mirrors 1:1.
+//
+// Built phase by phase (client direction: audit-then-backend). This file currently
+// covers Phase 1 - foundational reference data (Zone/State/District/Host/KVK/User)
+// plus the "About KVK" report module (1.1-1.5). Achievements/Projects/Performance/
+// Misc/Meetings follow in later phases.
+//
+// Multi-zone isolation: every KVK-owned table carries zoneId (denormalized from its
+// KVK) so a zone's data can never leak into another zone's queries even by mistake -
+// see the client's explicit multi-Super-Admin requirement.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../lib/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ---------------------------------------------------------------------------
+// Auth / RBAC
+// ---------------------------------------------------------------------------
+
+enum Role {
+  SUPER_ADMIN
+  KVK_ADMIN
+  KVK_USER
+}
+
+model User {
+  id           String   @id @default(cuid())
+  username     String   @unique
+  passwordHash String
+  role         Role
+  /// Null for SUPER_ADMIN (a Super Admin owns a whole zone, not one KVK).
+  kvkId        String?
+  kvk          Kvk?     @relation(fields: [kvkId], references: [id])
+  /// Every user (including Super Admin) belongs to exactly one zone - this is the
+  /// root of the isolation model, not just a convenience field.
+  zoneId       String
+  zone         Zone     @relation(fields: [zoneId], references: [id])
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([zoneId])
+  @@index([kvkId])
+}
+
+// ---------------------------------------------------------------------------
+// Geography / reference masters (All Masters -> Basic Masters)
+// ---------------------------------------------------------------------------
+
+model Zone {
+  id         String             @id @default(cuid())
+  name       String             @unique
+  states     State[]
+  hostOrgs   HostOrganization[]
+  institutes Institute[]
+  kvks       Kvk[]
+  users      User[]
+
+  masterListItems       MasterListItem[]
+  oftSubjects           OftSubject[]
+  fldSectors            FldSector[]
+  cfldCropMasters       CfldCropMaster[]
+  productTypeMasters    ProductTypeMaster[]
+  croppingSystemMasters CroppingSystemMaster[]
+  farmingSystemMasters  FarmingSystemMaster[]
+  nicraCategoryMasters  NicraCategoryMaster[]
+  fundingAgencyMasters  FundingAgencyMaster[]
+  equipmentMasters      EquipmentMaster[]
+  presentStatusOptions  PresentStatusOption[]
+  trainingTypeMasters   TrainingTypeMaster[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model State {
+  id        String     @id @default(cuid())
+  name      String
+  zoneId    String
+  zone      Zone       @relation(fields: [zoneId], references: [id])
+  districts District[]
+  kvks      Kvk[]
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  @@unique([zoneId, name])
+  @@index([zoneId])
+}
+
+model District {
+  id        String   @id @default(cuid())
+  name      String
+  stateId   String
+  state     State    @relation(fields: [stateId], references: [id])
+  /// Denormalized for fast zone-scoped queries without an extra join.
+  zoneId    String
+  kvks      Kvk[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([stateId, name])
+  @@index([zoneId])
+}
+
+/// Institute Master (All Masters -> Basic Masters -> Institute Master) - kept
+/// separate from Host Organization since the real reference lists them as
+/// distinct masters, even though every KVK's Host Organization also happens to be
+/// an institute in practice.
+model Institute {
+  id        String   @id @default(cuid())
+  name      String
+  zoneId    String
+  zone      Zone     @relation(fields: [zoneId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([zoneId])
+}
+
+/// Report section 1.1.A.2 "Name and address of host organization" - real
+/// columns confirmed from both lib/navigation.ts (host-master leaf) and the
+/// report's own host organization table.
+model HostOrganization {
+  id          String   @id @default(cuid())
+  name        String
+  address     String?
+  officePhone String?
+  mobilePhone String?
+  fax         String?
+  email       String?
+  zoneId      String
+  zone        Zone     @relation(fields: [zoneId], references: [id])
+  kvks        Kvk[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([zoneId])
+}
+
+// ---------------------------------------------------------------------------
+// KVK - the anchor entity. Everything else in the app scopes off this.
+// ---------------------------------------------------------------------------
+
+/// Report 1.1.A.1 "Name and address of KVK with phone, fax and e-mail" +
+/// lib/navigation.ts's kvk-master / view-kvks leaves (Zone/State/Host
+/// Org/District/KVK/Mobile/Email/Address/Year of Sanction).
+model Kvk {
+  id           String  @id @default(cuid())
+  name         String
+  address      String?
+  officePhone  String?
+  fax          String?
+  email        String?
+  sanctionYear Int?
+
+  zoneId     String
+  zone       Zone             @relation(fields: [zoneId], references: [id])
+  stateId    String
+  state      State            @relation(fields: [stateId], references: [id])
+  districtId String
+  district   District         @relation(fields: [districtId], references: [id])
+  hostOrgId  String
+  hostOrg    HostOrganization @relation(fields: [hostOrgId], references: [id])
+
+  users             User[]
+  bankAccounts      BankAccount[]
+  staff             Staff[]
+  staffTransfersIn  StaffTransfer[]  @relation("TransferTo")
+  staffTransfersOut StaffTransfer[]  @relation("TransferFrom")
+  infrastructure    Infrastructure[]
+  land              Land[]
+  staffQuarters     StaffQuarters[]
+  vehicles          Vehicle[]
+  equipments        Equipment[]
+
+  technicalAchievementEntries  TechnicalAchievementSummaryEntry[]
+  ofts                         Oft[]
+  flds                         Fld[]
+  trainings                    Training[]
+  extensionActivities          ExtensionActivity[]
+  otherExtensionActivities     OtherExtensionActivity[]
+  technologyWeekCelebrations   TechnologyWeekCelebration[]
+  celebrationDays              CelebrationDay[]
+  poshanMaahaEntries           PoshanMaaha[]
+  swachhtaObservances          SwachhtaObservance[]
+  swachhtaBudgetExpenditures   SwachhtaBudgetExpenditure[]
+  technologyProductProductions TechnologyProductProduction[]
+  soilTestingEquipments        SoilTestingEquipment[]
+  soilWaterPlantAnalyses       SoilWaterPlantAnalysis[]
+  worldSoilDayEntries          WorldSoilDay[]
+  publications                 Publication[]
+  hrdEntries                   HumanResourceDevelopment[]
+  kvkAwards                    KvkAward[]
+  scientistAwards              ScientistAward[]
+  farmerAwards                 FarmerAward[]
+
+  cfldTechnicalParameters         CfldTechnicalParameter[]
+  cfldExtensionActivities         CfldExtensionActivity[]
+  cfldBudgetUtilizations          CfldBudgetUtilization[]
+  cfldCropWiseImages              CfldCropWiseImage[]
+  nicraBasicInformations          NicraBasicInformation[]
+  nicraDetails                    NicraDetails[]
+  nicraTrainings                  NicraTraining[]
+  nicraExtensionActivities        NicraExtensionActivity[]
+  nicraInterventions              NicraIntervention[]
+  nicraRevenueGenerated           NicraRevenueGenerated[]
+  nicraCustomHiringFarmImplements NicraCustomHiringFarmImplement[]
+  nicraVillageWiseVcrmcs          NicraVillageWiseVcrmc[]
+  nicraSoilHealthCards            NicraSoilHealthCard[]
+  nicraConvergenceProgrammes      NicraConvergenceProgramme[]
+  nicraDignitaryVisits            NicraDignitaryVisit[]
+  nicraPiCoPis                    NicraPiCoPi[]
+  aryaCurrentYearDetails          AryaCurrentYearDetail[]
+  aryaPreviousYearEvaluations     AryaPreviousYearEvaluation[]
+  nfGeographicalInfos             NfGeographicalInfo[]
+  nfPhysicalInfos                 NfPhysicalInfo[]
+  nfDemonstrationInfos            NfDemonstrationInfo[]
+  nfAlreadyPracticingEntries      NfAlreadyPracticing[]
+  nfBeneficiaries                 NfBeneficiary[]
+  nfSoilDataEntries               NfSoilData[]
+  nfBudgetExpenditures            NfBudgetExpenditure[]
+  subPlanActivities               SubPlanActivity[]
+  nariNutritionGardens            NariNutritionGarden[]
+  nariBioFortifiedEntries         NariBioFortified[]
+  nariValueAdditions              NariValueAddition[]
+  nariTrainings                   NariTraining[]
+  nariExtensions                  NariExtension[]
+  agriDroneIntroductions          AgriDroneIntroduction[]
+  agriDroneDemonstrations         AgriDroneDemonstration[]
+  fpoCbboDetails                  FpoCbboDetail[]
+  fpoManagements                  FpoManagement[]
+  drmrDetails                     DrmrDetail[]
+  drmrActivities                  DrmrActivity[]
+  craDetails                      CraDetail[]
+  craExtensionActivities          CraExtensionActivity[]
+  csisaDetails                    CsisaDetail[]
+  seedHubPrograms                 SeedHubProgram[]
+  otherProgrammes                 OtherProgramme[]
+
+  kvkActivityImpacts            KvkActivityImpact[]
+  entrepreneurshipDetails       EntrepreneurshipDetail[]
+  successStories                SuccessStory[]
+  districtLevelData             DistrictLevelData[]
+  operationalAreaDetails        OperationalAreaDetail[]
+  villageAdoptionProgrammes     VillageAdoptionProgramme[]
+  priorityThrustAreas           PriorityThrustArea[]
+  demonstrationUnits            DemonstrationUnit[]
+  instructionalFarmCrops        InstructionalFarmCrop[]
+  productionUnits               ProductionUnit[]
+  instructionalFarmLivestocks   InstructionalFarmLivestock[]
+  hostelUtilizations            HostelUtilization[]
+  staffQuartersPerformances     StaffQuartersPerformance[]
+  rainWaterHarvestings          RainWaterHarvesting[]
+  budgetDetails                 BudgetDetail[]
+  projectWiseBudgetPerformances ProjectWiseBudgetPerformance[]
+  revolvingFunds                RevolvingFund[]
+  revenueGenerations            RevenueGeneration[]
+  resourceGenerations           ResourceGeneration[]
+  functionalLinkages            FunctionalLinkage[]
+  specialProgrammes             SpecialProgramme[]
+  sacMeetings                   SacMeeting[]
+  otherMeetings                 OtherMeeting[]
+  prevalentDiseaseCrops         PrevalentDiseaseCrop[]
+  prevalentDiseaseLivestocks    PrevalentDiseaseLivestock[]
+  nykTrainings                  NykTraining[]
+  ppvFraTrainingProgrammes      PpvFraTrainingProgramme[]
+  ppvFraFarmerDetails           PpvFraFarmerDetail[]
+  raweFetFitProgrammes          RaweFetFitProgramme[]
+  vipVisitors                   VipVisitor[]
+  digitalMobileApps             DigitalMobileApp[]
+  digitalWebPortals             DigitalWebPortal[]
+  digitalKisanSarathis          DigitalKisanSarathi[]
+  digitalKmasEntries            DigitalKmas[]
+  digitalOtherChannels          DigitalOtherChannel[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([zoneId, name])
+  @@index([zoneId])
+  @@index([stateId])
+  @@index([districtId])
+  @@index([hostOrgId])
+}
+
+// ---------------------------------------------------------------------------
+// Form Management -> About KVK
+// ---------------------------------------------------------------------------
+
+/// 1.1.B Bank Account Details.
+model BankAccount {
+  id            String  @id @default(cuid())
+  kvkId         String
+  kvk           Kvk     @relation(fields: [kvkId], references: [id])
+  /// zoneId is denormalized onto every KVK-owned table for one reason only:
+  /// every list/report query filters by zone, and duplicating the column here
+  /// means that filter never needs a join through Kvk just to enforce isolation.
+  zoneId        String
+  accountType   String
+  accountName   String
+  bankName      String
+  location      String?
+  accountNumber String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([zoneId])
+  @@index([kvkId])
+}
+
+/// 1.2.A All KVK Staff. Matches lib/navigation.ts's employee-details leaf
+/// (Position/Email/Category/Transfer Status were the 2026-08-24 additions,
+/// already present here) plus the report's fuller field set (DOB, Discipline).
+model Staff {
+  id     String @id @default(cuid())
+  kvkId  String
+  kvk    Kvk    @relation(fields: [kvkId], references: [id])
+  zoneId String
+
+  sanctionedPost String
+  name           String
+  dateOfBirth    DateTime?
+  discipline     String?
+  payScale       String?
+  dateOfJoining  DateTime?
+  category       String? // SC / ST / OBC / General
+  jobType        String? // Permanent / Contractual / ...
+  position       String?
+  mobile         String?
+  email          String?
+  photoUrl       String?
+  resumeUrl      String?
+  allowances     String?
+  transferStatus String?
+
+  transfersOut StaffTransfer[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([zoneId])
+  @@index([kvkId])
+}
+
+/// 1.2.B Staff Transferred - "from" and "to" are both real KVKs, so this is a
+/// join table between Staff and two Kvk rows, not a plain text field like the
+/// UI mock currently has it.
+model StaffTransfer {
+  id                String   @id @default(cuid())
+  staffId           String
+  staff             Staff    @relation(fields: [staffId], references: [id])
+  fromKvkId         String
+  fromKvk           Kvk      @relation("TransferFrom", fields: [fromKvkId], references: [id])
+  toKvkId           String
+  toKvk             Kvk      @relation("TransferTo", fields: [toKvkId], references: [id])
+  /// Isolation is scoped to the *destination* KVK's zone (where the transfer
+  /// now shows up), matching how the report itself lists it under one KVK.
+  zoneId            String
+  transferDate      DateTime
+  numberOfTransfers Int      @default(1)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([zoneId])
+  @@index([staffId])
+  @@index([fromKvkId])
+  @@index([toKvkId])
+}
+
+/// 1.3.A Infrastructure Details.
+model Infrastructure {
+  id     String @id @default(cuid())
+  kvkId  String
+  kvk    Kvk    @relation(fields: [kvkId], references: [id])
+  zoneId String
+
+  infrastructureName   String
+  notYetStarted        Boolean  @default(false)
+  completedPlinthLevel Boolean  @default(false)
+  completedLintelLevel Boolean  @default(false)
+  completedRoofLevel   Boolean  @default(false)
+  totallyCompleted     Boolean  @default(false)
+  plinthAreaSqM        Decimal? @db.Decimal(10, 2)
+  underUse             Boolean  @default(false)
+  sourceOfFunding      String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([zoneId])
+  @@index([kvkId])
+}
+
+/// 1.3.B Land Details.
+model Land {
+  id     String @id @default(cuid())
+  kvkId  String
+  kvk    Kvk    @relation(fields: [kvkId], references: [id])
+  zoneId String
+
+  item        String
+  description String?
+  areaHa      Decimal @db.Decimal(10, 2)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([zoneId])
+  @@index([kvkId])
+}
+
+/// 1.3.C Staff Quarters Details - the report's own shape is one summary row
+/// per KVK plus a 12-month x N-quarter occupancy grid; modelled as a parent
+/// row + one child row per (month, quarter) cell rather than flattening the
+/// grid into fixed columns, so it isn't locked to a max quarter count.
+model StaffQuarters {
+  id     String @id @default(cuid())
+  kvkId  String
+  kvk    Kvk    @relation(fields: [kvkId], references: [id])
+  zoneId String
+
+  dateOfCompletion DateTime?
+  numberOfQuarters Int       @default(0)
+  remark           String?
+
+  occupancy StaffQuarterOccupancy[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([zoneId])
+  @@index([kvkId])
+}
+
+model StaffQuarterOccupancy {
+  id              String        @id @default(cuid())
+  staffQuartersId String
+  staffQuarters   StaffQuarters @relation(fields: [staffQuartersId], references: [id])
+  quarterNumber   Int
+  month           Int // 1-12
+  occupied        Boolean
+
+  @@unique([staffQuartersId, quarterNumber, month])
+}
+
+/// 1.4.A/B Vehicles Details + Vehicle Status - kept as two tables since the
+/// real report treats "status" (running cost, funding, present condition) as
+/// a yearly-updated record against the same physical vehicle, not a fixed
+/// attribute of it.
+model Vehicle {
+  id     String @id @default(cuid())
+  kvkId  String
+  kvk    Kvk    @relation(fields: [kvkId], references: [id])
+  zoneId String
+
+  name           String
+  registrationNo String
+  yearOfPurchase Int
+  cost           Decimal @db.Decimal(12, 2)
+
+  statuses VehicleStatus[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([zoneId])
+  @@index([kvkId])
+}
+
+model VehicleStatus {
+  id            String   @id @default(cuid())
+  vehicleId     String
+  vehicle       Vehicle  @relation(fields: [vehicleId], references: [id])
+  zoneId        String
+  reportingYear Int
+  totalRunKmHrs Decimal? @db.Decimal(12, 2)
+  presentStatus String? // Working / Repairing / ...
+  repairingCost Decimal? @db.Decimal(12, 2)
+  fundingSource String?
+  fundingAgency String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([vehicleId, reportingYear])
+  @@index([zoneId])
+}
+
+/// 1.5.A/B Equipments Details + Equipment Status - same yearly-status pattern
+/// as Vehicles.
+model Equipment {
+  id     String @id @default(cuid())
+  kvkId  String
+  kvk    Kvk    @relation(fields: [kvkId], references: [id])
+  zoneId String
+
+  name           String
+  yearOfPurchase Int
+  cost           Decimal @db.Decimal(12, 2)
+
+  statuses EquipmentStatus[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([zoneId])
+  @@index([kvkId])
+}
+
+model EquipmentStatus {
+  id            String    @id @default(cuid())
+  equipmentId   String
+  equipment     Equipment @relation(fields: [equipmentId], references: [id])
+  zoneId        String
+  reportingYear Int
+  sourceOfFund  String?
+  fundingAgency String?
+  presentStatus String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([equipmentId, reportingYear])
+  @@index([zoneId])
+}
+
+// ---------------------------------------------------------------------------
+// Form Management -> Achievements
+//
+// Columns below are taken 1:1 from lib/navigation.ts's `achievements` group
+// (each leaf re-confirmed live against atariams.org, not from the older
+// AMS User Manual). Every table follows the same kvkId + denormalized
+// zoneId scoping pattern as the About KVK module above.
+// ---------------------------------------------------------------------------
+
+enum TrialStatus {
+  ONGOING
+  COMPLETED
+}
+
+/// Technical Achievement Summary is a matrix report (year x section x metric
+/// x caste-category), not a flat list - modelled as one fact row per cell
+/// rather than guessing a fixed wide-column shape, since the UI component
+/// (technical-achievement-summary.tsx) renders an open-ended set of metric
+/// rows per section that isn't fully enumerable from the nav tree alone.
+model TechnicalAchievementSummaryEntry {
+  id            String  @id @default(cuid())
+  kvkId         String
+  kvk           Kvk     @relation(fields: [kvkId], references: [id])
+  zoneId        String
+  reportingYear Int
+  sectionCode   String // e.g. "oft", "fld", "training", "extension"
+  metricCode    String // e.g. "no_of_trials", "no_of_farmers_participated"
+  casteCategory String? // e.g. "SC", "ST", "OBC", "General" - null where a metric isn't caste-split
+  value         Decimal @db.Decimal(14, 2)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([kvkId, reportingYear, sectionCode, metricCode, casteCategory])
+  @@index([zoneId])
+}
+
+/// Enriched to match the real per-record report detail (ATARI AMS Report
+/// section "1.2.A KVK Wise OFT Details"), not just the list-view columns -
+/// the real add form/report carries far more fields than the table shows.
+model Oft {
+  id            String @id @default(cuid())
+  kvkId         String
+  kvk           Kvk    @relation(fields: [kvkId], references: [id])
+  zoneId        String
+  reportingYear Int
+
+  /// Report groups each OFT under a discipline heading, e.g. "OFT
+  /// (Agronomy)", "OFT (Animal Science)", "OFT (Fisheries)", "OFT (Home
+  /// Science)", "OFT (Agricultural Extension)".
+  discipline                  String
+  staff                       String
+  thematicArea                String
+  trialOnForm                 String
+  problemDiagnosed            String?
+  sourceOfTechnology          String?
+  productionSystem            String?
+  performanceIndicators       String?
+  finalRecommendation         String?
+  constraintsIdentified       String?
+  farmersParticipationProcess String?
+  quantity                    Decimal?    @db.Decimal(10, 2)
+  unit                        String?
+  noOfTrialReplicationFarmer  Int?
+  startMonth                  DateTime?
+  endMonth                    DateTime?
+  criticalInput               String?
+  costOfOft                   Decimal?    @db.Decimal(12, 2)
+  fundingAgency               String?
+  resultSummary               String?
+  status                      TrialStatus
+
+  technologyOptions OftTechnologyOption[]
+  resultRows        OftResultRow[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([zoneId])
+  @@index([kvkId, reportingYear])
+}
+
+/// "Details of technologies selected for assessment/refinement" - one row
+/// per option (Farmer Practice, TO1, TO2, ...).
+model OftTechnologyOption {
+  id          String @id @default(cuid())
+  oftId       String
+  oft         Oft    @relation(fields: [oftId], references: [id])
+  zoneId      String
+  label       String // "Farmer Practice", "TO1", "TO2", ...
+  description String
+
+  @@index([zoneId])
+  @@index([oftId])
+}
+
+/// "B. Results with Table" - proposed vs actual per technology option.
+model OftResultRow {
+  id               String  @id @default(cuid())
+  oftId            String
+  oft              Oft     @relation(fields: [oftId], references: [id])
+  zoneId           String
+  technologyOption String
+  proposed         String?
+  actual           String?
+
+  @@index([zoneId])
+  @@index([oftId])
+}
+
+model Fld {
+  id                     String      @id @default(cuid())
+  kvkId                  String
+  kvk                    Kvk         @relation(fields: [kvkId], references: [id])
+  zoneId                 String
+  reportingYear          Int
+  startDate              DateTime?
+  endDate                DateTime?
+  category               String
+  subCategory            String
+  technologyDemonstrated String
+  status                 TrialStatus
+
+  extensionTrainings   FldExtensionTraining[]
+  technicalFeedback    FldTechnicalFeedback[]
+  demonstrationDetails FldDemonstrationDetail[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([zoneId])
+  @@index([kvkId, reportingYear])
+}
+
+/// Report section "1.3.C Details of Front-Line Demonstration" - one row per
+/// crop/item within a sector (Crop Production/Horticultural Crops/Livestock
+/// & Fisheries/Other Enterprises/Women Empowerment/Farm Implements and
+/// Machinery/Crop Hybrid Varieties). Economics fields are nullable because
+/// the Farm Implements variant reports labor/cost reduction instead of
+/// BCR-style economics, and Crop Hybrid Varieties sometimes reports no
+/// economics at all - confirmed from the real report, not guessed.
+model FldDemonstrationDetail {
+  id     String @id @default(cuid())
+  fldId  String
+  fld    Fld    @relation(fields: [fldId], references: [id])
+  zoneId String
+
+  sector                 String
+  cropOrItem             String
+  thematicArea           String?
+  technologyDemonstrated String?
+  noOfDemonstrations     Int
+  noOfFarmers            Int
+  areaHa                 Decimal @db.Decimal(10, 2)
+
+  yieldDemoQha    Decimal? @db.Decimal(10, 2)
+  yieldCheckQha   Decimal? @db.Decimal(10, 2)
+  percentIncrease Decimal? @db.Decimal(6, 2)
+
+  grossCostDemo    Decimal? @db.Decimal(12, 2)
+  grossReturnDemo  Decimal? @db.Decimal(12, 2)
+  netReturnDemo    Decimal? @db.Decimal(12, 2)
+  bcrDemo          Decimal? @db.Decimal(6, 2)
+  grossCostCheck   Decimal? @db.Decimal(12, 2)
+  grossReturnCheck Decimal? @db.Decimal(12, 2)
+  netReturnCheck   Decimal? @db.Decimal(12, 2)
+  bcrCheck         Decimal? @db.Decimal(6, 2)
+
+  laborReductionManDays Decimal? @db.Decimal(10, 2)
+  costReductionRs       Decimal? @db.Decimal(12, 2)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([zoneId])
+  @@index([fldId])
+}
+
+model FldExtensionTraining {
+  id               String   @id @default(cuid())
+  fldId            String
+  fld              Fld      @relation(fields: [fldId], references: [id])
+  zoneId           String
+  activity         String
+  date             DateTime
+  activityCount    Int
+  participantCount Int
+  remark           String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([zoneId])
+  @@index([fldId])
+}
+
+model FldTechnicalFeedback {
+  id       String @id @default(cuid())
+  fldId    String
+  fld      Fld    @relation(fields: [fldId], references: [id])
+  zoneId   String
+  crop     String
+  feedback String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([zoneId])
+  @@index([fldId])
+}
+
+model Training {
+  id                 String    @id @default(cuid())
+  kvkId              String
+  kvk                Kvk       @relation(fields: [kvkId], references: [id])
+  zoneId             String
+  reportingYear      Int
+  startDate          DateTime?
+  endDate            DateTime?
+  program            String
+  title              String
+  venue              String?
+  trainingDiscipline String?
+  thematicArea       String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([zoneId])
+  @@index([kvkId, reportingYear])
+}
+
+model ExtensionActivity {
+  id                        String    @id @default(cuid())
+  kvkId                     String
+  kvk                       Kvk       @relation(fields: [kvkId], references: [id])
+  zoneId                    String
+  reportingYear             Int
+  startDate                 DateTime?
+  endDate                   DateTime?
+  natureOfExtensionActivity String
+  noOfActivities            Int
+  noOfParticipants          Int
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([zoneId])
+  @@index([kvkId, reportingYear])
+}
+
+model OtherExtensionActivity {
+  id                        String @id @default(cuid())
+  kvkId                     String
+  kvk                       Kvk    @relation(fields: [kvkId], references: [id])
+  zoneId                    String
+  reportingYear             Int
+  natureOfExtensionActivity String
+  noOfActivities            Int
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([zoneId])
+  @@index([kvkId, reportingYear])
+}
+
+model TechnologyWeekCelebration {
+  id                    String   @id @default(cuid())
+  kvkId                 String
+  kvk                   Kvk      @relation(fields: [kvkId], references: [id])
+  zoneId                String
+  startDate             DateTime
+  endDate               DateTime
+  typeOfActivities      String
+  noOfActivities        Int
+  relatedCropTechnology String?
+  numberOfParticipants  Int
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([zoneId])
+  @@index([kvkId])
+}
+
+model CelebrationDay {
+  id             String   @id @default(cuid())
+  kvkId          String
+  kvk            Kvk      @relation(fields: [kvkId], references: [id])
+  zoneId         String
+  importantDay   String
+  eventDate      DateTime
+  noOfActivities Int
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([zoneId])
+  @@index([kvkId])
+}
+
+model PoshanMaaha {
+  id                                String   @id @default(cuid())
+  kvkId                             String
+  kvk                               Kvk      @relation(fields: [kvkId], references: [id])
+  zoneId                            String
+  activityDate                      DateTime
+  activitiesConducted               String
+  eventName                         String
+  saplingsPlanted                   Int      @default(0)
+  vegetableKits                     Int      @default(0)
+  participantsGirls                 Int      @default(0)
+  participantsPublicRepresentatives Int      @default(0)
+  participantsFarmWoman             Int      @default(0)
+  participantsFarmers               Int      @default(0)
+  participantsAganwadiWorkers       Int      @default(0)
+  participantsGovtOfficials         Int      @default(0)
+  totalParticipants                 Int      @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([zoneId])
+  @@index([kvkId])
+}
+
+/// Swachhta hi Sewa and Swachhta Pakhwada share this exact shape in the real
+/// app - one model, distinguished by `kind`, instead of two near-duplicate
+/// tables.
+enum SwachhtaObservanceKind {
+  SEWA
+  PAKHWADA
+}
+
+model SwachhtaObservance {
+  id                            String                 @id @default(cuid())
+  kind                          SwachhtaObservanceKind
+  kvkId                         String
+  kvk                           Kvk                    @relation(fields: [kvkId], references: [id])
+  zoneId                        String
+  dateDurationOfObservation     String
+  totalNoOfActivitiesUndertaken Int
+  noOfStaffs                    Int
+  noOfFarmers                   Int
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([zoneId])
+  @@index([kvkId, kind])
+}
+
+/// The real form has further vermicomposting-style metric pairs beyond a
+/// horizontal scrollbar that were never confirmed live - captured in
+/// `additionalLineItems` rather than guessed as fixed columns.
+model SwachhtaBudgetExpenditure {
+  id                              String  @id @default(cuid())
+  kvkId                           String
+  kvk                             Kvk     @relation(fields: [kvkId], references: [id])
+  zoneId                          String
+  reportingYear                   Int
+  vermicompostingVillagesCovered  Int
+  vermicompostingTotalExpenditure Decimal @db.Decimal(14, 2)
+  additionalLineItems             Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([zoneId])
+  @@index([kvkId, reportingYear])
+}
+
+model TechnologyProductProduction {
+  id       String  @id @default(cuid())
+  kvkId    String
+  kvk      Kvk     @relation(fields: [kvkId], references: [id])
+  zoneId   String
+  category String
+  variety  String
+  quantity Decimal @db.Decimal(14, 2)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([zoneId])
+  @@index([kvkId])
+}
+
+model SoilTestingEquipment {
+  id            String @id @default(cuid())
+  kvkId         String
+  kvk           Kvk    @relation(fields: [kvkId], references: [id])
+  zoneId        String
+  analysis      String
+  equipmentName String
+  quantity      Int
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([zoneId])
+  @@index([kvkId])
+}
+
+model SoilWaterPlantAnalysis {
+  id                  String   @id @default(cuid())
+  kvkId               String
+  kvk                 Kvk      @relation(fields: [kvkId], references: [id])
+  zoneId              String
+  startDate           DateTime
+  endDate             DateTime
+  analysis            String
+  noOfSamplesAnalyzed Int
+  noOfVillagesCovered Int
+  amountRealized      Decimal  @db.Decimal(14, 2)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([zoneId])
+  @@index([kvkId])
+}
+
+model WorldSoilDay {
+  id                         String  @id @default(cuid())
+  kvkId                      String
+  kvk                        Kvk     @relation(fields: [kvkId], references: [id])
+  zoneId                     String
+  noOfActivitiesConducted    Int
+  soilHealthCardsDistributed Int
+  noOfVip                    Int
+  vipNames                   String?
+  totalParticipants          Int
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([zoneId])
+  @@index([kvkId])
+}
+
+model Publication {
+  id          String  @id @default(cuid())
+  kvkId       String
+  kvk         Kvk     @relation(fields: [kvkId], references: [id])
+  zoneId      String
+  itemName    String
+  title       String
+  authorName  String
+  journalName String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([zoneId])
+  @@index([kvkId])
+}
+
+model HumanResourceDevelopment {
+  id        String    @id @default(cuid())
+  kvkId     String
+  kvk       Kvk       @relation(fields: [kvkId], references: [id])
+  zoneId    String
+  staff     String
+  course    String
+  startDate DateTime?
+  endDate   DateTime?
+  venue     String?
+  organizer String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([zoneId])
+  @@index([kvkId])
+}
+
+model KvkAward {
+  id                  String  @id @default(cuid())
+  kvkId               String
+  kvk                 Kvk     @relation(fields: [kvkId], references: [id])
+  zoneId              String
+  award               String
+  amount              Decimal @db.Decimal(14, 2)
+  achievement         String?
+  conferringAuthority String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([zoneId])
+  @@index([kvkId])
+}
+
+model ScientistAward {
+  id                  String  @id @default(cuid())
+  kvkId               String
+  kvk                 Kvk     @relation(fields: [kvkId], references: [id])
+  zoneId              String
+  headScientist       String
+  award               String
+  amount              Decimal @db.Decimal(14, 2)
+  achievement         String?
+  conferringAuthority String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([zoneId])
+  @@index([kvkId])
+}
+
+model FarmerAward {
+  id                  String  @id @default(cuid())
+  kvkId               String
+  kvk                 Kvk     @relation(fields: [kvkId], references: [id])
+  zoneId              String
+  farmerName          String
+  address             String?
+  contactNumber       String?
+  award               String
+  amount              Decimal @db.Decimal(14, 2)
+  achievement         String?
+  conferringAuthority String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([zoneId])
+  @@index([kvkId])
+}
+
+// ---------------------------------------------------------------------------
+// Form Management -> Projects -> CFLD
+// ---------------------------------------------------------------------------
+
+enum ProjectTrialStatus {
+  ONGOING
+  COMPLETED
+}
+
+/// Enriched to match the real report's "2.1.A Technical Parameter" section
+/// AND the app's own 4-tab CFLD edit dialog (Technical Parameter / Economic
+/// Parameters / Socio-economic Impact Parameters / Farmer's Perception) -
+/// the 3 child models below correspond to that dialog's other 3 tabs.
+model CfldTechnicalParameter {
+  id                                String             @id @default(cuid())
+  kvkId                             String
+  kvk                               Kvk                @relation(fields: [kvkId], references: [id])
+  zoneId                            String
+  reportingYear                     Int
+  season                            String
+  crop                              String
+  cropDemonstrated                  String
+  areaHa                            Decimal            @db.Decimal(10, 2)
+  numberOfFarmers                   Int
+  /// General/OBC/SC/ST x Male/Female breakdown - kept flexible rather than
+  /// ~16 fixed columns, matching the report's own category grid.
+  farmersByCategory                 Json?
+  detailOfTechnologyDemonstrated    String
+  existingFarmerPractice            String?
+  yieldFarmerFieldQha               Decimal?           @db.Decimal(10, 2)
+  yieldDemoMaxQha                   Decimal?           @db.Decimal(10, 2)
+  yieldDemoMinQha                   Decimal?           @db.Decimal(10, 2)
+  yieldDemoAvgQha                   Decimal?           @db.Decimal(10, 2)
+  yieldGapKgHaDistrict              Decimal?           @db.Decimal(10, 2)
+  yieldGapKgHaState                 Decimal?           @db.Decimal(10, 2)
+  yieldGapKgHaPotential             Decimal?           @db.Decimal(10, 2)
+  yieldGapMinimizedPercentDistrict  Decimal?           @db.Decimal(6, 2)
+  yieldGapMinimizedPercentState     Decimal?           @db.Decimal(6, 2)
+  yieldGapMinimizedPercentPotential Decimal?           @db.Decimal(6, 2)
+  percentIncrease                   Decimal?           @db.Decimal(6, 2)
+  districtYield                     Decimal?           @db.Decimal(10, 2)
+  stateYield                        Decimal?           @db.Decimal(10, 2)
+  potentialYield                    Decimal?           @db.Decimal(10, 2)
+  status                            ProjectTrialStatus
+
+  economicParameters   CfldEconomicParameter[]
+  socioEconomicImpacts CfldSocioEconomicImpact[]
+  farmersPerceptions   CfldFarmersPerception[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([zoneId])
+  @@index([kvkId, reportingYear])
+}
+
+/// CFLD dialog tab "Economic Parameters" / report "2. Economic parameters".
+model CfldEconomicParameter {
+  id                       String                 @id @default(cuid())
+  cfldTechnicalParameterId String
+  cfldTechnicalParameter   CfldTechnicalParameter @relation(fields: [cfldTechnicalParameterId], references: [id])
+  zoneId                   String
+  detailOfTechnology       String
+  farmerGrossCost          Decimal?               @db.Decimal(12, 2)
+  farmerGrossReturn        Decimal?               @db.Decimal(12, 2)
+  farmerNetReturn          Decimal?               @db.Decimal(12, 2)
+  farmerBcRatio            Decimal?               @db.Decimal(6, 2)
+  demoGrossCost            Decimal?               @db.Decimal(12, 2)
+  demoGrossReturn          Decimal?               @db.Decimal(12, 2)
+  demoNetReturn            Decimal?               @db.Decimal(12, 2)
+  demoBcRatio              Decimal?               @db.Decimal(6, 2)
+  additionalIncome         Decimal?               @db.Decimal(12, 2)
+
+  @@index([zoneId])
+  @@index([cfldTechnicalParameterId])
+}
+
+/// CFLD dialog tab "Socio-economic Impact Parameters" / report "3.
+/// Socio-economic impact parameters".
+model CfldSocioEconomicImpact {
+  id                           String                 @id @default(cuid())
+  cfldTechnicalParameterId     String
+  cfldTechnicalParameter       CfldTechnicalParameter @relation(fields: [cfldTechnicalParameterId], references: [id])
+  zoneId                       String
+  cropDemonstrated             String
+  totalProduceObtainedKg       Decimal?               @db.Decimal(12, 2)
+  produceSoldKgPerHousehold    Decimal?               @db.Decimal(12, 2)
+  sellingRatePerKg             Decimal?               @db.Decimal(10, 2)
+  produceUsedOwnFarmKg         Decimal?               @db.Decimal(12, 2)
+  produceDistributedToOthersKg Decimal?               @db.Decimal(12, 2)
+  purposeOfIncomeUtilized      String?
+  employmentGeneratedMandays   Decimal?               @db.Decimal(10, 2)
+
+  @@index([zoneId])
+  @@index([cfldTechnicalParameterId])
+}
+
+/// CFLD dialog tab "Farmer's Perception" / report "4. Pulses/Oilseed
+/// Farmers' perception of the intervention demonstrated".
+model CfldFarmersPerception {
+  id                       String                 @id @default(cuid())
+  cfldTechnicalParameterId String
+  cfldTechnicalParameter   CfldTechnicalParameter @relation(fields: [cfldTechnicalParameterId], references: [id])
+  zoneId                   String
+  technologyDetail         String
+  suitability              String?
+  liking                   String?
+  affordabilityPercent     Decimal?               @db.Decimal(5, 2)
+  negativeEffect           String?
+  acceptableToGroup        String?
+  suggestions              String?
+  farmerFeedback           String?
+
+  @@index([zoneId])
+  @@index([cfldTechnicalParameterId])
+}
+
+model CfldExtensionActivity {
+  id                  String   @id @default(cuid())
+  kvkId               String
+  kvk                 Kvk      @relation(fields: [kvkId], references: [id])
+  zoneId              String
+  season              String
+  activitiesOrganized String
+  date                DateTime
+  placeOfActivity     String
+  farmersAttended     Int
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([zoneId])
+  @@index([kvkId])
+}
+
+model CfldBudgetUtilization {
+  id                    String  @id @default(cuid())
+  kvkId                 String
+  kvk                   Kvk     @relation(fields: [kvkId], references: [id])
+  zoneId                String
+  crop                  String
+  season                String
+  overallFundAllocation Decimal @db.Decimal(14, 2)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([zoneId])
+  @@index([kvkId])
+}
+
+model CfldCropWiseImage {
+  id       String @id @default(cuid())
+  kvkId    String
+  kvk      Kvk    @relation(fields: [kvkId], references: [id])
+  zoneId   String
+  crop     String
+  imageUrl String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([zoneId])
+  @@index([kvkId])
+}
+
+// ---------------------------------------------------------------------------
+// Form Management -> Projects -> NICRA (Technology Demonstration component)
+// ---------------------------------------------------------------------------
+
+model NicraBasicInformation {
+  id                 String   @id @default(cuid())
+  kvkId              String
+  kvk                Kvk      @relation(fields: [kvkId], references: [id])
+  zoneId             String
+  rfDistrictNormal   Decimal? @db.Decimal(10, 2)
+  rfDistrictReceived Decimal? @db.Decimal(10, 2)
+  maxTemperature     Decimal? @db.Decimal(5, 2)
+  minTemperature     Decimal? @db.Decimal(5, 2)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([zoneId])
+  @@index([kvkId])
+}
+
+model NicraDetails {
+  id                      String @id @default(cuid())
+  kvkId                   String
+  kvk                     Kvk    @relation(fields: [kvkId], references: [id])
+  zoneId                  String
+  cropName                String
+  seasonName              String
+  technologyDemonstration String
+  noOfFarmers             Int
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([zoneId])
+  @@index([kvkId])
+}
+
+model NicraTraining {
+  id              String   @id @default(cuid())
+  kvkId           String
+  kvk             Kvk      @relation(fields: [kvkId], references: [id])
+  zoneId          String
+  title           String
+  startDate       DateTime
+  endDate         DateTime
+  farmersAttended Int
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([zoneId])
+  @@index([kvkId])
+}
+
+model NicraExtensionActivity {
+  id              String   @id @default(cuid())
+  kvkId           String
+  kvk             Kvk      @relation(fields: [kvkId], references: [id])
+  zoneId          String
+  activityName    String
+  places          String
+  startDate       DateTime
+  endDate         DateTime
+  farmersAttended Int
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([zoneId])
+  @@index([kvkId])
+}
+
+model NicraIntervention {
+  id                 String   @id @default(cuid())
+  kvkId              String
+  kvk                Kvk      @relation(fields: [kvkId], references: [id])
+  zoneId             String
+  startDate          DateTime
+  endDate            DateTime
+  seedBankFodderBank String
+  crop               String
+  variety            String
+  quantityQuintal    Decimal  @db.Decimal(10, 2)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([zoneId])
+  @@index([kvkId])
+}
+
+model NicraRevenueGenerated {
+  id      String  @id @default(cuid())
+  kvkId   String
+  kvk     Kvk     @relation(fields: [kvkId], references: [id])
+  zoneId  String
+  year    Int
+  revenue Decimal @db.Decimal(14, 2)
+  total   Decimal @db.Decimal(14, 2)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([zoneId])
+  @@index([kvkId, year])
+}
+
+model NicraCustomHiringFarmImplement {
+  id                String  @id @default(cuid())
+  kvkId             String
+  kvk               Kvk     @relation(fields: [kvkId], references: [id])
+  zoneId            String
+  farmImplementName String
+  farmersUsed       Int
+  areaCovered       Decimal @db.Decimal(10, 2)
+  hoursUsed         Decimal @db.Decimal(10, 2)
+  revenueGenerated  Decimal @db.Decimal(14, 2)
+  repairExpenditure Decimal @db.Decimal(14, 2)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([zoneId])
+  @@index([kvkId])
+}
+
+model NicraVillageWiseVcrmc {
+  id                String    @id @default(cuid())
+  kvkId             String
+  kvk               Kvk       @relation(fields: [kvkId], references: [id])
+  zoneId            String
+  villageName       String
+  constitutionDate  DateTime?
+  members           Int
+  meetingsOrganized Int
+  meetingDate       DateTime?
+  secretaryName     String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([zoneId])
+  @@index([kvkId])
+}
+
+model NicraSoilHealthCard {
+  id                String   @id @default(cuid())
+  kvkId             String
+  kvk               Kvk      @relation(fields: [kvkId], references: [id])
+  zoneId            String
+  startDate         DateTime
+  endDate           DateTime
+  samplesCollected  Int
+  samplesAnalysed   Int
+  shcIssued         Int
+  farmersBenefitted Int
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([zoneId])
+  @@index([kvkId])
+}
+
+model NicraConvergenceProgramme {
+  id           String   @id @default(cuid())
+  kvkId        String
+  kvk          Kvk      @relation(fields: [kvkId], references: [id])
+  zoneId       String
+  startDate    DateTime
+  endDate      DateTime
+  scheme       String
+  natureOfWork String
+  amount       Decimal  @db.Decimal(14, 2)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([zoneId])
+  @@index([kvkId])
+}
+
+model NicraDignitaryVisit {
+  id          String   @id @default(cuid())
+  kvkId       String
+  kvk         Kvk      @relation(fields: [kvkId], references: [id])
+  zoneId      String
+  vipExperts  String
+  name        String
+  dateOfVisit DateTime
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([zoneId])
+  @@index([kvkId])
+}
+
+model NicraPiCoPi {
+  id        String   @id @default(cuid())
+  kvkId     String
+  kvk       Kvk      @relation(fields: [kvkId], references: [id])
+  zoneId    String
+  startDate DateTime
+  endDate   DateTime
+  piCoPi    String
+  name      String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([zoneId])
+  @@index([kvkId])
+}
+
+// ---------------------------------------------------------------------------
+// Form Management -> Projects -> ARYA (Attracting and Retaining Youth in
+// Agriculture)
+// ---------------------------------------------------------------------------
+
+model AryaCurrentYearDetail {
+  id           String   @id @default(cuid())
+  kvkId        String
+  kvk          Kvk      @relation(fields: [kvkId], references: [id])
+  zoneId       String
+  enterprise   String
+  viableUnits  Int
+  closedUnits  Int
+  startDate    DateTime
+  endDate      DateTime
+  groupsFormed Int
+  groupsActive Int
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([zoneId])
+  @@index([kvkId])
+}
+
+model AryaPreviousYearEvaluation {
+  id             String    @id @default(cuid())
+  kvkId          String
+  kvk            Kvk       @relation(fields: [kvkId], references: [id])
+  zoneId         String
+  enterprise     String
+  totalClosed    Int
+  closingDate    DateTime?
+  totalRestarted Int
+  restartedDate  DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([zoneId])
+  @@index([kvkId])
+}
+
+// ---------------------------------------------------------------------------
+// Form Management -> Projects -> Out-scaling of Natural Farming
+// ---------------------------------------------------------------------------
+
+model NfGeographicalInfo {
+  id               String   @id @default(cuid())
+  kvkId            String
+  kvk              Kvk      @relation(fields: [kvkId], references: [id])
+  zoneId           String
+  startDate        DateTime
+  endDate          DateTime
+  agroClimaticZone String
+  farmingSituation String
+  latitude         Decimal  @db.Decimal(9, 6)
+  longitude        Decimal  @db.Decimal(9, 6)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([zoneId])
+  @@index([kvkId])
+}
+
+model NfPhysicalInfo {
+  id            String   @id @default(cuid())
+  kvkId         String
+  kvk           Kvk      @relation(fields: [kvkId], references: [id])
+  zoneId        String
+  activityName  String
+  trainingTitle String
+  trainingDate  DateTime
+  venue         String
+  participants  Int
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([zoneId])
+  @@index([kvkId])
+}
+
+model NfDemonstrationInfo {
+  id           String @id @default(cuid())
+  kvkId        String
+  kvk          Kvk    @relation(fields: [kvkId], references: [id])
+  zoneId       String
+  farmerName   String
+  activityName String
+  crop         String
+  variety      String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([zoneId])
+  @@index([kvkId])
+}
+
+model NfAlreadyPracticing {
+  id               String  @id @default(cuid())
+  kvkId            String
+  kvk              Kvk     @relation(fields: [kvkId], references: [id])
+  zoneId           String
+  farmerName       String
+  address          String?
+  normalCropsGrown String?
+  practicingYear   Int
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([zoneId])
+  @@index([kvkId])
+}
+
+model NfBeneficiary {
+  id                String @id @default(cuid())
+  kvkId             String
+  kvk               Kvk    @relation(fields: [kvkId], references: [id])
+  zoneId            String
+  numberOfBlock     Int
+  numberOfVillage   Int
+  numberOfTraining  Int
+  farmersInfluenced Int
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([zoneId])
+  @@index([kvkId])
+}
+
+model NfSoilData {
+  id         String  @id @default(cuid())
+  kvkId      String
+  kvk        Kvk     @relation(fields: [kvkId], references: [id])
+  zoneId     String
+  season     String
+  type       String
+  crop       String
+  beforePh   Decimal @db.Decimal(5, 2)
+  beforeEc   Decimal @db.Decimal(6, 2)
+  beforeEcOc Decimal @db.Decimal(6, 2)
+  afterPh    Decimal @db.Decimal(5, 2)
+  afterEc    Decimal @db.Decimal(6, 2)
+  afterEcOc  Decimal @db.Decimal(6, 2)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([zoneId])
+  @@index([kvkId])
+}
+
+model NfBudgetExpenditure {
+  id                     String  @id @default(cuid())
+  kvkId                  String
+  kvk                    Kvk     @relation(fields: [kvkId], references: [id])
+  zoneId                 String
+  activityName           String
+  activitiesOrganised    Int
+  budgetSanction         Decimal @db.Decimal(14, 2)
+  budgetExpenditure      Decimal @db.Decimal(14, 2)
+  totalBudgetExpenditure Decimal @db.Decimal(14, 2)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([zoneId])
+  @@index([kvkId])
+}
+
+// ---------------------------------------------------------------------------
+// Form Management -> Projects -> TSP/SCSP
+// ---------------------------------------------------------------------------
+
+enum SubPlanType {
+  TSP
+  SCSP
+}
+
+model SubPlanActivity {
+  id            String      @id @default(cuid())
+  kvkId         String
+  kvk           Kvk         @relation(fields: [kvkId], references: [id])
+  zoneId        String
+  type          SubPlanType
+  activities    String
+  noOfTraining  Int
+  beneficiaries Int
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([zoneId])
+  @@index([kvkId, type])
+}
+
+// ---------------------------------------------------------------------------
+// Form Management -> Projects -> NARI
+// ---------------------------------------------------------------------------
+
+model NariNutritionGarden {
+  id                      String  @id @default(cuid())
+  kvkId                   String
+  kvk                     Kvk     @relation(fields: [kvkId], references: [id])
+  zoneId                  String
+  nutriSmartVillage       String
+  typeOfNutritionalGarden String
+  numbers                 Int
+  areaSqm                 Decimal @db.Decimal(10, 2)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([zoneId])
+  @@index([kvkId])
+}
+
+model NariBioFortified {
+  id                String @id @default(cuid())
+  kvkId             String
+  kvk               Kvk    @relation(fields: [kvkId], references: [id])
+  zoneId            String
+  nutriSmartVillage String
+  season            String
+  activity          String
+  categoryOfCrop    String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([zoneId])
+  @@index([kvkId])
+}
+
+model NariValueAddition {
+  id                String @id @default(cuid())
+  kvkId             String
+  kvk               Kvk    @relation(fields: [kvkId], references: [id])
+  zoneId            String
+  nutriSmartVillage String
+  cropName          String
+  valueAddedProduct String
+  activity          String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([zoneId])
+  @@index([kvkId])
+}
+
+model NariTraining {
+  id                String @id @default(cuid())
+  kvkId             String
+  kvk               Kvk    @relation(fields: [kvkId], references: [id])
+  zoneId            String
+  nutriSmartVillage String
+  areaOfTraining    String
+  activity          String
+  titleOfTraining   String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([zoneId])
+  @@index([kvkId])
+}
+
+model NariExtension {
+  id                String @id @default(cuid())
+  kvkId             String
+  kvk               Kvk    @relation(fields: [kvkId], references: [id])
+  zoneId            String
+  nutriSmartVillage String
+  activity          String
+  nameOfActivity    String
+  noOfActivities    Int
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([zoneId])
+  @@index([kvkId])
+}
+
+// ---------------------------------------------------------------------------
+// Form Management -> Projects -> Agri-Drone
+// ---------------------------------------------------------------------------
+
+model AgriDroneIntroduction {
+  id               String  @id @default(cuid())
+  kvkId            String
+  kvk              Kvk     @relation(fields: [kvkId], references: [id])
+  zoneId           String
+  year             Int
+  centreName       String
+  companyOfDrone   String
+  modelOfDrone     String
+  dronesSanctioned Int
+  dronesPurchased  Int
+  amountSanctioned Decimal @db.Decimal(14, 2)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([zoneId])
+  @@index([kvkId, year])
+}
+
+model AgriDroneDemonstration {
+  id           String   @id @default(cuid())
+  kvkId        String
+  kvk          Kvk      @relation(fields: [kvkId], references: [id])
+  zoneId       String
+  centreName   String
+  district     String
+  dateOfDemos  DateTime
+  placeOfDemos String
+  cropName     String
+  noOfDemos    Int
+  areaCovered  Decimal  @db.Decimal(10, 2)
+  noOfFarmers  Int
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([zoneId])
+  @@index([kvkId])
+}
+
+// ---------------------------------------------------------------------------
+// Form Management -> Projects -> FPO and CBBO
+// ---------------------------------------------------------------------------
+
+model FpoCbboDetail {
+  id                    String  @id @default(cuid())
+  kvkId                 String
+  kvk                   Kvk     @relation(fields: [kvkId], references: [id])
+  zoneId                String
+  noOfBlocksAllocated   Int
+  noOfFposRegistered    Int
+  trainingReceived      String?
+  businessPlanPrepared  Boolean @default(false)
+  noOfFposDoingBusiness Int
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([zoneId])
+  @@index([kvkId])
+}
+
+model FpoManagement {
+  id                 String   @id @default(cuid())
+  kvkId              String
+  kvk                Kvk      @relation(fields: [kvkId], references: [id])
+  zoneId             String
+  registrationNo     String
+  dateOfRegistration DateTime
+  fpoName            String
+  fpoAddress         String?
+  totalBomMembers    Int
+  financialPosition  String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([zoneId])
+  @@index([kvkId])
+}
+
+// ---------------------------------------------------------------------------
+// Form Management -> Projects -> DRMR
+// ---------------------------------------------------------------------------
+
+model DrmrDetail {
+  id                        String  @id @default(cuid())
+  kvkId                     String
+  kvk                       Kvk     @relation(fields: [kvkId], references: [id])
+  zoneId                    String
+  varietiesUsedInIp         String
+  situations                String
+  varietiesUsedInFp         String
+  netReturnImprovedPractice Decimal @db.Decimal(12, 2)
+  netReturnFarmerPractice   Decimal @db.Decimal(12, 2)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([zoneId])
+  @@index([kvkId])
+}
+
+model DrmrActivity {
+  id                       String   @id @default(cuid())
+  kvkId                    String
+  kvk                      Kvk      @relation(fields: [kvkId], references: [id])
+  zoneId                   String
+  startDate                DateTime
+  endDate                  DateTime
+  training                 String?
+  flds                     String?
+  awarenessCamps           String?
+  distributionOfLiterature String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([zoneId])
+  @@index([kvkId])
+}
+
+// ---------------------------------------------------------------------------
+// Form Management -> Projects -> Climate Resilient Agriculture (CRA)
+// ---------------------------------------------------------------------------
+
+model CraDetail {
+  id                     String  @id @default(cuid())
+  kvkId                  String
+  kvk                    Kvk     @relation(fields: [kvkId], references: [id])
+  zoneId                 String
+  season                 String
+  technologyDemonstrated String
+  croppingSystem         String
+  areaHa                 Decimal @db.Decimal(10, 2)
+  noOfFarmer             Int
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([zoneId])
+  @@index([kvkId])
+}
+
+model CraExtensionActivity {
+  id                   String   @id @default(cuid())
+  kvkId                String
+  kvk                  Kvk      @relation(fields: [kvkId], references: [id])
+  zoneId               String
+  extensionActivity    String
+  startDate            DateTime
+  endDate              DateTime
+  withinOrWithoutState String?
+  exposureVisits       Int
+  farmersUnderExposure Int
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([zoneId])
+  @@index([kvkId])
+}
+
+// ---------------------------------------------------------------------------
+// Form Management -> Projects -> CSISA
+// ---------------------------------------------------------------------------
+
+model CsisaDetail {
+  id              String @id @default(cuid())
+  kvkId           String
+  kvk             Kvk    @relation(fields: [kvkId], references: [id])
+  zoneId          String
+  season          String
+  villageCovered  Int
+  blockCovered    Int
+  districtCovered Int
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([zoneId])
+  @@index([kvkId])
+}
+
+// ---------------------------------------------------------------------------
+// Form Management -> Projects -> Seed Hub Program
+// ---------------------------------------------------------------------------
+
+model SeedHubProgram {
+  id       String  @id @default(cuid())
+  kvkId    String
+  kvk      Kvk     @relation(fields: [kvkId], references: [id])
+  zoneId   String
+  season   String
+  cropName String
+  variety  String
+  areaHa   Decimal @db.Decimal(10, 2)
+  yieldHa  Decimal @db.Decimal(10, 2)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([zoneId])
+  @@index([kvkId])
+}
+
+// ---------------------------------------------------------------------------
+// Form Management -> Projects -> Any other programme organized by KVK
+// ---------------------------------------------------------------------------
+
+model OtherProgramme {
+  id            String   @id @default(cuid())
+  kvkId         String
+  kvk           Kvk      @relation(fields: [kvkId], references: [id])
+  zoneId        String
+  programmeName String
+  programmeDate DateTime
+  venue         String?
+  purpose       String?
+  participants  Int
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([zoneId])
+  @@index([kvkId])
+}
+
+// ---------------------------------------------------------------------------
+// Form Management -> Performance Indicators
+// ---------------------------------------------------------------------------
+
+model KvkActivityImpact {
+  id                String  @id @default(cuid())
+  kvkId             String
+  kvk               Kvk     @relation(fields: [kvkId], references: [id])
+  zoneId            String
+  specificArea      String
+  briefDetails      String?
+  farmersBenefitted Int
+  horizontalSpread  String?
+  adoptionPercent   Decimal @db.Decimal(5, 2)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([zoneId])
+  @@index([kvkId])
+}
+
+model EntrepreneurshipDetail {
+  id                       String  @id @default(cuid())
+  kvkId                    String
+  kvk                      Kvk     @relation(fields: [kvkId], references: [id])
+  zoneId                   String
+  entrepreneurOrEnterprise String
+  enterpriseType           String
+  membersAssociated        Int
+  annualIncome             Decimal @db.Decimal(14, 2)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([zoneId])
+  @@index([kvkId])
+}
+
+model SuccessStory {
+  id                   String  @id @default(cuid())
+  kvkId                String
+  kvk                  Kvk     @relation(fields: [kvkId], references: [id])
+  zoneId               String
+  farmerOrEntrepreneur String
+  experience           String?
+  majorAchievement     String
+  storyTitle           String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([zoneId])
+  @@index([kvkId])
+}
+
+model DistrictLevelData {
+  id            String  @id @default(cuid())
+  kvkId         String
+  kvk           Kvk     @relation(fields: [kvkId], references: [id])
+  zoneId        String
+  reportingYear Int
+  items         String
+  information   String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([zoneId])
+  @@index([kvkId, reportingYear])
+}
+
+model OperationalAreaDetail {
+  id            String  @id @default(cuid())
+  kvkId         String
+  kvk           Kvk     @relation(fields: [kvkId], references: [id])
+  zoneId        String
+  reportingYear Int
+  taluk         String?
+  block         String
+  village       String
+  majorCrops    String?
+  majorProblems String?
+  thrustAreas   String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([zoneId])
+  @@index([kvkId, reportingYear])
+}
+
+model VillageAdoptionProgramme {
+  id            String  @id @default(cuid())
+  kvkId         String
+  kvk           Kvk     @relation(fields: [kvkId], references: [id])
+  zoneId        String
+  reportingYear Int
+  village       String
+  block         String
+  actionTaken   String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([zoneId])
+  @@index([kvkId, reportingYear])
+}
+
+model PriorityThrustArea {
+  id            String @id @default(cuid())
+  kvkId         String
+  kvk           Kvk    @relation(fields: [kvkId], references: [id])
+  zoneId        String
+  reportingYear Int
+  thrustArea    String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([zoneId])
+  @@index([kvkId, reportingYear])
+}
+
+model DemonstrationUnit {
+  id           String  @id @default(cuid())
+  kvkId        String
+  kvk          Kvk     @relation(fields: [kvkId], references: [id])
+  zoneId       String
+  demoUnitName String
+  yearOfEstt   Int
+  areaSqMt     Decimal @db.Decimal(10, 2)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([zoneId])
+  @@index([kvkId])
+}
+
+model InstructionalFarmCrop {
+  id       String  @id @default(cuid())
+  kvkId    String
+  kvk      Kvk     @relation(fields: [kvkId], references: [id])
+  zoneId   String
+  cropName String
+  areaHa   Decimal @db.Decimal(10, 2)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([zoneId])
+  @@index([kvkId])
+}
+
+model ProductionUnit {
+  id          String  @id @default(cuid())
+  kvkId       String
+  kvk         Kvk     @relation(fields: [kvkId], references: [id])
+  zoneId      String
+  productName String
+  qty         Decimal @db.Decimal(12, 2)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([zoneId])
+  @@index([kvkId])
+}
+
+model InstructionalFarmLivestock {
+  id           String  @id @default(cuid())
+  kvkId        String
+  kvk          Kvk     @relation(fields: [kvkId], references: [id])
+  zoneId       String
+  animalName   String
+  speciesBreed String?
+  produceType  String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([zoneId])
+  @@index([kvkId])
+}
+
+model HostelUtilization {
+  id             String @id @default(cuid())
+  kvkId          String
+  kvk            Kvk    @relation(fields: [kvkId], references: [id])
+  zoneId         String
+  months         String
+  traineesStayed Int
+  traineeDays    Int
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([zoneId])
+  @@index([kvkId])
+}
+
+model StaffQuartersPerformance {
+  id                String    @id @default(cuid())
+  kvkId             String
+  kvk               Kvk       @relation(fields: [kvkId], references: [id])
+  zoneId            String
+  noOfStaffQuarters Int
+  dateOfCompletion  DateTime?
+  remark            String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([zoneId])
+  @@index([kvkId])
+}
+
+model RainWaterHarvesting {
+  id                    String @id @default(cuid())
+  kvkId                 String
+  kvk                   Kvk    @relation(fields: [kvkId], references: [id])
+  zoneId                String
+  trainingProgrammes    Int
+  demonstrations        Int
+  plantMaterialProduced Int
+  farmerVisits          Int
+  officialVisits        Int
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([zoneId])
+  @@index([kvkId])
+}
+
+model BudgetDetail {
+  id                      String  @id @default(cuid())
+  kvkId                   String
+  kvk                     Kvk     @relation(fields: [kvkId], references: [id])
+  zoneId                  String
+  salaryAllocation        Decimal @db.Decimal(14, 2)
+  salaryExpenditure       Decimal @db.Decimal(14, 2)
+  generalGrantAllocation  Decimal @db.Decimal(14, 2)
+  generalGrantExpenditure Decimal @db.Decimal(14, 2)
+  capitalGrantAllocation  Decimal @db.Decimal(14, 2)
+  capitalGrantExpenditure Decimal @db.Decimal(14, 2)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([zoneId])
+  @@index([kvkId])
+}
+
+model ProjectWiseBudgetPerformance {
+  id              String  @id @default(cuid())
+  kvkId           String
+  kvk             Kvk     @relation(fields: [kvkId], references: [id])
+  zoneId          String
+  projectName     String
+  fundingAgency   String?
+  budgetEstimate  Decimal @db.Decimal(14, 2)
+  budgetAllocated Decimal @db.Decimal(14, 2)
+  budgetReleased  Decimal @db.Decimal(14, 2)
+  expenditure     Decimal @db.Decimal(14, 2)
+  unspentBalance  Decimal @db.Decimal(14, 2)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([zoneId])
+  @@index([kvkId])
+}
+
+model RevolvingFund {
+  id                    String  @id @default(cuid())
+  kvkId                 String
+  kvk                   Kvk     @relation(fields: [kvkId], references: [id])
+  zoneId                String
+  reportingYear         Int
+  openingBalance        Decimal @db.Decimal(14, 2)
+  incomeDuringYear      Decimal @db.Decimal(14, 2)
+  expenditureDuringYear Decimal @db.Decimal(14, 2)
+  closing               Decimal @db.Decimal(14, 2)
+  kind                  String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([zoneId])
+  @@index([kvkId, reportingYear])
+}
+
+model RevenueGeneration {
+  id               String  @id @default(cuid())
+  kvkId            String
+  kvk              Kvk     @relation(fields: [kvkId], references: [id])
+  zoneId           String
+  headName         String
+  income           Decimal @db.Decimal(14, 2)
+  sponsoringAgency String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([zoneId])
+  @@index([kvkId])
+}
+
+model ResourceGeneration {
+  id            String  @id @default(cuid())
+  kvkId         String
+  kvk           Kvk     @relation(fields: [kvkId], references: [id])
+  zoneId        String
+  programmeName String
+  purpose       String?
+  sourcesOfFund String?
+  amountLakhs   Decimal @db.Decimal(14, 2)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([zoneId])
+  @@index([kvkId])
+}
+
+model FunctionalLinkage {
+  id               String  @id @default(cuid())
+  kvkId            String
+  kvk              Kvk     @relation(fields: [kvkId], references: [id])
+  zoneId           String
+  organizationName String
+  natureOfLinkage  String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([zoneId])
+  @@index([kvkId])
+}
+
+model SpecialProgramme {
+  id             String    @id @default(cuid())
+  kvkId          String
+  kvk            Kvk       @relation(fields: [kvkId], references: [id])
+  zoneId         String
+  programmeType  String
+  programmeName  String
+  initiationDate DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([zoneId])
+  @@index([kvkId])
+}
+
+// ---------------------------------------------------------------------------
+// Form Management -> Meetings
+// ---------------------------------------------------------------------------
+
+model SacMeeting {
+  id               String   @id @default(cuid())
+  kvkId            String
+  kvk              Kvk      @relation(fields: [kvkId], references: [id])
+  zoneId           String
+  startDate        DateTime
+  endDate          DateTime
+  participants     Int
+  statutoryMembers Int
+  recommendations  String?
+  actionTaken      String?
+  reason           String?
+  fileUrl          String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([zoneId])
+  @@index([kvkId])
+}
+
+model OtherMeeting {
+  id                      String   @id @default(cuid())
+  kvkId                   String
+  kvk                     Kvk      @relation(fields: [kvkId], references: [id])
+  zoneId                  String
+  date                    DateTime
+  meetingType             String
+  agenda                  String?
+  representativeFromAtari String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([zoneId])
+  @@index([kvkId])
+}
+
+// ---------------------------------------------------------------------------
+// Form Management -> Miscellaneous Information
+// ---------------------------------------------------------------------------
+
+model PrevalentDiseaseCrop {
+  id                   String   @id @default(cuid())
+  kvkId                String
+  kvk                  Kvk      @relation(fields: [kvkId], references: [id])
+  zoneId               String
+  diseaseName          String
+  crop                 String
+  outbreakDate         DateTime
+  areaAffected         Decimal  @db.Decimal(10, 2)
+  commodityLossPercent Decimal  @db.Decimal(5, 2)
+  preventiveMeasures   String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([zoneId])
+  @@index([kvkId])
+}
+
+model PrevalentDiseaseLivestock {
+  id                 String   @id @default(cuid())
+  kvkId              String
+  kvk                Kvk      @relation(fields: [kvkId], references: [id])
+  zoneId             String
+  diseaseName        String
+  speciesAffected    String
+  outbreakDate       DateTime
+  mortalityMorbidity String?
+  animalsVaccinated  Int
+  preventiveMeasures String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([zoneId])
+  @@index([kvkId])
+}
+
+model NykTraining {
+  id             String   @id @default(cuid())
+  kvkId          String
+  kvk            Kvk      @relation(fields: [kvkId], references: [id])
+  zoneId         String
+  programmeTitle String
+  startDate      DateTime
+  endDate        DateTime
+  male           Int
+  female         Int
+  fundReceived   Decimal  @db.Decimal(14, 2)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([zoneId])
+  @@index([kvkId])
+}
+
+model PpvFraTrainingProgramme {
+  id             String   @id @default(cuid())
+  kvkId          String
+  kvk            Kvk      @relation(fields: [kvkId], references: [id])
+  zoneId         String
+  date           DateTime
+  title          String
+  type           String?
+  venue          String?
+  resourcePerson String?
+  participants   Int
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([zoneId])
+  @@index([kvkId])
+}
+
+model PpvFraFarmerDetail {
+  id             String  @id @default(cuid())
+  kvkId          String
+  kvk            Kvk     @relation(fields: [kvkId], references: [id])
+  zoneId         String
+  year           Int
+  crop           String
+  registrationNo String
+  farmerName     String
+  block          String?
+  district       String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([zoneId])
+  @@index([kvkId, year])
+}
+
+model RaweFetFitProgramme {
+  id               String   @id @default(cuid())
+  kvkId            String
+  kvk              Kvk      @relation(fields: [kvkId], references: [id])
+  zoneId           String
+  startDate        DateTime
+  endDate          DateTime
+  attachmentType   String
+  attachment       String?
+  numberOfStudents Int
+  daysStayed       Int
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([zoneId])
+  @@index([kvkId])
+}
+
+model VipVisitor {
+  id            String   @id @default(cuid())
+  kvkId         String
+  kvk           Kvk      @relation(fields: [kvkId], references: [id])
+  zoneId        String
+  visitDate     DateTime
+  dignitaryType String
+  ministerName  String
+  observations  String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([zoneId])
+  @@index([kvkId])
+}
+
+model DigitalMobileApp {
+  id                  String  @id @default(cuid())
+  kvkId               String
+  kvk                 Kvk     @relation(fields: [kvkId], references: [id])
+  zoneId              String
+  mobileAppsDeveloped Int
+  appName             String?
+  appLanguage         String?
+  meantFor            String?
+  timesDownloaded     Int
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([zoneId])
+  @@index([kvkId])
+}
+
+model DigitalWebPortal {
+  id                String @id @default(cuid())
+  kvkId             String
+  kvk               Kvk    @relation(fields: [kvkId], references: [id])
+  zoneId            String
+  visitors          Int
+  farmersRegistered Int
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([zoneId])
+  @@index([kvkId])
+}
+
+model DigitalKisanSarathi {
+  id                   String @id @default(cuid())
+  kvkId                String
+  kvk                  Kvk    @relation(fields: [kvkId], references: [id])
+  zoneId               String
+  farmersRegisteredKsp Int
+  phoneCallAddressed   Int
+  answeredCall         Int
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([zoneId])
+  @@index([kvkId])
+}
+
+/// "Type of Messages" columns in the real form indicate which message
+/// categories were sent in the reporting period - modelled as booleans
+/// (checkbox-style) rather than counts, matching the form's own yes/no
+/// framing for each category.
+model DigitalKmas {
+  id                       String  @id @default(cuid())
+  kvkId                    String
+  kvk                      Kvk     @relation(fields: [kvkId], references: [id])
+  zoneId                   String
+  farmersCovered           Int
+  advisoriesSent           Int
+  messagesCrop             Boolean @default(false)
+  messagesLivestock        Boolean @default(false)
+  messagesWeather          Boolean @default(false)
+  messagesMarketing        Boolean @default(false)
+  messagesAwareness        Boolean @default(false)
+  messagesOtherEnterprises Boolean @default(false)
+  messagesAnyOther         String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([zoneId])
+  @@index([kvkId])
+}
+
+model DigitalOtherChannel {
+  id                        String @id @default(cuid())
+  kvkId                     String
+  kvk                       Kvk    @relation(fields: [kvkId], references: [id])
+  zoneId                    String
+  textAdvisories            Int    @default(0)
+  textFarmers               Int    @default(0)
+  whatsappAdvisories        Int    @default(0)
+  whatsappFarmers           Int    @default(0)
+  socialMediaAdvisories     Int    @default(0)
+  socialMediaFarmers        Int    @default(0)
+  weatherBulletinAdvisories Int    @default(0)
+  weatherBulletinFarmers    Int    @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([zoneId])
+  @@index([kvkId])
+}
+
+// ---------------------------------------------------------------------------
+// All Masters -> Other/OFT & FLD/Production Masters - the dropdown-source
+// lookup tables that populate every form's Select fields (e.g. an FLD
+// record's Category/Sub-category, a Staff record's Discipline). These were
+// missing entirely from the schema until this pass - lib/navigation.ts's
+// ALL_MASTERS tree confirms the exact real list.
+// ---------------------------------------------------------------------------
+
+/// Every single-column "Name" master (Job Type, Pay Level, Season, Equipment
+/// Type, NICRA Dignitary Type, ...) shares one shape - one generic table
+/// with a type discriminator instead of ~30 near-identical single-column
+/// models.
+enum MasterListType {
+  STAFF_CATEGORY
+  JOB_TYPE
+  PAY_LEVEL
+  PAY_SCALE
+  SANCTIONED_POST
+  DISCIPLINE
+  BANK_ACCOUNT_TYPE
+  SEASON
+  UNIT
+  CROP_TYPE
+  IMPORTANT_DAY
+  INFRASTRUCTURE_TYPE
+  SOIL_WATER_ANALYSIS_TYPE
+  EQUIPMENT_TYPE
+  ASSET_FUNDING_SOURCE
+  NARI_ACTIVITY
+  NARI_NUTRITION_GARDEN_TYPE
+  NARI_CROP_CATEGORY
+  NICRA_CATEGORY
+  NICRA_SEED_FODDER_BANK
+  NICRA_DIGNITARY_TYPE
+  NICRA_PI_CO_PI_TYPE
+  IMPACT_SPECIFIC_AREA
+  ENTERPRISE_TYPE
+  ACCOUNT_TYPE
+  PROGRAMME_TYPE
+  PPV_FRA_TRAINING_TYPE
+  VIP_DIGNITARY
+  FLD_ACTIVITY
+  ARYA_ENTERPRISE
+  TSP_SCSP_TYPE
+  TSP_SCSP_ACTIVITY
+  NATURAL_FARMING_ACTIVITY
+  NATURAL_FARMING_SOIL_PARAMETER
+  AGRI_DRONE_DEMONSTRATIONS_ON
+  PRODUCT_CATEGORY
+  TRAINING_CLIENTELE
+  TRAINING_FUNDING_SOURCE
+  EXTENSION_ACTIVITY_MASTER
+  OTHER_EXTENSION_ACTIVITY_MASTER
+  EVENTS_MASTER
+  PUBLICATION_ITEM
+}
+
+model MasterListItem {
+  id     String         @id @default(cuid())
+  type   MasterListType
+  name   String
+  zoneId String
+  zone   Zone           @relation(fields: [zoneId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([zoneId, type, name])
+  @@index([zoneId, type])
+}
+
+/// OFT Masters: Subject -> Thematic Area (real 2-level hierarchy).
+model OftSubject {
+  id     String @id @default(cuid())
+  name   String
+  zoneId String
+  zone   Zone   @relation(fields: [zoneId], references: [id])
+
+  thematicAreas OftThematicAreaMaster[]
+
+  @@unique([zoneId, name])
+  @@index([zoneId])
+}
+
+model OftThematicAreaMaster {
+  id        String     @id @default(cuid())
+  name      String
+  subjectId String
+  subject   OftSubject @relation(fields: [subjectId], references: [id])
+  zoneId    String
+
+  @@unique([subjectId, name])
+  @@index([zoneId])
+}
+
+/// FLD Masters: Sector -> Category -> Sub-category, plus a parallel
+/// Sector -> Thematic Area branch - both confirmed as real, separate
+/// hierarchies under Sector in lib/navigation.ts's oftFldMasters group.
+model FldSector {
+  id     String @id @default(cuid())
+  name   String
+  zoneId String
+  zone   Zone   @relation(fields: [zoneId], references: [id])
+
+  thematicAreas FldThematicAreaMaster[]
+  categories    FldCategoryMaster[]
+
+  @@unique([zoneId, name])
+  @@index([zoneId])
+}
+
+model FldThematicAreaMaster {
+  id       String    @id @default(cuid())
+  name     String
+  sectorId String
+  sector   FldSector @relation(fields: [sectorId], references: [id])
+  zoneId   String
+
+  @@unique([sectorId, name])
+  @@index([zoneId])
+}
+
+model FldCategoryMaster {
+  id       String    @id @default(cuid())
+  name     String
+  sectorId String
+  sector   FldSector @relation(fields: [sectorId], references: [id])
+  zoneId   String
+
+  subCategories FldSubCategoryMaster[]
+
+  @@unique([sectorId, name])
+  @@index([zoneId])
+}
+
+model FldSubCategoryMaster {
+  id         String            @id @default(cuid())
+  name       String
+  categoryId String
+  category   FldCategoryMaster @relation(fields: [categoryId], references: [id])
+  zoneId     String
+
+  crops CropMaster[]
+
+  @@unique([categoryId, name])
+  @@index([zoneId])
+}
+
+/// "Crop Master" under OFT & FLD Masters - name is qualified `CropMaster`
+/// (not `Crop`) to stay unambiguous against the many plain `crop String`
+/// fields used elsewhere in this schema for free-text crop names.
+model CropMaster {
+  id            String               @id @default(cuid())
+  name          String
+  subCategoryId String
+  subCategory   FldSubCategoryMaster @relation(fields: [subCategoryId], references: [id])
+  zoneId        String
+
+  @@unique([subCategoryId, name])
+  @@index([zoneId])
+}
+
+/// CFLD Crop Master - season + type + crop name, its own flat list (not
+/// nested under the FLD Sector/Category hierarchy above).
+model CfldCropMaster {
+  id       String @id @default(cuid())
+  season   String
+  type     String
+  cropName String
+  zoneId   String
+  zone     Zone   @relation(fields: [zoneId], references: [id])
+
+  @@index([zoneId])
+}
+
+/// Production Masters: Product Category -> Product Type -> Products.
+model ProductTypeMaster {
+  id           String @id @default(cuid())
+  categoryName String
+  typeName     String
+  zoneId       String
+  zone         Zone   @relation(fields: [zoneId], references: [id])
+
+  products ProductMaster[]
+
+  @@unique([zoneId, categoryName, typeName])
+  @@index([zoneId])
+}
+
+model ProductMaster {
+  id                  String            @id @default(cuid())
+  name                String
+  productTypeMasterId String
+  productTypeMaster   ProductTypeMaster @relation(fields: [productTypeMasterId], references: [id])
+  zoneId              String
+
+  @@unique([productTypeMasterId, name])
+  @@index([zoneId])
+}
+
+model CroppingSystemMaster {
+  id       String @id @default(cuid())
+  season   String
+  cropName String
+  zoneId   String
+  zone     Zone   @relation(fields: [zoneId], references: [id])
+
+  @@index([zoneId])
+}
+
+model FarmingSystemMaster {
+  id                String @id @default(cuid())
+  season            String
+  farmingSystemName String
+  zoneId            String
+  zone              Zone   @relation(fields: [zoneId], references: [id])
+
+  @@index([zoneId])
+}
+
+/// NICRA Masters: Category -> Sub-category (its own hierarchy, distinct
+/// from the FLD one above).
+model NicraCategoryMaster {
+  id     String @id @default(cuid())
+  name   String
+  zoneId String
+  zone   Zone   @relation(fields: [zoneId], references: [id])
+
+  subCategories NicraSubCategoryMaster[]
+
+  @@unique([zoneId, name])
+  @@index([zoneId])
+}
+
+model NicraSubCategoryMaster {
+  id         String              @id @default(cuid())
+  name       String
+  categoryId String
+  category   NicraCategoryMaster @relation(fields: [categoryId], references: [id])
+  zoneId     String
+
+  @@unique([categoryId, name])
+  @@index([zoneId])
+}
+
+/// Project Wise Budget Masters: Funding Agency -> Financial Project.
+model FundingAgencyMaster {
+  id     String @id @default(cuid())
+  name   String
+  zoneId String
+  zone   Zone   @relation(fields: [zoneId], references: [id])
+
+  financialProjects FinancialProjectMaster[]
+
+  @@unique([zoneId, name])
+  @@index([zoneId])
+}
+
+model FinancialProjectMaster {
+  id              String              @id @default(cuid())
+  projectName     String
+  fundingAgencyId String
+  fundingAgency   FundingAgencyMaster @relation(fields: [fundingAgencyId], references: [id])
+  zoneId          String
+
+  @@unique([fundingAgencyId, projectName])
+  @@index([zoneId])
+}
+
+/// Training Master hierarchy: Training Type -> Training Area -> Training
+/// Thematic Area (real 3-level hierarchy, confirmed columns in
+/// lib/navigation.ts's trainingMaster group).
+model TrainingTypeMaster {
+  id     String @id @default(cuid())
+  name   String
+  zoneId String
+  zone   Zone   @relation(fields: [zoneId], references: [id])
+
+  areas TrainingAreaMaster[]
+
+  @@unique([zoneId, name])
+  @@index([zoneId])
+}
+
+model TrainingAreaMaster {
+  id             String             @id @default(cuid())
+  name           String
+  trainingTypeId String
+  trainingType   TrainingTypeMaster @relation(fields: [trainingTypeId], references: [id])
+  zoneId         String
+
+  thematicAreas TrainingThematicAreaMaster[]
+
+  @@unique([trainingTypeId, name])
+  @@index([zoneId])
+}
+
+model TrainingThematicAreaMaster {
+  id             String             @id @default(cuid())
+  name           String
+  trainingAreaId String
+  trainingArea   TrainingAreaMaster @relation(fields: [trainingAreaId], references: [id])
+  zoneId         String
+
+  @@unique([trainingAreaId, name])
+  @@index([zoneId])
+}
+
+/// Resource Masters: Equipment (name + type label).
+model EquipmentMaster {
+  id            String @id @default(cuid())
+  name          String
+  equipmentType String
+  zoneId        String
+  zone          Zone   @relation(fields: [zoneId], references: [id])
+
+  @@index([zoneId])
+}
+
+/// Vehicle/Equipment Present Status masters share this exact 4-column shape
+/// (Status Code/Label/Hide in Next Year/Is Active) - one table, kind flag.
+enum PresentStatusOptionKind {
+  VEHICLE
+  EQUIPMENT
+}
+
+model PresentStatusOption {
+  id             String                  @id @default(cuid())
+  kind           PresentStatusOptionKind
+  statusCode     String
+  statusLabel    String
+  hideInNextYear Boolean                 @default(false)
+  isActive       Boolean                 @default(true)
+  zoneId         String
+  zone           Zone                    @relation(fields: [zoneId], references: [id])
+
+  @@unique([zoneId, kind, statusCode])
+  @@index([zoneId])
+}

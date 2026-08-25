@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { Eye, EyeOff } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { persistSession, resolveSessionFromUsername } from "@/lib/session";
+import { persistSession } from "@/lib/session";
 
 /**
  * Pixel reference: docs/project-plan.html (login the reference). Split hero
@@ -19,6 +19,8 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
   return (
     <div className="flex min-h-screen">
@@ -74,15 +76,28 @@ export default function LoginPage() {
 
           <form
             className="mt-6 space-y-4"
-            onSubmit={(event) => {
+            onSubmit={async (event) => {
               event.preventDefault();
-              // No auth check yet - the role is inferred from the username
-              // pattern (e.g. "kvkbhagalpur@...") rather than a real
-              // credential lookup. Replace with a real sign-in call once
-              // the database is connected; the resulting session shape
-              // (role decided once, here, not switched later) stays the same.
-              persistSession(resolveSessionFromUsername(username));
-              router.push("/dashboard");
+              setError(null);
+              setSubmitting(true);
+              try {
+                const response = await fetch("/api/auth/login", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ username, password }),
+                });
+                const data = await response.json();
+                if (!response.ok) {
+                  setError(data.error ?? "Something went wrong. Please try again.");
+                  return;
+                }
+                persistSession({ role: data.role, kvkName: data.kvkName });
+                router.push("/dashboard");
+              } catch {
+                setError("Could not reach the server. Please try again.");
+              } finally {
+                setSubmitting(false);
+              }
             }}
           >
             <div>
@@ -134,11 +149,18 @@ export default function LoginPage() {
               </div>
             </div>
 
+            {error && (
+              <p role="alert" className="text-sm font-medium text-destructive">
+                {error}
+              </p>
+            )}
+
             <Button
               type="submit"
-              className="h-13 w-full rounded-lg bg-[#034541] text-base font-semibold text-white hover:bg-[#034541]/90"
+              disabled={submitting}
+              className="h-13 w-full rounded-lg bg-[#034541] text-base font-semibold text-white hover:bg-[#034541]/90 disabled:opacity-70"
             >
-              Continue
+              {submitting ? "Signing in…" : "Continue"}
             </Button>
           </form>
 

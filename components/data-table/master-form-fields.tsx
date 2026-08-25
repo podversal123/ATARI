@@ -46,6 +46,7 @@ export function MasterFormFields({
   return (
     <>
       {columns.map((column) => {
+        if (column.readonly) return null;
         const fieldId = `${instanceId}-${column.key}`;
         const isCascading = cascadeType && CASCADE_KEYS.has(column.key);
         const isHostOrgField =

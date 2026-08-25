@@ -1,6 +1,7 @@
 "use client";
 
-import { type ReactNode, useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { CheckCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -91,6 +92,7 @@ export function CfldTechnicalParameterDialog({
   editingRow,
   initialTab,
 }: CfldTechnicalParameterDialogProps) {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<TabName>("Technical Parameter");
   const [technical, setTechnical] = useState<Record<string, string>>({});
   const [economic, setEconomic] = useState<Record<string, string>>({});
@@ -109,6 +111,29 @@ export function CfldTechnicalParameterDialog({
     setPrevOpen(open);
     if (open) setActiveTab(initialTab ?? "Technical Parameter");
   }
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const editingId = typeof editingRow?.id === "string" ? editingRow.id : undefined;
+
+  useEffect(() => {
+    if (!open || !editingId) return;
+    setLoading(true);
+    fetch(`/api/cfld-technical-parameter/${editingId}`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.error) {
+          setError(data.error);
+          return;
+        }
+        setTechnical(data.technical ?? {});
+        setEconomic(data.economic ?? {});
+        setDemographics(data.demographics ?? {});
+        setPerception(data.perception ?? {});
+      })
+      .catch(() => setError("Could not load this record."))
+      .finally(() => setLoading(false));
+  }, [open, editingId]);
 
   function handleOpenChange(next: boolean) {
     if (!next) {
@@ -117,8 +142,35 @@ export function CfldTechnicalParameterDialog({
       setEconomic({});
       setDemographics({});
       setPerception({});
+      setError(null);
     }
     onOpenChange(next);
+  }
+
+  async function submit(status: "ONGOING" | "COMPLETED") {
+    setError(null);
+    setSubmitting(true);
+    try {
+      const response = await fetch(
+        editingId ? `/api/cfld-technical-parameter/${editingId}` : "/api/cfld-technical-parameter",
+        {
+          method: editingId ? "PUT" : "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ technical, economic, demographics, perception, status }),
+        },
+      );
+      const data = await response.json();
+      if (!response.ok) {
+        setError(data.error ?? "Something went wrong. Please try again.");
+        return;
+      }
+      handleOpenChange(false);
+      router.refresh();
+    } catch {
+      setError("Could not reach the server. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (
@@ -136,6 +188,10 @@ export function CfldTechnicalParameterDialog({
           Mark this record as completed only after Technical, Economic,
           Socio-Economic, and Farmers Perception details have all been added.
         </div>
+
+        {loading && (
+          <p className="text-sm text-muted-foreground">Loading record…</p>
+        )}
 
         <div className="flex flex-wrap gap-1 rounded-lg bg-muted/50 p-1">
           {TABS.map((tab) => (
@@ -478,16 +534,18 @@ export function CfldTechnicalParameterDialog({
           )}
         </div>
 
+        {error && <p className="text-sm text-destructive">{error}</p>}
+
         <DialogFooter>
-          <Button variant="outline" onClick={() => handleOpenChange(false)}>
+          <Button variant="outline" onClick={() => handleOpenChange(false)} disabled={submitting}>
             Cancel
           </Button>
-          <Button variant="outline" onClick={() => handleOpenChange(false)}>
-            Update
+          <Button variant="outline" onClick={() => submit("ONGOING")} disabled={submitting}>
+            {submitting ? "Saving…" : "Update"}
           </Button>
-          <Button onClick={() => handleOpenChange(false)}>
+          <Button onClick={() => submit("COMPLETED")} disabled={submitting}>
             <CheckCircle2 className="size-3.5" />
-            Mark as Completed
+            {submitting ? "Saving…" : "Mark as Completed"}
           </Button>
         </DialogFooter>
       </DialogContent>

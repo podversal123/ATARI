@@ -2,6 +2,7 @@
 
 import { type ReactNode, useId, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   Search,
   FileDown,
@@ -116,6 +117,10 @@ type EmptyDataTableProps = {
   oftFldStatus?: boolean;
   /** Shown as a note banner above the table - e.g. OFT/FLD's "mark your result as Completed" instruction. */
   note?: string;
+  /** Registry key in lib/leaf-record-registry.ts (Form Management) or lib/masters-registry.ts (All Masters) - enables real Edit/Delete for this leaf's rows. Omit for leaves not wired to the database yet. */
+  recordPath?: string;
+  /** Which registry/endpoint `recordPath` refers to - "form" (default, KVK-scoped Form Management leaves) or "master" (zone-scoped, Super Admin only, All Masters leaves). */
+  recordKind?: "form" | "master";
 };
 
 const STATUS_BADGE_STYLES: Record<string, string> = {
@@ -157,8 +162,11 @@ export function EmptyDataTable({
   hideAddNew,
   oftFldStatus,
   note,
+  recordPath,
+  recordKind = "form",
 }: EmptyDataTableProps) {
   const session = useSession();
+  const router = useRouter();
   const isSuperAdmin = session.role === "super-admin";
   const Icon = icon ? SIDEBAR_ICONS[icon] : undefined;
   /** Unique per instance - a page can render more than one EmptyDataTable (e.g. Notifications' Received + Sent tables), and duplicate ids break label association. */
@@ -236,6 +244,36 @@ export function EmptyDataTable({
   const [deleteRow, setDeleteRow] = useState<Record<string, ReactNode> | null>(
     null,
   );
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
+  async function confirmDelete() {
+    const id = deleteRow?.id;
+    if (!recordPath || typeof id !== "string") {
+      setDeleteRow(null);
+      return;
+    }
+    setDeleteError(null);
+    setDeleting(true);
+    try {
+      const response = await fetch(recordKind === "master" ? "/api/master-record/delete" : "/api/leaf-record/delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ path: recordPath, id }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        setDeleteError(data.error ?? "Something went wrong. Please try again.");
+        return;
+      }
+      setDeleteRow(null);
+      router.refresh();
+    } catch {
+      setDeleteError("Could not reach the server. Please try again.");
+    } finally {
+      setDeleting(false);
+    }
+  }
   const [transferRow, setTransferRow] = useState<Record<
     string,
     ReactNode
@@ -282,6 +320,7 @@ export function EmptyDataTable({
     setFormValues({});
     setMarkAsOther(false);
     setCfldInitialTab(undefined);
+    setFormError(null);
     setFormOpen(true);
   }
 
@@ -298,11 +337,39 @@ export function EmptyDataTable({
     setFormValues(values);
     setMarkAsOther(false);
     setCfldInitialTab(tab);
+    setFormError(null);
     setFormOpen(true);
   }
 
-  function submitForm() {
-    setFormOpen(false);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [formSubmitting, setFormSubmitting] = useState(false);
+
+  async function submitForm() {
+    const id = editingRow?.id;
+    if (!recordPath || typeof id !== "string") {
+      setFormOpen(false);
+      return;
+    }
+    setFormError(null);
+    setFormSubmitting(true);
+    try {
+      const response = await fetch(recordKind === "master" ? "/api/master-record/update" : "/api/leaf-record/update", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ path: recordPath, id, values: formValues }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        setFormError(data.error ?? "Something went wrong. Please try again.");
+        return;
+      }
+      setFormOpen(false);
+      router.refresh();
+    } catch {
+      setFormError("Could not reach the server. Please try again.");
+    } finally {
+      setFormSubmitting(false);
+    }
   }
 
   const deleteRowLabel =
@@ -804,12 +871,22 @@ export function EmptyDataTable({
               />
             </div>
 
+            {formError && (
+              <p role="alert" className="text-sm font-medium text-destructive">
+                {formError}
+              </p>
+            )}
+
             <DialogFooter>
-              <Button variant="outline" onClick={() => setFormOpen(false)}>
+              <Button
+                variant="outline"
+                onClick={() => setFormOpen(false)}
+                disabled={formSubmitting}
+              >
                 Cancel
               </Button>
-              <Button onClick={submitForm}>
-                {editingRow ? "Save Changes" : "Add"}
+              <Button onClick={submitForm} disabled={formSubmitting}>
+                {formSubmitting ? "Saving…" : editingRow ? "Save Changes" : "Add"}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -819,7 +896,12 @@ export function EmptyDataTable({
       {/* Delete confirm */}
       <AlertDialog
         open={deleteRow !== null}
-        onOpenChange={(open) => !open && setDeleteRow(null)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setDeleteRow(null);
+            setDeleteError(null);
+          }
+        }}
       >
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -828,10 +910,21 @@ export function EmptyDataTable({
               This removes the record. This cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
+          {deleteError && (
+            <p role="alert" className="text-sm font-medium text-destructive">
+              {deleteError}
+            </p>
+          )}
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={() => setDeleteRow(null)}>
-              Delete
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(event) => {
+                event.preventDefault();
+                confirmDelete();
+              }}
+              disabled={deleting}
+            >
+              {deleting ? "Deleting…" : "Delete"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -35,6 +35,7 @@ export function ChangePasswordDialog({
   const [form, setForm] = useState(EMPTY_FORM);
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
   function updateForm<K extends keyof typeof EMPTY_FORM>(
     key: K,
@@ -54,7 +55,7 @@ export function ChangePasswordDialog({
     onOpenChange(next);
   }
 
-  function submit() {
+  async function submit() {
     if (!form.newPassword || !form.confirmPassword) {
       setError("All fields are required.");
       return;
@@ -63,7 +64,24 @@ export function ChangePasswordDialog({
       setError("New password and confirm password do not match.");
       return;
     }
-    handleOpenChange(false);
+    setSubmitting(true);
+    try {
+      const response = await fetch("/api/auth/change-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ newPassword: form.newPassword }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        setError(data.error ?? "Something went wrong. Please try again.");
+        return;
+      }
+      handleOpenChange(false);
+    } catch {
+      setError("Could not reach the server. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (
@@ -122,10 +140,16 @@ export function ChangePasswordDialog({
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => handleOpenChange(false)}>
+          <Button
+            variant="outline"
+            onClick={() => handleOpenChange(false)}
+            disabled={submitting}
+          >
             Cancel
           </Button>
-          <Button onClick={submit}>Update Password</Button>
+          <Button onClick={submit} disabled={submitting}>
+            {submitting ? "Updating…" : "Update Password"}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

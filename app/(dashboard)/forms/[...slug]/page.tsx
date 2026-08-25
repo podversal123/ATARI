@@ -15,7 +15,10 @@ import {
 import { AddLeafPage } from "@/components/data-table/add-leaf-page";
 import { ViewKvksAddForm } from "@/components/data-table/view-kvks-add-form";
 import { EmployeeDetailsAddForm } from "@/components/data-table/employee-details-add-form";
+import { OftAddForm } from "@/components/data-table/oft-add-form";
 import { TechnicalAchievementSummaryPanel } from "@/components/data-table/technical-achievement-summary-panel";
+import { prisma } from "@/lib/prisma";
+import { getCurrentUser } from "@/lib/auth";
 
 const EVENT_DEMOGRAPHIC_SLUGS = new Set([
   "technology-week-celebration",
@@ -99,12 +102,16 @@ export default async function FormsPage({ params }: FormsPageProps) {
     if (node.slug === "employee-details") {
       return <EmployeeDetailsAddForm trail={addTrail} backHref={backHref} />;
     }
+    if (node.slug === "oft") {
+      return <OftAddForm trail={addTrail} backHref={backHref} />;
+    }
     return (
       <AddLeafPage
         title={node.label}
         trail={addTrail}
         backHref={backHref}
         columns={node.columns}
+        recordPath={slug.join("/")}
       />
     );
   }
@@ -178,6 +185,2014 @@ export default async function FormsPage({ params }: FormsPageProps) {
     }
   }
 
+  /**
+   * About KVK's leaves are backed by the real database - KVK Admins see
+   * only their own KVK's records, Super Admin sees the whole zone. First
+   * Form Management module wired end-to-end; every other module still
+   * renders the placeholder table until its own turn.
+   */
+  let formData: { rows: Record<string, string>[]; totalCount: number } | undefined;
+  const user = node.type === "leaf" ? await getCurrentUser() : null;
+  const scopedKvkId = user?.role === "KVK_ADMIN" ? (user.kvkId ?? undefined) : undefined;
+  const kvkScope: { kvkId?: string; zoneId?: string } = scopedKvkId
+    ? { kvkId: scopedKvkId }
+    : { zoneId: user?.zoneId };
+
+  if (user && node.type === "leaf" && node.slug === "view-kvks") {
+    const kvks = await prisma.kvk.findMany({
+      where:
+        user.role === "KVK_ADMIN" && user.kvkId
+          ? { id: user.kvkId }
+          : { zoneId: user.zoneId },
+      include: { state: true, district: true, hostOrg: true, zone: true },
+      orderBy: { name: "asc" },
+    });
+    formData = {
+      rows: kvks.map((kvk) => ({
+        id: kvk.id,
+        zoneName: kvk.zone.name,
+        stateName: kvk.state.name,
+        hostOrg: kvk.hostOrg.name,
+        districtName: kvk.district.name,
+        kvk: kvk.name,
+        mobile: kvk.officePhone ?? "-",
+        email: kvk.email ?? "",
+        address: kvk.address ?? "",
+        sanctionYear: kvk.sanctionYear ? String(kvk.sanctionYear) : "",
+      })),
+      totalCount: kvks.length,
+    };
+  } else if (user && node.type === "leaf" && node.slug === "bank-account-details") {
+    const rows = await prisma.bankAccount.findMany({
+      where: kvkScope,
+      include: { kvk: true },
+      orderBy: { createdAt: "desc" },
+    });
+    formData = {
+      rows: rows.map((r) => ({
+        id: r.id,
+        kvk: r.kvk.name,
+        accountType: r.accountType,
+        accountName: r.accountName,
+        bankName: r.bankName,
+        location: r.location ?? "",
+        accountNumber: r.accountNumber,
+      })),
+      totalCount: rows.length,
+    };
+  } else if (user && node.type === "leaf" && node.slug === "employee-details") {
+    const rows = await prisma.staff.findMany({
+      where: kvkScope,
+      include: { kvk: true },
+      orderBy: { createdAt: "desc" },
+    });
+    formData = {
+      rows: rows.map((r) => ({
+        id: r.id,
+        kvk: r.kvk.name,
+        photo: r.photoUrl ?? "",
+        resume: r.resumeUrl ?? "",
+        staffName: r.name,
+        position: r.position ?? "",
+        email: r.email ?? "",
+        sanctionedPost: r.sanctionedPost,
+        mobile: r.mobile ?? "",
+        payScale: r.payScale ?? "",
+        dateOfJoining: r.dateOfJoining ? r.dateOfJoining.toISOString().slice(0, 10) : "",
+        jobType: r.jobType ?? "",
+        allowances: r.allowances ?? "",
+        category: r.category ?? "",
+        transferStatus: r.transferStatus ?? "",
+      })),
+      totalCount: rows.length,
+    };
+  } else if (user && node.type === "leaf" && node.slug === "staff-transferred") {
+    const rows = await prisma.staffTransfer.findMany({
+      where: kvkScope.kvkId ? { toKvkId: kvkScope.kvkId } : { zoneId: kvkScope.zoneId },
+      include: { staff: true, fromKvk: true, toKvk: true },
+      orderBy: { transferDate: "desc" },
+    });
+    formData = {
+      rows: rows.map((r) => ({
+        id: r.id,
+        staffName: r.staff.name,
+        kvkNameBeforeTransfer: r.fromKvk.name,
+        latestKvkName: r.toKvk.name,
+      })),
+      totalCount: rows.length,
+    };
+  } else if (user && node.type === "leaf" && node.slug === "infrastructure-details") {
+    const rows = await prisma.infrastructure.findMany({
+      where: kvkScope,
+      include: { kvk: true },
+      orderBy: { createdAt: "desc" },
+    });
+    const yn = (v: boolean) => (v ? "Yes" : "No");
+    formData = {
+      rows: rows.map((r) => ({
+        id: r.id,
+        kvk: r.kvk.name,
+        infraMasterName: r.infrastructureName,
+        notYetStarted: yn(r.notYetStarted),
+        completedPlinthLevel: yn(r.completedPlinthLevel),
+        completedLintelLevel: yn(r.completedLintelLevel),
+        completedRoofLevel: yn(r.completedRoofLevel),
+        totallyCompleted: yn(r.totallyCompleted),
+        plinthAreaSqM: r.plinthAreaSqM ? String(r.plinthAreaSqM) : "",
+        underUse: yn(r.underUse),
+        sourceOfFunding: r.sourceOfFunding ?? "",
+      })),
+      totalCount: rows.length,
+    };
+  } else if (user && node.type === "leaf" && node.slug === "land-details") {
+    const rows = await prisma.land.findMany({
+      where: kvkScope,
+      include: { kvk: true },
+      orderBy: { createdAt: "desc" },
+    });
+    formData = {
+      rows: rows.map((r) => ({
+        id: r.id,
+        kvk: r.kvk.name,
+        item: r.item,
+        areaHa: String(r.areaHa),
+      })),
+      totalCount: rows.length,
+    };
+  } else if (user && node.type === "leaf" && node.slug === "staff-quarters") {
+    const rows = await prisma.staffQuarters.findMany({
+      where: kvkScope,
+      include: { kvk: true },
+      orderBy: { createdAt: "desc" },
+    });
+    formData = {
+      rows: rows.map((r) => ({
+        id: r.id,
+        kvk: r.kvk.name,
+        noOfStaffQuarters: String(r.numberOfQuarters),
+        dateOfCompletion: r.dateOfCompletion
+          ? r.dateOfCompletion.toISOString().slice(0, 10)
+          : "",
+        remark: r.remark ?? "",
+      })),
+      totalCount: rows.length,
+    };
+  } else if (user && node.type === "leaf" && node.slug === "view-vehicles") {
+    const rows = await prisma.vehicle.findMany({
+      where: kvkScope,
+      orderBy: { createdAt: "desc" },
+    });
+    formData = {
+      rows: rows.map((r) => ({
+        id: r.id,
+        vehicleName: r.name,
+        registrationNo: r.registrationNo,
+        yearOfPurchase: String(r.yearOfPurchase),
+        totalCost: String(r.cost),
+      })),
+      totalCount: rows.length,
+    };
+  } else if (user && node.type === "leaf" && node.slug === "vehicle-details") {
+    const rows = await prisma.vehicleStatus.findMany({
+      where: kvkScope,
+      include: { vehicle: { include: { kvk: true } } },
+      orderBy: { createdAt: "desc" },
+    });
+    formData = {
+      rows: rows.map((r) => ({
+        id: r.id,
+        reportingYear: String(r.reportingYear),
+        kvk: r.vehicle.kvk.name,
+        vehicleName: r.vehicle.name,
+        registrationNumber: r.vehicle.registrationNo,
+        totalRunKms: r.totalRunKmHrs ? String(r.totalRunKmHrs) : "",
+      })),
+      totalCount: rows.length,
+    };
+  } else if (user && node.type === "leaf" && node.slug === "view-equipments") {
+    const rows = await prisma.equipment.findMany({
+      where: kvkScope,
+      include: { kvk: true },
+      orderBy: { createdAt: "desc" },
+    });
+    formData = {
+      rows: rows.map((r) => ({
+        id: r.id,
+        kvk: r.kvk.name,
+        equipmentName: r.name,
+        companyBrandModel: "",
+        yearOfPurchase: String(r.yearOfPurchase),
+        totalCost: String(r.cost),
+        sourceOfFunding: "",
+      })),
+      totalCount: rows.length,
+    };
+  } else if (user && node.type === "leaf" && node.slug === "equipment-details") {
+    const rows = await prisma.equipmentStatus.findMany({
+      where: kvkScope,
+      include: { equipment: { include: { kvk: true } } },
+      orderBy: { createdAt: "desc" },
+    });
+    formData = {
+      rows: rows.map((r) => ({
+        id: r.id,
+        reportingYear: String(r.reportingYear),
+        kvk: r.equipment.kvk.name,
+        equipmentName: r.equipment.name,
+        companyBrandModel: "",
+        sourceOfFund: r.sourceOfFund ?? "",
+      })),
+      totalCount: rows.length,
+    };
+  } else if (user && node.type === "leaf" && node.slug === "oft") {
+    const rows = await prisma.oft.findMany({
+      where: kvkScope,
+      include: { kvk: true },
+      orderBy: { createdAt: "desc" },
+    });
+    formData = {
+      rows: rows.map((r) => ({
+        id: r.id,
+        reportingYear: String(r.reportingYear),
+        kvk: r.kvk.name,
+        staff: r.staff,
+        trialOnForm: r.trialOnForm,
+        problemDiagnosed: r.problemDiagnosed ?? "",
+        status: r.status === "COMPLETED" ? "Completed" : "Ongoing",
+      })),
+      totalCount: rows.length,
+    };
+  } else if (user && node.type === "leaf" && node.slug === "view-fld") {
+    const rows = await prisma.fld.findMany({
+      where: kvkScope,
+      include: { kvk: true },
+      orderBy: { createdAt: "desc" },
+    });
+    formData = {
+      rows: rows.map((r) => ({
+        id: r.id,
+        reportingYear: String(r.reportingYear),
+        startDate: r.startDate ? r.startDate.toISOString().slice(0, 10) : "",
+        endDate: r.endDate ? r.endDate.toISOString().slice(0, 10) : "",
+        kvk: r.kvk.name,
+        category: r.category,
+        subCategory: r.subCategory,
+        technologyDemonstrated: r.technologyDemonstrated,
+        status: r.status === "COMPLETED" ? "Completed" : "Ongoing",
+      })),
+      totalCount: rows.length,
+    };
+  } else if (user && node.type === "leaf" && node.slug === "fld-extension-training") {
+    const rows = await prisma.fldExtensionTraining.findMany({
+      where: kvkScope.kvkId ? { fld: { kvkId: kvkScope.kvkId } } : { zoneId: kvkScope.zoneId },
+      include: { fld: true },
+      orderBy: { createdAt: "desc" },
+    });
+    formData = {
+      rows: rows.map((r) => ({
+        id: r.id,
+        fldName: r.fld.technologyDemonstrated,
+        activity: r.activity,
+        date: r.date.toISOString().slice(0, 10),
+        activityCount: String(r.activityCount),
+        participantCount: String(r.participantCount),
+        remark: r.remark ?? "",
+      })),
+      totalCount: rows.length,
+    };
+  } else if (user && node.type === "leaf" && node.slug === "fld-technical-feedback") {
+    const rows = await prisma.fldTechnicalFeedback.findMany({
+      where: kvkScope.kvkId ? { fld: { kvkId: kvkScope.kvkId } } : { zoneId: kvkScope.zoneId },
+      include: { fld: true },
+      orderBy: { createdAt: "desc" },
+    });
+    formData = {
+      rows: rows.map((r) => ({
+        id: r.id,
+        fld: r.fld.technologyDemonstrated,
+        crop: r.crop,
+        feedback: r.feedback,
+      })),
+      totalCount: rows.length,
+    };
+  } else if (user && node.type === "leaf" && node.slug === "trainings") {
+    const rows = await prisma.training.findMany({
+      where: kvkScope,
+      include: { kvk: true },
+      orderBy: { createdAt: "desc" },
+    });
+    formData = {
+      rows: rows.map((r) => ({
+        id: r.id,
+        reportingYear: String(r.reportingYear),
+        kvk: r.kvk.name,
+        startDate: r.startDate ? r.startDate.toISOString().slice(0, 10) : "",
+        endDate: r.endDate ? r.endDate.toISOString().slice(0, 10) : "",
+        program: r.program,
+        title: r.title,
+        venue: r.venue ?? "",
+        trainingDiscipline: r.trainingDiscipline ?? "",
+        thematicArea: r.thematicArea ?? "",
+      })),
+      totalCount: rows.length,
+    };
+  } else if (user && node.type === "leaf" && node.slug === "extension-activities") {
+    const rows = await prisma.extensionActivity.findMany({
+      where: kvkScope,
+      include: { kvk: true },
+      orderBy: { createdAt: "desc" },
+    });
+    formData = {
+      rows: rows.map((r) => ({
+        id: r.id,
+        reportingYear: String(r.reportingYear),
+        kvk: r.kvk.name,
+        startDate: r.startDate ? r.startDate.toISOString().slice(0, 10) : "",
+        endDate: r.endDate ? r.endDate.toISOString().slice(0, 10) : "",
+        natureOfExtensionActivity: r.natureOfExtensionActivity,
+        noOfActivities: String(r.noOfActivities),
+        noOfParticipants: String(r.noOfParticipants),
+      })),
+      totalCount: rows.length,
+    };
+  } else if (user && node.type === "leaf" && node.slug === "other-extension-activities") {
+    const rows = await prisma.otherExtensionActivity.findMany({
+      where: kvkScope,
+      include: { kvk: true },
+      orderBy: { createdAt: "desc" },
+    });
+    formData = {
+      rows: rows.map((r) => ({
+        id: r.id,
+        reportingYear: String(r.reportingYear),
+        kvk: r.kvk.name,
+        natureOfExtensionActivity: r.natureOfExtensionActivity,
+        noOfActivities: String(r.noOfActivities),
+      })),
+      totalCount: rows.length,
+    };
+  } else if (user && node.type === "leaf" && node.slug === "technology-week-celebration") {
+    const rows = await prisma.technologyWeekCelebration.findMany({
+      where: kvkScope,
+      include: { kvk: true },
+      orderBy: { createdAt: "desc" },
+    });
+    formData = {
+      rows: rows.map((r) => ({
+        id: r.id,
+        startDate: r.startDate.toISOString().slice(0, 10),
+        endDate: r.endDate.toISOString().slice(0, 10),
+        kvk: r.kvk.name,
+        typeOfActivities: r.typeOfActivities,
+        noOfActivities: String(r.noOfActivities),
+        relatedCropTechnology: r.relatedCropTechnology ?? "",
+        numberOfParticipants: String(r.numberOfParticipants),
+      })),
+      totalCount: rows.length,
+    };
+  } else if (user && node.type === "leaf" && node.slug === "celebration-days") {
+    const rows = await prisma.celebrationDay.findMany({
+      where: kvkScope,
+      include: { kvk: true },
+      orderBy: { createdAt: "desc" },
+    });
+    formData = {
+      rows: rows.map((r) => ({
+        id: r.id,
+        kvk: r.kvk.name,
+        importantDay: r.importantDay,
+        eventDate: r.eventDate.toISOString().slice(0, 10),
+        noOfActivities: String(r.noOfActivities),
+      })),
+      totalCount: rows.length,
+    };
+  } else if (user && node.type === "leaf" && node.slug === "poshan-maaha") {
+    const rows = await prisma.poshanMaaha.findMany({
+      where: kvkScope,
+      include: { kvk: true },
+      orderBy: { createdAt: "desc" },
+    });
+    formData = {
+      rows: rows.map((r) => ({
+        id: r.id,
+        kvk: r.kvk.name,
+        activityDate: r.activityDate.toISOString().slice(0, 10),
+        activitiesConducted: r.activitiesConducted,
+        eventName: r.eventName,
+        saplingsPlanted: String(r.saplingsPlanted),
+        vegetableKits: String(r.vegetableKits),
+        participantsGirls: String(r.participantsGirls),
+        participantsPublicRepresentatives: String(r.participantsPublicRepresentatives),
+        participantsFarmWoman: String(r.participantsFarmWoman),
+        participantsFarmers: String(r.participantsFarmers),
+        participantsAganwadiWorkers: String(r.participantsAganwadiWorkers),
+        participantsGovtOfficials: String(r.participantsGovtOfficials),
+        totalParticipants: String(r.totalParticipants),
+      })),
+      totalCount: rows.length,
+    };
+  } else if (user && node.type === "leaf" && (node.slug === "sewa" || node.slug === "pakhwada")) {
+    const rows = await prisma.swachhtaObservance.findMany({
+      where: { ...kvkScope, kind: node.slug === "sewa" ? "SEWA" : "PAKHWADA" },
+      include: { kvk: true },
+      orderBy: { createdAt: "desc" },
+    });
+    formData = {
+      rows: rows.map((r) => ({
+        id: r.id,
+        kvk: r.kvk.name,
+        dateDurationOfObservation: r.dateDurationOfObservation,
+        totalNoOfActivitiesUndertaken: String(r.totalNoOfActivitiesUndertaken),
+        noOfStaffs: String(r.noOfStaffs),
+        noOfFarmers: String(r.noOfFarmers),
+      })),
+      totalCount: rows.length,
+    };
+  } else if (
+    user &&
+    node.type === "leaf" &&
+    node.slug === "budget-expenditure" &&
+    trail[trail.length - 2]?.slug === "swachhta-bharat-abhiyaan"
+  ) {
+    const rows = await prisma.swachhtaBudgetExpenditure.findMany({
+      where: kvkScope,
+      include: { kvk: true },
+      orderBy: { createdAt: "desc" },
+    });
+    formData = {
+      rows: rows.map((r) => ({
+        id: r.id,
+        kvk: r.kvk.name,
+        reportingYear: String(r.reportingYear),
+        vermicompostingVillagesCovered: String(r.vermicompostingVillagesCovered),
+        vermicompostingTotalExpenditure: String(r.vermicompostingTotalExpenditure),
+      })),
+      totalCount: rows.length,
+    };
+  } else if (user && node.type === "leaf" && node.slug === "production-supply") {
+    const rows = await prisma.technologyProductProduction.findMany({
+      where: kvkScope,
+      include: { kvk: true },
+      orderBy: { createdAt: "desc" },
+    });
+    formData = {
+      rows: rows.map((r) => ({
+        id: r.id,
+        kvk: r.kvk.name,
+        category: r.category,
+        variety: r.variety,
+        quantity: String(r.quantity),
+      })),
+      totalCount: rows.length,
+    };
+  } else if (user && node.type === "leaf" && node.slug === "soil-testing-equipment") {
+    const rows = await prisma.soilTestingEquipment.findMany({
+      where: kvkScope,
+      include: { kvk: true },
+      orderBy: { createdAt: "desc" },
+    });
+    formData = {
+      rows: rows.map((r) => ({
+        id: r.id,
+        kvk: r.kvk.name,
+        analysis: r.analysis,
+        equipmentName: r.equipmentName,
+        quantity: String(r.quantity),
+      })),
+      totalCount: rows.length,
+    };
+  } else if (user && node.type === "leaf" && node.slug === "soil-water-testing") {
+    const rows = await prisma.soilWaterPlantAnalysis.findMany({
+      where: kvkScope,
+      include: { kvk: true },
+      orderBy: { createdAt: "desc" },
+    });
+    formData = {
+      rows: rows.map((r) => ({
+        id: r.id,
+        kvk: r.kvk.name,
+        startDate: r.startDate.toISOString().slice(0, 10),
+        endDate: r.endDate.toISOString().slice(0, 10),
+        analysis: r.analysis,
+        noOfSamplesAnalyzed: String(r.noOfSamplesAnalyzed),
+        noOfVillagesCovered: String(r.noOfVillagesCovered),
+        amountRealized: String(r.amountRealized),
+      })),
+      totalCount: rows.length,
+    };
+  } else if (user && node.type === "leaf" && node.slug === "world-soil-day") {
+    const rows = await prisma.worldSoilDay.findMany({
+      where: kvkScope,
+      include: { kvk: true },
+      orderBy: { createdAt: "desc" },
+    });
+    formData = {
+      rows: rows.map((r) => ({
+        id: r.id,
+        kvk: r.kvk.name,
+        noOfActivitiesConducted: String(r.noOfActivitiesConducted),
+        soilHealthCardsDistributed: String(r.soilHealthCardsDistributed),
+        noOfVip: String(r.noOfVip),
+        vipNames: r.vipNames ?? "",
+        totalParticipants: String(r.totalParticipants),
+      })),
+      totalCount: rows.length,
+    };
+  } else if (user && node.type === "leaf" && node.slug === "publications") {
+    const rows = await prisma.publication.findMany({
+      where: kvkScope,
+      include: { kvk: true },
+      orderBy: { createdAt: "desc" },
+    });
+    formData = {
+      rows: rows.map((r) => ({
+        id: r.id,
+        kvk: r.kvk.name,
+        itemName: r.itemName,
+        title: r.title,
+        authorName: r.authorName,
+        journalName: r.journalName ?? "",
+      })),
+      totalCount: rows.length,
+    };
+  } else if (user && node.type === "leaf" && node.slug === "hrd") {
+    const rows = await prisma.humanResourceDevelopment.findMany({
+      where: kvkScope,
+      include: { kvk: true },
+      orderBy: { createdAt: "desc" },
+    });
+    formData = {
+      rows: rows.map((r) => ({
+        id: r.id,
+        kvk: r.kvk.name,
+        staff: r.staff,
+        course: r.course,
+        startDate: r.startDate ? r.startDate.toISOString().slice(0, 10) : "",
+        endDate: r.endDate ? r.endDate.toISOString().slice(0, 10) : "",
+        venue: r.venue ?? "",
+        organizer: r.organizer ?? "",
+      })),
+      totalCount: rows.length,
+    };
+  } else if (
+    user &&
+    node.type === "leaf" &&
+    node.slug === "kvk" &&
+    trail[trail.length - 2]?.slug === "awards"
+  ) {
+    const rows = await prisma.kvkAward.findMany({
+      where: kvkScope,
+      include: { kvk: true },
+      orderBy: { createdAt: "desc" },
+    });
+    formData = {
+      rows: rows.map((r) => ({
+        id: r.id,
+        kvk: r.kvk.name,
+        award: r.award,
+        amount: String(r.amount),
+        achievement: r.achievement ?? "",
+        conferringAuthority: r.conferringAuthority ?? "",
+      })),
+      totalCount: rows.length,
+    };
+  } else if (
+    user &&
+    node.type === "leaf" &&
+    node.slug === "scientist" &&
+    trail[trail.length - 2]?.slug === "awards"
+  ) {
+    const rows = await prisma.scientistAward.findMany({
+      where: kvkScope,
+      include: { kvk: true },
+      orderBy: { createdAt: "desc" },
+    });
+    formData = {
+      rows: rows.map((r) => ({
+        id: r.id,
+        kvk: r.kvk.name,
+        headScientist: r.headScientist,
+        award: r.award,
+        amount: String(r.amount),
+        achievement: r.achievement ?? "",
+        conferringAuthority: r.conferringAuthority ?? "",
+      })),
+      totalCount: rows.length,
+    };
+  } else if (
+    user &&
+    node.type === "leaf" &&
+    node.slug === "farmer" &&
+    trail[trail.length - 2]?.slug === "awards"
+  ) {
+    const rows = await prisma.farmerAward.findMany({
+      where: kvkScope,
+      include: { kvk: true },
+      orderBy: { createdAt: "desc" },
+    });
+    formData = {
+      rows: rows.map((r) => ({
+        id: r.id,
+        kvk: r.kvk.name,
+        farmerName: r.farmerName,
+        address: r.address ?? "",
+        contactNumber: r.contactNumber ?? "",
+        award: r.award,
+        amount: String(r.amount),
+        achievement: r.achievement ?? "",
+        conferringAuthority: r.conferringAuthority ?? "",
+      })),
+      totalCount: rows.length,
+    };
+  } else if (user && node.type === "leaf" && node.slug === "technical-parameter") {
+    const rows = await prisma.cfldTechnicalParameter.findMany({
+      where: kvkScope,
+      include: { kvk: true },
+      orderBy: { createdAt: "desc" },
+    });
+    formData = {
+      rows: rows.map((r) => ({
+        id: r.id,
+        reportingYear: String(r.reportingYear),
+        kvk: r.kvk.name,
+        crop: r.crop,
+        technologyDemonstrated: r.detailOfTechnologyDemonstrated,
+        areaHa: String(r.areaHa),
+        numberOfFarmers: String(r.numberOfFarmers),
+        districtYield: r.districtYield ? String(r.districtYield) : "",
+        stateYield: r.stateYield ? String(r.stateYield) : "",
+        potentialYield: r.potentialYield ? String(r.potentialYield) : "",
+        status: r.status === "COMPLETED" ? "Completed" : "Ongoing",
+      })),
+      totalCount: rows.length,
+    };
+  } else if (user && node.type === "leaf" && node.slug === "extension-activity-cfld") {
+    const rows = await prisma.cfldExtensionActivity.findMany({
+      where: kvkScope,
+      include: { kvk: true },
+      orderBy: { createdAt: "desc" },
+    });
+    formData = {
+      rows: rows.map((r) => ({
+        id: r.id,
+        kvk: r.kvk.name,
+        season: r.season,
+        activitiesOrganized: r.activitiesOrganized,
+        date: r.date.toISOString().slice(0, 10),
+        placeOfActivity: r.placeOfActivity,
+        farmersAttended: String(r.farmersAttended),
+      })),
+      totalCount: rows.length,
+    };
+  } else if (user && node.type === "leaf" && node.slug === "budget-utilization") {
+    const rows = await prisma.cfldBudgetUtilization.findMany({
+      where: kvkScope,
+      include: { kvk: true },
+      orderBy: { createdAt: "desc" },
+    });
+    formData = {
+      rows: rows.map((r) => ({
+        id: r.id,
+        kvk: r.kvk.name,
+        crop: r.crop,
+        season: r.season,
+        overallFundAllocation: String(r.overallFundAllocation),
+      })),
+      totalCount: rows.length,
+    };
+  } else if (user && node.type === "leaf" && node.slug === "crop-wise-images") {
+    const rows = await prisma.cfldCropWiseImage.findMany({
+      where: kvkScope,
+      include: { kvk: true },
+      orderBy: { createdAt: "desc" },
+    });
+    formData = {
+      rows: rows.map((r) => ({
+        id: r.id, kvk: r.kvk.name, crop: r.crop })),
+      totalCount: rows.length,
+    };
+  } else if (
+    user &&
+    node.type === "leaf" &&
+    node.slug === "basic-information" &&
+    trail[trail.length - 2]?.slug === "nicra"
+  ) {
+    const rows = await prisma.nicraBasicInformation.findMany({
+      where: kvkScope,
+      include: { kvk: true },
+      orderBy: { createdAt: "desc" },
+    });
+    formData = {
+      rows: rows.map((r) => ({
+        id: r.id,
+        kvk: r.kvk.name,
+        rfDistrictNormal: r.rfDistrictNormal ? String(r.rfDistrictNormal) : "",
+        rfDistrictReceived: r.rfDistrictReceived ? String(r.rfDistrictReceived) : "",
+        maxTemperature: r.maxTemperature ? String(r.maxTemperature) : "",
+        minTemperature: r.minTemperature ? String(r.minTemperature) : "",
+      })),
+      totalCount: rows.length,
+    };
+  } else if (
+    user &&
+    node.type === "leaf" &&
+    node.slug === "details" &&
+    trail[trail.length - 2]?.slug === "nicra"
+  ) {
+    const rows = await prisma.nicraDetails.findMany({
+      where: kvkScope,
+      include: { kvk: true },
+      orderBy: { createdAt: "desc" },
+    });
+    formData = {
+      rows: rows.map((r) => ({
+        id: r.id,
+        kvk: r.kvk.name,
+        cropName: r.cropName,
+        seasonName: r.seasonName,
+        technologyDemonstration: r.technologyDemonstration,
+        noOfFarmers: String(r.noOfFarmers),
+      })),
+      totalCount: rows.length,
+    };
+  } else if (
+    user &&
+    node.type === "leaf" &&
+    node.slug === "training" &&
+    trail[trail.length - 2]?.slug === "nicra"
+  ) {
+    const rows = await prisma.nicraTraining.findMany({
+      where: kvkScope,
+      include: { kvk: true },
+      orderBy: { createdAt: "desc" },
+    });
+    formData = {
+      rows: rows.map((r) => ({
+        id: r.id,
+        kvk: r.kvk.name,
+        title: r.title,
+        startDate: r.startDate.toISOString().slice(0, 10),
+        endDate: r.endDate.toISOString().slice(0, 10),
+        farmersAttended: String(r.farmersAttended),
+      })),
+      totalCount: rows.length,
+    };
+  } else if (user && node.type === "leaf" && node.slug === "extension-activity-nicra") {
+    const rows = await prisma.nicraExtensionActivity.findMany({
+      where: kvkScope,
+      include: { kvk: true },
+      orderBy: { createdAt: "desc" },
+    });
+    formData = {
+      rows: rows.map((r) => ({
+        id: r.id,
+        kvk: r.kvk.name,
+        activityName: r.activityName,
+        places: r.places,
+        startDate: r.startDate.toISOString().slice(0, 10),
+        endDate: r.endDate.toISOString().slice(0, 10),
+        farmersAttended: String(r.farmersAttended),
+      })),
+      totalCount: rows.length,
+    };
+  } else if (user && node.type === "leaf" && node.slug === "intervention") {
+    const rows = await prisma.nicraIntervention.findMany({
+      where: kvkScope,
+      include: { kvk: true },
+      orderBy: { createdAt: "desc" },
+    });
+    formData = {
+      rows: rows.map((r) => ({
+        id: r.id,
+        kvk: r.kvk.name,
+        startDate: r.startDate.toISOString().slice(0, 10),
+        endDate: r.endDate.toISOString().slice(0, 10),
+        seedBankFodderBank: r.seedBankFodderBank,
+        crop: r.crop,
+        variety: r.variety,
+        quantity: String(r.quantityQuintal),
+      })),
+      totalCount: rows.length,
+    };
+  } else if (user && node.type === "leaf" && node.slug === "revenue-generated") {
+    const rows = await prisma.nicraRevenueGenerated.findMany({
+      where: kvkScope,
+      include: { kvk: true },
+      orderBy: { createdAt: "desc" },
+    });
+    formData = {
+      rows: rows.map((r) => ({
+        id: r.id,
+        kvk: r.kvk.name,
+        year: String(r.year),
+        revenue: String(r.revenue),
+        total: String(r.total),
+      })),
+      totalCount: rows.length,
+    };
+  } else if (user && node.type === "leaf" && node.slug === "custom-hiring-farm-implement") {
+    const rows = await prisma.nicraCustomHiringFarmImplement.findMany({
+      where: kvkScope,
+      include: { kvk: true },
+      orderBy: { createdAt: "desc" },
+    });
+    formData = {
+      rows: rows.map((r) => ({
+        id: r.id,
+        kvk: r.kvk.name,
+        farmImplementName: r.farmImplementName,
+        farmersUsed: String(r.farmersUsed),
+        areaCovered: String(r.areaCovered),
+        hoursUsed: String(r.hoursUsed),
+        revenueGenerated: String(r.revenueGenerated),
+        repairExpenditure: String(r.repairExpenditure),
+      })),
+      totalCount: rows.length,
+    };
+  } else if (user && node.type === "leaf" && node.slug === "village-wise-vcrmc") {
+    const rows = await prisma.nicraVillageWiseVcrmc.findMany({
+      where: kvkScope,
+      include: { kvk: true },
+      orderBy: { createdAt: "desc" },
+    });
+    formData = {
+      rows: rows.map((r) => ({
+        id: r.id,
+        kvk: r.kvk.name,
+        villageName: r.villageName,
+        constitutionDate: r.constitutionDate
+          ? r.constitutionDate.toISOString().slice(0, 10)
+          : "",
+        members: String(r.members),
+        meetingsOrganized: String(r.meetingsOrganized),
+        meetingDate: r.meetingDate ? r.meetingDate.toISOString().slice(0, 10) : "",
+        secretaryName: r.secretaryName ?? "",
+      })),
+      totalCount: rows.length,
+    };
+  } else if (user && node.type === "leaf" && node.slug === "soil-health-card") {
+    const rows = await prisma.nicraSoilHealthCard.findMany({
+      where: kvkScope,
+      include: { kvk: true },
+      orderBy: { createdAt: "desc" },
+    });
+    formData = {
+      rows: rows.map((r) => ({
+        id: r.id,
+        startDate: r.startDate.toISOString().slice(0, 10),
+        endDate: r.endDate.toISOString().slice(0, 10),
+        kvk: r.kvk.name,
+        samplesCollected: String(r.samplesCollected),
+        samplesAnalysed: String(r.samplesAnalysed),
+        shcIssued: String(r.shcIssued),
+        farmersBenefitted: String(r.farmersBenefitted),
+      })),
+      totalCount: rows.length,
+    };
+  } else if (user && node.type === "leaf" && node.slug === "convergence-programme") {
+    const rows = await prisma.nicraConvergenceProgramme.findMany({
+      where: kvkScope,
+      include: { kvk: true },
+      orderBy: { createdAt: "desc" },
+    });
+    formData = {
+      rows: rows.map((r) => ({
+        id: r.id,
+        startDate: r.startDate.toISOString().slice(0, 10),
+        endDate: r.endDate.toISOString().slice(0, 10),
+        kvk: r.kvk.name,
+        scheme: r.scheme,
+        natureOfWork: r.natureOfWork,
+        amount: String(r.amount),
+      })),
+      totalCount: rows.length,
+    };
+  } else if (user && node.type === "leaf" && node.slug === "dignitaries-visited-nicra-villages") {
+    const rows = await prisma.nicraDignitaryVisit.findMany({
+      where: kvkScope,
+      include: { kvk: true },
+      orderBy: { createdAt: "desc" },
+    });
+    formData = {
+      rows: rows.map((r) => ({
+        id: r.id,
+        kvk: r.kvk.name,
+        vipExperts: r.vipExperts,
+        name: r.name,
+        dateOfVisit: r.dateOfVisit.toISOString().slice(0, 10),
+      })),
+      totalCount: rows.length,
+    };
+  } else if (user && node.type === "leaf" && node.slug === "pi-co-pi-list") {
+    const rows = await prisma.nicraPiCoPi.findMany({
+      where: kvkScope,
+      include: { kvk: true },
+      orderBy: { createdAt: "desc" },
+    });
+    formData = {
+      rows: rows.map((r) => ({
+        id: r.id,
+        startDate: r.startDate.toISOString().slice(0, 10),
+        endDate: r.endDate.toISOString().slice(0, 10),
+        kvk: r.kvk.name,
+        piCoPi: r.piCoPi,
+        name: r.name,
+      })),
+      totalCount: rows.length,
+    };
+  } else if (user && node.type === "leaf" && node.slug === "arya-safal-current-year") {
+    const rows = await prisma.aryaCurrentYearDetail.findMany({
+      where: kvkScope,
+      include: { kvk: true },
+      orderBy: { createdAt: "desc" },
+    });
+    formData = {
+      rows: rows.map((r) => ({
+        id: r.id,
+        kvk: r.kvk.name,
+        enterprise: r.enterprise,
+        viableUnits: String(r.viableUnits),
+        closedUnits: String(r.closedUnits),
+        startDate: r.startDate.toISOString().slice(0, 10),
+        endDate: r.endDate.toISOString().slice(0, 10),
+        groupsFormed: String(r.groupsFormed),
+        groupsActive: String(r.groupsActive),
+      })),
+      totalCount: rows.length,
+    };
+  } else if (user && node.type === "leaf" && node.slug === "arya-safal-previous-year") {
+    const rows = await prisma.aryaPreviousYearEvaluation.findMany({
+      where: kvkScope,
+      include: { kvk: true },
+      orderBy: { createdAt: "desc" },
+    });
+    formData = {
+      rows: rows.map((r) => ({
+        id: r.id,
+        kvk: r.kvk.name,
+        enterprise: r.enterprise,
+        totalClosed: String(r.totalClosed),
+        closingDate: r.closingDate ? r.closingDate.toISOString().slice(0, 10) : "",
+        totalRestarted: String(r.totalRestarted),
+        restartedDate: r.restartedDate ? r.restartedDate.toISOString().slice(0, 10) : "",
+      })),
+      totalCount: rows.length,
+    };
+  } else if (user && node.type === "leaf" && node.slug === "nf-geographical") {
+    const rows = await prisma.nfGeographicalInfo.findMany({
+      where: kvkScope,
+      include: { kvk: true },
+      orderBy: { createdAt: "desc" },
+    });
+    formData = {
+      rows: rows.map((r) => ({
+        id: r.id,
+        kvk: r.kvk.name,
+        startDate: r.startDate.toISOString().slice(0, 10),
+        endDate: r.endDate.toISOString().slice(0, 10),
+        agroClimaticZone: r.agroClimaticZone,
+        farmingSituation: r.farmingSituation,
+        latitude: String(r.latitude),
+        longitude: String(r.longitude),
+      })),
+      totalCount: rows.length,
+    };
+  } else if (user && node.type === "leaf" && node.slug === "nf-physical") {
+    const rows = await prisma.nfPhysicalInfo.findMany({
+      where: kvkScope,
+      include: { kvk: true },
+      orderBy: { createdAt: "desc" },
+    });
+    formData = {
+      rows: rows.map((r) => ({
+        id: r.id,
+        kvk: r.kvk.name,
+        activityName: r.activityName,
+        trainingTitle: r.trainingTitle,
+        trainingDate: r.trainingDate.toISOString().slice(0, 10),
+        venue: r.venue,
+        participants: String(r.participants),
+      })),
+      totalCount: rows.length,
+    };
+  } else if (user && node.type === "leaf" && node.slug === "nf-demonstration") {
+    const rows = await prisma.nfDemonstrationInfo.findMany({
+      where: kvkScope,
+      include: { kvk: true },
+      orderBy: { createdAt: "desc" },
+    });
+    formData = {
+      rows: rows.map((r) => ({
+        id: r.id,
+        kvk: r.kvk.name,
+        farmerName: r.farmerName,
+        activityName: r.activityName,
+        crop: r.crop,
+        variety: r.variety,
+      })),
+      totalCount: rows.length,
+    };
+  } else if (user && node.type === "leaf" && node.slug === "nf-already-practicing") {
+    const rows = await prisma.nfAlreadyPracticing.findMany({
+      where: kvkScope,
+      include: { kvk: true },
+      orderBy: { createdAt: "desc" },
+    });
+    formData = {
+      rows: rows.map((r) => ({
+        id: r.id,
+        kvk: r.kvk.name,
+        farmerName: r.farmerName,
+        address: r.address ?? "",
+        normalCropsGrown: r.normalCropsGrown ?? "",
+        practicingYear: String(r.practicingYear),
+      })),
+      totalCount: rows.length,
+    };
+  } else if (user && node.type === "leaf" && node.slug === "nf-beneficiaries") {
+    const rows = await prisma.nfBeneficiary.findMany({
+      where: kvkScope,
+      include: { kvk: true },
+      orderBy: { createdAt: "desc" },
+    });
+    formData = {
+      rows: rows.map((r) => ({
+        id: r.id,
+        kvk: r.kvk.name,
+        numberOfBlock: String(r.numberOfBlock),
+        numberOfVillage: String(r.numberOfVillage),
+        numberOfTraining: String(r.numberOfTraining),
+        farmersInfluenced: String(r.farmersInfluenced),
+      })),
+      totalCount: rows.length,
+    };
+  } else if (user && node.type === "leaf" && node.slug === "nf-soil-data") {
+    const rows = await prisma.nfSoilData.findMany({
+      where: kvkScope,
+      include: { kvk: true },
+      orderBy: { createdAt: "desc" },
+    });
+    formData = {
+      rows: rows.map((r) => ({
+        id: r.id,
+        kvk: r.kvk.name,
+        season: r.season,
+        type: r.type,
+        crop: r.crop,
+        beforePh: String(r.beforePh),
+        beforeEc: String(r.beforeEc),
+        beforeEcOc: String(r.beforeEcOc),
+        afterPh: String(r.afterPh),
+        afterEc: String(r.afterEc),
+        afterEcOc: String(r.afterEcOc),
+      })),
+      totalCount: rows.length,
+    };
+  } else if (user && node.type === "leaf" && node.slug === "nf-budget-expenditure") {
+    const rows = await prisma.nfBudgetExpenditure.findMany({
+      where: kvkScope,
+      include: { kvk: true },
+      orderBy: { createdAt: "desc" },
+    });
+    formData = {
+      rows: rows.map((r) => ({
+        id: r.id,
+        kvk: r.kvk.name,
+        activityName: r.activityName,
+        activitiesOrganised: String(r.activitiesOrganised),
+        budgetSanction: String(r.budgetSanction),
+        budgetExpenditure: String(r.budgetExpenditure),
+        totalBudgetExpenditure: String(r.totalBudgetExpenditure),
+      })),
+      totalCount: rows.length,
+    };
+  } else if (user && node.type === "leaf" && node.slug === "view-sub-plan-activity") {
+    const rows = await prisma.subPlanActivity.findMany({
+      where: kvkScope,
+      include: { kvk: true },
+      orderBy: { createdAt: "desc" },
+    });
+    formData = {
+      rows: rows.map((r) => ({
+        id: r.id,
+        kvk: r.kvk.name,
+        type: r.type === "TSP" ? "TSP" : "SCSP",
+        activities: r.activities,
+        noOfTraining: String(r.noOfTraining),
+        beneficiaries: String(r.beneficiaries),
+      })),
+      totalCount: rows.length,
+    };
+  } else if (user && node.type === "leaf" && node.slug === "nari-nutrition-garden") {
+    const rows = await prisma.nariNutritionGarden.findMany({
+      where: kvkScope,
+      include: { kvk: true },
+      orderBy: { createdAt: "desc" },
+    });
+    formData = {
+      rows: rows.map((r) => ({
+        id: r.id,
+        kvk: r.kvk.name,
+        nutriSmartVillage: r.nutriSmartVillage,
+        typeOfNutritionalGarden: r.typeOfNutritionalGarden,
+        numbers: String(r.numbers),
+        areaSqm: String(r.areaSqm),
+      })),
+      totalCount: rows.length,
+    };
+  } else if (user && node.type === "leaf" && node.slug === "nari-bio-fortified") {
+    const rows = await prisma.nariBioFortified.findMany({
+      where: kvkScope,
+      include: { kvk: true },
+      orderBy: { createdAt: "desc" },
+    });
+    formData = {
+      rows: rows.map((r) => ({
+        id: r.id,
+        kvk: r.kvk.name,
+        nutriSmartVillage: r.nutriSmartVillage,
+        season: r.season,
+        activity: r.activity,
+        categoryOfCrop: r.categoryOfCrop,
+      })),
+      totalCount: rows.length,
+    };
+  } else if (user && node.type === "leaf" && node.slug === "nari-value-addition") {
+    const rows = await prisma.nariValueAddition.findMany({
+      where: kvkScope,
+      include: { kvk: true },
+      orderBy: { createdAt: "desc" },
+    });
+    formData = {
+      rows: rows.map((r) => ({
+        id: r.id,
+        kvk: r.kvk.name,
+        nutriSmartVillage: r.nutriSmartVillage,
+        cropName: r.cropName,
+        valueAddedProduct: r.valueAddedProduct,
+        activity: r.activity,
+      })),
+      totalCount: rows.length,
+    };
+  } else if (user && node.type === "leaf" && node.slug === "nari-training") {
+    const rows = await prisma.nariTraining.findMany({
+      where: kvkScope,
+      include: { kvk: true },
+      orderBy: { createdAt: "desc" },
+    });
+    formData = {
+      rows: rows.map((r) => ({
+        id: r.id,
+        kvk: r.kvk.name,
+        nutriSmartVillage: r.nutriSmartVillage,
+        areaOfTraining: r.areaOfTraining,
+        activity: r.activity,
+        titleOfTraining: r.titleOfTraining,
+      })),
+      totalCount: rows.length,
+    };
+  } else if (user && node.type === "leaf" && node.slug === "nari-extension") {
+    const rows = await prisma.nariExtension.findMany({
+      where: kvkScope,
+      include: { kvk: true },
+      orderBy: { createdAt: "desc" },
+    });
+    formData = {
+      rows: rows.map((r) => ({
+        id: r.id,
+        kvk: r.kvk.name,
+        nutriSmartVillage: r.nutriSmartVillage,
+        activity: r.activity,
+        nameOfActivity: r.nameOfActivity,
+        noOfActivities: String(r.noOfActivities),
+      })),
+      totalCount: rows.length,
+    };
+  } else if (user && node.type === "leaf" && node.slug === "agri-drone-introduction") {
+    const rows = await prisma.agriDroneIntroduction.findMany({
+      where: kvkScope,
+      include: { kvk: true },
+      orderBy: { createdAt: "desc" },
+    });
+    formData = {
+      rows: rows.map((r) => ({
+        id: r.id,
+        kvk: r.kvk.name,
+        year: String(r.year),
+        centreName: r.centreName,
+        companyOfDrone: r.companyOfDrone,
+        modelOfDrone: r.modelOfDrone,
+        dronesSanctioned: String(r.dronesSanctioned),
+        dronesPurchased: String(r.dronesPurchased),
+        amountSanctioned: String(r.amountSanctioned),
+      })),
+      totalCount: rows.length,
+    };
+  } else if (user && node.type === "leaf" && node.slug === "agri-drone-demonstration") {
+    const rows = await prisma.agriDroneDemonstration.findMany({
+      where: kvkScope,
+      include: { kvk: true },
+      orderBy: { createdAt: "desc" },
+    });
+    formData = {
+      rows: rows.map((r) => ({
+        id: r.id,
+        kvk: r.kvk.name,
+        centreName: r.centreName,
+        district: r.district,
+        dateOfDemos: r.dateOfDemos.toISOString().slice(0, 10),
+        placeOfDemos: r.placeOfDemos,
+        cropName: r.cropName,
+        noOfDemos: String(r.noOfDemos),
+        areaCovered: String(r.areaCovered),
+        noOfFarmers: String(r.noOfFarmers),
+      })),
+      totalCount: rows.length,
+    };
+  } else if (user && node.type === "leaf" && node.slug === "fpo-cbbo-details") {
+    const rows = await prisma.fpoCbboDetail.findMany({
+      where: kvkScope,
+      include: { kvk: true },
+      orderBy: { createdAt: "desc" },
+    });
+    formData = {
+      rows: rows.map((r) => ({
+        id: r.id,
+        kvk: r.kvk.name,
+        noOfBlocksAllocated: String(r.noOfBlocksAllocated),
+        noOfFposRegistered: String(r.noOfFposRegistered),
+        trainingReceived: r.trainingReceived ?? "",
+        businessPlanPrepared: r.businessPlanPrepared ? "Yes" : "No",
+        noOfFposDoingBusiness: String(r.noOfFposDoingBusiness),
+      })),
+      totalCount: rows.length,
+    };
+  } else if (user && node.type === "leaf" && node.slug === "fpo-management") {
+    const rows = await prisma.fpoManagement.findMany({
+      where: kvkScope,
+      include: { kvk: true },
+      orderBy: { createdAt: "desc" },
+    });
+    formData = {
+      rows: rows.map((r) => ({
+        id: r.id,
+        kvk: r.kvk.name,
+        registrationNo: r.registrationNo,
+        dateOfRegistration: r.dateOfRegistration.toISOString().slice(0, 10),
+        fpoName: r.fpoName,
+        fpoAddress: r.fpoAddress ?? "",
+        totalBomMembers: String(r.totalBomMembers),
+        financialPosition: r.financialPosition ?? "",
+      })),
+      totalCount: rows.length,
+    };
+  } else if (user && node.type === "leaf" && node.slug === "drmr-details") {
+    const rows = await prisma.drmrDetail.findMany({
+      where: kvkScope,
+      include: { kvk: true },
+      orderBy: { createdAt: "desc" },
+    });
+    formData = {
+      rows: rows.map((r) => ({
+        id: r.id,
+        kvk: r.kvk.name,
+        varietiesUsedInIp: r.varietiesUsedInIp,
+        situations: r.situations,
+        varietiesUsedInFp: r.varietiesUsedInFp,
+        netReturnImprovedPractice: String(r.netReturnImprovedPractice),
+        netReturnFarmerPractice: String(r.netReturnFarmerPractice),
+      })),
+      totalCount: rows.length,
+    };
+  } else if (user && node.type === "leaf" && node.slug === "drmr-activity") {
+    const rows = await prisma.drmrActivity.findMany({
+      where: kvkScope,
+      include: { kvk: true },
+      orderBy: { createdAt: "desc" },
+    });
+    formData = {
+      rows: rows.map((r) => ({
+        id: r.id,
+        kvk: r.kvk.name,
+        startDate: r.startDate.toISOString().slice(0, 10),
+        endDate: r.endDate.toISOString().slice(0, 10),
+        training: r.training ?? "",
+        flds: r.flds ?? "",
+        awarenessCamps: r.awarenessCamps ?? "",
+        distributionOfLiterature: r.distributionOfLiterature ?? "",
+      })),
+      totalCount: rows.length,
+    };
+  } else if (user && node.type === "leaf" && node.slug === "cra-details") {
+    const rows = await prisma.craDetail.findMany({
+      where: kvkScope,
+      include: { kvk: true },
+      orderBy: { createdAt: "desc" },
+    });
+    formData = {
+      rows: rows.map((r) => ({
+        id: r.id,
+        kvk: r.kvk.name,
+        season: r.season,
+        technologyDemonstrated: r.technologyDemonstrated,
+        croppingSystem: r.croppingSystem,
+        areaHa: String(r.areaHa),
+        noOfFarmer: String(r.noOfFarmer),
+      })),
+      totalCount: rows.length,
+    };
+  } else if (user && node.type === "leaf" && node.slug === "cra-extension-activity") {
+    const rows = await prisma.craExtensionActivity.findMany({
+      where: kvkScope,
+      include: { kvk: true },
+      orderBy: { createdAt: "desc" },
+    });
+    formData = {
+      rows: rows.map((r) => ({
+        id: r.id,
+        kvk: r.kvk.name,
+        extensionActivity: r.extensionActivity,
+        startDate: r.startDate.toISOString().slice(0, 10),
+        endDate: r.endDate.toISOString().slice(0, 10),
+        withinOrWithoutState: r.withinOrWithoutState ?? "",
+        exposureVisits: String(r.exposureVisits),
+        farmersUnderExposure: String(r.farmersUnderExposure),
+      })),
+      totalCount: rows.length,
+    };
+  } else if (user && node.type === "leaf" && node.slug === "csisa-details") {
+    const rows = await prisma.csisaDetail.findMany({
+      where: kvkScope,
+      include: { kvk: true },
+      orderBy: { createdAt: "desc" },
+    });
+    formData = {
+      rows: rows.map((r) => ({
+        id: r.id,
+        kvk: r.kvk.name,
+        season: r.season,
+        villageCovered: String(r.villageCovered),
+        blockCovered: String(r.blockCovered),
+        districtCovered: String(r.districtCovered),
+      })),
+      totalCount: rows.length,
+    };
+  } else if (user && node.type === "leaf" && node.slug === "seed-hub-program") {
+    const rows = await prisma.seedHubProgram.findMany({
+      where: kvkScope,
+      include: { kvk: true },
+      orderBy: { createdAt: "desc" },
+    });
+    formData = {
+      rows: rows.map((r) => ({
+        id: r.id,
+        kvk: r.kvk.name,
+        season: r.season,
+        cropName: r.cropName,
+        variety: r.variety,
+        areaHa: String(r.areaHa),
+        yieldHa: String(r.yieldHa),
+      })),
+      totalCount: rows.length,
+    };
+  } else if (user && node.type === "leaf" && node.slug === "other-programme") {
+    const rows = await prisma.otherProgramme.findMany({
+      where: kvkScope,
+      include: { kvk: true },
+      orderBy: { createdAt: "desc" },
+    });
+    formData = {
+      rows: rows.map((r) => ({
+        id: r.id,
+        kvk: r.kvk.name,
+        programmeName: r.programmeName,
+        programmeDate: r.programmeDate.toISOString().slice(0, 10),
+        venue: r.venue ?? "",
+        purpose: r.purpose ?? "",
+        participants: String(r.participants),
+      })),
+      totalCount: rows.length,
+    };
+  } else if (user && node.type === "leaf" && node.slug === "impact-of-kvk-activities") {
+    const rows = await prisma.kvkActivityImpact.findMany({
+      where: kvkScope,
+      include: { kvk: true },
+      orderBy: { createdAt: "desc" },
+    });
+    formData = {
+      rows: rows.map((r) => ({
+        id: r.id,
+        kvk: r.kvk.name,
+        specificArea: r.specificArea,
+        briefDetails: r.briefDetails ?? "",
+        farmersBenefitted: String(r.farmersBenefitted),
+        horizontalSpread: r.horizontalSpread ?? "",
+        adoptionPercent: String(r.adoptionPercent),
+      })),
+      totalCount: rows.length,
+    };
+  } else if (user && node.type === "leaf" && node.slug === "entrepreneurship-details") {
+    const rows = await prisma.entrepreneurshipDetail.findMany({
+      where: kvkScope,
+      include: { kvk: true },
+      orderBy: { createdAt: "desc" },
+    });
+    formData = {
+      rows: rows.map((r) => ({
+        id: r.id,
+        kvk: r.kvk.name,
+        entrepreneurOrEnterprise: r.entrepreneurOrEnterprise,
+        enterpriseType: r.enterpriseType,
+        membersAssociated: String(r.membersAssociated),
+        annualIncome: String(r.annualIncome),
+      })),
+      totalCount: rows.length,
+    };
+  } else if (user && node.type === "leaf" && node.slug === "success-stories") {
+    const rows = await prisma.successStory.findMany({
+      where: kvkScope,
+      include: { kvk: true },
+      orderBy: { createdAt: "desc" },
+    });
+    formData = {
+      rows: rows.map((r) => ({
+        id: r.id,
+        kvk: r.kvk.name,
+        farmerOrEntrepreneur: r.farmerOrEntrepreneur,
+        experience: r.experience ?? "",
+        majorAchievement: r.majorAchievement,
+        storyTitle: r.storyTitle,
+      })),
+      totalCount: rows.length,
+    };
+  } else if (user && node.type === "leaf" && node.slug === "district-level-data") {
+    const rows = await prisma.districtLevelData.findMany({
+      where: kvkScope,
+      include: { kvk: true },
+      orderBy: { createdAt: "desc" },
+    });
+    formData = {
+      rows: rows.map((r) => ({
+        id: r.id,
+        kvk: r.kvk.name,
+        reportingYear: String(r.reportingYear),
+        items: r.items,
+        information: r.information ?? "",
+      })),
+      totalCount: rows.length,
+    };
+  } else if (user && node.type === "leaf" && node.slug === "operational-area-details") {
+    const rows = await prisma.operationalAreaDetail.findMany({
+      where: kvkScope,
+      include: { kvk: true },
+      orderBy: { createdAt: "desc" },
+    });
+    formData = {
+      rows: rows.map((r) => ({
+        id: r.id,
+        kvk: r.kvk.name,
+        reportingYear: String(r.reportingYear),
+        taluk: r.taluk ?? "",
+        block: r.block,
+        village: r.village,
+        majorCrops: r.majorCrops ?? "",
+        majorProblems: r.majorProblems ?? "",
+        thrustAreas: r.thrustAreas ?? "",
+      })),
+      totalCount: rows.length,
+    };
+  } else if (user && node.type === "leaf" && node.slug === "village-adoption-programme") {
+    const rows = await prisma.villageAdoptionProgramme.findMany({
+      where: kvkScope,
+      include: { kvk: true },
+      orderBy: { createdAt: "desc" },
+    });
+    formData = {
+      rows: rows.map((r) => ({
+        id: r.id,
+        kvk: r.kvk.name,
+        reportingYear: String(r.reportingYear),
+        village: r.village,
+        block: r.block,
+        actionTaken: r.actionTaken ?? "",
+      })),
+      totalCount: rows.length,
+    };
+  } else if (user && node.type === "leaf" && node.slug === "priority-thrust-area") {
+    const rows = await prisma.priorityThrustArea.findMany({
+      where: kvkScope,
+      include: { kvk: true },
+      orderBy: { createdAt: "desc" },
+    });
+    formData = {
+      rows: rows.map((r) => ({
+        id: r.id,
+        kvk: r.kvk.name,
+        reportingYear: String(r.reportingYear),
+        thrustArea: r.thrustArea,
+      })),
+      totalCount: rows.length,
+    };
+  } else if (user && node.type === "leaf" && node.slug === "demonstration-units") {
+    const rows = await prisma.demonstrationUnit.findMany({
+      where: kvkScope,
+      include: { kvk: true },
+      orderBy: { createdAt: "desc" },
+    });
+    formData = {
+      rows: rows.map((r) => ({
+        id: r.id,
+        kvk: r.kvk.name,
+        demoUnitName: r.demoUnitName,
+        yearOfEstt: String(r.yearOfEstt),
+        areaSqMt: String(r.areaSqMt),
+      })),
+      totalCount: rows.length,
+    };
+  } else if (user && node.type === "leaf" && node.slug === "instructional-farm-crops") {
+    const rows = await prisma.instructionalFarmCrop.findMany({
+      where: kvkScope,
+      include: { kvk: true },
+      orderBy: { createdAt: "desc" },
+    });
+    formData = {
+      rows: rows.map((r) => ({
+        id: r.id,
+        kvk: r.kvk.name,
+        cropName: r.cropName,
+        areaHa: String(r.areaHa),
+      })),
+      totalCount: rows.length,
+    };
+  } else if (user && node.type === "leaf" && node.slug === "production-units") {
+    const rows = await prisma.productionUnit.findMany({
+      where: kvkScope,
+      include: { kvk: true },
+      orderBy: { createdAt: "desc" },
+    });
+    formData = {
+      rows: rows.map((r) => ({
+        id: r.id,
+        kvk: r.kvk.name,
+        productName: r.productName,
+        qty: String(r.qty),
+      })),
+      totalCount: rows.length,
+    };
+  } else if (user && node.type === "leaf" && node.slug === "instructional-farm-livestock") {
+    const rows = await prisma.instructionalFarmLivestock.findMany({
+      where: kvkScope,
+      include: { kvk: true },
+      orderBy: { createdAt: "desc" },
+    });
+    formData = {
+      rows: rows.map((r) => ({
+        id: r.id,
+        kvk: r.kvk.name,
+        animalName: r.animalName,
+        speciesBreed: r.speciesBreed ?? "",
+        produceType: r.produceType ?? "",
+      })),
+      totalCount: rows.length,
+    };
+  } else if (user && node.type === "leaf" && node.slug === "hostel-utilization") {
+    const rows = await prisma.hostelUtilization.findMany({
+      where: kvkScope,
+      include: { kvk: true },
+      orderBy: { createdAt: "desc" },
+    });
+    formData = {
+      rows: rows.map((r) => ({
+        id: r.id,
+        kvk: r.kvk.name,
+        months: r.months,
+        traineesStayed: String(r.traineesStayed),
+        traineeDays: String(r.traineeDays),
+      })),
+      totalCount: rows.length,
+    };
+  } else if (user && node.type === "leaf" && node.slug === "staff-quarters-performance") {
+    const rows = await prisma.staffQuartersPerformance.findMany({
+      where: kvkScope,
+      include: { kvk: true },
+      orderBy: { createdAt: "desc" },
+    });
+    formData = {
+      rows: rows.map((r) => ({
+        id: r.id,
+        kvk: r.kvk.name,
+        noOfStaffQuarters: String(r.noOfStaffQuarters),
+        dateOfCompletion: r.dateOfCompletion
+          ? r.dateOfCompletion.toISOString().slice(0, 10)
+          : "",
+        remark: r.remark ?? "",
+      })),
+      totalCount: rows.length,
+    };
+  } else if (user && node.type === "leaf" && node.slug === "rain-water-harvesting") {
+    const rows = await prisma.rainWaterHarvesting.findMany({
+      where: kvkScope,
+      include: { kvk: true },
+      orderBy: { createdAt: "desc" },
+    });
+    formData = {
+      rows: rows.map((r) => ({
+        id: r.id,
+        kvk: r.kvk.name,
+        trainingProgrammes: String(r.trainingProgrammes),
+        demonstrations: String(r.demonstrations),
+        plantMaterialProduced: String(r.plantMaterialProduced),
+        farmerVisits: String(r.farmerVisits),
+        officialVisits: String(r.officialVisits),
+      })),
+      totalCount: rows.length,
+    };
+  } else if (user && node.type === "leaf" && node.slug === "budget-details") {
+    const rows = await prisma.budgetDetail.findMany({
+      where: kvkScope,
+      include: { kvk: true },
+      orderBy: { createdAt: "desc" },
+    });
+    formData = {
+      rows: rows.map((r) => ({
+        id: r.id,
+        kvk: r.kvk.name,
+        salaryAllocation: String(r.salaryAllocation),
+        salaryExpenditure: String(r.salaryExpenditure),
+        generalGrantAllocation: String(r.generalGrantAllocation),
+        generalGrantExpenditure: String(r.generalGrantExpenditure),
+        capitalGrantAllocation: String(r.capitalGrantAllocation),
+        capitalGrantExpenditure: String(r.capitalGrantExpenditure),
+      })),
+      totalCount: rows.length,
+    };
+  } else if (user && node.type === "leaf" && node.slug === "project-wise-budget-performance") {
+    const rows = await prisma.projectWiseBudgetPerformance.findMany({
+      where: kvkScope,
+      include: { kvk: true },
+      orderBy: { createdAt: "desc" },
+    });
+    formData = {
+      rows: rows.map((r) => ({
+        id: r.id,
+        kvk: r.kvk.name,
+        projectName: r.projectName,
+        fundingAgency: r.fundingAgency ?? "",
+        budgetEstimate: String(r.budgetEstimate),
+        budgetAllocated: String(r.budgetAllocated),
+        budgetReleased: String(r.budgetReleased),
+        expenditure: String(r.expenditure),
+        unspentBalance: String(r.unspentBalance),
+      })),
+      totalCount: rows.length,
+    };
+  } else if (user && node.type === "leaf" && node.slug === "revolving-fund") {
+    const rows = await prisma.revolvingFund.findMany({
+      where: kvkScope,
+      include: { kvk: true },
+      orderBy: { createdAt: "desc" },
+    });
+    formData = {
+      rows: rows.map((r) => ({
+        id: r.id,
+        kvk: r.kvk.name,
+        reportingYear: String(r.reportingYear),
+        openingBalance: String(r.openingBalance),
+        incomeDuringYear: String(r.incomeDuringYear),
+        expenditureDuringYear: String(r.expenditureDuringYear),
+        closing: String(r.closing),
+        kind: r.kind ?? "",
+      })),
+      totalCount: rows.length,
+    };
+  } else if (user && node.type === "leaf" && node.slug === "revenue-generation") {
+    const rows = await prisma.revenueGeneration.findMany({
+      where: kvkScope,
+      include: { kvk: true },
+      orderBy: { createdAt: "desc" },
+    });
+    formData = {
+      rows: rows.map((r) => ({
+        id: r.id,
+        kvk: r.kvk.name,
+        headName: r.headName,
+        income: String(r.income),
+        sponsoringAgency: r.sponsoringAgency ?? "",
+      })),
+      totalCount: rows.length,
+    };
+  } else if (user && node.type === "leaf" && node.slug === "resource-generation") {
+    const rows = await prisma.resourceGeneration.findMany({
+      where: kvkScope,
+      include: { kvk: true },
+      orderBy: { createdAt: "desc" },
+    });
+    formData = {
+      rows: rows.map((r) => ({
+        id: r.id,
+        kvk: r.kvk.name,
+        programmeName: r.programmeName,
+        purpose: r.purpose ?? "",
+        sourcesOfFund: r.sourcesOfFund ?? "",
+        amountLakhs: String(r.amountLakhs),
+      })),
+      totalCount: rows.length,
+    };
+  } else if (user && node.type === "leaf" && node.slug === "functional-linkage") {
+    const rows = await prisma.functionalLinkage.findMany({
+      where: kvkScope,
+      include: { kvk: true },
+      orderBy: { createdAt: "desc" },
+    });
+    formData = {
+      rows: rows.map((r) => ({
+        id: r.id,
+        kvk: r.kvk.name,
+        organizationName: r.organizationName,
+        natureOfLinkage: r.natureOfLinkage ?? "",
+      })),
+      totalCount: rows.length,
+    };
+  } else if (user && node.type === "leaf" && node.slug === "special-programmes") {
+    const rows = await prisma.specialProgramme.findMany({
+      where: kvkScope,
+      include: { kvk: true },
+      orderBy: { createdAt: "desc" },
+    });
+    formData = {
+      rows: rows.map((r) => ({
+        id: r.id,
+        kvk: r.kvk.name,
+        programmeType: r.programmeType,
+        programmeName: r.programmeName,
+        initiationDate: r.initiationDate ? r.initiationDate.toISOString().slice(0, 10) : "",
+      })),
+      totalCount: rows.length,
+    };
+  } else if (user && node.type === "leaf" && node.slug === "sac-meetings") {
+    const rows = await prisma.sacMeeting.findMany({
+      where: kvkScope,
+      include: { kvk: true },
+      orderBy: { createdAt: "desc" },
+    });
+    formData = {
+      rows: rows.map((r) => ({
+        id: r.id,
+        kvk: r.kvk.name,
+        startDate: r.startDate.toISOString().slice(0, 10),
+        endDate: r.endDate.toISOString().slice(0, 10),
+        participants: String(r.participants),
+        statutoryMembers: String(r.statutoryMembers),
+        recommendations: r.recommendations ?? "",
+        actionTaken: r.actionTaken ?? "",
+        reason: r.reason ?? "",
+        file: r.fileUrl ?? "",
+      })),
+      totalCount: rows.length,
+    };
+  } else if (user && node.type === "leaf" && node.slug === "other-meetings") {
+    const rows = await prisma.otherMeeting.findMany({
+      where: kvkScope,
+      include: { kvk: true },
+      orderBy: { createdAt: "desc" },
+    });
+    formData = {
+      rows: rows.map((r) => ({
+        id: r.id,
+        kvk: r.kvk.name,
+        date: r.date.toISOString().slice(0, 10),
+        meetingType: r.meetingType,
+        agenda: r.agenda ?? "",
+        representativeFromAtari: r.representativeFromAtari ?? "",
+      })),
+      totalCount: rows.length,
+    };
+  } else if (user && node.type === "leaf" && node.slug === "prevalent-diseases-crops") {
+    const rows = await prisma.prevalentDiseaseCrop.findMany({
+      where: kvkScope,
+      include: { kvk: true },
+      orderBy: { createdAt: "desc" },
+    });
+    formData = {
+      rows: rows.map((r) => ({
+        id: r.id,
+        kvk: r.kvk.name,
+        diseaseName: r.diseaseName,
+        crop: r.crop,
+        outbreakDate: r.outbreakDate.toISOString().slice(0, 10),
+        areaAffected: String(r.areaAffected),
+        commodityLossPercent: String(r.commodityLossPercent),
+        preventiveMeasures: r.preventiveMeasures ?? "",
+      })),
+      totalCount: rows.length,
+    };
+  } else if (user && node.type === "leaf" && node.slug === "prevalent-diseases-livestock") {
+    const rows = await prisma.prevalentDiseaseLivestock.findMany({
+      where: kvkScope,
+      include: { kvk: true },
+      orderBy: { createdAt: "desc" },
+    });
+    formData = {
+      rows: rows.map((r) => ({
+        id: r.id,
+        kvk: r.kvk.name,
+        diseaseName: r.diseaseName,
+        speciesAffected: r.speciesAffected,
+        outbreakDate: r.outbreakDate.toISOString().slice(0, 10),
+        mortalityMorbidity: r.mortalityMorbidity ?? "",
+        animalsVaccinated: String(r.animalsVaccinated),
+        preventiveMeasures: r.preventiveMeasures ?? "",
+      })),
+      totalCount: rows.length,
+    };
+  } else if (user && node.type === "leaf" && node.slug === "nyk-training") {
+    const rows = await prisma.nykTraining.findMany({
+      where: kvkScope,
+      include: { kvk: true },
+      orderBy: { createdAt: "desc" },
+    });
+    formData = {
+      rows: rows.map((r) => ({
+        id: r.id,
+        kvk: r.kvk.name,
+        programmeTitle: r.programmeTitle,
+        startDate: r.startDate.toISOString().slice(0, 10),
+        endDate: r.endDate.toISOString().slice(0, 10),
+        male: String(r.male),
+        female: String(r.female),
+        fundReceived: String(r.fundReceived),
+      })),
+      totalCount: rows.length,
+    };
+  } else if (user && node.type === "leaf" && node.slug === "ppv-fra-training-programme") {
+    const rows = await prisma.ppvFraTrainingProgramme.findMany({
+      where: kvkScope,
+      include: { kvk: true },
+      orderBy: { createdAt: "desc" },
+    });
+    formData = {
+      rows: rows.map((r) => ({
+        id: r.id,
+        kvk: r.kvk.name,
+        date: r.date.toISOString().slice(0, 10),
+        title: r.title,
+        type: r.type ?? "",
+        venue: r.venue ?? "",
+        resourcePerson: r.resourcePerson ?? "",
+        participants: String(r.participants),
+      })),
+      totalCount: rows.length,
+    };
+  } else if (user && node.type === "leaf" && node.slug === "ppv-fra-farmer-details") {
+    const rows = await prisma.ppvFraFarmerDetail.findMany({
+      where: kvkScope,
+      include: { kvk: true },
+      orderBy: { createdAt: "desc" },
+    });
+    formData = {
+      rows: rows.map((r) => ({
+        id: r.id,
+        kvk: r.kvk.name,
+        year: String(r.year),
+        crop: r.crop,
+        registrationNo: r.registrationNo,
+        farmerName: r.farmerName,
+        block: r.block ?? "",
+        district: r.district ?? "",
+      })),
+      totalCount: rows.length,
+    };
+  } else if (user && node.type === "leaf" && node.slug === "rawe-fet-fit-programme") {
+    const rows = await prisma.raweFetFitProgramme.findMany({
+      where: kvkScope,
+      include: { kvk: true },
+      orderBy: { createdAt: "desc" },
+    });
+    formData = {
+      rows: rows.map((r) => ({
+        id: r.id,
+        startDate: r.startDate.toISOString().slice(0, 10),
+        endDate: r.endDate.toISOString().slice(0, 10),
+        kvk: r.kvk.name,
+        attachmentType: r.attachmentType,
+        attachment: r.attachment ?? "",
+        numberOfStudents: String(r.numberOfStudents),
+        daysStayed: String(r.daysStayed),
+      })),
+      totalCount: rows.length,
+    };
+  } else if (user && node.type === "leaf" && node.slug === "vip-visitors") {
+    const rows = await prisma.vipVisitor.findMany({
+      where: kvkScope,
+      include: { kvk: true },
+      orderBy: { createdAt: "desc" },
+    });
+    formData = {
+      rows: rows.map((r) => ({
+        id: r.id,
+        kvk: r.kvk.name,
+        visitDate: r.visitDate.toISOString().slice(0, 10),
+        dignitaryType: r.dignitaryType,
+        ministerName: r.ministerName,
+        observations: r.observations ?? "",
+      })),
+      totalCount: rows.length,
+    };
+  } else if (user && node.type === "leaf" && node.slug === "digital-mobile-app") {
+    const rows = await prisma.digitalMobileApp.findMany({
+      where: kvkScope,
+      include: { kvk: true },
+      orderBy: { createdAt: "desc" },
+    });
+    formData = {
+      rows: rows.map((r) => ({
+        id: r.id,
+        kvk: r.kvk.name,
+        mobileAppsDeveloped: String(r.mobileAppsDeveloped),
+        appName: r.appName ?? "",
+        appLanguage: r.appLanguage ?? "",
+        meantFor: r.meantFor ?? "",
+        timesDownloaded: String(r.timesDownloaded),
+      })),
+      totalCount: rows.length,
+    };
+  } else if (user && node.type === "leaf" && node.slug === "digital-web-portal") {
+    const rows = await prisma.digitalWebPortal.findMany({
+      where: kvkScope,
+      include: { kvk: true },
+      orderBy: { createdAt: "desc" },
+    });
+    formData = {
+      rows: rows.map((r) => ({
+        id: r.id,
+        kvk: r.kvk.name,
+        visitors: String(r.visitors),
+        farmersRegistered: String(r.farmersRegistered),
+      })),
+      totalCount: rows.length,
+    };
+  } else if (user && node.type === "leaf" && node.slug === "digital-kisan-sarathi") {
+    const rows = await prisma.digitalKisanSarathi.findMany({
+      where: kvkScope,
+      include: { kvk: true },
+      orderBy: { createdAt: "desc" },
+    });
+    formData = {
+      rows: rows.map((r) => ({
+        id: r.id,
+        kvk: r.kvk.name,
+        farmersRegisteredKsp: String(r.farmersRegisteredKsp),
+        phoneCallAddressed: String(r.phoneCallAddressed),
+        answeredCall: String(r.answeredCall),
+      })),
+      totalCount: rows.length,
+    };
+  } else if (user && node.type === "leaf" && node.slug === "digital-kmas") {
+    const rows = await prisma.digitalKmas.findMany({
+      where: kvkScope,
+      include: { kvk: true },
+      orderBy: { createdAt: "desc" },
+    });
+    const yn = (v: boolean) => (v ? "Yes" : "No");
+    formData = {
+      rows: rows.map((r) => ({
+        id: r.id,
+        kvk: r.kvk.name,
+        farmersCovered: String(r.farmersCovered),
+        advisoriesSent: String(r.advisoriesSent),
+        messagesCrop: yn(r.messagesCrop),
+        messagesLivestock: yn(r.messagesLivestock),
+        messagesWeather: yn(r.messagesWeather),
+        messagesMarketing: yn(r.messagesMarketing),
+        messagesAwareness: yn(r.messagesAwareness),
+        messagesOtherEnterprises: yn(r.messagesOtherEnterprises),
+        messagesAnyOther: r.messagesAnyOther ?? "",
+      })),
+      totalCount: rows.length,
+    };
+  } else if (user && node.type === "leaf" && node.slug === "digital-other-channels") {
+    const rows = await prisma.digitalOtherChannel.findMany({
+      where: kvkScope,
+      include: { kvk: true },
+      orderBy: { createdAt: "desc" },
+    });
+    formData = {
+      rows: rows.map((r) => ({
+        id: r.id,
+        kvk: r.kvk.name,
+        textAdvisories: String(r.textAdvisories),
+        textFarmers: String(r.textFarmers),
+        whatsappAdvisories: String(r.whatsappAdvisories),
+        whatsappFarmers: String(r.whatsappFarmers),
+        socialMediaAdvisories: String(r.socialMediaAdvisories),
+        socialMediaFarmers: String(r.socialMediaFarmers),
+        weatherBulletinAdvisories: String(r.weatherBulletinAdvisories),
+        weatherBulletinFarmers: String(r.weatherBulletinFarmers),
+      })),
+      totalCount: rows.length,
+    };
+  }
+
   /** Same flat inline-list card pattern as All Masters - confirmed against the reference for /forms/about-kvk and Projects. */
   let sectionedGroups: NavGroup[] | null = null;
   let sectionedBasePath = `/forms/${slug.join("/")}`;
@@ -214,6 +2229,9 @@ export default async function FormsPage({ params }: FormsPageProps) {
           columns={node.columns}
           subtitle={`Manage and view all ${node.label.toLowerCase()} in the system`}
           tabs={tabs}
+          rows={formData?.rows}
+          totalCount={formData?.totalCount}
+          recordPath={slug.join("/")}
           addNewHref={
             CUSTOM_FORM_SLUGS.has(node.slug)
               ? undefined

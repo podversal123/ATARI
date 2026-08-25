@@ -96,8 +96,10 @@ export function Topbar() {
             <DropdownMenuSeparator />
             <DropdownMenuItem
               onClick={() => {
-                clearSession();
-                router.push("/login");
+                fetch("/api/auth/logout", { method: "POST" }).finally(() => {
+                  clearSession();
+                  router.push("/login");
+                });
               }}
             >
               <LogOut className="size-3.5" />

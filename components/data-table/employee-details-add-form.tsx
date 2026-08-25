@@ -55,6 +55,38 @@ export function EmployeeDetailsAddForm({
   const [jobType, setJobType] = useState("");
   const [allowances, setAllowances] = useState("");
   const [casteCategory, setCasteCategory] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  async function submit() {
+    if (!sanctionedPost || !name || !mobile || !discipline || !dateOfBirth || !dateOfJoining || !casteCategory) {
+      setError("Please fill all required fields.");
+      return;
+    }
+    setError(null);
+    setSubmitting(true);
+    try {
+      const response = await fetch("/api/leaf-record", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          path: "about-kvk/employee/employee-details",
+          values: { sanctionedPost, name, mobile, email, payScale, discipline, dateOfBirth, dateOfJoining, jobType, allowances, casteCategory },
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        setError(data.error ?? "Something went wrong. Please try again.");
+        return;
+      }
+      router.push(backHref);
+      router.refresh();
+    } catch {
+      setError("Could not reach the server. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
+  }
 
   return (
     <div>
@@ -232,13 +264,19 @@ export function EmployeeDetailsAddForm({
           </div>
         </div>
 
+        {error && (
+          <p role="alert" className="mt-4 text-sm font-medium text-destructive">
+            {error}
+          </p>
+        )}
+
         <div className="mt-5 flex justify-end gap-2 border-t border-border pt-4">
-          <Button variant="outline" onClick={() => router.push(backHref)}>
+          <Button variant="outline" onClick={() => router.push(backHref)} disabled={submitting}>
             Cancel
           </Button>
-          <Button onClick={() => router.push(backHref)}>
+          <Button onClick={submit} disabled={submitting}>
             <Save className="size-3.5" />
-            Submit
+            {submitting ? "Saving…" : "Submit"}
           </Button>
         </div>
       </div>

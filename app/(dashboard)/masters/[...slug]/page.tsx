@@ -16,94 +16,12 @@ import {
 import { AddLeafPage } from "@/components/data-table/add-leaf-page";
 import { HostMasterAddForm } from "@/components/data-table/host-master-add-form";
 import { KvkMasterAddForm } from "@/components/data-table/kvk-master-add-form";
-import {
-  ZONE_MASTER_ROWS,
-  STATE_MASTER_ROWS,
-  DISTRICT_MASTER_ROWS,
-  DISTRICT_MASTER_TOTAL,
-  HOST_MASTER_ROWS,
-  HOST_MASTER_TOTAL,
-  KVK_MASTER_ROWS,
-  KVK_MASTER_TOTAL,
-  INSTITUTE_MASTER_ROWS,
-  INSTITUTE_MASTER_TOTAL,
-  OFT_THEMATIC_AREA_ROWS,
-  OFT_THEMATIC_AREA_TOTAL,
-  FLD_SUB_CATEGORY_ROWS,
-  FLD_SUB_CATEGORY_TOTAL,
-  CROP_MASTER_ROWS,
-  CROP_MASTER_TOTAL,
-  FUNDING_SOURCE_ROWS,
-  FUNDING_SOURCE_TOTAL,
-  EXTENSION_ACTIVITY_ROWS,
-  EXTENSION_ACTIVITY_TOTAL,
-  CROPPING_SYSTEM_ROWS,
-  CROPPING_SYSTEM_TOTAL,
-  FARMING_SYSTEM_ROWS,
-  FARMING_SYSTEM_TOTAL,
-  PUBLICATION_ITEM_ROWS,
-  PUBLICATION_ITEM_TOTAL,
-  CFLD_CROP_ROWS,
-  CFLD_CROP_TOTAL,
-} from "@/lib/masters";
+import { prisma } from "@/lib/prisma";
+import { getCurrentUser } from "@/lib/auth";
+import { MASTER_LIST_REGISTRY } from "@/lib/masters-registry";
 
 type MastersPageProps = {
   params: Promise<{ slug: string[] }>;
-};
-
-/** Real reference rows for Masters leaves that have confirmed data, keyed by their nav slug. */
-const MASTERS_DATA: Record<
-  string,
-  { rows: Record<string, string>[]; totalCount: number }
-> = {
-  "zone-master": {
-    rows: ZONE_MASTER_ROWS,
-    totalCount: ZONE_MASTER_ROWS.length,
-  },
-  "state-master": {
-    rows: STATE_MASTER_ROWS,
-    totalCount: STATE_MASTER_ROWS.length,
-  },
-  "district-master": {
-    rows: DISTRICT_MASTER_ROWS,
-    totalCount: DISTRICT_MASTER_TOTAL,
-  },
-  "host-master": { rows: HOST_MASTER_ROWS, totalCount: HOST_MASTER_TOTAL },
-  "kvk-master": { rows: KVK_MASTER_ROWS, totalCount: KVK_MASTER_TOTAL },
-  "institute-master": {
-    rows: INSTITUTE_MASTER_ROWS,
-    totalCount: INSTITUTE_MASTER_TOTAL,
-  },
-  "oft-thematic-area": {
-    rows: OFT_THEMATIC_AREA_ROWS,
-    totalCount: OFT_THEMATIC_AREA_TOTAL,
-  },
-  "sub-category": {
-    rows: FLD_SUB_CATEGORY_ROWS,
-    totalCount: FLD_SUB_CATEGORY_TOTAL,
-  },
-  crop: { rows: CROP_MASTER_ROWS, totalCount: CROP_MASTER_TOTAL },
-  "funding-source": {
-    rows: FUNDING_SOURCE_ROWS,
-    totalCount: FUNDING_SOURCE_TOTAL,
-  },
-  "extension-activity": {
-    rows: EXTENSION_ACTIVITY_ROWS,
-    totalCount: EXTENSION_ACTIVITY_TOTAL,
-  },
-  "cropping-system": {
-    rows: CROPPING_SYSTEM_ROWS,
-    totalCount: CROPPING_SYSTEM_TOTAL,
-  },
-  "farming-system": {
-    rows: FARMING_SYSTEM_ROWS,
-    totalCount: FARMING_SYSTEM_TOTAL,
-  },
-  "publication-items": {
-    rows: PUBLICATION_ITEM_ROWS,
-    totalCount: PUBLICATION_ITEM_TOTAL,
-  },
-  "cfld-crop": { rows: CFLD_CROP_ROWS, totalCount: CFLD_CROP_TOTAL },
 };
 
 export default async function MastersPage({ params }: MastersPageProps) {
@@ -159,6 +77,8 @@ export default async function MastersPage({ params }: MastersPageProps) {
         columns={node.columns}
         cascadeType={cascadeType}
         titlePrefix="Create"
+        recordPath={node.slug}
+        recordKind="master"
       />
     );
   }
@@ -193,7 +113,37 @@ export default async function MastersPage({ params }: MastersPageProps) {
     }
   }
 
-  const masterData = node.type === "leaf" ? MASTERS_DATA[node.slug] : undefined;
+  let masterData: { rows: Record<string, string>[]; totalCount: number } | undefined;
+
+  if (node.type === "leaf" && node.slug === "kvk-master") {
+    /** KVK Master keeps its own direct query (first module wired end-to-end, richer join than the generic registry needs). */
+    const user = await getCurrentUser();
+    if (user) {
+      const kvks = await prisma.kvk.findMany({
+        where: { zoneId: user.zoneId },
+        include: { state: true, district: true, hostOrg: true, zone: true },
+        orderBy: { name: "asc" },
+      });
+      const rows = kvks.map((kvk) => ({
+        zoneName: kvk.zone.name,
+        stateName: kvk.state.name,
+        hostOrg: kvk.hostOrg.name,
+        districtName: kvk.district.name,
+        kvk: kvk.name,
+        mobile: kvk.officePhone ?? "-",
+        email: kvk.email ?? "",
+        address: kvk.address ?? "",
+        sanctionYear: kvk.sanctionYear ? String(kvk.sanctionYear) : "",
+      }));
+      masterData = { rows, totalCount: rows.length };
+    }
+  } else if (node.type === "leaf" && MASTER_LIST_REGISTRY[node.slug]) {
+    const user = await getCurrentUser();
+    if (user) {
+      const rows = await MASTER_LIST_REGISTRY[node.slug](user.zoneId);
+      masterData = { rows, totalCount: rows.length };
+    }
+  }
 
   /**
    * Every "All Masters" group's landing page - confirmed via live the reference
@@ -245,6 +195,8 @@ export default async function MastersPage({ params }: MastersPageProps) {
           totalCount={masterData?.totalCount}
           cascadeType={cascadeType}
           addNewHref={`/masters/${slug.join("/")}/add`}
+          recordPath={node.slug}
+          recordKind="master"
         />
       ) : null}
     </div>

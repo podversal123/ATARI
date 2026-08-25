@@ -31,8 +31,37 @@ export function ViewKvksAddForm({ trail, backHref }: ViewKvksAddFormProps) {
   const [fax, setFax] = useState("");
   const [email, setEmail] = useState("");
   const [hostAddress, setHostAddress] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
   const hostSelected = hostName !== "";
+
+  async function submit() {
+    if (!kvkAddress || !hostName) {
+      setError("KVK address and host organization are required.");
+      return;
+    }
+    setError(null);
+    setSubmitting(true);
+    try {
+      const response = await fetch("/api/kvks/view-kvks-update", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ kvkAddress, hostName, mobile, email, hostAddress }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        setError(data.error ?? "Something went wrong. Please try again.");
+        return;
+      }
+      router.push(backHref);
+      router.refresh();
+    } catch {
+      setError("Could not reach the server. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
+  }
 
   function handleHostChange(name: string) {
     setHostName(name);
@@ -147,13 +176,19 @@ export function ViewKvksAddForm({ trail, backHref }: ViewKvksAddFormProps) {
           </div>
         </div>
 
+        {error && (
+          <p role="alert" className="mt-4 text-sm font-medium text-destructive">
+            {error}
+          </p>
+        )}
+
         <div className="mt-5 flex justify-end gap-2 border-t border-border pt-4">
-          <Button variant="outline" onClick={() => router.push(backHref)}>
+          <Button variant="outline" onClick={() => router.push(backHref)} disabled={submitting}>
             Cancel
           </Button>
-          <Button onClick={() => router.push(backHref)}>
+          <Button onClick={submit} disabled={submitting}>
             <Save className="size-3.5" />
-            Submit
+            {submitting ? "Saving…" : "Submit"}
           </Button>
         </div>
       </div>

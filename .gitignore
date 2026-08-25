@@ -53,3 +53,17 @@ next-env.d.ts
 
 # local browser-testing artifacts (screenshots/snapshots, not project content)
 /.playwright-mcp
+
+.vercel
+.env*
+
+/lib/generated/prisma
+
+# AI-IDE agent-skill docs auto-installed by third-party CLIs (Vercel/Neon/Prisma) -
+# reference docs for coding assistants, not app code; never part of this repo
+.agents/
+.windsurf/
+.cursor/
+skills-lock.json
+
+.env*

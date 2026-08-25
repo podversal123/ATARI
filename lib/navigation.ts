@@ -15,6 +15,8 @@
 export type MasterColumn = {
   key: string;
   label: string;
+  /** Server-computed display column (e.g. a child-row count) - shown in the list table, but never rendered as an input on the Add/Edit form since there's nothing for a user to type into it. */
+  readonly?: boolean;
 };
 
 export type NavLeaf = {
@@ -373,7 +375,7 @@ const oftFldMasters = group(
     group("oft", "OFT Masters", [
       leaf("subject", "Subject Master", [
         { key: "subjectName", label: "Subject Name" },
-        { key: "thematicAreasCount", label: "Thematic Areas Count" },
+        { key: "thematicAreasCount", label: "Thematic Areas Count", readonly: true },
       ]),
       leaf("oft-thematic-area", "OFT Thematic Area Master", [
         { key: "thematicArea", label: "Thematic Area Name" },
@@ -383,7 +385,7 @@ const oftFldMasters = group(
     group("fld", "FLD Masters", [
       leaf("sector", "Sector Master", [
         { key: "sectorName", label: "Sector Name" },
-        { key: "categoriesCount", label: "Categories Count" },
+        { key: "categoriesCount", label: "Categories Count", readonly: true },
       ]),
       leaf("fld-thematic-area", "FLD Thematic Area Master", [
         { key: "thematicAreaName", label: "Thematic Area Name" },
@@ -393,14 +395,14 @@ const oftFldMasters = group(
       leaf("category", "Category Master", [
         { key: "categoryName", label: "Category Name" },
         { key: "sectorName", label: "Sector Name" },
-        { key: "subCategoriesCount", label: "Sub Categories Count" },
+        { key: "subCategoriesCount", label: "Sub Categories Count", readonly: true },
       ]),
       /** 4 columns, confirmed against the reference) - 3 were missing. */
       leaf("sub-category", "Sub-category Master", [
         { key: "subCategoryName", label: "Sub Category Name" },
         { key: "categoryName", label: "Category Name" },
         { key: "sectorName", label: "Sector Name" },
-        { key: "cropsCount", label: "Crops Count" },
+        { key: "cropsCount", label: "Crops Count", readonly: true },
       ]),
       /** 3 columns, confirmed against the reference). */
       leaf("crop", "Crop Master", [

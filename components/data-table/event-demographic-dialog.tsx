@@ -1,10 +1,10 @@
 "use client";
 
-import { type ReactNode, useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
   DialogContent,
@@ -12,7 +12,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { KVKS } from "@/lib/rbac";
 import {
   DemographicBreakdown,
   type DemographicValues,
@@ -20,24 +19,27 @@ import {
 
 type EventDemographicDialogProps = {
   title: string;
-  /** Leaf slug - "technology-week-celebration" gets its own confirmed field set below; every other leaf keeps the generic KVK/Event Date/Details fallback. */
+  /** Leaf slug - only "technology-week-celebration" and "world-soil-day" ever render this dialog (EVENT_DEMOGRAPHIC_SLUGS), each with its own confirmed field set. */
   slug?: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   editingRow: Record<string, ReactNode> | null;
 };
 
+const sum = (values: DemographicValues) =>
+  Object.values(values).reduce((total, v) => total + (Number(v) || 0), 0);
+
 /**
- * Shared Add/Edit form for the Achievement event leaves whose real editors
- * include the General/OBC/SC/ST x Male/Female participant breakdown
- * - reuses DemographicBreakdown
- * rather than duplicating it. Only the demographic block itself and KVK/
- * Event Date are confirmed for most of these leaves; the exact remaining
- * field list per event wasn't captured for them, so they keep one honest
- * generic "Details" field rather than inventing per-event fields.
- * Technology Week Celebration is the one exception - its real "Create
- * Technology Week Celebration" form (AMS User Manual p.22) is fully
- * confirmed, so it gets its own fields instead of the generic fallback.
+ * Add/Edit form for the two Achievement leaves whose real editors include
+ * the General/OBC/SC/ST x Male/Female participant breakdown
+ * (DemographicBreakdown, shared rather than duplicated). Each leaf gets its
+ * own confirmed field set - Technology Week Celebration's from the client's
+ * "Create Technology Week Celebration" screenshot (AMS User Manual p.22),
+ * World Soil Day's from lib/navigation.ts's own confirmed columns - rather
+ * than a generic fallback that would collect fields with no real column to
+ * save into. Create only: editing needs a real row id threaded through
+ * EmptyDataTable's rows, which no leaf has yet (a broader gap, not specific
+ * to this dialog).
  */
 export function EventDemographicDialog({
   title,
@@ -46,30 +48,122 @@ export function EventDemographicDialog({
   onOpenChange,
   editingRow,
 }: EventDemographicDialogProps) {
+  const router = useRouter();
   const isTechnologyWeek = slug === "technology-week-celebration";
-  const [kvk, setKvk] = useState("");
-  const [eventDate, setEventDate] = useState("");
-  const [details, setDetails] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [typeOfActivities, setTypeOfActivities] = useState("");
   const [noOfActivities, setNoOfActivities] = useState("");
   const [relatedCropTechnology, setRelatedCropTechnology] = useState("");
   const [demographics, setDemographics] = useState<DemographicValues>({});
+  const [noOfActivitiesConducted, setNoOfActivitiesConducted] = useState("");
+  const [soilHealthCardsDistributed, setSoilHealthCardsDistributed] = useState("");
+  const [noOfVip, setNoOfVip] = useState("");
+  const [vipNames, setVipNames] = useState("");
+  const [totalParticipants, setTotalParticipants] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [loading, setLoading] = useState(false);
+  /** Technology Week Celebration has no persisted per-category breakdown (only the summed total) - editing without touching the demographic fields resubmits this original total rather than a fabricated 0. */
+  const [existingParticipantTotal, setExistingParticipantTotal] = useState("");
+  const editingId = typeof editingRow?.id === "string" ? editingRow.id : undefined;
+
+  useEffect(() => {
+    if (!open || !editingId || !slug) return;
+    setLoading(true);
+    fetch(`/api/event-demographic/${editingId}?slug=${slug}`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.error) {
+          setError(data.error);
+          return;
+        }
+        const v = data.values ?? {};
+        if (isTechnologyWeek) {
+          setStartDate(v.startDate ?? "");
+          setEndDate(v.endDate ?? "");
+          setTypeOfActivities(v.typeOfActivities ?? "");
+          setNoOfActivities(v.noOfActivities ?? "");
+          setRelatedCropTechnology(v.relatedCropTechnology ?? "");
+          setExistingParticipantTotal(v.numberOfParticipants ?? "");
+        } else {
+          setNoOfActivitiesConducted(v.noOfActivitiesConducted ?? "");
+          setSoilHealthCardsDistributed(v.soilHealthCardsDistributed ?? "");
+          setNoOfVip(v.noOfVip ?? "");
+          setVipNames(v.vipNames ?? "");
+          setTotalParticipants(v.totalParticipants ?? "");
+        }
+      })
+      .catch(() => setError("Could not load this record."))
+      .finally(() => setLoading(false));
+  }, [open, editingId, slug, isTechnologyWeek]);
 
   function handleOpenChange(next: boolean) {
     if (!next) {
-      setKvk("");
-      setEventDate("");
-      setDetails("");
       setStartDate("");
       setEndDate("");
       setTypeOfActivities("");
       setNoOfActivities("");
       setRelatedCropTechnology("");
       setDemographics({});
+      setNoOfActivitiesConducted("");
+      setSoilHealthCardsDistributed("");
+      setNoOfVip("");
+      setVipNames("");
+      setTotalParticipants("");
+      setExistingParticipantTotal("");
+      setError(null);
     }
     onOpenChange(next);
+  }
+
+  async function submit() {
+    setError(null);
+    setSubmitting(true);
+    try {
+      const response = await fetch(
+        editingId ? `/api/event-demographic/${editingId}` : "/api/event-demographic",
+        {
+          method: editingId ? "PUT" : "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(
+            isTechnologyWeek
+              ? {
+                  slug,
+                  values: {
+                    startDate,
+                    endDate,
+                    typeOfActivities,
+                    noOfActivities,
+                    relatedCropTechnology,
+                    numberOfParticipants: String(sum(demographics) || Number(existingParticipantTotal) || 0),
+                  },
+                }
+              : {
+                  slug,
+                  values: {
+                    noOfActivitiesConducted,
+                    soilHealthCardsDistributed,
+                    noOfVip,
+                    vipNames,
+                    totalParticipants,
+                  },
+                },
+          ),
+        },
+      );
+      const data = await response.json();
+      if (!response.ok) {
+        setError(data.error ?? "Something went wrong. Please try again.");
+        return;
+      }
+      handleOpenChange(false);
+      router.refresh();
+    } catch {
+      setError("Could not reach the server. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (
@@ -80,6 +174,10 @@ export function EventDemographicDialog({
             {editingRow ? `Edit ${title}` : `Add ${title}`}
           </DialogTitle>
         </DialogHeader>
+
+        {loading && (
+          <p className="text-sm text-muted-foreground">Loading record…</p>
+        )}
 
         <div className="max-h-[60vh] space-y-4 overflow-y-auto">
           {isTechnologyWeek ? (
@@ -152,65 +250,70 @@ export function EventDemographicDialog({
             <>
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-1.5">
-                  <Label htmlFor="event-kvk">KVK</Label>
-                  <select
-                    id="event-kvk"
-                    value={kvk}
-                    onChange={(e) => setKvk(e.target.value)}
-                    className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring"
-                  >
-                    <option value="" disabled>
-                      Select KVK
-                    </option>
-                    {KVKS.map((k) => (
-                      <option key={k.name} value={k.name}>
-                        {k.name}
-                      </option>
-                    ))}
-                  </select>
+                  <Label htmlFor="wsd-activities-conducted">
+                    No. of Activity Conducted
+                  </Label>
+                  <Input
+                    id="wsd-activities-conducted"
+                    type="number"
+                    value={noOfActivitiesConducted}
+                    onChange={(e) => setNoOfActivitiesConducted(e.target.value)}
+                  />
                 </div>
                 <div className="space-y-1.5">
-                  <Label htmlFor="event-date">Event Date</Label>
+                  <Label htmlFor="wsd-shc">Soil Health Cards Distributed</Label>
                   <Input
-                    id="event-date"
-                    type="date"
-                    value={eventDate}
-                    onChange={(e) => setEventDate(e.target.value)}
+                    id="wsd-shc"
+                    type="number"
+                    value={soilHealthCardsDistributed}
+                    onChange={(e) => setSoilHealthCardsDistributed(e.target.value)}
                   />
                 </div>
               </div>
-
-              <div className="space-y-1.5">
-                <Label htmlFor="event-details">Details</Label>
-                <Textarea
-                  id="event-details"
-                  rows={2}
-                  value={details}
-                  onChange={(e) => setDetails(e.target.value)}
-                />
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <Label htmlFor="wsd-vip">No. of VIP</Label>
+                  <Input
+                    id="wsd-vip"
+                    type="number"
+                    value={noOfVip}
+                    onChange={(e) => setNoOfVip(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="wsd-total-participants">
+                    Total No. of Participants
+                  </Label>
+                  <Input
+                    id="wsd-total-participants"
+                    type="number"
+                    value={totalParticipants}
+                    onChange={(e) => setTotalParticipants(e.target.value)}
+                  />
+                </div>
               </div>
-
-              <div className="space-y-2">
-                <p className="text-xs text-muted-foreground">
-                  Participant breakdown by category and gender.
-                </p>
-                <DemographicBreakdown
-                  values={demographics}
-                  onChange={(key, value) =>
-                    setDemographics((p) => ({ ...p, [key]: value }))
-                  }
+              <div className="space-y-1.5">
+                <Label htmlFor="wsd-vip-names">
+                  Name(s) of VIP(s) Involved if Any
+                </Label>
+                <Input
+                  id="wsd-vip-names"
+                  value={vipNames}
+                  onChange={(e) => setVipNames(e.target.value)}
                 />
               </div>
             </>
           )}
         </div>
 
+        {error && <p className="text-sm text-destructive">{error}</p>}
+
         <DialogFooter>
-          <Button variant="outline" onClick={() => handleOpenChange(false)}>
+          <Button variant="outline" onClick={() => handleOpenChange(false)} disabled={submitting}>
             Cancel
           </Button>
-          <Button onClick={() => handleOpenChange(false)}>
-            {editingRow ? "Save Changes" : "Add"}
+          <Button onClick={submit} disabled={submitting}>
+            {submitting ? "Saving…" : editingRow ? "Save Changes" : "Add"}
           </Button>
         </DialogFooter>
       </DialogContent>

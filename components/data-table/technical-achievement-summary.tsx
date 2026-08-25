@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { FileDown, FileSpreadsheet, FileType } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -40,6 +40,21 @@ const PUBLICATIONS_ACCENT = { bar: "bg-rose-500", head: "bg-rose-50" };
 /** Leaf columns of one section, flattened in render order - used to lay out the value row. */
 function leafCount(section: SummarySection): number {
   return sectionWidth(section);
+}
+
+type SectionValues = { metrics: number[]; leadColumn: number; matrix: number[] };
+
+/** Flattens one section's real values into the same leaf order sectionWidth() counts - metric columns, then the lead column (if any), then the demographic matrix (if any). */
+function buildRowValues(section: SummarySection, values: SectionValues | undefined): number[] {
+  const metrics = values?.metrics ?? section.metricGroup.columns.map(() => 0);
+  const row = [...metrics];
+  if (section.participantGroup?.leadColumn) {
+    row.push(values?.leadColumn ?? 0);
+  }
+  if (section.participantGroup) {
+    row.push(...(values?.matrix ?? Array(DEMOGRAPHIC_LEAF_COUNT).fill(0)));
+  }
+  return row;
 }
 
 function SectionMetricHeads({
@@ -108,7 +123,13 @@ function CasteHeads({
  * rows deep - section heading, sub-heading, metric/participant group headings,
  * then the demographic caste rows and their M/F/T splits.
  */
-function SummaryCardTable({ card }: { card: SummaryCard }) {
+function SummaryCardTable({
+  card,
+  sectionValues,
+}: {
+  card: SummaryCard;
+  sectionValues?: Record<string, SectionValues>;
+}) {
   const [left, right] = card.sections;
   const hasSubHeading = card.sections.some((section) => section.subHeading);
   // The group row carries the metric-group name and/or the participant-group
@@ -231,14 +252,21 @@ function SummaryCardTable({ card }: { card: SummaryCard }) {
 
         <tbody>
           {/*
- No submission data exists yet (no backend), so every cell reads 0 -
- the same honest empty state the real page itself shows before any
- KVK has reported, rather than fabricated achievement figures.
+ Real counts where the column maps unambiguously to an operational
+ table (OFT/FLD/Training/Extension Activity counts, trial/area
+ totals). "Target" and the caste/gender demographic breakdown have no
+ real data source anywhere in this schema, so those cells stay 0
+ rather than fabricated - same honest-empty-state principle as
+ before, just no longer blanket-applied to cells that do have real
+ data.
  */}
           <tr>
-            {Array.from({ length: totalLeaves }, (_, index) => (
+            {[
+              ...buildRowValues(left, sectionValues?.[`${card.id}-0`]),
+              ...buildRowValues(right, sectionValues?.[`${card.id}-1`]),
+            ].map((value, index) => (
               <td key={index} className={BODY_CELL}>
-                0
+                {value}
               </td>
             ))}
           </tr>
@@ -298,6 +326,18 @@ export function TechnicalAchievementSummary({
   /** Defaults to the current year (client pointer: "display the current year's data first by default"), matching OFT/FLD's own Reporting Year filter - was defaulting to blank/"Select year" before. */
   const [reportingYear, setReportingYear] = useState(String(currentYear));
   const [kvkFilter, setKvkFilter] = useState("");
+  const [appliedYear, setAppliedYear] = useState(reportingYear);
+  const [appliedKvk, setAppliedKvk] = useState(kvkFilter);
+  const [sectionValues, setSectionValues] = useState<Record<string, SectionValues>>();
+
+  useEffect(() => {
+    const params = new URLSearchParams({ year: appliedYear });
+    if (appliedKvk) params.set("kvk", appliedKvk);
+    fetch(`/api/technical-achievement-summary?${params}`)
+      .then((res) => res.json())
+      .then((data) => setSectionValues(data.sections))
+      .catch(() => setSectionValues(undefined));
+  }, [appliedYear, appliedKvk]);
 
   return (
     <div>
@@ -343,7 +383,15 @@ export function TechnicalAchievementSummary({
           </div>
         )}
 
-        <Button size="sm">Filter</Button>
+        <Button
+          size="sm"
+          onClick={() => {
+            setAppliedYear(reportingYear);
+            setAppliedKvk(kvkFilter);
+          }}
+        >
+          Filter
+        </Button>
       </div>
       {scopeNote && (
         <p className="-mt-2 mb-4 text-xs text-muted-foreground">{scopeNote}</p>
@@ -366,7 +414,7 @@ export function TechnicalAchievementSummary({
 
       <div className="space-y-4">
         {TECHNICAL_ACHIEVEMENT_CARDS.map((card) => (
-          <SummaryCardTable key={card.id} card={card} />
+          <SummaryCardTable key={card.id} card={card} sectionValues={sectionValues} />
         ))}
 
         <div className="overflow-hidden rounded-lg border border-border bg-card">

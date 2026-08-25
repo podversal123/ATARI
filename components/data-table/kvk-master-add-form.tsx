@@ -55,6 +55,44 @@ export function KvkMasterAddForm({ trail, backHref }: KvkMasterAddFormProps) {
   const [hostFax, setHostFax] = useState("");
   const [hostEmail, setHostEmail] = useState("");
   const [hostAddress, setHostAddress] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  async function submit() {
+    setError(null);
+    if (!kvkName || !sanctionYear || !email || !mobile || !state || !district || !host || !kvkAddress) {
+      setError("Please fill all required fields.");
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const response = await fetch("/api/kvks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: kvkName,
+          sanctionYear,
+          email,
+          mobile,
+          stateName: state,
+          districtName: district,
+          hostOrgName: host,
+          address: kvkAddress,
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        setError(data.error ?? "Something went wrong. Please try again.");
+        return;
+      }
+      router.push(backHref);
+      router.refresh();
+    } catch {
+      setError("Could not reach the server. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
+  }
 
   const districtOptions =
     state === "Bihar" ? DISTRICTS : state === "Jharkhand" ? JHARKHAND_DISTRICTS : [];
@@ -327,13 +365,19 @@ export function KvkMasterAddForm({ trail, backHref }: KvkMasterAddFormProps) {
           </div>
         </div>
 
+        {error && (
+          <p role="alert" className="mt-4 text-sm font-medium text-destructive">
+            {error}
+          </p>
+        )}
+
         <div className="mt-5 flex justify-end gap-2 border-t border-border pt-4">
-          <Button variant="outline" onClick={() => router.push(backHref)}>
+          <Button variant="outline" onClick={() => router.push(backHref)} disabled={submitting}>
             Cancel
           </Button>
-          <Button onClick={() => router.push(backHref)}>
+          <Button onClick={submit} disabled={submitting}>
             <Save className="size-3.5" />
-            Submit
+            {submitting ? "Saving…" : "Submit"}
           </Button>
         </div>
       </div>

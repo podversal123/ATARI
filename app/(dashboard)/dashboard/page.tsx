@@ -1,6 +1,6 @@
 "use client";
 
-import { useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
   BarChart3,
   Users,
@@ -20,14 +20,25 @@ import { useSession } from "@/lib/session";
 import { cn } from "@/lib/utils";
 import { FORM_MANAGEMENT } from "@/lib/navigation";
 
-const STATS = [
-  { icon: BarChart3, label: "KVK", value: 0 },
-  { icon: Users, label: "Total OFT", value: 0 },
-  { icon: FileText, label: "Total FLD", value: 0 },
-  { icon: GraduationCap, label: "Training", value: 0 },
-  { icon: Activity, label: "Ext. Activity", value: 0 },
-  { icon: Tags, label: "Total Staff", value: 0 },
-];
+type DashboardStats = {
+  totalKvks: number;
+  oft: { total: number; ongoing: number; completed: number; kvksWithEntries: number };
+  fld: { total: number; ongoing: number; completed: number; kvksWithEntries: number };
+  training: { total: number; kvksWithEntries: number };
+  extension: { total: number; kvksWithEntries: number };
+  staff: { total: number };
+  staffByRole: Record<string, number>;
+};
+
+const EMPTY_STATS: DashboardStats = {
+  totalKvks: 0,
+  oft: { total: 0, ongoing: 0, completed: 0, kvksWithEntries: 0 },
+  fld: { total: 0, ongoing: 0, completed: 0, kvksWithEntries: 0 },
+  training: { total: 0, kvksWithEntries: 0 },
+  extension: { total: 0, kvksWithEntries: 0 },
+  staff: { total: 0 },
+  staffByRole: {},
+};
 
 /**
  * A KVK User's whole job is filling in Form Management for their own KVK -
@@ -86,15 +97,27 @@ function KvkUserDashboard({ kvkName }: { kvkName?: string }) {
   );
 }
 
-/** A KVK's own dashboard has no reason to show a KVK count or let them pick a different KVK - both only make sense at the cross-KVK, Super Admin level. */
-const KVK_SCOPED_STATS = STATS.filter((stat) => stat.label !== "KVK");
-
 export default function DashboardPage() {
   const session = useSession();
+  const [stats, setStats] = useState<DashboardStats>(EMPTY_STATS);
 
   const filterCardRef = useRef<HTMLDivElement>(null);
   const statGridRef = useRef<HTMLDivElement>(null);
   const [filterCardWidth, setFilterCardWidth] = useState<number>();
+
+  useEffect(() => {
+    if (session.role === "kvk-user") return;
+    let cancelled = false;
+    fetch("/api/dashboard-stats")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: DashboardStats | null) => {
+        if (!cancelled && data) setStats(data);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [session.role]);
 
   /**
    * The filter card's left edge must land exactly on Ext. Activity's left
@@ -128,6 +151,21 @@ export default function DashboardPage() {
   }
 
   const isKvkAdmin = session.role === "kvk-admin";
+
+  const statCards = [
+    { icon: BarChart3, label: "KVK", value: stats.totalKvks },
+    { icon: Users, label: "Total OFT", value: stats.oft.total },
+    { icon: FileText, label: "Total FLD", value: stats.fld.total },
+    { icon: GraduationCap, label: "Training", value: stats.training.total },
+    { icon: Activity, label: "Ext. Activity", value: stats.extension.total },
+    { icon: Tags, label: "Total Staff", value: stats.staff.total },
+  ].filter((stat) => !isKvkAdmin || stat.label !== "KVK");
+
+  /** "64 of 65 KVKs with entries · 1 not started" - only meaningful cross-KVK, so Super Admin only. */
+  function kvksWithEntriesSummary(withEntries: number) {
+    const notStarted = Math.max(0, stats.totalKvks - withEntries);
+    return `${withEntries} of ${stats.totalKvks} KVKs with entries · ${notStarted} not started`;
+  }
 
   return (
     <div>
@@ -176,7 +214,7 @@ export default function DashboardPage() {
           isKvkAdmin ? "xl:grid-cols-5" : "xl:grid-cols-6",
         )}
       >
-        {(isKvkAdmin ? KVK_SCOPED_STATS : STATS).map((stat) => (
+        {statCards.map((stat) => (
           <StatCard
             key={stat.label}
             icon={stat.icon}
@@ -201,13 +239,13 @@ export default function DashboardPage() {
               : "Ongoing, completed; not started = KVK with no entries"
           }
           defaultView="bar"
-          totalCount={0}
+          totalCount={stats.oft.total}
           summary={
             isKvkAdmin
-              ? "0 trials recorded"
-              : "0 of 0 KVKs with entries · 0 not started"
+              ? `${stats.oft.completed} completed · ${stats.oft.ongoing} ongoing`
+              : kvksWithEntriesSummary(stats.oft.kvksWithEntries)
           }
-          showAllLabel="Show all (0)"
+          showAllLabel={`Show all (${stats.oft.total})`}
           detailedHref="/dashboard/analytics/oft"
         />
         <ProgressChartCard
@@ -218,13 +256,13 @@ export default function DashboardPage() {
               : "Ongoing, completed; not started = KVK with no entries"
           }
           defaultView="bar"
-          totalCount={0}
+          totalCount={stats.fld.total}
           summary={
             isKvkAdmin
-              ? "0 demonstrations recorded"
-              : "0 of 0 KVKs with entries · 0 not started"
+              ? `${stats.fld.completed} completed · ${stats.fld.ongoing} ongoing`
+              : kvksWithEntriesSummary(stats.fld.kvksWithEntries)
           }
-          showAllLabel="Show all (0)"
+          showAllLabel={`Show all (${stats.fld.total})`}
           detailedHref="/dashboard/analytics/fld"
         />
         <ProgressChartCard
@@ -235,13 +273,13 @@ export default function DashboardPage() {
               : "Ongoing, completed; not started = KVK with no entries"
           }
           defaultView="bar"
-          totalCount={0}
+          totalCount={stats.training.total}
           summary={
             isKvkAdmin
-              ? "0 trainings recorded"
-              : "0 of 0 KVKs with entries · 0 not started"
+              ? `${stats.training.total} trainings recorded`
+              : kvksWithEntriesSummary(stats.training.kvksWithEntries)
           }
-          showAllLabel="Show all (0)"
+          showAllLabel={`Show all (${stats.training.total})`}
           detailedHref="/dashboard/analytics/training"
         />
         <ProgressChartCard
@@ -252,19 +290,19 @@ export default function DashboardPage() {
               : "Ongoing, completed; not started = KVK with no entries"
           }
           defaultView="bar"
-          totalCount={0}
+          totalCount={stats.extension.total}
           summary={
             isKvkAdmin
-              ? "0 activities recorded"
-              : "0 of 0 KVKs with entries · 0 not started"
+              ? `${stats.extension.total} activities recorded`
+              : kvksWithEntriesSummary(stats.extension.kvksWithEntries)
           }
-          showAllLabel="Show all (0)"
+          showAllLabel={`Show all (${stats.extension.total})`}
           detailedHref="/dashboard/analytics/extension"
         />
       </div>
 
       <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <StaffSummaryCard />
+        <StaffSummaryCard counts={stats.staffByRole} />
         <RecentLogHistoryCard />
       </div>
     </div>
