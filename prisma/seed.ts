@@ -7,14 +7,14 @@
  * (lib/session.tsx: a "kvk"-prefixed username resolves to KVK Admin) - each
  * KVK Admin's username is "kvk-<slug of the KVK's district>".
  */
-import { PrismaClient } from "../lib/generated/prisma/client.ts";
+import { PrismaClient } from "../lib/generated/prisma/client";
 import { PrismaNeon } from "@prisma/adapter-neon";
 import bcrypt from "bcryptjs";
 import {
   ZONE_MASTER_ROWS,
   HOST_MASTER_ROWS,
   KVK_MASTER_ROWS,
-} from "../lib/masters.ts";
+} from "../lib/masters";
 
 const adapter = new PrismaNeon({ connectionString: process.env.DATABASE_URL });
 const prisma = new PrismaClient({ adapter });
