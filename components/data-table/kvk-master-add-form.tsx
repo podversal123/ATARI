@@ -74,6 +74,7 @@ export function KvkMasterAddForm({ trail, backHref }: KvkMasterAddFormProps) {
           sanctionYear,
           email,
           mobile,
+          fax,
           stateName: state,
           districtName: district,
           hostOrgName: host,

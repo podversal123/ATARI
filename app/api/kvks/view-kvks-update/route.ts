@@ -21,6 +21,7 @@ export async function POST(request: Request) {
   const kvkAddress = typeof body?.kvkAddress === "string" ? body.kvkAddress : "";
   const hostName = typeof body?.hostName === "string" ? body.hostName.trim() : "";
   const mobile = typeof body?.mobile === "string" ? body.mobile : "";
+  const fax = typeof body?.fax === "string" ? body.fax : "";
   const email = typeof body?.email === "string" ? body.email : "";
   const hostAddress = typeof body?.hostAddress === "string" ? body.hostAddress : "";
 
@@ -45,7 +46,7 @@ export async function POST(request: Request) {
     prisma.kvk.update({ where: { id: kvk.id }, data: { address: kvkAddress, hostOrgId: host.id } }),
     prisma.hostOrganization.update({
       where: { id: host.id },
-      data: { mobilePhone: mobile || undefined, email: email || undefined, address: hostAddress || undefined },
+      data: { mobilePhone: mobile || undefined, fax: fax || undefined, email: email || undefined, address: hostAddress || undefined },
     }),
   ]);
 

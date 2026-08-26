@@ -8,6 +8,7 @@ import {
   type NavGroup,
 } from "@/lib/navigation";
 import { PageHeader, type Crumb } from "@/components/layout/page-header";
+import { AutoRefresh } from "@/components/layout/auto-refresh";
 import { SectionedMasterGrid } from "@/components/layout/sectioned-master-grid";
 import {
   EmptyDataTable,
@@ -175,6 +176,7 @@ export default async function MastersPage({ params }: MastersPageProps) {
 
   return (
     <div>
+      <AutoRefresh />
       <PageHeader
         backHref={listBackHref}
         trail={trailCrumbs}

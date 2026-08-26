@@ -47,7 +47,7 @@ export function ViewKvksAddForm({ trail, backHref }: ViewKvksAddFormProps) {
       const response = await fetch("/api/kvks/view-kvks-update", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ kvkAddress, hostName, mobile, email, hostAddress }),
+        body: JSON.stringify({ kvkAddress, hostName, mobile, fax, email, hostAddress }),
       });
       const data = await response.json();
       if (!response.ok) {

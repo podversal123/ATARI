@@ -18,6 +18,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { FilterSelect } from "@/components/dashboard/filter-select";
 import { useSession } from "@/lib/session";
+import { usePolling } from "@/lib/use-polling";
 
 type LeafSummary = { path: string; label: string; count: number };
 type SectionSummary = { sectionLabel: string; leaves: LeafSummary[] };
@@ -76,7 +77,7 @@ export default function FormSummaryPage() {
 
   const matrixScrollRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
+  function loadSummary() {
     let cancelled = false;
     fetch("/api/form-summary")
       .then((res) => (res.ok ? res.json() : null))
@@ -90,7 +91,10 @@ export default function FormSummaryPage() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }
+
+  useEffect(loadSummary, []);
+  usePolling(loadSummary);
 
   const filteredSorted = useMemo(() => {
     if (!data) return [];

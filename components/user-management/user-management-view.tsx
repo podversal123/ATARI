@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { usePolling } from "@/lib/use-polling";
 import { KeyRound, MoreVertical, Pencil, Plus, Search, Trash2 } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -76,19 +77,23 @@ export function UserManagementView() {
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
 
-  function loadUsers() {
-    setLoading(true);
+  /** `silent` skips the loading state - used for background polling refreshes so the table doesn't flash "Loading users..." over data that's already on screen. */
+  function loadUsers(silent = false) {
+    if (!silent) setLoading(true);
     fetch("/api/users")
       .then((res) => (res.ok ? res.json() : Promise.reject()))
       .then((data: { users: UserRow[] }) => {
         setUsers(data.users);
         setListError(null);
       })
-      .catch(() => setListError("Could not load users."))
+      .catch(() => {
+        if (!silent) setListError("Could not load users.");
+      })
       .finally(() => setLoading(false));
   }
 
-  useEffect(loadUsers, []);
+  useEffect(() => loadUsers(), []);
+  usePolling(() => loadUsers(true));
 
   const filtered = users.filter(
     (u) =>

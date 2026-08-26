@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/button";
 import { useSession } from "@/lib/session";
 import { cn } from "@/lib/utils";
 import { FORM_MANAGEMENT } from "@/lib/navigation";
+import { usePolling } from "@/lib/use-polling";
 
 type ChartRow = { id: string; label: string; ongoing: number; completed: number };
 type TotalRow = { id: string; label: string; total: number };
@@ -115,19 +116,22 @@ export default function DashboardPage() {
   const statGridRef = useRef<HTMLDivElement>(null);
   const [filterCardWidth, setFilterCardWidth] = useState<number>();
 
-  useEffect(() => {
-    if (session.role === "kvk-user") return;
-    let cancelled = false;
+  function loadStats() {
     fetch("/api/dashboard-stats")
       .then((res) => (res.ok ? res.json() : null))
       .then((data: DashboardStats | null) => {
-        if (!cancelled && data) setStats(data);
+        if (data) setStats(data);
       })
       .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
+  }
+
+  useEffect(() => {
+    if (session.role === "kvk-user") return;
+    loadStats();
   }, [session.role]);
+  usePolling(() => {
+    if (session.role !== "kvk-user") loadStats();
+  });
 
   /**
    * The filter card's left edge must land exactly on Ext. Activity's left

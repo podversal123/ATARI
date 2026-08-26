@@ -418,7 +418,7 @@ export function ProgressChartCard({
             return labelRows.map((row) => (
               <div key={row.id} className="relative w-full overflow-visible">
                 <span
-                  className="absolute top-3 left-1/2 origin-top-left -rotate-45 truncate text-[10px] whitespace-nowrap text-muted-foreground"
+                  className="absolute top-3 left-1/2 origin-top-left rotate-45 truncate text-[10px] whitespace-nowrap text-muted-foreground"
                   style={{ maxWidth: labelMaxWidth }}
                   title={row.label}
                 >

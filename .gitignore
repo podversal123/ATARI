@@ -44,9 +44,11 @@ next-env.d.ts
 # internal planning docs (not for public repo)
 /docs
 
-# scratch extraction of real client/government data PDFs - staged locally only, never committed
+# real client/government data stays local + in the database only, never in the repo
 /zip-extract
-prisma/*-seed-data.json
+prisma/*-seed-data*
+prisma/*-sample*
+prisma/*real-data*
 
 # editor
 .vscode/

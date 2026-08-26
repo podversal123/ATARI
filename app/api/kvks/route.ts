@@ -19,6 +19,7 @@ export async function GET() {
     districtName: kvk.district.name,
     kvk: kvk.name,
     mobile: kvk.officePhone ?? "-",
+    fax: kvk.fax ?? "-",
     email: kvk.email ?? "",
     address: kvk.address ?? "",
     sanctionYear: kvk.sanctionYear ? String(kvk.sanctionYear) : "",
@@ -39,6 +40,7 @@ export async function POST(request: Request) {
   const address = typeof body?.address === "string" ? body.address : "";
   const email = typeof body?.email === "string" ? body.email : "";
   const mobile = typeof body?.mobile === "string" ? body.mobile : "";
+  const fax = typeof body?.fax === "string" ? body.fax : "";
   const sanctionYear = Number.isFinite(Number(body?.sanctionYear))
     ? Number(body.sanctionYear)
     : null;
@@ -83,6 +85,7 @@ export async function POST(request: Request) {
       address,
       email,
       officePhone: mobile,
+      fax: fax || undefined,
       sanctionYear,
       zoneId,
       stateId: state.id,

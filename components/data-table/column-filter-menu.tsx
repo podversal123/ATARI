@@ -70,9 +70,26 @@ export function ColumnFilterMenu({
     setDraft((prev) => ({ ...prev, selected: checked ? null : new Set() }));
   }
 
+  /**
+   * Real bug (client report, 2026-08-26): checking 2 boxes left a 3rd
+   * checked "by itself". Cause: `prev.selected === null` means "every value
+   * implicitly selected", so the old code always started an uncomputed
+   * toggle from the FULL value list - checking a box that's already
+   * implicitly-checked was a no-op, so nothing ever narrowed down and every
+   * value just stayed checked no matter what got clicked. Unchecking a box
+   * from that same null state still correctly built up an exclusion set
+   * (that direction was never broken) - only the "check a box first" path
+   * needs a real, empty starting set instead of the full one.
+   */
   function toggleValue(value: string, checked: boolean) {
     setDraft((prev) => {
-      const next = new Set(prev.selected ?? values.map((v) => v.value));
+      const base =
+        prev.selected === null
+          ? checked
+            ? new Set<string>()
+            : new Set(values.map((v) => v.value))
+          : prev.selected;
+      const next = new Set(base);
       if (checked) next.add(value);
       else next.delete(value);
       return { ...prev, selected: next.size === values.length ? null : next };
@@ -82,6 +99,15 @@ export function ColumnFilterMenu({
   function apply() {
     onApply(draft);
     setOpen(false);
+  }
+
+  /** Asc/Desc sort the table live, the instant it's clicked - unlike the checkbox selection below (which needs a "Done" to commit a multi-step choice), a sort direction is a single click with nothing to keep adjusting, so it shouldn't wait for one. Popover stays open so the checklist below is still usable afterward. */
+  function applySort(dir: "asc" | "desc") {
+    setDraft((prev) => {
+      const next = { ...prev, sort: prev.sort === dir ? null : dir };
+      onApply(next);
+      return next;
+    });
   }
 
   /** Resets the filter but leaves the popover open (client fix, 2026-08-25: "Clear filters" was closing the popup, matching Done's behavior instead of its own - the reference keeps it open so the user can see the reset state and keep adjusting). */
@@ -119,12 +145,7 @@ export function ColumnFilterMenu({
             variant={draft.sort === "asc" ? "default" : "outline"}
             size="xs"
             className="flex-1"
-            onClick={() =>
-              setDraft((prev) => ({
-                ...prev,
-                sort: prev.sort === "asc" ? null : "asc",
-              }))
-            }
+            onClick={() => applySort("asc")}
           >
             <ArrowUp className="size-3" />
             Asc
@@ -133,12 +154,7 @@ export function ColumnFilterMenu({
             variant={draft.sort === "desc" ? "default" : "outline"}
             size="xs"
             className="flex-1"
-            onClick={() =>
-              setDraft((prev) => ({
-                ...prev,
-                sort: prev.sort === "desc" ? null : "desc",
-              }))
-            }
+            onClick={() => applySort("desc")}
           >
             <ArrowDown className="size-3" />
             Desc
@@ -183,16 +199,18 @@ export function ColumnFilterMenu({
                   key={v.value}
                   className="flex items-center justify-between gap-2 py-0.5 text-xs"
                 >
-                  <span className="flex items-center gap-2">
+                  <span className="flex min-w-0 items-center gap-2">
                     <Checkbox
                       checked={checked}
                       onCheckedChange={(next) =>
                         toggleValue(v.value, next === true)
                       }
                     />
-                    <span className="text-foreground uppercase">{v.value}</span>
+                    <span className="truncate text-foreground uppercase" title={v.value}>
+                      {v.value}
+                    </span>
                   </span>
-                  <span className="text-muted-foreground">({v.count})</span>
+                  <span className="shrink-0 text-muted-foreground">({v.count})</span>
                 </label>
               );
             })

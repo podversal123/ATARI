@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { usePolling } from "@/lib/use-polling";
 import {
   Plus,
   Search,
@@ -107,19 +108,23 @@ export function RoleManagementView() {
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
 
-  function loadRoles() {
-    setLoading(true);
+  /** `silent` skips the loading state - used for background polling refreshes so the table doesn't flash "Loading roles..." over data that's already on screen. */
+  function loadRoles(silent = false) {
+    if (!silent) setLoading(true);
     fetch("/api/roles")
       .then((res) => (res.ok ? res.json() : Promise.reject()))
       .then((data: { roles: Role[] }) => {
         setRoles(data.roles);
         setListError(null);
       })
-      .catch(() => setListError("Could not load roles."))
+      .catch(() => {
+        if (!silent) setListError("Could not load roles.");
+      })
       .finally(() => setLoading(false));
   }
 
-  useEffect(loadRoles, []);
+  useEffect(() => loadRoles(), []);
+  usePolling(() => loadRoles(true));
 
   const filteredRoles = useMemo(() => {
     const query = search.trim().toLowerCase();
