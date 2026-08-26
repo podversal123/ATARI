@@ -791,6 +791,17 @@ model Oft {
   resultSummary               String?
   status                      TrialStatus
 
+  /// "Farmers Details" block on the real Add OFT form (General_M/F, OBC_M/F,
+  /// SC_M/F, ST_M/F) - same shape as CfldExtensionActivity's breakdown.
+  generalMale   Int @default(0)
+  generalFemale Int @default(0)
+  obcMale       Int @default(0)
+  obcFemale     Int @default(0)
+  scMale        Int @default(0)
+  scFemale      Int @default(0)
+  stMale        Int @default(0)
+  stFemale      Int @default(0)
+
   technologyOptions OftTechnologyOption[]
   resultRows        OftResultRow[]
 

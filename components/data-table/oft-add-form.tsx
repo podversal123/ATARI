@@ -8,6 +8,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { PageHeader, type Crumb } from "@/components/layout/page-header";
+import {
+  DemographicBreakdown,
+  type DemographicValues,
+} from "./demographic-breakdown";
 
 type OftAddFormProps = {
   trail: Crumb[];
@@ -59,6 +63,7 @@ export function OftAddForm({ trail, backHref }: OftAddFormProps) {
   const [costOfOft, setCostOfOft] = useState("");
   const [fundingAgency, setFundingAgency] = useState("");
   const [status, setStatus] = useState("");
+  const [demographics, setDemographics] = useState<DemographicValues>({});
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -97,6 +102,7 @@ export function OftAddForm({ trail, backHref }: OftAddFormProps) {
             costOfOft,
             fundingAgency,
             status,
+            ...demographics,
           },
         }),
       });
@@ -218,6 +224,14 @@ export function OftAddForm({ trail, backHref }: OftAddFormProps) {
             <Label htmlFor="oft-farmers-participation">Process of Farmers Participation and Their Reaction</Label>
             <Textarea id="oft-farmers-participation" value={farmersParticipationProcess} onChange={(e) => setFarmersParticipationProcess(e.target.value)} />
           </div>
+        </div>
+
+        <div className="mt-5 space-y-2 border-t border-border pt-4">
+          <p className="text-sm font-semibold text-primary">Farmers Details</p>
+          <DemographicBreakdown
+            values={demographics}
+            onChange={(key, value) => setDemographics((p) => ({ ...p, [key]: value }))}
+          />
         </div>
 
         {error && (
