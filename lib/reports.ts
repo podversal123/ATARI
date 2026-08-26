@@ -19,6 +19,7 @@ import {
   type NavLeafPath,
 } from "./navigation";
 import {
+  DISTRICT_MASTER_ROWS,
   KVK_MASTER_ROWS,
   STATE_MASTER_ROWS,
   ZONE_MASTER_ROWS,
@@ -120,6 +121,13 @@ export const REPORT_ZONE_OPTIONS = ZONE_MASTER_ROWS.map((row) => row.zoneName);
 export function statesForZone(zoneName: string): string[] {
   return STATE_MASTER_ROWS.filter((row) => row.zoneName === zoneName).map(
     (row) => row.stateName,
+  );
+}
+
+/** Districts under a given state, derived from the real District Master rows. */
+export function districtsForState(stateName: string): string[] {
+  return DISTRICT_MASTER_ROWS.filter((row) => row.stateName === stateName).map(
+    (row) => row.districtName,
   );
 }
 

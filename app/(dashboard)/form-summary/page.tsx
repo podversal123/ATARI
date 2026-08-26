@@ -325,7 +325,25 @@ export default function FormSummaryPage() {
               </table>
             </div>
           ) : (
-            <div ref={matrixScrollRef} className="mt-4 snap-x snap-mandatory overflow-auto rounded-lg border border-border">
+            <div
+              ref={matrixScrollRef}
+              className="mt-4 snap-x snap-mandatory overflow-auto rounded-lg border border-border"
+              /**
+               * The sticky "Form Name" column reserves 264px on the left
+               * (its own width), but the browser's scroll-snap math doesn't
+               * know that - it snaps each KVK column's left edge to true
+               * x=0, which is the same spot the sticky column paints over.
+               * Result: the very first KVK column (e.g. whichever KVK
+               * sorts first) lands hidden underneath the sticky column
+               * when snapped, and scrolling back to the start leaves a
+               * gap where the browser rounds to a snap point that isn't
+               * flush with the sticky column's right edge. scroll-padding
+               * tells the snap algorithm to treat that 264px as already
+               * spoken for, so "start" becomes flush against the sticky
+               * column instead of underneath it.
+               */
+              style={{ scrollPaddingLeft: 264 }}
+            >
               <table className="w-full border-separate border-spacing-0 text-sm">
                 <thead>
                   <tr className="border-b border-border bg-muted text-left text-xs font-semibold tracking-wide text-muted-foreground uppercase">

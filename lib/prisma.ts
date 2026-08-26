@@ -13,7 +13,18 @@ declare global {
 }
 
 function createClient() {
-  const adapter = new PrismaNeon({ connectionString: process.env.DATABASE_URL });
+  /**
+   * Form Summary and the report engine each fan out 100+ independent
+   * groupBy/count queries per request via Promise.all (one per tracked
+   * leaf/model - see lib/form-summary-data.ts). The Neon pool's default
+   * `max` is 10, so most of those queries were queueing behind each other
+   * in batches of 10 instead of actually running concurrently, and every
+   * batch pays the full Singapore round-trip latency. The connection
+   * string already points at Neon's pooled (pgbouncer) endpoint, which
+   * comfortably holds far more than this, so raising `max` here lets the
+   * real bottleneck (network RTT) be paid once instead of ~11 times.
+   */
+  const adapter = new PrismaNeon({ connectionString: process.env.DATABASE_URL, max: 30 });
   return new PrismaClient({ adapter });
 }
 

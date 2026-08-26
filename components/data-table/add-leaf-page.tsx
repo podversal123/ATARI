@@ -13,7 +13,7 @@ type AddLeafPageProps = {
   trail: Crumb[];
   backHref: string;
   columns: MasterColumn[];
-  cascadeType?: "district" | "kvk";
+  cascadeType?: "district" | "kvk" | "institute";
   /** Overrides the "Mark as Other" checkbox's visibility when confirmed against the real reference (lib/navigation.ts's NavLeaf.showMarkAsOther) - falls back to the single-"name"-column heuristic below when unset. */
   showMarkAsOther?: boolean;
   /** "Create" for All Masters ("Create Zone", "Create Host", ...), "Add" for Form Management ("Add Staff", "Add OFT", ...) - both confirmed real, per-module titles (client screenshots, 2026-08-24). */

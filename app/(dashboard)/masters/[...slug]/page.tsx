@@ -48,7 +48,9 @@ export default async function MastersPage({ params }: MastersPageProps) {
       ? "district"
       : node.type === "leaf" && node.slug === "kvk-master"
         ? "kvk"
-        : undefined;
+        : node.type === "leaf" && node.slug === "institute-master"
+          ? "institute"
+          : undefined;
 
   if (isAddPage) {
     if (node.type !== "leaf") notFound();

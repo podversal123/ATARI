@@ -189,18 +189,40 @@ const dedicated: Record<string, MasterLeafEntry> = {
   },
   "institute-master": {
     list: async (zoneId) => {
-      const rows = await prisma.institute.findMany({ where: { zoneId }, orderBy: { name: "asc" } });
-      return rows.map((r) => ({ id: r.id, instituteName: r.name }));
+      const rows = await prisma.institute.findMany({
+        where: { zoneId },
+        include: { zone: true, state: true, district: true },
+        orderBy: { name: "asc" },
+      });
+      return rows.map((r) => ({
+        id: r.id,
+        instituteName: r.name,
+        zoneName: r.zone.name,
+        stateName: r.state?.name ?? "",
+        districtName: r.district?.name ?? "",
+      }));
     },
     create: async (v, zoneId) => {
       const name = reqStr(v.instituteName);
       if (!name) throw new Error("Institute name is required.");
-      return prisma.institute.create({ data: { name, zoneId } });
+      const stateName = reqStr(v.stateName);
+      const districtName = reqStr(v.districtName);
+      const state = stateName ? await prisma.state.findFirst({ where: { zoneId, name: stateName } }) : null;
+      if (stateName && !state) throw new Error(`Unknown state: ${stateName}`);
+      const district = state && districtName ? await prisma.district.findFirst({ where: { stateId: state.id, name: districtName } }) : null;
+      if (districtName && !district) throw new Error(`Unknown district: ${districtName}`);
+      return prisma.institute.create({ data: { name, zoneId, stateId: state?.id, districtId: district?.id } });
     },
     update: async (id, v, zoneId) => {
       const name = reqStr(v.instituteName);
       if (!name) throw new Error("Institute name is required.");
-      return prisma.institute.updateMany({ where: { id, zoneId }, data: { name } });
+      const stateName = reqStr(v.stateName);
+      const districtName = reqStr(v.districtName);
+      const state = stateName ? await prisma.state.findFirst({ where: { zoneId, name: stateName } }) : null;
+      if (stateName && !state) throw new Error(`Unknown state: ${stateName}`);
+      const district = state && districtName ? await prisma.district.findFirst({ where: { stateId: state.id, name: districtName } }) : null;
+      if (districtName && !district) throw new Error(`Unknown district: ${districtName}`);
+      return prisma.institute.updateMany({ where: { id, zoneId }, data: { name, stateId: state?.id, districtId: district?.id } });
     },
     delete: (id, zoneId) => prisma.institute.deleteMany({ where: { id, zoneId } }),
   },
@@ -435,7 +457,15 @@ const dedicated: Record<string, MasterLeafEntry> = {
         include: { subCategory: { include: { category: true } } },
         orderBy: { name: "asc" },
       });
-      return rows.map((r) => ({ id: r.id, cropName: r.name, subCategoryName: r.subCategory.name, category: r.subCategory.category.name }));
+      return rows.map((r) => ({
+        id: r.id,
+        cropName: r.name,
+        subCategoryName: r.subCategory.name,
+        category: r.subCategory.category.name,
+        unit: r.unit ?? "",
+        quantityDataType: r.quantityDataType ?? "",
+        quantityRequired: String(r.quantityRequired),
+      }));
     },
     create: async (v, zoneId) => {
       const category = await prisma.fldCategoryMaster.findFirst({ where: { zoneId, name: reqStr(v.category) } });
@@ -444,7 +474,16 @@ const dedicated: Record<string, MasterLeafEntry> = {
       if (!subCategory) throw new Error(`Unknown sub category: ${v.subCategoryName}`);
       const name = reqStr(v.cropName);
       if (!name) throw new Error("Crop name is required.");
-      return prisma.cropMaster.create({ data: { name, subCategoryId: subCategory.id, zoneId } });
+      return prisma.cropMaster.create({
+        data: {
+          name,
+          subCategoryId: subCategory.id,
+          zoneId,
+          unit: reqStr(v.unit) || null,
+          quantityDataType: reqStr(v.quantityDataType) || null,
+          quantityRequired: bool(v.quantityRequired),
+        },
+      });
     },
     update: async (id, v, zoneId) => {
       const category = await prisma.fldCategoryMaster.findFirst({ where: { zoneId, name: reqStr(v.category) } });
@@ -453,7 +492,16 @@ const dedicated: Record<string, MasterLeafEntry> = {
       if (!subCategory) throw new Error(`Unknown sub category: ${v.subCategoryName}`);
       const name = reqStr(v.cropName);
       if (!name) throw new Error("Crop name is required.");
-      return prisma.cropMaster.updateMany({ where: { id, zoneId }, data: { name, subCategoryId: subCategory.id } });
+      return prisma.cropMaster.updateMany({
+        where: { id, zoneId },
+        data: {
+          name,
+          subCategoryId: subCategory.id,
+          unit: reqStr(v.unit) || null,
+          quantityDataType: reqStr(v.quantityDataType) || null,
+          quantityRequired: bool(v.quantityRequired),
+        },
+      });
     },
     delete: (id, zoneId) => prisma.cropMaster.deleteMany({ where: { id, zoneId } }),
   },
@@ -564,6 +612,9 @@ const dedicated: Record<string, MasterLeafEntry> = {
         productCategoryName: r.productTypeMaster.categoryName,
         productCategoryType: r.productTypeMaster.typeName,
         productName: r.name,
+        unit: r.unit ?? "",
+        quantityDataType: r.quantityDataType ?? "",
+        quantityRequired: String(r.quantityRequired),
       }));
     },
     create: async (v, zoneId) => {
@@ -573,7 +624,16 @@ const dedicated: Record<string, MasterLeafEntry> = {
       if (!type) throw new Error(`Unknown product type: ${v.productCategoryName} / ${v.productCategoryType}`);
       const name = reqStr(v.productName);
       if (!name) throw new Error("Product name is required.");
-      return prisma.productMaster.create({ data: { name, productTypeMasterId: type.id, zoneId } });
+      return prisma.productMaster.create({
+        data: {
+          name,
+          productTypeMasterId: type.id,
+          zoneId,
+          unit: reqStr(v.unit) || null,
+          quantityDataType: reqStr(v.quantityDataType) || null,
+          quantityRequired: bool(v.quantityRequired),
+        },
+      });
     },
     update: async (id, v, zoneId) => {
       const type = await prisma.productTypeMaster.findFirst({
@@ -582,7 +642,16 @@ const dedicated: Record<string, MasterLeafEntry> = {
       if (!type) throw new Error(`Unknown product type: ${v.productCategoryName} / ${v.productCategoryType}`);
       const name = reqStr(v.productName);
       if (!name) throw new Error("Product name is required.");
-      return prisma.productMaster.updateMany({ where: { id, zoneId }, data: { name, productTypeMasterId: type.id } });
+      return prisma.productMaster.updateMany({
+        where: { id, zoneId },
+        data: {
+          name,
+          productTypeMasterId: type.id,
+          unit: reqStr(v.unit) || null,
+          quantityDataType: reqStr(v.quantityDataType) || null,
+          quantityRequired: bool(v.quantityRequired),
+        },
+      });
     },
     delete: (id, zoneId) => prisma.productMaster.deleteMany({ where: { id, zoneId } }),
   },

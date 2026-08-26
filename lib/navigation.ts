@@ -15,12 +15,35 @@
 export type MasterColumn = {
   key: string;
   label: string;
+  /** Overrides `label` on the Add/Edit form field only, for confirmed real cases where the form's field text is more specific than its own table's column header (e.g. table "Name" vs form "Training Clientele Name"). Table header keeps using `label`. */
+  formLabel?: string;
   /** Server-computed display column (e.g. a child-row count) - shown in the list table, but never rendered as an input on the Add/Edit form since there's nothing for a user to type into it. */
   readonly?: boolean;
   /** Renders a real file-upload control instead of a text input, and a thumbnail/"View" link instead of raw text in the list table. The stored value is the uploaded file's Vercel Blob URL. */
   fileKind?: "image" | "document";
   /** Which /api/upload validation rule (size/mime-type) and storage folder applies - required whenever fileKind is set. Mirrors lib/blob.ts's UploadKind (kept as a separate literal type, not imported, since that file is server-only and this one is loaded client-side too). */
   uploadKind?: "staff-photo" | "staff-resume" | "cfld-crop-image";
+  /**
+   * Renders as a <select> populated by another All Masters leaf's real
+   * saved rows (fetched from /api/master-options) instead of free text a
+   * user could mistype - the backend already validates these parent
+   * references by exact name match (see masters-registry.ts), so this
+   * closes the gap between "typo silently rejected on submit" and
+   * "typo never possible". `master` is the source leaf's slug, `optionKey`
+   * is which field on its list() rows supplies the option text. When
+   * `dependsOnKey`/`filterKey` are both set, the option list is narrowed to
+   * rows whose `filterKey` matches this form's current value for
+   * `dependsOnKey` (a second-level parent picker, e.g. Sub-category's
+   * "Category" options narrowed to the already-selected Sector).
+   */
+  sourceMaster?: {
+    master: string;
+    optionKey: string;
+    dependsOnKey?: string;
+    filterKey?: string;
+  };
+  /** Renders as a real checkbox instead of a text input - the stored value is the string "true"/"false". */
+  fieldKind?: "checkbox";
 };
 
 export type NavLeaf = {
@@ -128,19 +151,19 @@ const trainingMaster = group("training", "Training Master", [
     { key: "trainingType", label: "Training Type" },
   ]),
   leaf("training-area", "Training Area Master", [
-    { key: "trainingType", label: "Training Type" },
+    { key: "trainingType", label: "Training Type", sourceMaster: { master: "training-type", optionKey: "trainingType" } },
     { key: "trainingAreaName", label: "Training Area Name" },
   ], undefined, true),
   /** 2 columns, confirmed against the reference). */
   leaf("training-thematic-area", "Training Thematic Area Master", [
-    { key: "trainingAreaName", label: "Training Area Name" },
+    { key: "trainingAreaName", label: "Training Area Name", sourceMaster: { master: "training-area", optionKey: "trainingAreaName" } },
     { key: "thematicArea", label: "Training Thematic Area" },
   ], undefined, true),
   leaf("training-clientele", "Training Clientele Master", [
-    { key: "clientele", label: "Name" },
+    { key: "clientele", label: "Name", formLabel: "Training Clientele Name" },
   ], undefined, true),
   leaf("funding-source", "Funding Source Master", [
-    { key: "fundingSource", label: "Name" },
+    { key: "fundingSource", label: "Name", formLabel: "Funding Source Name" },
   ], undefined, true),
 ]);
 
@@ -152,10 +175,10 @@ const trainingExtensionMasters = group(
     trainingMaster,
     group("extension-activities", "Extension Activities", [
       leaf("extension-activity", "Extension Activity Master", [
-        { key: "activityName", label: "Name" },
+        { key: "activityName", label: "Name", formLabel: "Extension Activity Name" },
       ], undefined, true),
       leaf("other-extension-activity", "Other Extension Activity Master", [
-        { key: "activityName", label: "Name" },
+        { key: "activityName", label: "Name", formLabel: "Other Extension Activity Name" },
       ]),
     ]),
     group("events", "Events", [
@@ -164,6 +187,10 @@ const trainingExtensionMasters = group(
       ], undefined, false),
     ]),
   ],
+  {
+    pageTitle: "Training & Extension",
+    description: "Manage training masters, extension activities, and events",
+  },
 );
 
 /** All Masters -> Other Masters (sub-groups + columns confirmed on screen) */
@@ -176,7 +203,10 @@ const otherMasters = group(
         { key: "name", label: "Category Name" },
       ]),
       leaf("job-type", "Job Type Master"),
-      leaf("pay-level", "Pay Level Master"),
+      /** Real column confirmed live - "Level Name", not the generic "Name" default. */
+      leaf("pay-level", "Pay Level Master", [
+        { key: "name", label: "Level Name" },
+      ]),
       leaf("pay-scale", "Pay Scale Master", [
         { key: "name", label: "Scale Name" },
       ]),
@@ -262,7 +292,7 @@ const otherMasters = group(
       ]),
       leaf("nicra-sub-category", "NICRA Sub-category Master", [
         { key: "subCategoryName", label: "Sub Category Name" },
-        { key: "categoryName", label: "Category Name" },
+        { key: "categoryName", label: "Category Name", sourceMaster: { master: "nicra-category", optionKey: "name" } },
       ]),
       leaf("nicra-seed-fodder-bank", "NICRA Seed/Fodder Bank Master", [
         { key: "name", label: "Seed Bank Fodder Bank" },
@@ -325,7 +355,7 @@ const otherMasters = group(
       /** 2 columns, confirmed against the reference) - the second column was missing entirely. */
       leaf("financial-project", "Financial Project Master", [
         { key: "projectName", label: "Project Name" },
-        { key: "agencyName", label: "Agency Name" },
+        { key: "agencyName", label: "Agency Name", sourceMaster: { master: "funding-agency", optionKey: "name" } },
       ]),
     ]),
   ],
@@ -352,6 +382,9 @@ const basicMasters = group(
       { key: "districtName", label: "District Name" },
     ]),
     leaf("institute-master", "Institute Master", [
+      { key: "zoneName", label: "Zone Name" },
+      { key: "stateName", label: "State Name" },
+      { key: "districtName", label: "District Name" },
       { key: "instituteName", label: "Institute Name" },
     ]),
     leaf("host-master", "Host Master", [
@@ -395,7 +428,7 @@ const oftFldMasters = group(
       ], undefined, true),
       leaf("oft-thematic-area", "OFT Thematic Area Master", [
         { key: "thematicArea", label: "Thematic Area Name" },
-        { key: "subjectName", label: "Subject Name" },
+        { key: "subjectName", label: "Subject Name", sourceMaster: { master: "subject", optionKey: "subjectName" } },
       ], undefined, true),
     ]),
     group("fld", "FLD Masters", [
@@ -405,30 +438,49 @@ const oftFldMasters = group(
       ], undefined, true),
       leaf("fld-thematic-area", "FLD Thematic Area Master", [
         { key: "thematicAreaName", label: "Thematic Area Name" },
-        { key: "sectorName", label: "Sector Name" },
+        { key: "sectorName", label: "Sector Name", sourceMaster: { master: "sector", optionKey: "sectorName" } },
       ]),
       /** Real columns confirmed live. */
       leaf("category", "Category Master", [
         { key: "categoryName", label: "Category Name" },
-        { key: "sectorName", label: "Sector Name" },
+        { key: "sectorName", label: "Sector Name", sourceMaster: { master: "sector", optionKey: "sectorName" } },
         { key: "subCategoriesCount", label: "Sub Categories Count", readonly: true },
       ], undefined, true),
       /** 4 columns, confirmed against the reference) - 3 were missing. */
       leaf("sub-category", "Sub-category Master", [
         { key: "subCategoryName", label: "Sub Category Name" },
-        { key: "categoryName", label: "Category Name" },
-        { key: "sectorName", label: "Sector Name" },
+        {
+          key: "categoryName",
+          label: "Category Name",
+          sourceMaster: { master: "category", optionKey: "categoryName", dependsOnKey: "sectorName", filterKey: "sectorName" },
+        },
+        { key: "sectorName", label: "Sector Name", sourceMaster: { master: "sector", optionKey: "sectorName" } },
         { key: "cropsCount", label: "Crops Count", readonly: true },
       ], undefined, true),
-      /** 3 columns, confirmed against the reference). */
+      /**
+       * 3 columns, confirmed against the reference). Real Create form also
+       * has Unit and Quantity Data Type (dropdowns in the reference) plus a
+       * "Quantity required in forms" checkbox - same treatment as Products
+       * Master: free-text for Unit/Quantity Data Type since the real
+       * dropdown option list wasn't visible in the reference, a real
+       * checkbox for Quantity Required.
+       */
       leaf("crop", "Crop Master", [
         { key: "cropName", label: "Crop Name" },
-        { key: "subCategoryName", label: "Sub Category Name" },
-        { key: "category", label: "Category Name" },
+        {
+          key: "subCategoryName",
+          label: "Sub Category Name",
+          sourceMaster: { master: "sub-category", optionKey: "subCategoryName", dependsOnKey: "category", filterKey: "categoryName" },
+        },
+        { key: "category", label: "Category Name", sourceMaster: { master: "category", optionKey: "categoryName" } },
+        { key: "unit", label: "Unit" },
+        { key: "quantityDataType", label: "Quantity Data Type" },
+        { key: "quantityRequired", label: "Quantity required in forms", fieldKind: "checkbox" },
       ], undefined, true),
+      /** Real reference: Create Activity has no "Mark as Other" checkbox, unlike every other single-Name master in this group. */
       leaf("activity", "Activity Master", [
         { key: "name", label: "Activity Name" },
-      ]),
+      ], undefined, false),
     ]),
     group("cfld", "CFLD Master", [
       leaf("cfld-crop", "CFLD Crop Master", [
@@ -468,11 +520,21 @@ const productionProjects = group(
           { key: "productCategoryName", label: "Product Category Name" },
           { key: "productCategoryType", label: "Product Category Type" },
         ], undefined, true),
-        /** 3 columns, confirmed against the reference). */
+        /**
+         * Real Create form also has Unit and Quantity Data Type (both
+         * dropdowns in the reference) plus a "Quantity required in forms"
+         * checkbox - wired here as free-text for Unit/Quantity Data Type
+         * since the real dropdown's option list wasn't visible in the
+         * reference, and a checkbox for Quantity Required (that part was
+         * unambiguous).
+         */
         leaf("products", "Products", [
           { key: "productCategoryName", label: "Product Category Name" },
           { key: "productCategoryType", label: "Product Category Type" },
           { key: "productName", label: "Product Name" },
+          { key: "unit", label: "Unit" },
+          { key: "quantityDataType", label: "Quantity Data Type" },
+          { key: "quantityRequired", label: "Quantity required in forms", fieldKind: "checkbox" },
         ], undefined, true),
       ],
     ),
@@ -531,9 +593,10 @@ export const ALL_MASTERS: NavItem[] = [
     "publication",
     "Publication Masters",
     [
+      /** Landing-page card text is "Publication Items" (no "Master" suffix) - confirmed against the reference, same page-H1-vs-card-label split as Resource/Performance Indicator Masters elsewhere in this file. */
       leaf("publication-items", "Publication Items Master", [
         { key: "itemName", label: "Publication Item" },
-      ], undefined, false),
+      ], "Publication Items", false),
     ],
     {
       pageTitle: "Publications",

@@ -91,7 +91,7 @@ type EmptyDataTableProps = {
    * Zone/State/Host-Org data Reports already draws from, instead of the
    * generic plain-text field every other leaf gets.
    */
-  cascadeType?: "district" | "kvk";
+  cascadeType?: "district" | "kvk" | "institute";
   /** Overrides the Edit dialog's "Mark as Other" checkbox visibility when confirmed against the real reference (lib/navigation.ts's NavLeaf.showMarkAsOther) - falls back to the single-"name"-column heuristic below when unset. Edit reuses the same field set as the real Create screen for a given master. */
   showMarkAsOther?: boolean;
   /** When set, Add New/Edit open a bespoke dialog instead of the generic per-column form - for the handful of leaves whose real Add/Edit shape genuinely isn't a flat field list (CFLD's 4-tab wizard, and the event forms carrying the recurring demographic-breakdown block). */

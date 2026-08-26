@@ -1,6 +1,6 @@
 "use client";
 
-import { useId } from "react";
+import { useEffect, useId, useState } from "react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -8,15 +8,108 @@ import { FileUploadField } from "./file-upload-field";
 import type { MasterColumn } from "@/lib/navigation";
 import {
   REPORT_ZONE_OPTIONS,
+  districtsForState,
   hostOrgsForState,
   statesForZone,
 } from "@/lib/reports";
 
-const CASCADE_KEYS = new Set(["zoneName", "stateName", "hostOrg"]);
+/**
+ * Which columns cascade for each `cascadeType`, keyed separately per type
+ * rather than one shared set - district-master's own "districtName" column
+ * is the free-text name of the record being created, while institute's
+ * "districtName" is a real cascading parent picker, so the same key can't
+ * share one global membership test across both.
+ */
+const CASCADE_FIELDS: Record<string, Set<string>> = {
+  district: new Set(["zoneName", "stateName"]),
+  kvk: new Set(["zoneName", "stateName", "hostOrg"]),
+  institute: new Set(["zoneName", "stateName", "districtName"]),
+};
+
+/**
+ * Options for one `sourceMaster` field, fetched once per source master
+ * (not once per field) and cached for the component's lifetime - Category
+ * and Sub-category both source from the same "sector" master, so without
+ * this cache a form with several sourceMaster fields would re-fetch the
+ * same list once per field on every render.
+ */
+const sourceMasterCache = new Map<string, Promise<Record<string, string>[]>>();
+
+function fetchSourceMasterRows(master: string): Promise<Record<string, string>[]> {
+  let cached = sourceMasterCache.get(master);
+  if (!cached) {
+    cached = fetch(`/api/master-options?slug=${encodeURIComponent(master)}`)
+      .then((res) => (res.ok ? res.json() : { rows: [] }))
+      .then((data) => (data.rows ?? []) as Record<string, string>[])
+      .catch(() => []);
+    sourceMasterCache.set(master, cached);
+  }
+  return cached;
+}
+
+/** A <select> populated by another master's real saved rows instead of free text - see MasterColumn.sourceMaster. */
+function SourceMasterField({
+  column,
+  fieldId,
+  value,
+  dependsOnValue,
+  dependsOnLabel,
+  disabled,
+  onChange,
+}: {
+  column: MasterColumn & { sourceMaster: NonNullable<MasterColumn["sourceMaster"]> };
+  fieldId: string;
+  value: string;
+  dependsOnValue?: string;
+  dependsOnLabel?: string;
+  disabled: boolean;
+  onChange: (value: string) => void;
+}) {
+  const [rows, setRows] = useState<Record<string, string>[]>([]);
+  const { master, optionKey, filterKey } = column.sourceMaster;
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchSourceMasterRows(master).then((r) => {
+      if (!cancelled) setRows(r);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [master]);
+
+  const options = Array.from(
+    new Set(
+      rows
+        .filter((row) => !filterKey || !dependsOnValue || row[filterKey] === dependsOnValue)
+        .map((row) => row[optionKey])
+        .filter((v): v is string => Boolean(v)),
+    ),
+  ).sort();
+
+  return (
+    <select
+      id={fieldId}
+      value={value}
+      disabled={disabled}
+      onChange={(event) => onChange(event.target.value)}
+      className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring disabled:cursor-not-allowed disabled:opacity-50"
+    >
+      <option value="" disabled>
+        {disabled ? `Select ${dependsOnLabel ?? "the required field"} first` : `Select ${column.label}`}
+      </option>
+      {options.map((option) => (
+        <option key={option} value={option}>
+          {option}
+        </option>
+      ))}
+    </select>
+  );
+}
 
 type MasterFormFieldsProps = {
   columns: MasterColumn[];
-  cascadeType?: "district" | "kvk";
+  cascadeType?: "district" | "kvk" | "institute";
   formValues: Record<string, string>;
   onChange: (values: Record<string, string>) => void;
   isSimpleMaster: boolean;
@@ -49,10 +142,27 @@ export function MasterFormFields({
       {columns.map((column) => {
         if (column.readonly) return null;
         const fieldId = `${instanceId}-${column.key}`;
-        const isCascading = cascadeType && CASCADE_KEYS.has(column.key);
+        const isCascading = Boolean(cascadeType && CASCADE_FIELDS[cascadeType]?.has(column.key));
         const isHostOrgField =
           cascadeType === "kvk" && column.key === "hostOrg";
+        const isDistrictField =
+          cascadeType === "institute" && column.key === "districtName";
         const isStateField = column.key === "stateName";
+
+        if (column.fieldKind === "checkbox") {
+          return (
+            <label key={column.key} className="flex items-center gap-2 pt-6 text-sm text-foreground">
+              <Checkbox
+                id={fieldId}
+                checked={formValues[column.key] === "true"}
+                onCheckedChange={(checked) =>
+                  onChange({ ...formValues, [column.key]: String(checked === true) })
+                }
+              />
+              {column.formLabel ?? column.label}
+            </label>
+          );
+        }
 
         if (column.fileKind) {
           return (
@@ -66,6 +176,34 @@ export function MasterFormFields({
           );
         }
 
+        if (column.sourceMaster) {
+          const { dependsOnKey } = column.sourceMaster;
+          const dependsOnValue = dependsOnKey ? formValues[dependsOnKey] : undefined;
+          const disabled = Boolean(dependsOnKey) && !dependsOnValue;
+          return (
+            <div key={column.key} className="space-y-1.5">
+              <Label htmlFor={fieldId}>{column.formLabel ?? column.label}</Label>
+              <SourceMasterField
+                column={column as MasterColumn & { sourceMaster: NonNullable<MasterColumn["sourceMaster"]> }}
+                fieldId={fieldId}
+                value={formValues[column.key] ?? ""}
+                dependsOnValue={dependsOnValue}
+                dependsOnLabel={columns.find((c) => c.key === dependsOnKey)?.label}
+                disabled={disabled}
+                onChange={(value) => {
+                  // Clear any field that itself sources from this one, so a changed parent can't leave a stale, now-invalid child selection behind.
+                  const dependents = Object.fromEntries(
+                    columns
+                      .filter((c) => c.sourceMaster?.dependsOnKey === column.key)
+                      .map((c) => [c.key, ""]),
+                  );
+                  onChange({ ...formValues, [column.key]: value, ...dependents });
+                }}
+              />
+            </div>
+          );
+        }
+
         if (isCascading) {
           const options =
             column.key === "zoneName"
@@ -74,10 +212,16 @@ export function MasterFormFields({
                 ? statesForZone(formValues.zoneName ?? "")
                 : isHostOrgField
                   ? hostOrgsForState(formValues.stateName ?? "")
-                  : [];
+                  : isDistrictField
+                    ? districtsForState(formValues.stateName ?? "")
+                    : [];
           const disabled =
             (isStateField && !formValues.zoneName) ||
-            (isHostOrgField && !formValues.stateName);
+            (isHostOrgField && !formValues.stateName) ||
+            (isDistrictField && !formValues.stateName);
+          // A changed Zone/State must clear whatever downstream cascading field it invalidates - but only the ones this cascadeType actually cascades (institute's own districtName picks a real district, while district-master's own same-named field is the free-text name of the record being created, which must survive a Zone/State change untouched).
+          const clearedDownstream: Record<string, string> =
+            cascadeType === "institute" ? { hostOrg: "", districtName: "" } : { hostOrg: "" };
 
           return (
             <div key={column.key} className="space-y-1.5">
@@ -90,10 +234,8 @@ export function MasterFormFields({
                   onChange({
                     ...formValues,
                     [column.key]: event.target.value,
-                    ...(column.key === "zoneName"
-                      ? { stateName: "", hostOrg: "" }
-                      : {}),
-                    ...(isStateField ? { hostOrg: "" } : {}),
+                    ...(column.key === "zoneName" ? { stateName: "", ...clearedDownstream } : {}),
+                    ...(isStateField ? clearedDownstream : {}),
                   })
                 }
                 className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring disabled:cursor-not-allowed disabled:opacity-50"
@@ -115,11 +257,11 @@ export function MasterFormFields({
 
         return (
           <div key={column.key} className="space-y-1.5">
-            <Label htmlFor={fieldId}>{column.label}</Label>
+            <Label htmlFor={fieldId}>{column.formLabel ?? column.label}</Label>
             <Input
               id={fieldId}
               value={formValues[column.key] ?? ""}
-              placeholder={`Enter ${column.label.toLowerCase()}`}
+              placeholder={`Enter ${(column.formLabel ?? column.label).toLowerCase()}`}
               onChange={(event) =>
                 onChange({ ...formValues, [column.key]: event.target.value })
               }

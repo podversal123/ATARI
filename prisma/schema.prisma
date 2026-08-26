@@ -1,4 +1,4 @@
-// ATARI AMS — Prisma schema
+// ATARI AMS - Prisma schema
 // Modelled directly off two confirmed real sources, not guessed:
 //  1. lib/navigation.ts (this app's own audited column lists per leaf)
 //  2. the client's real 93-page "ATARI AMS REPORT" export (About KVK / Achievements /
@@ -151,16 +151,16 @@ model State {
 }
 
 model District {
-  id        String   @id @default(cuid())
-  name      String
-  stateId   String
-  state     State    @relation(fields: [stateId], references: [id])
+  id         String      @id @default(cuid())
+  name       String
+  stateId    String
+  state      State       @relation(fields: [stateId], references: [id])
   /// Denormalized for fast zone-scoped queries without an extra join.
   zoneId     String
   kvks       Kvk[]
   institutes Institute[]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
 
   @@unique([stateId, name])
   @@index([zoneId])
@@ -197,20 +197,20 @@ model Institute {
 /// columns confirmed from both lib/navigation.ts (host-master leaf) and the
 /// report's own host organization table.
 model HostOrganization {
-  id                 String   @id @default(cuid())
-  name               String
+  id                String   @id @default(cuid())
+  name              String
   /// Real field confirmed from the client's own Host Organisation contact list (Host organisation-1.docx, 2026-08-25) - the earlier model had phone/email/address but no named contact person.
-  directorExtension  String?
-  address            String?
-  officePhone        String?
-  mobilePhone        String?
-  fax                String?
-  email              String?
-  zoneId      String
-  zone        Zone     @relation(fields: [zoneId], references: [id])
-  kvks        Kvk[]
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  directorExtension String?
+  address           String?
+  officePhone       String?
+  mobilePhone       String?
+  fax               String?
+  email             String?
+  zoneId            String
+  zone              Zone     @relation(fields: [zoneId], references: [id])
+  kvks              Kvk[]
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 
   @@index([zoneId])
 }
@@ -2840,11 +2840,14 @@ model FldSubCategoryMaster {
 /// (not `Crop`) to stay unambiguous against the many plain `crop String`
 /// fields used elsewhere in this schema for free-text crop names.
 model CropMaster {
-  id            String               @id @default(cuid())
-  name          String
-  subCategoryId String
-  subCategory   FldSubCategoryMaster @relation(fields: [subCategoryId], references: [id])
-  zoneId        String
+  id               String               @id @default(cuid())
+  name             String
+  unit             String?
+  quantityDataType String?
+  quantityRequired Boolean              @default(false)
+  subCategoryId    String
+  subCategory      FldSubCategoryMaster @relation(fields: [subCategoryId], references: [id])
+  zoneId           String
 
   @@unique([subCategoryId, name])
   @@index([zoneId])
@@ -2880,6 +2883,9 @@ model ProductTypeMaster {
 model ProductMaster {
   id                  String            @id @default(cuid())
   name                String
+  unit                String?
+  quantityDataType    String?
+  quantityRequired    Boolean           @default(false)
   productTypeMasterId String
   productTypeMaster   ProductTypeMaster @relation(fields: [productTypeMasterId], references: [id])
   zoneId              String
