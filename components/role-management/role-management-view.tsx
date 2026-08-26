@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Plus,
   Search,
@@ -52,27 +52,18 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  BASE_ROLES,
-  HIERARCHY_LEVELS,
-  PERMISSIONS,
-  type RoleDefinition,
-} from "@/lib/rbac";
+import { HIERARCHY_LEVELS, PERMISSIONS } from "@/lib/rbac";
 import { useSession } from "@/lib/session";
 
-type Role = RoleDefinition & { id: string };
-
-/** The 9 roles from the Role Management spec - reference data, not user data, so it's real rather than empty. */
-const ROLES: Role[] = BASE_ROLES.map((role) => ({
-  ...role,
-  id: role.name.toLowerCase().replace(/\s+/g, "_"),
-}));
-
-/** A KVK Admin only ever deals with their own two roles - the rest of the hierarchy is Super Admin's concern. */
-const KVK_VISIBLE_ROLE_NAMES = new Set(["KVK Admin", "KVK User"]);
-const KVK_ROLES: Role[] = ROLES.filter((role) =>
-  KVK_VISIBLE_ROLE_NAMES.has(role.name),
-);
+type Role = {
+  id: string;
+  name: string;
+  hierarchyLevel: number;
+  description: string;
+  isSystemRole: boolean;
+  userCount: number;
+  permissions: string[];
+};
 
 type RoleFormState = {
   name: string;
@@ -87,28 +78,48 @@ const EMPTY_FORM: RoleFormState = {
 };
 
 /**
- * Role Management screen. This phase is UI-only (no backend yet), so Add /
- * Edit / Delete / Manage Permissions all render and validate exactly like
- * the reference, but don't persist anything - same "static/mock" convention
- * as the rest of the app's list pages until the database step lands.
+ * Role Management screen, wired to the real /api/roles CRUD + Manage
+ * Permissions endpoint. Only Super Admin gets Add/Edit/Delete/Manage
+ * Permissions (client spec's Action Control table: every other role tops
+ * out at View) - a system role's own name/slug stays protected even for
+ * Super Admin (hierarchy level and description can still change).
  */
 export function RoleManagementView() {
   const session = useSession();
-  const isKvk = session.role !== "super-admin";
-  const roles = isKvk ? KVK_ROLES : ROLES;
+  const canManage = session.role === "super-admin";
 
+  const [roles, setRoles] = useState<Role[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [listError, setListError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
 
   const [formOpen, setFormOpen] = useState(false);
   const [editingRole, setEditingRole] = useState<Role | null>(null);
   const [form, setForm] = useState<RoleFormState>(EMPTY_FORM);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [formSubmitting, setFormSubmitting] = useState(false);
 
   const [permissionsRole, setPermissionsRole] = useState<Role | null>(null);
-  const [checkedPermissions, setCheckedPermissions] = useState<Set<string>>(
-    new Set(),
-  );
+  const [checkedPermissions, setCheckedPermissions] = useState<Set<string>>(new Set());
+  const [permissionsSubmitting, setPermissionsSubmitting] = useState(false);
 
   const [deleteRole, setDeleteRole] = useState<Role | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
+  function loadRoles() {
+    setLoading(true);
+    fetch("/api/roles")
+      .then((res) => (res.ok ? res.json() : Promise.reject()))
+      .then((data: { roles: Role[] }) => {
+        setRoles(data.roles);
+        setListError(null);
+      })
+      .catch(() => setListError("Could not load roles."))
+      .finally(() => setLoading(false));
+  }
+
+  useEffect(loadRoles, []);
 
   const filteredRoles = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -119,6 +130,7 @@ export function RoleManagementView() {
   function openCreate() {
     setEditingRole(null);
     setForm(EMPTY_FORM);
+    setFormError(null);
     setFormOpen(true);
   }
 
@@ -127,26 +139,90 @@ export function RoleManagementView() {
     setForm({
       name: role.name,
       hierarchyLevel: String(role.hierarchyLevel),
-      description: "",
+      description: role.description,
     });
+    setFormError(null);
     setFormOpen(true);
+  }
+
+  async function submitForm() {
+    if (!form.name.trim() || !form.hierarchyLevel) return;
+    setFormError(null);
+    setFormSubmitting(true);
+    try {
+      const response = await fetch(editingRole ? `/api/roles/${editingRole.id}` : "/api/roles", {
+        method: editingRole ? "PATCH" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: form.name.trim(),
+          hierarchyLevel: Number(form.hierarchyLevel),
+          description: form.description.trim(),
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        setFormError(data.error ?? "Could not save this role.");
+        return;
+      }
+      setFormOpen(false);
+      loadRoles();
+    } catch {
+      setFormError("Could not reach the server. Please try again.");
+    } finally {
+      setFormSubmitting(false);
+    }
   }
 
   function openPermissions(role: Role) {
     setPermissionsRole(role);
-    setCheckedPermissions(new Set());
+    setCheckedPermissions(new Set(role.permissions));
   }
 
   function togglePermission(permission: string) {
     setCheckedPermissions((prev) => {
       const next = new Set(prev);
-      if (next.has(permission)) {
-        next.delete(permission);
-      } else {
-        next.add(permission);
-      }
+      if (next.has(permission)) next.delete(permission);
+      else next.add(permission);
       return next;
     });
+  }
+
+  async function submitPermissions() {
+    if (!permissionsRole) return;
+    setPermissionsSubmitting(true);
+    try {
+      const response = await fetch(`/api/roles/${permissionsRole.id}/permissions`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ permissions: Array.from(checkedPermissions) }),
+      });
+      if (response.ok) {
+        setPermissionsRole(null);
+        loadRoles();
+      }
+    } finally {
+      setPermissionsSubmitting(false);
+    }
+  }
+
+  async function confirmDelete() {
+    if (!deleteRole) return;
+    setDeleteError(null);
+    setDeleting(true);
+    try {
+      const response = await fetch(`/api/roles/${deleteRole.id}`, { method: "DELETE" });
+      const data = await response.json();
+      if (!response.ok) {
+        setDeleteError(data.error ?? "Could not delete this role.");
+        return;
+      }
+      setDeleteRole(null);
+      loadRoles();
+    } catch {
+      setDeleteError("Could not reach the server. Please try again.");
+    } finally {
+      setDeleting(false);
+    }
   }
 
   return (
@@ -161,7 +237,7 @@ export function RoleManagementView() {
             className="w-72 pl-8"
           />
         </div>
-        {!isKvk && (
+        {canManage && (
           <Button size="sm" onClick={openCreate}>
             <Plus className="size-3.5" />
             Add Role
@@ -174,7 +250,7 @@ export function RoleManagementView() {
           <TableRow className="bg-muted/50 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
             <TableHead className="w-16 px-4 py-3">S.No.</TableHead>
             <TableHead className="px-4 py-3">Name</TableHead>
-            {!isKvk && (
+            {canManage && (
               <TableHead className="w-16 px-4 py-3 text-right">
                 Actions
               </TableHead>
@@ -182,10 +258,22 @@ export function RoleManagementView() {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {filteredRoles.length === 0 ? (
+          {loading ? (
+            <TableRow>
+              <TableCell colSpan={canManage ? 3 : 2} className="px-4 py-16 text-center text-muted-foreground">
+                Loading roles...
+              </TableCell>
+            </TableRow>
+          ) : listError ? (
+            <TableRow>
+              <TableCell colSpan={canManage ? 3 : 2} className="px-4 py-16 text-center text-destructive">
+                {listError}
+              </TableCell>
+            </TableRow>
+          ) : filteredRoles.length === 0 ? (
             <TableRow>
               <TableCell
-                colSpan={isKvk ? 2 : 3}
+                colSpan={canManage ? 3 : 2}
                 className="px-4 py-16 text-center text-muted-foreground"
               >
                 No roles found.
@@ -200,7 +288,7 @@ export function RoleManagementView() {
                 <TableCell className="px-4 py-4 font-medium text-foreground">
                   {role.name}
                 </TableCell>
-                {!isKvk && (
+                {canManage && (
                   <TableCell className="px-4 py-4 text-right">
                     <DropdownMenu>
                       <DropdownMenuTrigger
@@ -219,13 +307,18 @@ export function RoleManagementView() {
                           <ShieldCheck className="size-3.5" />
                           Manage Permissions
                         </DropdownMenuItem>
-                        <DropdownMenuItem
-                          variant="destructive"
-                          onClick={() => setDeleteRole(role)}
-                        >
-                          <Trash2 className="size-3.5" />
-                          Delete Role
-                        </DropdownMenuItem>
+                        {!role.isSystemRole && (
+                          <DropdownMenuItem
+                            variant="destructive"
+                            onClick={() => {
+                              setDeleteRole(role);
+                              setDeleteError(null);
+                            }}
+                          >
+                            <Trash2 className="size-3.5" />
+                            Delete Role
+                          </DropdownMenuItem>
+                        )}
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>
@@ -268,12 +361,15 @@ export function RoleManagementView() {
                 id="role-name"
                 placeholder="e.g. custom_admin"
                 value={form.name}
+                disabled={editingRole?.isSystemRole}
                 onChange={(event) =>
                   setForm((prev) => ({ ...prev, name: event.target.value }))
                 }
               />
               <p className="text-xs text-muted-foreground">
-                Use snake_case (e.g. state_admin, state_user)
+                {editingRole?.isSystemRole
+                  ? "System role names can't be changed."
+                  : "Use snake_case (e.g. state_admin, state_user)"}
               </p>
             </div>
 
@@ -319,17 +415,18 @@ export function RoleManagementView() {
                 }
               />
             </div>
+            {formError && <p className="text-sm text-destructive">{formError}</p>}
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setFormOpen(false)}>
+            <Button variant="outline" onClick={() => setFormOpen(false)} disabled={formSubmitting}>
               Cancel
             </Button>
             <Button
-              onClick={() => setFormOpen(false)}
-              disabled={!form.name.trim() || !form.hierarchyLevel}
+              onClick={submitForm}
+              disabled={!form.name.trim() || !form.hierarchyLevel || formSubmitting}
             >
-              {editingRole ? "Save Changes" : "Create Role"}
+              {formSubmitting ? "Saving…" : editingRole ? "Save Changes" : "Create Role"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -363,11 +460,11 @@ export function RoleManagementView() {
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setPermissionsRole(null)}>
+            <Button variant="outline" onClick={() => setPermissionsRole(null)} disabled={permissionsSubmitting}>
               Cancel
             </Button>
-            <Button onClick={() => setPermissionsRole(null)}>
-              Save Permissions
+            <Button onClick={submitPermissions} disabled={permissionsSubmitting}>
+              {permissionsSubmitting ? "Saving…" : "Save Permissions"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -381,7 +478,7 @@ export function RoleManagementView() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              Delete role “{deleteRole?.name}”?
+              Delete role "{deleteRole?.name}"?
             </AlertDialogTitle>
             <AlertDialogDescription>
               This removes the role and its permission configuration. Users
@@ -389,10 +486,11 @@ export function RoleManagementView() {
               cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
+          {deleteError && <p className="text-sm text-destructive">{deleteError}</p>}
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={() => setDeleteRole(null)}>
-              Delete
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete} disabled={deleting}>
+              {deleting ? "Deleting…" : "Delete"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

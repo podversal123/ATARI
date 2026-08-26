@@ -10,7 +10,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { clearSession, useSession } from "@/lib/session";
+import { clearSession, useSession, useSessionReady } from "@/lib/session";
 import { ChangePasswordDialog } from "./change-password-dialog";
 
 /**
@@ -23,14 +23,24 @@ import { ChangePasswordDialog } from "./change-password-dialog";
 export function Topbar() {
   const router = useRouter();
   const session = useSession();
+  const sessionReady = useSessionReady();
   const [changePasswordOpen, setChangePasswordOpen] = useState(false);
 
-  const displayName =
-    session.role === "super-admin"
+  /**
+   * Before the real session has been read out of sessionStorage, `session`
+   * is only ever the hardcoded default (Super Admin) - rendering that
+   * directly is exactly the "wrong role flashes for a moment" bug (a KVK
+   * Admin's first frame reads "Super Administrator" until this swaps a
+   * moment later). Blank until ready instead of guessing.
+   */
+  const displayName = !sessionReady
+    ? ""
+    : session.role === "super-admin"
       ? "Super Administrator"
       : (session.kvkName ?? "KVK Admin");
-  const roleLabel =
-    session.role === "super-admin"
+  const roleLabel = !sessionReady
+    ? ""
+    : session.role === "super-admin"
       ? "ATARI Super Admin"
       : session.role === "kvk-admin"
         ? "KVK Admin"

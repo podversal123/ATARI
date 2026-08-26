@@ -24,7 +24,7 @@ export async function POST(request: Request) {
 
   const user = await prisma.user.findUnique({
     where: { username },
-    include: { kvk: true },
+    include: { kvk: true, assignedRole: true },
   });
 
   // Same generic error whether the username doesn't exist or the password is
@@ -40,8 +40,14 @@ export async function POST(request: Request) {
   await createSessionCookie({
     sub: user.id,
     role: user.role,
+    roleId: user.roleId,
+    roleSlug: user.assignedRole?.slug ?? null,
+    roleScope: user.assignedRole?.scope ?? null,
     zoneId: user.zoneId,
     kvkId: user.kvkId,
+    stateId: user.stateId,
+    districtId: user.districtId,
+    hostOrgId: user.hostOrgId,
   });
 
   // Fire-and-forget: a slow/failed audit write must never block or fail a real login.
@@ -50,7 +56,7 @@ export async function POST(request: Request) {
       data: {
         userId: user.id,
         username: user.username,
-        role: user.role,
+        roleId: user.roleId,
         kvkId: user.kvkId,
         kvkName: user.kvk?.name,
         zoneId: user.zoneId,

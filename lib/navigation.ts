@@ -12,6 +12,8 @@
  * until the reference show the real field list.
  */
 
+import { INSTITUTE_MASTER_ROWS } from "./masters";
+
 export type MasterColumn = {
   key: string;
   label: string;
@@ -44,6 +46,8 @@ export type MasterColumn = {
   };
   /** Renders as a real checkbox instead of a text input - the stored value is the string "true"/"false". */
   fieldKind?: "checkbox";
+  /** Renders as a <select> from a fixed, known-real option list (not another master's saved rows, not free text) - e.g. Institute Name's real 4-option set. */
+  staticOptions?: string[];
 };
 
 export type NavLeaf = {
@@ -385,7 +389,7 @@ const basicMasters = group(
       { key: "zoneName", label: "Zone Name" },
       { key: "stateName", label: "State Name" },
       { key: "districtName", label: "District Name" },
-      { key: "instituteName", label: "Institute Name" },
+      { key: "instituteName", label: "Institute Name", staticOptions: INSTITUTE_MASTER_ROWS.map((r) => r.instituteName) },
     ]),
     leaf("host-master", "Host Master", [
       { key: "hostName", label: "Host Name" },
@@ -633,9 +637,9 @@ const aboutKvk = group(
       leaf("view-kvks", "View KVKs", [
         { key: "zoneName", label: "Zone Name" },
         { key: "stateName", label: "State Name" },
-        { key: "hostOrg", label: "Organization Name" },
+        { key: "hostOrg", label: "Host Org" },
         { key: "districtName", label: "District Name" },
-        { key: "kvk", label: "KVK Name" },
+        { key: "kvk", label: "KVK" },
         { key: "mobile", label: "Mobile" },
         { key: "email", label: "Email" },
         { key: "address", label: "Address" },
@@ -648,7 +652,7 @@ const aboutKvk = group(
         { key: "accountName", label: "Account Name" },
         { key: "bankName", label: "Bank Name" },
         { key: "location", label: "Location" },
-        { key: "accountNumber", label: "Account Number" },
+        { key: "accountNumber", label: "Account" },
       ]),
     ]),
     group("employee", "Employee Information", [

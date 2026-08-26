@@ -3,7 +3,7 @@ import { cookies } from "next/headers";
 import { SignJWT, jwtVerify } from "jose";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
-import type { Role } from "@/lib/generated/prisma/enums";
+import type { AuthLevel, RoleScope } from "@/lib/generated/prisma/enums";
 
 const COOKIE_NAME = "ams_session";
 const SESSION_DURATION_SECONDS = 60 * 60 * 12; // 12h - re-login daily, not a silent-forever session
@@ -14,11 +14,26 @@ function getSecretKey() {
   return new TextEncoder().encode(secret);
 }
 
+/**
+ * `role` stays the real enforcement level every existing check in this app
+ * already branches on (unchanged since before Role Management existed).
+ * The rest describe the human-facing Role a user is assigned and what it
+ * scopes them to - see prisma/schema.prisma's Role model and "Roles based
+ * access system 1.0" (client spec): a role with no scope narrower than its
+ * `scope` type set here has no data outside it, checked at the API level on
+ * every scoped query, not just hidden in the UI.
+ */
 export type SessionPayload = {
   sub: string;
-  role: Role;
+  role: AuthLevel;
+  roleId: string | null;
+  roleSlug: string | null;
+  roleScope: RoleScope | null;
   zoneId: string;
   kvkId: string | null;
+  stateId: string | null;
+  districtId: string | null;
+  hostOrgId: string | null;
 };
 
 export async function hashPassword(password: string) {

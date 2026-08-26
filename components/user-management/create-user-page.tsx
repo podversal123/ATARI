@@ -14,7 +14,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { PageHeader } from "@/components/layout/page-header";
-import { BASE_ROLES, DISTRICTS, KVKS, STATES, scopeFieldFor } from "@/lib/rbac";
+import { BASE_ROLES, DISTRICTS, KVKS, STATES, scopeFieldFor, type ScopeKind } from "@/lib/rbac";
 import { useSession } from "@/lib/session";
 
 const KVK_USER_ROLE = "KVK User";
@@ -31,6 +31,34 @@ type UserFormState = {
 
 function roleByName(name: string) {
   return BASE_ROLES.find((role) => role.name === name);
+}
+
+/** Matches the slugs seeded for the 9 real system roles (prisma/seed-roles.ts) - every BASE_ROLES name transforms to its slug the same way. */
+function roleSlugFromName(name: string) {
+  return name.toLowerCase().replace(/\s+/g, "_");
+}
+
+/**
+ * The real Create User form has no separate "Username" field (per the
+ * reference) - login already works off a plain `username` column, so the
+ * email doubles as it here, same as typing either one at the login screen.
+ * Only ever called with a `scopeField`'s own `kind`, which is never
+ * "system" (scopeFieldFor returns null for that case) - typed to accept
+ * the full ScopeKind anyway since that's the real return type.
+ */
+function scopeBodyKey(kind: ScopeKind) {
+  switch (kind) {
+    case "system":
+      return null;
+    case "state":
+      return "stateName";
+    case "district":
+      return "districtName";
+    case "organisation":
+      return "hostOrgName";
+    case "kvk":
+      return "kvkName";
+  }
 }
 
 function scopeOptionsFor(kind: ReturnType<typeof scopeFieldFor>) {
@@ -82,6 +110,7 @@ export function CreateUserPage() {
   );
   const [showPassword, setShowPassword] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
   const selectedRole = roleByName(form.roleName);
   const scopeField = selectedRole ? scopeFieldFor(selectedRole.scope) : null;
@@ -98,7 +127,7 @@ export function CreateUserPage() {
     setForm((prev) => ({ ...prev, roleName, scopeValue: "" }));
   }
 
-  function submitForm() {
+  async function submitForm() {
     if (!form.fullName.trim() || !form.email.trim() || !form.roleName) {
       setFormError("Full name, email and role are required.");
       return;
@@ -107,11 +136,40 @@ export function CreateUserPage() {
       setFormError(`${scopeField.label} is required for this role.`);
       return;
     }
-    if (form.password !== form.confirmPassword) {
+    if (!form.password || form.password !== form.confirmPassword) {
       setFormError("Password and confirm password do not match.");
       return;
     }
-    router.push(backHref);
+    setFormError(null);
+    setSubmitting(true);
+    try {
+      const response = await fetch("/api/users", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: form.fullName.trim(),
+          username: form.email.trim(),
+          email: form.email.trim(),
+          phone: form.phone.trim(),
+          password: form.password,
+          roleSlug: roleSlugFromName(form.roleName),
+          ...(scopeField && scopeBodyKey(scopeField.kind)
+            ? { [scopeBodyKey(scopeField.kind)!]: form.scopeValue }
+            : {}),
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        setFormError(data.error ?? "Could not create this user.");
+        return;
+      }
+      router.push(backHref);
+      router.refresh();
+    } catch {
+      setFormError("Could not reach the server. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (
@@ -272,12 +330,12 @@ export function CreateUserPage() {
         )}
 
         <div className="mt-5 flex justify-end gap-2 border-t border-border pt-4">
-          <Button variant="outline" onClick={() => router.push(backHref)}>
+          <Button variant="outline" onClick={() => router.push(backHref)} disabled={submitting}>
             Cancel
           </Button>
-          <Button onClick={submitForm}>
+          <Button onClick={submitForm} disabled={submitting}>
             <Save className="size-3.5" />
-            Create User
+            {submitting ? "Creating…" : "Create User"}
           </Button>
         </div>
       </div>

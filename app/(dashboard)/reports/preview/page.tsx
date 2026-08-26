@@ -10,6 +10,7 @@ import { ReportPreviewCard } from "@/components/reports/report-preview-card";
 import { DownloadReportButtons } from "@/components/reports/download-report-buttons";
 import { useReportPreview } from "@/components/reports/use-report-preview";
 import { formatDisplayDate } from "@/lib/reports";
+import { downloadBlob } from "@/lib/utils";
 import type { ReportSection } from "@/lib/report-data";
 
 /**
@@ -85,15 +86,6 @@ function ReportPreviewContent() {
     } finally {
       setPdfLoading(false);
     }
-  }
-
-  function downloadBlob(blob: Blob, filename: string) {
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = filename;
-    a.click();
-    URL.revokeObjectURL(url);
   }
 
   async function handleDownloadExcel() {
