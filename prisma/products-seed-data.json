@@ -1,0 +1,2642 @@
+[
+  {
+    "name": "Jowar",
+    "type": "Fodder Crop Sampling",
+    "category": "Fodder Crop Sampling"
+  },
+  {
+    "name": "Berseem",
+    "type": "Fodder Crop Sampling",
+    "category": "Fodder Crop Sampling"
+  },
+  {
+    "name": "Other",
+    "type": "Ornamental Plants",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Makhana",
+    "type": "Others",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Dragon Fruit",
+    "type": "Fruits Planting Material",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Cow Urine",
+    "type": "Others Please Specify",
+    "category": "Fodder Crop Sampling"
+  },
+  {
+    "name": "Cow Dung",
+    "type": "Others Please Specify",
+    "category": "Fodder Crop Sampling"
+  },
+  {
+    "name": "Compost",
+    "type": "Others Please Specify",
+    "category": "Fodder Crop Sampling"
+  },
+  {
+    "name": "Coir Pith",
+    "type": "Others Please Specify",
+    "category": "Fodder Crop Sampling"
+  },
+  {
+    "name": "Spawn Culture",
+    "type": "Others Please Specify",
+    "category": "Fodder Crop Sampling"
+  },
+  {
+    "name": "Mushroom",
+    "type": "Others Please Specify",
+    "category": "Fodder Crop Sampling"
+  },
+  {
+    "name": "Others",
+    "type": "Fodder Crop Sampling",
+    "category": "Fodder Crop Sampling"
+  },
+  {
+    "name": "Subabul",
+    "type": "Fodder Crop Sampling",
+    "category": "Fodder Crop Sampling"
+  },
+  {
+    "name": "Other Fodder Grasses",
+    "type": "Fodder Crop Sampling",
+    "category": "Fodder Crop Sampling"
+  },
+  {
+    "name": "Gajaraj",
+    "type": "Fodder Crop Sampling",
+    "category": "Fodder Crop Sampling"
+  },
+  {
+    "name": "Sudan Chari",
+    "type": "Fodder Crop Sampling",
+    "category": "Fodder Crop Sampling"
+  },
+  {
+    "name": "Sesbania",
+    "type": "Fodder Crop Sampling",
+    "category": "Fodder Crop Sampling"
+  },
+  {
+    "name": "Setaria",
+    "type": "Fodder Crop Sampling",
+    "category": "Fodder Crop Sampling"
+  },
+  {
+    "name": "Others",
+    "type": "Spices",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Nutmeg graft",
+    "type": "Spices",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Curry Leaf",
+    "type": "Spices",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Cardamom",
+    "type": "Spices",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Bush Pepper",
+    "type": "Spices",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Ginger",
+    "type": "Spices",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Fennel",
+    "type": "Spices",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Peppar",
+    "type": "Spices",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Cinnamon",
+    "type": "Spices",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Black pepgper",
+    "type": "Spices",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Chilli",
+    "type": "Spices",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Tapioca",
+    "type": "Tuber Elephant Yams",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Others",
+    "type": "Plantation",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Rubber",
+    "type": "Plantation",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Coffee",
+    "type": "Plantation",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Cachew",
+    "type": "Plantation",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Drumstick",
+    "type": "Plantation",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Fodder Toussek",
+    "type": "Plantation",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Karanj",
+    "type": "Plantation",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Cashew",
+    "type": "Plantation",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Beetlenut",
+    "type": "Plantation",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Neem",
+    "type": "Plantation",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Acacia",
+    "type": "Plantation",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Siris",
+    "type": "Plantation",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Teak",
+    "type": "Plantation",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Jetropha",
+    "type": "Plantation",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Shisham",
+    "type": "Plantation",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Polpar",
+    "type": "Plantation",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Fodder",
+    "type": "Plantation",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Cardamom",
+    "type": "Plantation",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Coconut",
+    "type": "Plantation",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Arecanut",
+    "type": "Plantation",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Others",
+    "type": "Medicinal And Aromatic",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Pipli",
+    "type": "Medicinal And Aromatic",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Aloevera",
+    "type": "Medicinal And Aromatic",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Citronella",
+    "type": "Medicinal And Aromatic",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Akarkara",
+    "type": "Medicinal And Aromatic",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Butch",
+    "type": "Medicinal And Aromatic",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Satawer",
+    "type": "Medicinal And Aromatic",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Mentha",
+    "type": "Medicinal And Aromatic",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Lemon grass",
+    "type": "Medicinal And Aromatic",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Senecio",
+    "type": "Medicinal And Aromatic",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Surruria",
+    "type": "Medicinal And Aromatic",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Peomia",
+    "type": "Medicinal And Aromatic",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Dioscorea",
+    "type": "Medicinal And Aromatic",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Rose",
+    "type": "Medicinal And Aromatic",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Lavender",
+    "type": "Medicinal And Aromatic",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Seabuckthorn",
+    "type": "Medicinal And Aromatic",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Herbs",
+    "type": "Ornamental Plants",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Chakramuni",
+    "type": "Ornamental Plants",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Amruthaballi",
+    "type": "Ornamental Plants",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Orchid",
+    "type": "Ornamental Plants",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Taberna",
+    "type": "Ornamental Plants",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Heliconia",
+    "type": "Ornamental Plants",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Foliage Plants",
+    "type": "Ornamental Plants",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Flowering Plants",
+    "type": "Ornamental Plants",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Exocaria",
+    "type": "Ornamental Plants",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Euphorbia",
+    "type": "Ornamental Plants",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Coleus",
+    "type": "Ornamental Plants",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Bush Jasmine",
+    "type": "Ornamental Plants",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Arelia",
+    "type": "Ornamental Plants",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Anthurium",
+    "type": "Ornamental Plants",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Allamanda",
+    "type": "Ornamental Plants",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Gladiolus corms",
+    "type": "Ornamental Plants",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Rat rani",
+    "type": "Ornamental Plants",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Mandarin",
+    "type": "Ornamental Plants",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Gladioli",
+    "type": "Ornamental Plants",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Tikoma",
+    "type": "Ornamental Plants",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Iryfine",
+    "type": "Ornamental Plants",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Duranta",
+    "type": "Ornamental Plants",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Chandni",
+    "type": "Ornamental Plants",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Cassia",
+    "type": "Ornamental Plants",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Ashok",
+    "type": "Ornamental Plants",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Nishigandha",
+    "type": "Ornamental Plants",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Gaillardia",
+    "type": "Ornamental Plants",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Boganvelia",
+    "type": "Ornamental Plants",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Bamboo",
+    "type": "Ornamental Plants",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Aster",
+    "type": "Ornamental Plants",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Acalifa",
+    "type": "Ornamental Plants",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Bush Plants",
+    "type": "Ornamental Plants",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Lilly",
+    "type": "Ornamental Plants",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "China Palm",
+    "type": "Ornamental Plants",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Crotan",
+    "type": "Ornamental Plants",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Daheliya",
+    "type": "Ornamental Plants",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Rose",
+    "type": "Ornamental Plants",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Sesanal Flower",
+    "type": "Ornamental Plants",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Chrysenthemum",
+    "type": "Ornamental Plants",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Ornamental",
+    "type": "Ornamental Plants",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Mari gold",
+    "type": "Ornamental Plants",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Others",
+    "type": "Fruits Planting Material",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Watermelon",
+    "type": "Fruits Planting Material",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "West Indian cherry",
+    "type": "Fruits Planting Material",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Rambootan",
+    "type": "Fruits Planting Material",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Mangosteen",
+    "type": "Fruits Planting Material",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "loveloli",
+    "type": "Fruits Planting Material",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Bitter Lime",
+    "type": "Fruits Planting Material",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Javel",
+    "type": "Fruits Planting Material",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Jamba",
+    "type": "Fruits Planting Material",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Indian gooseberry",
+    "type": "Fruits Planting Material",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Egg Fruit",
+    "type": "Fruits Planting Material",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Chinese Orange",
+    "type": "Fruits Planting Material",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Chamba",
+    "type": "Fruits Planting Material",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Carambole",
+    "type": "Fruits Planting Material",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Bilumbi",
+    "type": "Fruits Planting Material",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Papaya seedlings",
+    "type": "Fruits Planting Material",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Lemon graft",
+    "type": "Fruits Planting Material",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "E apple",
+    "type": "Fruits Planting Material",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Sweet orange",
+    "type": "Fruits Planting Material",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Lasoda",
+    "type": "Fruits Planting Material",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Kinnow",
+    "type": "Fruits Planting Material",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Gunda",
+    "type": "Fruits Planting Material",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Date palm",
+    "type": "Fruits Planting Material",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Budded Ber",
+    "type": "Fruits Planting Material",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Tamarind",
+    "type": "Fruits Planting Material",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Kokum",
+    "type": "Fruits Planting Material",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Jamun",
+    "type": "Fruits Planting Material",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Jamberi",
+    "type": "Fruits Planting Material",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Grape",
+    "type": "Fruits Planting Material",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Fig",
+    "type": "Fruits Planting Material",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Drumstick",
+    "type": "Fruits Planting Material",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Coconut",
+    "type": "Fruits Planting Material",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Malta",
+    "type": "Fruits Planting Material",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Sahjan",
+    "type": "Fruits Planting Material",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Karonda",
+    "type": "Fruits Planting Material",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Koruna",
+    "type": "Fruits Planting Material",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Causterd Apple",
+    "type": "Fruits Planting Material",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Tree bean",
+    "type": "Fruits Planting Material",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Rough lemon",
+    "type": "Fruits Planting Material",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Passion fruit",
+    "type": "Fruits Planting Material",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Mango graft",
+    "type": "Fruits Planting Material",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Gauva Grafted",
+    "type": "Fruits Planting Material",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Citrus Lemon",
+    "type": "Fruits Planting Material",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Sapota",
+    "type": "Fruits Planting Material",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Cashewnut",
+    "type": "Fruits Planting Material",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Orange",
+    "type": "Fruits Planting Material",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Citrus",
+    "type": "Fruits Planting Material",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Woodapple",
+    "type": "Fruits Planting Material",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Guava",
+    "type": "Fruits Planting Material",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Litchi",
+    "type": "Fruits Planting Material",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Banana",
+    "type": "Fruits Planting Material",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Quince",
+    "type": "Fruits Planting Material",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Strawberry",
+    "type": "Fruits Planting Material",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Almond",
+    "type": "Fruits Planting Material",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Walnut",
+    "type": "Fruits Planting Material",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Perssimon",
+    "type": "Fruits Planting Material",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Pecan nut",
+    "type": "Fruits Planting Material",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Peach",
+    "type": "Fruits Planting Material",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Pear",
+    "type": "Fruits Planting Material",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Plum",
+    "type": "Fruits Planting Material",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Apricot",
+    "type": "Fruits Planting Material",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Cherry",
+    "type": "Fruits Planting Material",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Pomegranate",
+    "type": "Fruits Planting Material",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Apple",
+    "type": "Fruits Planting Material",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Bel",
+    "type": "Fruits Planting Material",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Ber",
+    "type": "Fruits Planting Material",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Lasora",
+    "type": "Fruits Planting Material",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Aonla",
+    "type": "Fruits Planting Material",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Jack fruit",
+    "type": "Fruits Planting Material",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Lemon",
+    "type": "Fruits Planting Material",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Pineapple",
+    "type": "Fruits Planting Material",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Potato",
+    "type": "Commercial Seedlings",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Erythrina",
+    "type": "Commercial Seedlings",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Aonla Sapota",
+    "type": "Vegetable Seedlings",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Annona",
+    "type": "Vegetable Seedlings",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Amla",
+    "type": "Vegetable Seedlings",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Acidlime",
+    "type": "Vegetable Seedlings",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Ivy Gourd",
+    "type": "Vegetable Seedlings",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Annual Moringa",
+    "type": "Vegetable Seedlings",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Amaranthus",
+    "type": "Vegetable Seedlings",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Agathi",
+    "type": "Vegetable Seedlings",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Pointed gourd",
+    "type": "Vegetable Seedlings",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Chiller",
+    "type": "Vegetable Seedlings",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Ridgegourd",
+    "type": "Vegetable Seedlings",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Muskmelon",
+    "type": "Vegetable Seedlings",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Drumstick",
+    "type": "Vegetable Seedlings",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Curry leaf",
+    "type": "Vegetable Seedlings",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Summer squash",
+    "type": "Vegetable Seedlings",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Pumpkin",
+    "type": "Vegetable Seedlings",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Sponge gourd",
+    "type": "Vegetable Seedlings",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Bitter gourd",
+    "type": "Vegetable Seedlings",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Winter vegetables",
+    "type": "Vegetable Seedlings",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Elephant foot yam",
+    "type": "Vegetable Seedlings",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Dioscorea",
+    "type": "Vegetable Seedlings",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Colocassia",
+    "type": "Vegetable Seedlings",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Radish",
+    "type": "Vegetable Seedlings",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Cucurbits",
+    "type": "Vegetable Seedlings",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Kale",
+    "type": "Vegetable Seedlings",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Lettuce",
+    "type": "Vegetable Seedlings",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Celery",
+    "type": "Vegetable Seedlings",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Parsley",
+    "type": "Vegetable Seedlings",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Knol khol",
+    "type": "Vegetable Seedlings",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Capsicum",
+    "type": "Vegetable Seedlings",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Cucumber",
+    "type": "Vegetable Seedlings",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Bottle Gourd",
+    "type": "Vegetable Seedlings",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Broccoli",
+    "type": "Vegetable Seedlings",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Bell Pepper",
+    "type": "Vegetable Seedlings",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "EM",
+    "type": "Bio Fertilizers",
+    "category": "Production of Bio Product"
+  },
+  {
+    "name": "VAM or AMF",
+    "type": "Bio Fertilizers",
+    "category": "Production of Bio Product"
+  },
+  {
+    "name": "ZSB",
+    "type": "Bio Fertilizers",
+    "category": "Production of Bio Product"
+  },
+  {
+    "name": "KMB",
+    "type": "Bio Fertilizers",
+    "category": "Production of Bio Product"
+  },
+  {
+    "name": "Phosphate Solubilizing Bacteria PSB",
+    "type": "Bio Fertilizers",
+    "category": "Production of Bio Product"
+  },
+  {
+    "name": "Azospirillum based Biofertilizer",
+    "type": "Bio Fertilizers",
+    "category": "Production of Bio Product"
+  },
+  {
+    "name": "Rhizobium based Biofertilizer",
+    "type": "Bio Fertilizers",
+    "category": "Production of Bio Product"
+  },
+  {
+    "name": "Azotobacter based Biofertilizer",
+    "type": "Bio Fertilizers",
+    "category": "Production of Bio Product"
+  },
+  {
+    "name": "Agroc Waste",
+    "type": "Vermicompost",
+    "category": "Production of Bio Product"
+  },
+  {
+    "name": "Cow Dung",
+    "type": "Vermicompost",
+    "category": "Production of Bio Product"
+  },
+  {
+    "name": "Others",
+    "type": "Others Please Specify",
+    "category": "Fodder Crop Sampling"
+  },
+  {
+    "name": "Cow dung wet",
+    "type": "Others Please Specify",
+    "category": "Fodder Crop Sampling"
+  },
+  {
+    "name": "Cow dung dry",
+    "type": "Others Please Specify",
+    "category": "Fodder Crop Sampling"
+  },
+  {
+    "name": "Coir pith compost",
+    "type": "Others Please Specify",
+    "category": "Fodder Crop Sampling"
+  },
+  {
+    "name": "Mineral Mixture",
+    "type": "Others Please Specify",
+    "category": "Fodder Crop Sampling"
+  },
+  {
+    "name": "Cuelure",
+    "type": "Others Please Specify",
+    "category": "Fodder Crop Sampling"
+  },
+  {
+    "name": "Mushroom spawn",
+    "type": "Others Please Specify",
+    "category": "Fodder Crop Sampling"
+  },
+  {
+    "name": "Others",
+    "type": "Biofungicide",
+    "category": "Production of Bio Product"
+  },
+  {
+    "name": "Metarrhizium anisopliae Metchnikoff",
+    "type": "Biofungicide",
+    "category": "Production of Bio Product"
+  },
+  {
+    "name": "Beauveria bassiana Balsamo Vuillemin",
+    "type": "Biofungicide",
+    "category": "Production of Bio Product"
+  },
+  {
+    "name": "Trichoderma viridae",
+    "type": "Biofungicide",
+    "category": "Production of Bio Product"
+  },
+  {
+    "name": "NADEP",
+    "type": "Biofungicide",
+    "category": "Production of Bio Product"
+  },
+  {
+    "name": "Crysoparla",
+    "type": "Biofungicide",
+    "category": "Production of Bio Product"
+  },
+  {
+    "name": "Agro Derma",
+    "type": "Biofungicide",
+    "category": "Production of Bio Product"
+  },
+  {
+    "name": "Vermi cocoons",
+    "type": "Biofungicide",
+    "category": "Production of Bio Product"
+  },
+  {
+    "name": "Azotobactor",
+    "type": "Biofungicide",
+    "category": "Production of Bio Product"
+  },
+  {
+    "name": "Rhizobium",
+    "type": "Biofungicide",
+    "category": "Production of Bio Product"
+  },
+  {
+    "name": "PSB",
+    "type": "Biofungicide",
+    "category": "Production of Bio Product"
+  },
+  {
+    "name": "Verticillium",
+    "type": "Biofungicide",
+    "category": "Production of Bio Product"
+  },
+  {
+    "name": "Pseudomonas fluerensence",
+    "type": "Biofungicide",
+    "category": "Production of Bio Product"
+  },
+  {
+    "name": "Trichoderma",
+    "type": "Biofungicide",
+    "category": "Production of Bio Product"
+  },
+  {
+    "name": "Epiricania melanolauca",
+    "type": "Biocontrol Agent",
+    "category": "Production of Bio Product"
+  },
+  {
+    "name": "Ooincirtus papilionis",
+    "type": "Biocontrol Agent",
+    "category": "Production of Bio Product"
+  },
+  {
+    "name": "Earth worm",
+    "type": "Worms Earthworm Silk Worms Etc",
+    "category": "Production of Bio Product"
+  },
+  {
+    "name": "Eisenia foetida",
+    "type": "Worms Earthworm Silk Worms Etc",
+    "category": "Production of Bio Product"
+  },
+  {
+    "name": "Euclnia Uginae",
+    "type": "Worms Earthworm Silk Worms Etc",
+    "category": "Production of Bio Product"
+  },
+  {
+    "name": "Others",
+    "type": "Worms Earthworm Silk Worms Etc",
+    "category": "Production of Bio Product"
+  },
+  {
+    "name": "Eudrilus eugeniae",
+    "type": "Worms Earthworm Silk Worms Etc",
+    "category": "Production of Bio Product"
+  },
+  {
+    "name": "Assinia foetida",
+    "type": "Worms Earthworm Silk Worms Etc",
+    "category": "Production of Bio Product"
+  },
+  {
+    "name": "Others",
+    "type": "Bioagents Trichocard etc",
+    "category": "Production of Bio Product"
+  },
+  {
+    "name": "Tricho card",
+    "type": "Bioagents Trichocard etc",
+    "category": "Production of Bio Product"
+  },
+  {
+    "name": "Chrysoperla carnea",
+    "type": "Bioagents Trichocard etc",
+    "category": "Production of Bio Product"
+  },
+  {
+    "name": "Trichogramma chilonis",
+    "type": "Bioagents Trichocard etc",
+    "category": "Production of Bio Product"
+  },
+  {
+    "name": "Others",
+    "type": "Biopesticide Nimast Brahmastr Jeevamrit",
+    "category": "Production of Bio Product"
+  },
+  {
+    "name": "Trichogramma chilonis",
+    "type": "Biopesticide Nimast Brahmastr Jeevamrit",
+    "category": "Production of Bio Product"
+  },
+  {
+    "name": "Pseudomonas fluorescens",
+    "type": "Biopesticide Nimast Brahmastr Jeevamrit",
+    "category": "Production of Bio Product"
+  },
+  {
+    "name": "Trichoderma",
+    "type": "Biopesticide Nimast Brahmastr Jeevamrit",
+    "category": "Production of Bio Product"
+  },
+  {
+    "name": "NPV",
+    "type": "Biopesticide Nimast Brahmastr Jeevamrit",
+    "category": "Production of Bio Product"
+  },
+  {
+    "name": "Agroneem",
+    "type": "Biopesticide Nimast Brahmastr Jeevamrit",
+    "category": "Production of Bio Product"
+  },
+  {
+    "name": "Trichoderma harjinum",
+    "type": "Biopesticide Nimast Brahmastr Jeevamrit",
+    "category": "Production of Bio Product"
+  },
+  {
+    "name": "Verticillium",
+    "type": "Biopesticide Nimast Brahmastr Jeevamrit",
+    "category": "Production of Bio Product"
+  },
+  {
+    "name": "Panchagavya",
+    "type": "Biopesticide Nimast Brahmastr Jeevamrit",
+    "category": "Production of Bio Product"
+  },
+  {
+    "name": "Paeciliomyces",
+    "type": "Biopesticide Nimast Brahmastr Jeevamrit",
+    "category": "Production of Bio Product"
+  },
+  {
+    "name": "NSKE",
+    "type": "Biopesticide Nimast Brahmastr Jeevamrit",
+    "category": "Production of Bio Product"
+  },
+  {
+    "name": "Neumoria",
+    "type": "Biopesticide Nimast Brahmastr Jeevamrit",
+    "category": "Production of Bio Product"
+  },
+  {
+    "name": "Neem powder",
+    "type": "Biopesticide Nimast Brahmastr Jeevamrit",
+    "category": "Production of Bio Product"
+  },
+  {
+    "name": "Leucin Lures",
+    "type": "Biopesticide Nimast Brahmastr Jeevamrit",
+    "category": "Production of Bio Product"
+  },
+  {
+    "name": "Heli Lures",
+    "type": "Biopesticide Nimast Brahmastr Jeevamrit",
+    "category": "Production of Bio Product"
+  },
+  {
+    "name": "Baco Lures",
+    "type": "Biopesticide Nimast Brahmastr Jeevamrit",
+    "category": "Production of Bio Product"
+  },
+  {
+    "name": "Azatobactor",
+    "type": "Biopesticide Nimast Brahmastr Jeevamrit",
+    "category": "Production of Bio Product"
+  },
+  {
+    "name": "GF1",
+    "type": "Biopesticide Nimast Brahmastr Jeevamrit",
+    "category": "Production of Bio Product"
+  },
+  {
+    "name": "Ha NPV",
+    "type": "Biopesticide Nimast Brahmastr Jeevamrit",
+    "category": "Production of Bio Product"
+  },
+  {
+    "name": "Sl NPV",
+    "type": "Biopesticide Nimast Brahmastr Jeevamrit",
+    "category": "Production of Bio Product"
+  },
+  {
+    "name": "Metarhizium anisopliae",
+    "type": "Biopesticide Nimast Brahmastr Jeevamrit",
+    "category": "Production of Bio Product"
+  },
+  {
+    "name": "Beauveria bassiana",
+    "type": "Biopesticide Nimast Brahmastr Jeevamrit",
+    "category": "Production of Bio Product"
+  },
+  {
+    "name": "Trichoderma viride",
+    "type": "Biopesticide Nimast Brahmastr Jeevamrit",
+    "category": "Production of Bio Product"
+  },
+  {
+    "name": "Tobacco extract",
+    "type": "Biopesticide Nimast Brahmastr Jeevamrit",
+    "category": "Production of Bio Product"
+  },
+  {
+    "name": "Neem extract",
+    "type": "Biopesticide Nimast Brahmastr Jeevamrit",
+    "category": "Production of Bio Product"
+  },
+  {
+    "name": "Others",
+    "type": "Biofood",
+    "category": "Production of Bio Product"
+  },
+  {
+    "name": "Spirulina",
+    "type": "Biofood",
+    "category": "Production of Bio Product"
+  },
+  {
+    "name": "Napier",
+    "type": "Fodder Crop Sampling",
+    "category": "Fodder Crop Sampling"
+  },
+  {
+    "name": "Ducks",
+    "type": "Ducks",
+    "category": "Production of Livestock and Fisheries Material"
+  },
+  {
+    "name": "Rehum emodi",
+    "type": "Medicinal",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Arnebia benthani",
+    "type": "Medicinal",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Walnut",
+    "type": "Others",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Azolla",
+    "type": "Others",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Mushroom",
+    "type": "Others",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Mushroom spawn",
+    "type": "Others",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Sisbania",
+    "type": "Others",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Elephant Footyam",
+    "type": "Others",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Broom Stick",
+    "type": "Others",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Tamarind",
+    "type": "Forest Crop",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Pongamia clabra",
+    "type": "Forest Crop",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Mesta",
+    "type": "Fibre Crops",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Cotton",
+    "type": "Fibre Crops",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Dhaincha",
+    "type": "Fibre Crops",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Sunhemp",
+    "type": "Fibre Crops",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Jute",
+    "type": "Fibre Crops",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Sweet Orange",
+    "type": "Fruits",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Walnut",
+    "type": "Fruits",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Mango",
+    "type": "Fruits",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Lime",
+    "type": "Fruits",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Guava",
+    "type": "Fruits",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Cashew",
+    "type": "Fruits",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Subabul",
+    "type": "Fodder",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Fodder Maize",
+    "type": "Fodder",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Fodder cowpea",
+    "type": "Fodder",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Anjan grass seed",
+    "type": "Fodder",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Fodder Sorghum",
+    "type": "Fodder",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Desmanthus",
+    "type": "Fodder",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Dhaman",
+    "type": "Fodder",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Napier",
+    "type": "Vegetables",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Fodder slips",
+    "type": "Fodder",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Napier Grass",
+    "type": "Fodder",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Fodder",
+    "type": "Fodder",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Rice Bean",
+    "type": "Fodder",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Oats",
+    "type": "Fodder",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Barseem",
+    "type": "Fodder",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Onion",
+    "type": "Spices",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Chilli",
+    "type": "Spices",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Isabgol",
+    "type": "Spices",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Cumin",
+    "type": "Spices",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Garlic",
+    "type": "Spices",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Sonf",
+    "type": "Spices",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Fenugreek",
+    "type": "Vegetables",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Turmeric",
+    "type": "Spices",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Methi",
+    "type": "Spices",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Ginger",
+    "type": "Spices",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Coriander",
+    "type": "Spices",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Flower Seeds",
+    "type": "Ornamental or Flowers",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Aster",
+    "type": "Ornamental or Flowers",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Seasonal",
+    "type": "Ornamental or Flowers",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Others",
+    "type": "Ornamental or Flowers",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Marigold",
+    "type": "Ornamental or Flowers",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Gaillardia",
+    "type": "Ornamental or Flowers",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Chrysanthemum",
+    "type": "Ornamental or Flowers",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Tube rose",
+    "type": "Ornamental or Flowers",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Gerbera",
+    "type": "Ornamental or Flowers",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Flower",
+    "type": "Ornamental or Flowers",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Winged Bean",
+    "type": "Vegetables",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Snake Gourd",
+    "type": "Vegetables",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Ridge Gourd",
+    "type": "Vegetables",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Pumpkin",
+    "type": "Vegetables",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Moringa",
+    "type": "Vegetables",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Dolichos Bean",
+    "type": "Vegetables",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Cucumber",
+    "type": "Vegetables",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Cowpea Bush",
+    "type": "Vegetables",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Capsicum",
+    "type": "Vegetables",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Bush type lablab",
+    "type": "Vegetables",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Bush Cowpea",
+    "type": "Vegetables",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Beet Root",
+    "type": "Vegetables",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Ash Gourd",
+    "type": "Vegetables",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Yam",
+    "type": "Vegetables",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Cowpea",
+    "type": "Vegetables",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Watermelon",
+    "type": "Vegetables",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Snapmelon",
+    "type": "Vegetables",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Muskmelon",
+    "type": "Vegetables",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Ribbed gourd",
+    "type": "Vegetables",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Kachari",
+    "type": "Vegetables",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Drumstick",
+    "type": "Vegetables",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Cluster bean",
+    "type": "Vegetables",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Bottlegourd",
+    "type": "Vegetables",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Amaranths",
+    "type": "Vegetables",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Cauliflower",
+    "type": "Vegetables",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Cabbage",
+    "type": "Vegetables",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Garlic",
+    "type": "Vegetables",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Vegetable pea",
+    "type": "Vegetables",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "TPS",
+    "type": "Vegetables",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Garden pea",
+    "type": "Vegetables",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Coriander",
+    "type": "Vegetables",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Brinjal",
+    "type": "Vegetables",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Lobia",
+    "type": "Vegetables",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Tomato",
+    "type": "Vegetables",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Turnip",
+    "type": "Vegetables",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Tinda",
+    "type": "Vegetables",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Spinach",
+    "type": "Vegetables",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Radish",
+    "type": "Vegetables",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Peas",
+    "type": "Vegetables",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Onion",
+    "type": "Vegetables",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Okra",
+    "type": "Vegetables",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Methi",
+    "type": "Vegetables",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Leafy Mustard",
+    "type": "Vegetables",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "French bean",
+    "type": "Vegetables",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Colocasia",
+    "type": "Vegetables",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Chinese Sarson",
+    "type": "Vegetables",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Chinese Cabbage",
+    "type": "Vegetables",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Chilli",
+    "type": "Vegetables",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Carrot",
+    "type": "Vegetables",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Brocolli",
+    "type": "Vegetables",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Bitter Gourd",
+    "type": "Vegetables",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Cotton",
+    "type": "Commercial Crop",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Clusterbean",
+    "type": "Commercial Crop",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Potato",
+    "type": "Commercial Crop",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Sugarcane",
+    "type": "Commercial Crop",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Valvet bean",
+    "type": "Pulses",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Dolichos",
+    "type": "Pulses",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Mothbean",
+    "type": "Pulses",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Field bean",
+    "type": "Pulses",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Black soybean",
+    "type": "Pulses",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Urd",
+    "type": "Pulses",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Rice bean",
+    "type": "Pulses",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Pea",
+    "type": "Pulses",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Rajmash",
+    "type": "Pulses",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Pigeonpea",
+    "type": "Pulses",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Moong",
+    "type": "Pulses",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Clusterbean",
+    "type": "Pulses",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Frenchbean",
+    "type": "Pulses",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Fieldpea",
+    "type": "Pulses",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Cowpea",
+    "type": "Pulses",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Blackgram",
+    "type": "Pulses",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Beans",
+    "type": "Pulses",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Others",
+    "type": "Green Manure",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Dhaincha",
+    "type": "Green Manure",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Sunhemp",
+    "type": "Green Manure",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Castor Hybrid",
+    "type": "Oil Seed",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Castor",
+    "type": "Oil Seed",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Yellow Sarson",
+    "type": "Oil Seed",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Rai",
+    "type": "Oil Seed",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Sesamum",
+    "type": "Oil Seed",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Rapeseed",
+    "type": "Oil Seed",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Toria",
+    "type": "Oil Seed",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Niger",
+    "type": "Oil Seed",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Linseed",
+    "type": "Oil Seed",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Raya",
+    "type": "Oil Seed",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Karan Raya",
+    "type": "Oil Seed",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Gobhi Sarson",
+    "type": "Oil Seed",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Brown Sarson",
+    "type": "Oil Seed",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Navane",
+    "type": "Cereals",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Kodo",
+    "type": "Cereals",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Little Millet",
+    "type": "Cereals",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Maize Hybrid",
+    "type": "Cereals",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Pearl millet",
+    "type": "Cereals",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Amaranth",
+    "type": "Cereals",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Finger millets",
+    "type": "Cereals",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Barnyard millet",
+    "type": "Cereals",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Sorghum",
+    "type": "Cereals",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Foxtail millet",
+    "type": "Cereals",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Buck Wheat",
+    "type": "Cereals",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Millet",
+    "type": "Cereals",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Oat",
+    "type": "Cereals",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Barley",
+    "type": "Cereals",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Hyacinth Bean",
+    "type": "Green Manure",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Jack Bean",
+    "type": "Green Manure",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Velvet Bean",
+    "type": "Green Manure",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Sunnhemp",
+    "type": "Green Manure",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Tephrosia",
+    "type": "Green Manure",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Sesbania",
+    "type": "Green Manure",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Moth Bean",
+    "type": "Pulses",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Horse Gram",
+    "type": "Pulses",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Red Lentil",
+    "type": "Pulses",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Pigeon Pea",
+    "type": "Pulses",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Green Gram",
+    "type": "Pulses",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Black Gram",
+    "type": "Pulses",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Gram",
+    "type": "Pulses",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Safflower",
+    "type": "Oil Seed",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Castor Bean",
+    "type": "Oil Seed",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Soybean",
+    "type": "Oil Seed",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Sunflower",
+    "type": "Oil Seed",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Sesame",
+    "type": "Oil Seed",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Groundnut",
+    "type": "Oil Seed",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Jowar",
+    "type": "Cereals",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Bajra",
+    "type": "Cereals",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Maize",
+    "type": "Cereals",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Ragi",
+    "type": "Cereals",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Others Please Specify",
+    "type": "Fisheries",
+    "category": "Production of Livestock and Fisheries Material"
+  },
+  {
+    "name": "Spawn",
+    "type": "Fisheries",
+    "category": "Production of Livestock and Fisheries Material"
+  },
+  {
+    "name": "Fish Fingerlings",
+    "type": "Fisheries",
+    "category": "Production of Livestock and Fisheries Material"
+  },
+  {
+    "name": "Mixed Carp",
+    "type": "Fisheries",
+    "category": "Production of Livestock and Fisheries Material"
+  },
+  {
+    "name": "Exotic Carp",
+    "type": "Fisheries",
+    "category": "Production of Livestock and Fisheries Material"
+  },
+  {
+    "name": "Indian Carp",
+    "type": "Fisheries",
+    "category": "Production of Livestock and Fisheries Material"
+  },
+  {
+    "name": "Other Please Specify",
+    "type": "Piggery",
+    "category": "Production of Livestock and Fisheries Material"
+  },
+  {
+    "name": "Hog",
+    "type": "Piggery",
+    "category": "Production of Livestock and Fisheries Material"
+  },
+  {
+    "name": "other Please Specify",
+    "type": "Poultry",
+    "category": "Production of Livestock and Fisheries Material"
+  },
+  {
+    "name": "Ducks",
+    "type": "Poultry",
+    "category": "Production of Livestock and Fisheries Material"
+  },
+  {
+    "name": "Emu",
+    "type": "Poultry",
+    "category": "Production of Livestock and Fisheries Material"
+  },
+  {
+    "name": "Turkey",
+    "type": "Poultry",
+    "category": "Production of Livestock and Fisheries Material"
+  },
+  {
+    "name": "Japanese Quail",
+    "type": "Poultry",
+    "category": "Production of Livestock and Fisheries Material"
+  },
+  {
+    "name": "Duals broilers and layers",
+    "type": "Poultry",
+    "category": "Production of Livestock and Fisheries Material"
+  },
+  {
+    "name": "Layers",
+    "type": "Poultry",
+    "category": "Production of Livestock and Fisheries Material"
+  },
+  {
+    "name": "Other Please Specify",
+    "type": "Small Ruminants",
+    "category": "Production of Livestock and Fisheries Material"
+  },
+  {
+    "name": "Goat",
+    "type": "Small Ruminants",
+    "category": "Production of Livestock and Fisheries Material"
+  },
+  {
+    "name": "Others Please Specify",
+    "type": "Dairy Animals",
+    "category": "Production of Livestock and Fisheries Material"
+  },
+  {
+    "name": "Calves",
+    "type": "Dairy Animals",
+    "category": "Production of Livestock and Fisheries Material"
+  },
+  {
+    "name": "Buffaloes",
+    "type": "Dairy Animals",
+    "category": "Production of Livestock and Fisheries Material"
+  },
+  {
+    "name": "Others",
+    "type": "Ornamental Plants",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Tuberose",
+    "type": "Ornamental Plants",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Annual Chrysanthemum",
+    "type": "Ornamental Plants",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Guava",
+    "type": "Fruits Planting Material",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Others",
+    "type": "Commercial Seedlings",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Zinger",
+    "type": "Commercial Seedlings",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Turmeric",
+    "type": "Commercial Seedlings",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Sweet Potato",
+    "type": "Commercial Seedlings",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Others",
+    "type": "Vegetable Seedlings",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Brinjal",
+    "type": "Vegetable Seedlings",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Fisheries",
+    "type": "Fisheries",
+    "category": "Production of Livestock and Fisheries Material"
+  },
+  {
+    "name": "Rabbit",
+    "type": "Rabbitry",
+    "category": "Production of Livestock and Fisheries Material"
+  },
+  {
+    "name": "Piglet",
+    "type": "Piggery",
+    "category": "Production of Livestock and Fisheries Material"
+  },
+  {
+    "name": "Broilers",
+    "type": "Poultry",
+    "category": "Production of Livestock and Fisheries Material"
+  },
+  {
+    "name": "Sheep",
+    "type": "Small Ruminants",
+    "category": "Production of Livestock and Fisheries Material"
+  },
+  {
+    "name": "Cow",
+    "type": "Dairy Animals",
+    "category": "Production of Livestock and Fisheries Material"
+  },
+  {
+    "name": "Biopest",
+    "type": "Biopesticide Nimast Brahmastr Jeevamrit",
+    "category": "Production of Bio Product"
+  },
+  {
+    "name": "Bio Food",
+    "type": "Biofood",
+    "category": "Production of Bio Product"
+  },
+  {
+    "name": "Spices",
+    "type": "Spices",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Tuber Elephant Yams",
+    "type": "Tuber Elephant Yams",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Plantation",
+    "type": "Plantation",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Tulsi",
+    "type": "Medicinal And Aromatic",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Marigold",
+    "type": "Ornamental Plants",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Papaya",
+    "type": "Fruits Planting Material",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Lime",
+    "type": "Fruits Planting Material",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Mango",
+    "type": "Fruits Planting Material",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Sugarcane",
+    "type": "Commercial Seedlings",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Mulberry",
+    "type": "Commercial Seedlings",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Onion",
+    "type": "Vegetable Seedlings",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Chilli",
+    "type": "Vegetable Seedlings",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Tomato",
+    "type": "Vegetable Seedlings",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Cabbage",
+    "type": "Vegetable Seedlings",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Cauliflower",
+    "type": "Vegetable Seedlings",
+    "category": "Production of Planting Material"
+  },
+  {
+    "name": "Commercial Crop",
+    "type": "Pulses",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Green Manure",
+    "type": "Pulses",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Lentil",
+    "type": "Pulses",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Chickpea",
+    "type": "Pulses",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Mustard",
+    "type": "Oil Seed",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Wheat",
+    "type": "Cereals",
+    "category": "Production of Seed"
+  },
+  {
+    "name": "Paddy",
+    "type": "Cereals",
+    "category": "Production of Seed"
+  }
+]
