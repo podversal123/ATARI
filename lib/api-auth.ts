@@ -1,7 +1,7 @@
 import "server-only";
 import { NextResponse } from "next/server";
 import { getSessionPayload, type SessionPayload } from "@/lib/auth";
-import type { Role } from "@/lib/generated/prisma/enums";
+import type { AuthLevel } from "@/lib/generated/prisma/enums";
 
 export type AuthResult =
   | { ok: true; session: SessionPayload }
@@ -15,7 +15,7 @@ export function getClientIp(request: Request): string | null {
 }
 
 /** Reusable guard for API route handlers: verifies the session cookie, optionally restricts by role. */
-export async function requireSession(allowedRoles?: Role[]): Promise<AuthResult> {
+export async function requireSession(allowedRoles?: AuthLevel[]): Promise<AuthResult> {
   const session = await getSessionPayload();
   if (!session) {
     return {

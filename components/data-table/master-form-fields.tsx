@@ -164,6 +164,29 @@ export function MasterFormFields({
           );
         }
 
+        if (column.staticOptions) {
+          return (
+            <div key={column.key} className="space-y-1.5">
+              <Label htmlFor={fieldId}>{column.formLabel ?? column.label}</Label>
+              <select
+                id={fieldId}
+                value={formValues[column.key] ?? ""}
+                onChange={(event) => onChange({ ...formValues, [column.key]: event.target.value })}
+                className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring"
+              >
+                <option value="" disabled>
+                  Select {column.label}
+                </option>
+                {column.staticOptions.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
+            </div>
+          );
+        }
+
         if (column.fileKind) {
           return (
             <FileUploadField

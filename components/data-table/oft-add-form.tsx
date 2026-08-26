@@ -179,11 +179,11 @@ export function OftAddForm({ trail, backHref }: OftAddFormProps) {
           {textField("oft-thematic-area", "Thematic Area", thematicArea, setThematicArea, true)}
           {textField("oft-title", "Title of On Farm Trial", trialOnForm, setTrialOnForm, true)}
           {selectField("oft-status", "Ongoing/Completed", status, setStatus, STATUSES, true)}
-          {selectField("oft-source", "Source of Technology", sourceOfTechnology, setSourceOfTechnology, SOURCES)}
+          {selectField("oft-source", "Source of Technology (ICAR/ SAU/Other, please specify)", sourceOfTechnology, setSourceOfTechnology, SOURCES)}
           {textField("oft-production-system", "Production System", productionSystem, setProductionSystem)}
           {textField("oft-quantity", "Quantity", quantity, setQuantity)}
           {textField("oft-unit", "Unit", unit, setUnit, false, "e.g. ha, Kg")}
-          {textField("oft-trials", "No. of Trial/Replication/Farmer", noOfTrialReplicationFarmer, setNoOfTrialReplicationFarmer)}
+          {textField("oft-trials", "No. of Trial/Replication", noOfTrialReplicationFarmer, setNoOfTrialReplicationFarmer)}
           {textField("oft-critical-input", "Critical Input", criticalInput, setCriticalInput)}
           {textField("oft-cost", "Cost of OFT", costOfOft, setCostOfOft)}
           {textField("oft-funding-agency", "Funding Agency", fundingAgency, setFundingAgency)}

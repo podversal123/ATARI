@@ -27,31 +27,131 @@ datasource db {
 // Auth / RBAC
 // ---------------------------------------------------------------------------
 
-enum Role {
+/// The real enforcement level every authorization check in this app branches
+/// on (requireSession, session.role, etc.) - renamed from `Role` (its field
+/// name on User stays `role`, so no call site needed to change) now that
+/// `Role` below is the human-facing, DB-backed role a user is actually
+/// assigned in Role Management. Every one of the 9 real roles maps to one of
+/// these 3 levels via Role.authLevel; a role with no defined enforcement
+/// scope yet (State/District/Org Admin/User - see Role.scope) fails closed
+/// to KVK_USER until a real spec says otherwise, rather than guessing it
+/// should have broader access.
+enum AuthLevel {
   SUPER_ADMIN
   KVK_ADMIN
   KVK_USER
 }
 
+/// What kind of data a role's scope fields (User.stateId/districtId/hostOrgId/kvkId)
+/// narrow it to. Confirmed real roles (Role Management screenshots,
+/// 2026-08-15): Super Admin/State Admin/District Admin/Org Admin/KVK Admin/
+/// KVK User/State User/District User/Org User - 9 total, seeded as
+/// `isSystemRole` rows. "Add Role" lets a Super Admin create further custom
+/// roles on top of these.
+enum RoleScope {
+  SYSTEM
+  STATE
+  DISTRICT
+  ORG
+  KVK
+}
+
+model Role {
+  id             String    @id @default(cuid())
+  name           String
+  /// snake_case machine name (client's own real "Add Role" form rule: "Use
+  /// snake_case (e.g. state_admin, state_user)") - unique per zone so a
+  /// Super Admin's custom roles in one zone can't collide with another's.
+  slug           String
+  hierarchyLevel Int
+  scope          RoleScope
+  authLevel      AuthLevel
+  description    String?
+  /// The 9 seeded base roles - can't be deleted or renamed from Role Management.
+  isSystemRole   Boolean   @default(false)
+  /// Null for the 9 system roles (shared across every zone); set for a
+  /// custom role a Super Admin adds via "Add Role" in their own zone.
+  zoneId         String?
+  zone           Zone?     @relation(fields: [zoneId], references: [id])
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  users           User[]
+  loginActivities LoginActivity[]
+  targets         Target[]
+  permissions     RolePermission[]
+
+  @@unique([zoneId, slug])
+  @@index([zoneId])
+}
+
+/// The 10 real permissions from the client's RBAC spec ("Roles based access
+/// system 1.0", section 6.B) - what a role can DO within its scope, as
+/// opposed to Role.scope (WHERE). A role's granted set is exactly the rows
+/// present here; nothing implicit. Super Admin manages these via Manage
+/// Permissions; a role with none granted defaults to no access beyond login.
+enum PermissionType {
+  VIEW
+  ADD_CREATE
+  EDIT
+  DELETE
+  APPROVE
+  EXPORT
+  MANAGE_USERS
+  MANAGE_MASTERS
+  MANAGE_FORMS
+  MANAGE_PERMISSIONS
+}
+
+model RolePermission {
+  id     String         @id @default(cuid())
+  roleId String
+  role   Role           @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  type   PermissionType
+
+  @@unique([roleId, type])
+  @@index([roleId])
+}
+
 model User {
-  id           String   @id @default(cuid())
-  username     String   @unique
+  id           String            @id @default(cuid())
+  /// Optional: the 3 real accounts seeded before Role Management existed
+  /// (Super Admin + per-KVK admins) never captured a display name.
+  name         String?
+  username     String            @unique
+  email        String?           @unique
+  phone        String?
   passwordHash String
-  role         Role
+  role         AuthLevel
+  roleId       String?
+  assignedRole Role?             @relation(fields: [roleId], references: [id])
   /// Null for SUPER_ADMIN (a Super Admin owns a whole zone, not one KVK).
   kvkId        String?
-  kvk          Kvk?     @relation(fields: [kvkId], references: [id])
+  kvk          Kvk?              @relation(fields: [kvkId], references: [id])
+  /// Scope fields for the 6 real roles beyond the original 3 (State/District/
+  /// Org Admin/User) - which of these is set follows the assigned Role's
+  /// own `scope`, same convention as kvkId above.
+  stateId      String?
+  state        State?            @relation(fields: [stateId], references: [id])
+  districtId   String?
+  district     District?         @relation(fields: [districtId], references: [id])
+  hostOrgId    String?
+  hostOrg      HostOrganization? @relation(fields: [hostOrgId], references: [id])
   /// Every user (including Super Admin) belongs to exactly one zone - this is the
   /// root of the isolation model, not just a convenience field.
   zoneId       String
-  zone         Zone     @relation(fields: [zoneId], references: [id])
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  zone         Zone              @relation(fields: [zoneId], references: [id])
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
 
   loginActivities LoginActivity[]
 
   @@index([zoneId])
   @@index([kvkId])
+  @@index([roleId])
+  @@index([stateId])
+  @@index([districtId])
+  @@index([hostOrgId])
 }
 
 /// One row per successful login - powers the real "View Users Log Activity"
@@ -60,11 +160,17 @@ model User {
 /// at write time (not just joined via userId/kvkId) so history stays readable
 /// even if a user is later renamed or removed.
 model LoginActivity {
-  id       String @id @default(cuid())
-  userId   String
-  user     User   @relation(fields: [userId], references: [id])
+  id       String  @id @default(cuid())
+  /// Nullable + SetNull: deleting a User account must still be possible even
+  /// after they've logged in before (the normal case for any real account
+  /// being removed) - `username` below is already denormalized, so the log
+  /// row stays fully readable even once this link is gone.
+  userId   String?
+  user     User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
   username String
-  role     Role
+  /// Nullable: rows logged before Role Management existed have no Role row to point to.
+  roleId   String?
+  role     Role?   @relation(fields: [roleId], references: [id])
 
   kvkId   String?
   kvk     Kvk?    @relation(fields: [kvkId], references: [id])
@@ -95,10 +201,11 @@ model Target {
   reportingYear Int
   category      String // "OFT" | "FLD" | "Training" | "Extension Activity"
   targetValue   Int
-  setByRole     Role
+  setByRole     Role   @relation(fields: [roleId], references: [id])
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  roleId    String
 
   @@unique([kvkId, reportingYear, category])
   @@index([zoneId])
@@ -117,6 +224,7 @@ model Zone {
   institutes Institute[]
   kvks       Kvk[]
   users      User[]
+  roles      Role[]
 
   masterListItems       MasterListItem[]
   oftSubjects           OftSubject[]
@@ -143,6 +251,7 @@ model State {
   districts  District[]
   kvks       Kvk[]
   institutes Institute[]
+  users      User[]
   createdAt  DateTime    @default(now())
   updatedAt  DateTime    @updatedAt
 
@@ -159,6 +268,7 @@ model District {
   zoneId     String
   kvks       Kvk[]
   institutes Institute[]
+  users      User[]
   createdAt  DateTime    @default(now())
   updatedAt  DateTime    @updatedAt
 
@@ -209,6 +319,7 @@ model HostOrganization {
   zoneId            String
   zone              Zone     @relation(fields: [zoneId], references: [id])
   kvks              Kvk[]
+  users             User[]
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 

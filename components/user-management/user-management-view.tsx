@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { KeyRound, Plus, Search } from "lucide-react";
+import { KeyRound, MoreVertical, Pencil, Plus, Search, Trash2 } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
@@ -15,6 +15,22 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Table,
   TableBody,
   TableCell,
@@ -23,44 +39,120 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
+type UserRow = {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  roleName: string;
+  kvkName: string;
+  createdAt: string;
+  lastLogin: string | null;
+};
+
+type EditFormState = { name: string; email: string; phone: string; password: string };
+const EMPTY_EDIT_FORM: EditFormState = { name: "", email: "", phone: "", password: "" };
+
 /**
- * User Management screen. No accounts exist yet in this phase (no backend),
- * so the table always renders its real empty state - same "static/mock"
- * convention as the rest of the app. Create User is a dedicated page (same
- * pattern as Form Management's Add New) rather than a popup, since it's a
- * 7-field form; Reset Password stays a small popup. Edit/Delete per-row
- * actions wire up once real accounts exist (Phase 3).
+ * User Management screen, wired to the real /api/users CRUD - list, create
+ * (its own dedicated page, see create-user-page.tsx), edit, and delete all
+ * round-trip through Prisma now instead of the earlier hardcoded empty
+ * state. Reset Password reuses the same edit endpoint (a password-only
+ * PATCH), since it's the same underlying action a real admin can already do
+ * from Edit User - no separate backend needed for it.
  */
 export function UserManagementView() {
   const [search, setSearch] = useState("");
+  const [users, setUsers] = useState<UserRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [listError, setListError] = useState<string | null>(null);
 
-  const [resetOpen, setResetOpen] = useState(false);
-  const [resetForm, setResetForm] = useState({
-    email: "",
-    newPassword: "",
-    confirmPassword: "",
-  });
-  const [resetError, setResetError] = useState<string | null>(null);
+  const [editUser, setEditUser] = useState<UserRow | null>(null);
+  const [editForm, setEditForm] = useState<EditFormState>(EMPTY_EDIT_FORM);
+  const [editError, setEditError] = useState<string | null>(null);
+  const [editSubmitting, setEditSubmitting] = useState(false);
 
-  function openReset() {
-    setResetForm({ email: "", newPassword: "", confirmPassword: "" });
-    setResetError(null);
-    setResetOpen(true);
+  const [deleteUser, setDeleteUser] = useState<UserRow | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
+  function loadUsers() {
+    setLoading(true);
+    fetch("/api/users")
+      .then((res) => (res.ok ? res.json() : Promise.reject()))
+      .then((data: { users: UserRow[] }) => {
+        setUsers(data.users);
+        setListError(null);
+      })
+      .catch(() => setListError("Could not load users."))
+      .finally(() => setLoading(false));
   }
 
-  function submitReset() {
-    if (!resetForm.email.trim()) {
-      setResetError("User email is required.");
+  useEffect(loadUsers, []);
+
+  const filtered = users.filter(
+    (u) =>
+      u.name.toLowerCase().includes(search.toLowerCase()) ||
+      u.email.toLowerCase().includes(search.toLowerCase()),
+  );
+
+  function openEdit(user: UserRow) {
+    setEditUser(user);
+    setEditForm({ name: user.name, email: user.email, phone: user.phone, password: "" });
+    setEditError(null);
+  }
+
+  async function submitEdit() {
+    if (!editUser) return;
+    if (!editForm.name.trim()) {
+      setEditError("Name is required.");
       return;
     }
-    if (
-      !resetForm.newPassword ||
-      resetForm.newPassword !== resetForm.confirmPassword
-    ) {
-      setResetError("New password and confirm password do not match.");
-      return;
+    setEditError(null);
+    setEditSubmitting(true);
+    try {
+      const response = await fetch(`/api/users/${editUser.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: editForm.name.trim(),
+          email: editForm.email.trim(),
+          phone: editForm.phone.trim(),
+          ...(editForm.password ? { password: editForm.password } : {}),
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        setEditError(data.error ?? "Could not save changes.");
+        return;
+      }
+      setEditUser(null);
+      loadUsers();
+    } catch {
+      setEditError("Could not reach the server. Please try again.");
+    } finally {
+      setEditSubmitting(false);
     }
-    setResetOpen(false);
+  }
+
+  async function confirmDelete() {
+    if (!deleteUser) return;
+    setDeleteError(null);
+    setDeleting(true);
+    try {
+      const response = await fetch(`/api/users/${deleteUser.id}`, { method: "DELETE" });
+      const data = await response.json();
+      if (!response.ok) {
+        setDeleteError(data.error ?? "Could not delete this user.");
+        return;
+      }
+      setDeleteUser(null);
+      loadUsers();
+    } catch {
+      setDeleteError("Could not reach the server. Please try again.");
+    } finally {
+      setDeleting(false);
+    }
   }
 
   return (
@@ -75,19 +167,10 @@ export function UserManagementView() {
             className="w-72 pl-8"
           />
         </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={openReset}>
-            <KeyRound className="size-3.5" />
-            Reset User Password
-          </Button>
-          <Link
-            href="/user-management/create"
-            className={cn(buttonVariants({ size: "sm" }))}
-          >
-            <Plus className="size-3.5" />
-            Create User
-          </Link>
-        </div>
+        <Link href="/user-management/create" className={cn(buttonVariants({ size: "sm" }))}>
+          <Plus className="size-3.5" />
+          Create User
+        </Link>
       </div>
 
       <Table>
@@ -103,19 +186,74 @@ export function UserManagementView() {
           </TableRow>
         </TableHeader>
         <TableBody>
-          <TableRow>
-            <TableCell
-              colSpan={7}
-              className="px-4 py-16 text-center text-muted-foreground"
-            >
-              No users found.
-            </TableCell>
-          </TableRow>
+          {loading ? (
+            <TableRow>
+              <TableCell colSpan={6} className="px-4 py-16 text-center text-muted-foreground">
+                Loading users...
+              </TableCell>
+            </TableRow>
+          ) : listError ? (
+            <TableRow>
+              <TableCell colSpan={6} className="px-4 py-16 text-center text-destructive">
+                {listError}
+              </TableCell>
+            </TableRow>
+          ) : filtered.length === 0 ? (
+            <TableRow>
+              <TableCell colSpan={6} className="px-4 py-16 text-center text-muted-foreground">
+                No users found.
+              </TableCell>
+            </TableRow>
+          ) : (
+            filtered.map((user) => (
+              <TableRow key={user.id}>
+                <TableCell className="px-4 py-3 font-medium text-foreground">{user.name}</TableCell>
+                <TableCell className="px-4 py-3 text-muted-foreground">{user.email || "-"}</TableCell>
+                <TableCell className="px-4 py-3 text-muted-foreground">{user.phone || "-"}</TableCell>
+                <TableCell className="px-4 py-3 text-muted-foreground">{user.roleName}</TableCell>
+                <TableCell className="px-4 py-3 text-muted-foreground">
+                  {new Date(user.createdAt).toLocaleDateString()}
+                </TableCell>
+                <TableCell className="px-4 py-3 text-muted-foreground">
+                  {user.lastLogin ? new Date(user.lastLogin).toLocaleString() : "-"}
+                </TableCell>
+                <TableCell className="px-4 py-3 text-right">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger
+                      render={
+                        <Button variant="ghost" size="icon-sm">
+                          <MoreVertical className="size-4" />
+                        </Button>
+                      }
+                    />
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => openEdit(user)}>
+                        <Pencil className="size-3.5" />
+                        Edit User
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        variant="destructive"
+                        onClick={() => {
+                          setDeleteUser(user);
+                          setDeleteError(null);
+                        }}
+                      >
+                        <Trash2 className="size-3.5" />
+                        Delete User
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </TableCell>
+              </TableRow>
+            ))
+          )}
         </TableBody>
       </Table>
 
       <div className="flex items-center justify-between border-t border-border px-4 py-3 text-sm text-muted-foreground">
-        <span>Showing 0 to 0 of 0 entries</span>
+        <span>
+          Showing {filtered.length === 0 ? 0 : 1} to {filtered.length} of {filtered.length} entries
+        </span>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" disabled>
             Previous
@@ -126,89 +264,81 @@ export function UserManagementView() {
         </div>
       </div>
 
-      {/* Reset User Password - admin-mediated, since there's no email-based
-          self-reset per the client's spec. Only valid for a user who hasn't
-          already set their own password via Change Password; once they have,
-          this must stop working for that account (a real per-user flag the
-          backend needs to track - not fakeable without persistence yet). */}
-      <Dialog open={resetOpen} onOpenChange={setResetOpen}>
+      {/* Edit User */}
+      <Dialog open={editUser !== null} onOpenChange={(open) => !open && setEditUser(null)}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Reset User Password</DialogTitle>
+            <DialogTitle>Edit User</DialogTitle>
           </DialogHeader>
 
           <div className="space-y-4">
-            <p className="text-xs text-muted-foreground">
-              Only works before the user has set their own password via Change
-              Password - after that, only they can change it.
-            </p>
-
             <div className="space-y-1.5">
-              <Label htmlFor="reset-email">User Email</Label>
+              <Label htmlFor="edit-name">Full Name</Label>
               <Input
-                id="reset-email"
+                id="edit-name"
+                value={editForm.name}
+                onChange={(event) => setEditForm((prev) => ({ ...prev, name: event.target.value }))}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="edit-email">Email</Label>
+              <Input
+                id="edit-email"
                 type="email"
-                placeholder="name@atariams.org"
-                value={resetForm.email}
-                onChange={(event) =>
-                  setResetForm((prev) => ({
-                    ...prev,
-                    email: event.target.value,
-                  }))
-                }
+                value={editForm.email}
+                onChange={(event) => setEditForm((prev) => ({ ...prev, email: event.target.value }))}
               />
             </div>
-
             <div className="space-y-1.5">
-              <Label htmlFor="reset-new-password">New Password</Label>
+              <Label htmlFor="edit-phone">Phone</Label>
               <Input
-                id="reset-new-password"
+                id="edit-phone"
+                value={editForm.phone}
+                onChange={(event) => setEditForm((prev) => ({ ...prev, phone: event.target.value }))}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="edit-password">New Password (Optional)</Label>
+              <Input
+                id="edit-password"
                 type="password"
                 autoComplete="new-password"
-                value={resetForm.newPassword}
-                onChange={(event) =>
-                  setResetForm((prev) => ({
-                    ...prev,
-                    newPassword: event.target.value,
-                  }))
-                }
-              />
-              <p className="text-xs text-muted-foreground">
-                Must contain uppercase, lowercase, and number
-              </p>
-            </div>
-
-            <div className="space-y-1.5">
-              <Label htmlFor="reset-confirm-password">
-                Confirm New Password
-              </Label>
-              <Input
-                id="reset-confirm-password"
-                type="password"
-                autoComplete="new-password"
-                value={resetForm.confirmPassword}
-                onChange={(event) =>
-                  setResetForm((prev) => ({
-                    ...prev,
-                    confirmPassword: event.target.value,
-                  }))
-                }
+                value={editForm.password}
+                onChange={(event) => setEditForm((prev) => ({ ...prev, password: event.target.value }))}
               />
             </div>
-
-            {resetError && (
-              <p className="text-sm text-destructive">{resetError}</p>
-            )}
+            {editError && <p className="text-sm text-destructive">{editError}</p>}
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setResetOpen(false)}>
+            <Button variant="outline" onClick={() => setEditUser(null)} disabled={editSubmitting}>
               Cancel
             </Button>
-            <Button onClick={submitReset}>Reset Password</Button>
+            <Button onClick={submitEdit} disabled={editSubmitting}>
+              {editSubmitting ? "Saving…" : "Save Changes"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Delete confirm */}
+      <AlertDialog open={deleteUser !== null} onOpenChange={(open) => !open && setDeleteUser(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete user "{deleteUser?.name}"?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This permanently removes their account and login access. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          {deleteError && <p className="text-sm text-destructive">{deleteError}</p>}
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete} disabled={deleting}>
+              {deleting ? "Deleting…" : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

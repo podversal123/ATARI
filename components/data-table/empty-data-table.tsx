@@ -23,7 +23,7 @@ import {
 } from "lucide-react";
 import type { SidebarIconName } from "@/lib/navigation";
 import { SIDEBAR_ICONS } from "@/components/layout/sidebar-icons";
-import { cn } from "@/lib/utils";
+import { cn, downloadBlob } from "@/lib/utils";
 import { useSession } from "@/lib/session";
 import { Input } from "@/components/ui/input";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -534,19 +534,42 @@ export function EmptyDataTable({
                 // Lazy-loaded: jsPDF + autotable are large and only needed by
                 // the handful of visits that actually click this button -
                 // bundling them at module scope would ship their weight to
-                // every single Masters/Form Management page load.
+                // every single Masters/Form Management page load. Exports
+                // every filtered row, not just the current on-screen page
+                // (`displayedRows` is a pagination slice of `filteredRows` -
+                // exporting that silently dropped every row past page 1).
                 const { downloadTablePdf } = await import("@/lib/table-pdf");
-                downloadTablePdf(title, columns, displayedRows);
+                downloadTablePdf(title, columns, filteredRows);
               }}
             >
               <FileDown className="size-3.5" />
               PDF
             </Button>
-            <Button variant="outline" size="lg">
+            <Button
+              variant="outline"
+              size="lg"
+              onClick={async () => {
+                const { generateTableExcel } = await import("@/lib/table-excel");
+                const wb = await generateTableExcel(title, columns, filteredRows);
+                const buffer = await wb.xlsx.writeBuffer();
+                downloadBlob(
+                  new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }),
+                  `${title}.xlsx`,
+                );
+              }}
+            >
               <FileSpreadsheet className="size-3.5" />
               Excel
             </Button>
-            <Button variant="outline" size="lg">
+            <Button
+              variant="outline"
+              size="lg"
+              onClick={async () => {
+                const { generateTableWord } = await import("@/lib/table-word");
+                const blob = await generateTableWord(title, columns, filteredRows);
+                downloadBlob(blob, `${title}.docx`);
+              }}
+            >
               <FileType className="size-3.5" />
               Word
             </Button>
@@ -737,7 +760,7 @@ export function EmptyDataTable({
                     className="divide-x divide-border border-b border-border last:border-0"
                   >
                     <td className="px-4 py-3 align-top text-muted-foreground">
-                      {index + 1}
+                      {(currentPage - 1) * PAGE_SIZE + index + 1}
                     </td>
                     {orderedColumns.map((column) => {
                       const value = row[column.key];

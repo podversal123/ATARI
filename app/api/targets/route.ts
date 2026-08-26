@@ -80,11 +80,14 @@ export async function POST(request: Request) {
   if (!kvkId) {
     return NextResponse.json({ error: "No KVK to assign this target to." }, { status: 400 });
   }
+  if (!auth.session.roleId) {
+    return NextResponse.json({ error: "Your account has no assigned role." }, { status: 403 });
+  }
 
   const target = await prisma.target.upsert({
     where: { kvkId_reportingYear_category: { kvkId, reportingYear, category } },
-    create: { kvkId, zoneId: auth.session.zoneId, reportingYear, category, targetValue, setByRole: auth.session.role },
-    update: { targetValue, setByRole: auth.session.role },
+    create: { kvkId, zoneId: auth.session.zoneId, reportingYear, category, targetValue, roleId: auth.session.roleId },
+    update: { targetValue, roleId: auth.session.roleId },
   });
 
   return NextResponse.json({ ok: true, id: target.id }, { status: 201 });

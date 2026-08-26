@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { SIDEBAR } from "@/lib/navigation";
 import { cn } from "@/lib/utils";
-import { useSession } from "@/lib/session";
+import { useSession, useSessionReady } from "@/lib/session";
 import { NavTree } from "./sidebar-nav";
 import { SidebarTopLink } from "./sidebar-top-link";
 import { SidebarSectionLink } from "./sidebar-section-link";
@@ -39,9 +39,18 @@ export function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
   const pathname = usePathname();
   const session = useSession();
+  /**
+   * Before the real session is read out of sessionStorage, the fallback
+   * session is Super Admin's - defaulting `isSuperAdmin` on that directly
+   * would flash the fuller Super Admin sidebar (All Masters included) at
+   * every KVK Admin/User for a moment on every fresh page load. Requiring
+   * `sessionReady` too makes the untrusted window fail closed to the
+   * smaller menu instead of over-showing one nobody may actually have.
+   */
+  const sessionReady = useSessionReady();
+  const isSuperAdmin = sessionReady && session.role === "super-admin";
   const visibleSections = SIDEBAR.filter(
-    (section) =>
-      session.role === "super-admin" || !KVK_HIDDEN_SLUGS.has(section.slug),
+    (section) => isSuperAdmin || !KVK_HIDDEN_SLUGS.has(section.slug),
   );
 
   /**
