@@ -135,6 +135,7 @@ export default async function MastersPage({ params }: MastersPageProps) {
         districtName: kvk.district.name,
         kvk: kvk.name,
         mobile: kvk.officePhone ?? "-",
+        fax: kvk.fax ?? "-",
         email: kvk.email ?? "",
         address: kvk.address ?? "",
         sanctionYear: kvk.sanctionYear ? String(kvk.sanctionYear) : "",

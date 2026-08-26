@@ -235,7 +235,9 @@ const dedicated: Record<string, MasterLeafEntry> = {
         hostName: r.name,
         directorExtension: r.directorExtension ?? "",
         address: r.address ?? "",
-        phone: r.officePhone ?? r.mobilePhone ?? "",
+        phone: r.officePhone ?? "",
+        mobile: r.mobilePhone ?? "",
+        fax: r.fax ?? "",
         email: r.email ?? "",
       }));
     },
@@ -243,7 +245,16 @@ const dedicated: Record<string, MasterLeafEntry> = {
       const name = reqStr(v.hostName);
       if (!name) throw new Error("Host name is required.");
       return prisma.hostOrganization.create({
-        data: { name, directorExtension: reqStr(v.directorExtension) || undefined, address: reqStr(v.address) || undefined, officePhone: reqStr(v.phone) || undefined, email: reqStr(v.email) || undefined, zoneId },
+        data: {
+          name,
+          directorExtension: reqStr(v.directorExtension) || undefined,
+          address: reqStr(v.address) || undefined,
+          officePhone: reqStr(v.phone) || undefined,
+          mobilePhone: reqStr(v.mobile) || undefined,
+          fax: reqStr(v.fax) || undefined,
+          email: reqStr(v.email) || undefined,
+          zoneId,
+        },
       });
     },
     update: async (id, v, zoneId) => {
@@ -251,7 +262,15 @@ const dedicated: Record<string, MasterLeafEntry> = {
       if (!name) throw new Error("Host name is required.");
       return prisma.hostOrganization.updateMany({
         where: { id, zoneId },
-        data: { name, directorExtension: reqStr(v.directorExtension) || undefined, address: reqStr(v.address) || undefined, officePhone: reqStr(v.phone) || undefined, email: reqStr(v.email) || undefined },
+        data: {
+          name,
+          directorExtension: reqStr(v.directorExtension) || undefined,
+          address: reqStr(v.address) || undefined,
+          officePhone: reqStr(v.phone) || undefined,
+          mobilePhone: reqStr(v.mobile) || undefined,
+          fax: reqStr(v.fax) || undefined,
+          email: reqStr(v.email) || undefined,
+        },
       });
     },
     delete: (id, zoneId) => prisma.hostOrganization.deleteMany({ where: { id, zoneId } }),
@@ -462,8 +481,6 @@ const dedicated: Record<string, MasterLeafEntry> = {
         cropName: r.name,
         subCategoryName: r.subCategory.name,
         category: r.subCategory.category.name,
-        unit: r.unit ?? "",
-        quantityDataType: r.quantityDataType ?? "",
         quantityRequired: String(r.quantityRequired),
       }));
     },
@@ -479,8 +496,6 @@ const dedicated: Record<string, MasterLeafEntry> = {
           name,
           subCategoryId: subCategory.id,
           zoneId,
-          unit: reqStr(v.unit) || null,
-          quantityDataType: reqStr(v.quantityDataType) || null,
           quantityRequired: bool(v.quantityRequired),
         },
       });
@@ -497,8 +512,6 @@ const dedicated: Record<string, MasterLeafEntry> = {
         data: {
           name,
           subCategoryId: subCategory.id,
-          unit: reqStr(v.unit) || null,
-          quantityDataType: reqStr(v.quantityDataType) || null,
           quantityRequired: bool(v.quantityRequired),
         },
       });
@@ -612,8 +625,6 @@ const dedicated: Record<string, MasterLeafEntry> = {
         productCategoryName: r.productTypeMaster.categoryName,
         productCategoryType: r.productTypeMaster.typeName,
         productName: r.name,
-        unit: r.unit ?? "",
-        quantityDataType: r.quantityDataType ?? "",
         quantityRequired: String(r.quantityRequired),
       }));
     },
@@ -629,8 +640,6 @@ const dedicated: Record<string, MasterLeafEntry> = {
           name,
           productTypeMasterId: type.id,
           zoneId,
-          unit: reqStr(v.unit) || null,
-          quantityDataType: reqStr(v.quantityDataType) || null,
           quantityRequired: bool(v.quantityRequired),
         },
       });
@@ -647,8 +656,6 @@ const dedicated: Record<string, MasterLeafEntry> = {
         data: {
           name,
           productTypeMasterId: type.id,
-          unit: reqStr(v.unit) || null,
-          quantityDataType: reqStr(v.quantityDataType) || null,
           quantityRequired: bool(v.quantityRequired),
         },
       });
