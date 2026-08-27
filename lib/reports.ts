@@ -225,6 +225,20 @@ export function kvksForHostOrgsAndDistricts(
   ).map((row) => row.kvk);
 }
 
+const ROMAN_NUMERALS: Record<string, string> = { I: "1", II: "2", III: "3", IV: "4", V: "5", VI: "6", VII: "7", VIII: "8", IX: "9", X: "10" };
+
+/**
+ * "Zone IV - Patna" (the Zone master's own name) -> "ATARI ZONE-4", the exact
+ * cover-page title in the client's real report export (super-v2-prod.pdf) -
+ * confirmed against that PDF directly, not guessed. Falls back to the raw
+ * zone name if it doesn't follow the "Zone <roman> - <place>" shape.
+ */
+export function zoneReportLabel(zoneName: string): string {
+  const match = zoneName.match(/^Zone\s+([IVX]+)\b/i);
+  const arabic = match ? ROMAN_NUMERALS[match[1].toUpperCase()] : undefined;
+  return arabic ? `ATARI ZONE-${arabic}` : zoneName;
+}
+
 /** Formats a Date as DD/MM/YYYY, matching the spec's mockup date format. */
 export function formatDisplayDate(isoDate: string): string {
   if (!isoDate) return "";

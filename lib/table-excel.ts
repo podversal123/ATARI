@@ -6,6 +6,7 @@ const GREEN = "FF286C4A";
 const LIGHT_GRAY = "FFF2F2F2";
 const BORDER: Partial<ExcelJS.Border> = { style: "thin", color: { argb: "FF888888" } };
 const CELL_BORDER: Partial<ExcelJS.Borders> = { top: BORDER, left: BORDER, bottom: BORDER, right: BORDER };
+const OUTER_BORDER: Partial<ExcelJS.Border> = { style: "medium", color: { argb: "FF286C4A" } };
 
 /** Real downloadable Excel export of a Masters/Form Management list table - same styling convention as the multi-section report export (lib/report-excel.ts), for a single flat table instead of a whole report tree. */
 export async function generateTableExcel(
@@ -52,6 +53,26 @@ export async function generateTableExcel(
     const col = sheet.getColumn(i + 1);
     col.width = Math.max(label.length + 2, 12);
   });
+
+  // Outer frame around the whole table (header + all data rows), a heavier
+  // green edge on top of the existing thin per-cell grid, matching the
+  // bordered look asked for across the PDF/Excel/Word exports.
+  const lastRow = 3 + (rows ?? []).length;
+  const lastCol = headers.length;
+  for (let r = 3; r <= lastRow; r++) {
+    const row = sheet.getRow(r);
+    for (let c = 1; c <= lastCol; c++) {
+      const cell = row.getCell(c);
+      const existing = cell.border ?? {};
+      cell.border = {
+        ...existing,
+        top: r === 3 ? OUTER_BORDER : existing.top,
+        bottom: r === lastRow ? OUTER_BORDER : existing.bottom,
+        left: c === 1 ? OUTER_BORDER : existing.left,
+        right: c === lastCol ? OUTER_BORDER : existing.right,
+      };
+    }
+  }
 
   return wb;
 }

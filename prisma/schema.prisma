@@ -432,6 +432,8 @@ model Kvk {
   entrepreneurshipDetails       EntrepreneurshipDetail[]
   successStories                SuccessStory[]
   districtLevelData             DistrictLevelData[]
+  districtCropProductivity      DistrictCropProductivity[]
+  districtLivestockProduction   DistrictLivestockProduction[]
   operationalAreaDetails        OperationalAreaDetail[]
   villageAdoptionProgrammes     VillageAdoptionProgramme[]
   priorityThrustAreas           PriorityThrustArea[]
@@ -1740,15 +1742,36 @@ model NfPhysicalInfo {
   @@index([kvkId])
 }
 
+/// Real report's "3.5.C Demonstration Information" (super-v2-prod.pdf p.65)
+/// is a full per-farmer narrative writeup, not a 4-field row - enriched to
+/// match every field the reference shows. `parameters` holds the "Without
+/// NF practice / With NF practice" comparison grid (Plant height, Yield,
+/// Cost of cultivation, Soil PH/OC/EC/N/P/K, etc.) as flexible JSON rather
+/// than ~30 fixed columns, matching this app's own farmersByCategory
+/// convention (CfldTechnicalParameter) for the same kind of fixed-but-large
+/// report grid.
 model NfDemonstrationInfo {
-  id           String @id @default(cuid())
-  kvkId        String
-  kvk          Kvk    @relation(fields: [kvkId], references: [id])
-  zoneId       String
-  farmerName   String
-  activityName String
-  crop         String
-  variety      String
+  id                     String   @id @default(cuid())
+  kvkId                  String
+  kvk                    Kvk      @relation(fields: [kvkId], references: [id])
+  zoneId                 String
+  farmerName             String
+  activityName           String
+  crop                   String
+  variety                String
+  farmerAddress          String?
+  farmerContact          String?
+  agroClimaticZone       String?
+  croppingPattern        String?
+  farmingSituation       String?
+  latitude               Decimal? @db.Decimal(10, 4)
+  longitude              Decimal? @db.Decimal(10, 4)
+  season                 String?
+  technologyDemonstrated String?
+  areaHa                 Decimal? @db.Decimal(10, 2)
+  farmerPracticeDetail   String?
+  parameters             Json?
+  farmerFeedback         String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1757,15 +1780,25 @@ model NfDemonstrationInfo {
   @@index([kvkId])
 }
 
+/// Real report's "3.5.D Farmers Practicing" (super-v2-prod.pdf p.68-74) is
+/// the same kind of per-farmer narrative writeup as NfDemonstrationInfo
+/// above, with the same Without/With NF parameter grid.
 model NfAlreadyPracticing {
-  id               String  @id @default(cuid())
-  kvkId            String
-  kvk              Kvk     @relation(fields: [kvkId], references: [id])
-  zoneId           String
-  farmerName       String
-  address          String?
-  normalCropsGrown String?
-  practicingYear   Int
+  id                     String   @id @default(cuid())
+  kvkId                  String
+  kvk                    Kvk      @relation(fields: [kvkId], references: [id])
+  zoneId                 String
+  farmerName             String
+  address                String?
+  normalCropsGrown       String?
+  practicingYear         Int
+  contactNumber          String?
+  activityName           String?
+  crop                   String?
+  technologyDemonstrated String?
+  areaHa                 Decimal? @db.Decimal(10, 2)
+  parameters             Json?
+  farmerFeedback         String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1870,6 +1903,12 @@ model NariNutritionGarden {
   typeOfNutritionalGarden String
   numbers                 Int
   areaSqm                 Decimal @db.Decimal(10, 2)
+  /// OFT/FLD/Not Specified - real report's "3.7.A Nutrition Garden" groups
+  /// by this (matches NARI Activity Master, same field NariBioFortified/
+  /// NariValueAddition already had).
+  activity                String  @default("Not Specified")
+  male                    Int     @default(0)
+  female                  Int     @default(0)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1887,6 +1926,11 @@ model NariBioFortified {
   season            String
   activity          String
   categoryOfCrop    String
+  /// Real report's "3.7.B Bio-fortified Crops" State x Activity pivot needs
+  /// a count ("No. of Crops") and a Male/Female split alongside `activity`.
+  numberOfCrops     Int    @default(0)
+  male              Int    @default(0)
+  female            Int    @default(0)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1904,6 +1948,11 @@ model NariValueAddition {
   cropName          String
   valueAddedProduct String
   activity          String
+  /// Real report's "3.7.C Value Addition" State x Activity pivot needs a
+  /// count ("No. of Products") and a Male/Female split alongside `activity`.
+  numberOfProducts  Int    @default(0)
+  male              Int    @default(0)
+  female            Int    @default(0)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1921,6 +1970,9 @@ model NariTraining {
   areaOfTraining    String
   activity          String
   titleOfTraining   String
+  numberOfCourses   Int    @default(0)
+  male              Int    @default(0)
+  female            Int    @default(0)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1938,6 +1990,8 @@ model NariExtension {
   activity          String
   nameOfActivity    String
   noOfActivities    Int
+  male              Int    @default(0)
+  female            Int    @default(0)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1951,17 +2005,27 @@ model NariExtension {
 // ---------------------------------------------------------------------------
 
 model AgriDroneIntroduction {
-  id               String  @id @default(cuid())
-  kvkId            String
-  kvk              Kvk     @relation(fields: [kvkId], references: [id])
-  zoneId           String
-  year             Int
-  centreName       String
-  companyOfDrone   String
-  modelOfDrone     String
-  dronesSanctioned Int
-  dronesPurchased  Int
-  amountSanctioned Decimal @db.Decimal(14, 2)
+  id                   String   @id @default(cuid())
+  kvkId                String
+  kvk                  Kvk      @relation(fields: [kvkId], references: [id])
+  zoneId               String
+  year                 Int
+  centreName           String
+  companyOfDrone       String
+  modelOfDrone         String
+  dronesSanctioned     Int
+  dronesPurchased      Int
+  amountSanctioned     Decimal  @db.Decimal(14, 2)
+  /// Remaining real fields from "3.8.A Introduction" (super-v2-prod.pdf p.77-78) - the reference lists 14 numbered parameters in total.
+  costPerDrone         Decimal? @db.Decimal(14, 2)
+  pilotNameContact     String?
+  targetAreaHa         Decimal? @db.Decimal(10, 2)
+  amountSanctionedDemo Decimal? @db.Decimal(14, 2)
+  amountUtilisedDemo   Decimal? @db.Decimal(14, 2)
+  areaCoveredDemoHa    Decimal? @db.Decimal(10, 2)
+  operationType        String?
+  farmersParticipated  Int?
+  advantages           String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -2014,16 +2078,21 @@ model FpoCbboDetail {
 }
 
 model FpoManagement {
-  id                 String   @id @default(cuid())
-  kvkId              String
-  kvk                Kvk      @relation(fields: [kvkId], references: [id])
-  zoneId             String
-  registrationNo     String
-  dateOfRegistration DateTime
-  fpoName            String
-  fpoAddress         String?
-  totalBomMembers    Int
-  financialPosition  String?
+  id                   String   @id @default(cuid())
+  kvkId                String
+  kvk                  Kvk      @relation(fields: [kvkId], references: [id])
+  zoneId               String
+  registrationNo       String
+  dateOfRegistration   DateTime
+  fpoName              String
+  fpoAddress           String?
+  totalBomMembers      Int
+  financialPosition    String?
+  proposedActivity     String?
+  commodityIdentified  String?
+  areaHa               Decimal? @db.Decimal(10, 2)
+  totalFarmersAttached Int?
+  successIndicator     String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -2036,16 +2105,33 @@ model FpoManagement {
 // Form Management -> Projects -> DRMR
 // ---------------------------------------------------------------------------
 
+/// Real "3.10.A DRMR Details" (super-v2-prod.pdf p.79) pairs 6 metrics
+/// (Yield/YIOFP%/COC/GMR/ANMR/BC-ratio) across IP (improved practice) and FP
+/// (farmer practice) columns - kept the original netReturn IP/FP fields
+/// (their exact real-column mapping is unconfirmed) and added the 6 real
+/// pairs alongside them rather than guessing a rename.
 model DrmrDetail {
-  id                        String  @id @default(cuid())
+  id                        String   @id @default(cuid())
   kvkId                     String
-  kvk                       Kvk     @relation(fields: [kvkId], references: [id])
+  kvk                       Kvk      @relation(fields: [kvkId], references: [id])
   zoneId                    String
   varietiesUsedInIp         String
   situations                String
   varietiesUsedInFp         String
-  netReturnImprovedPractice Decimal @db.Decimal(12, 2)
-  netReturnFarmerPractice   Decimal @db.Decimal(12, 2)
+  netReturnImprovedPractice Decimal  @db.Decimal(12, 2)
+  netReturnFarmerPractice   Decimal  @db.Decimal(12, 2)
+  yieldKgHaIp               Decimal? @db.Decimal(10, 2)
+  yieldKgHaFp               Decimal? @db.Decimal(10, 2)
+  yiofpPercentIp            Decimal? @db.Decimal(6, 2)
+  yiofpPercentFp            Decimal? @db.Decimal(6, 2)
+  cocRsHaIp                 Decimal? @db.Decimal(12, 2)
+  cocRsHaFp                 Decimal? @db.Decimal(12, 2)
+  gmrRsHaIp                 Decimal? @db.Decimal(12, 2)
+  gmrRsHaFp                 Decimal? @db.Decimal(12, 2)
+  anmrRsHaIp                Decimal? @db.Decimal(12, 2)
+  anmrRsHaFp                Decimal? @db.Decimal(12, 2)
+  bcRatioIp                 Decimal? @db.Decimal(6, 2)
+  bcRatioFp                 Decimal? @db.Decimal(6, 2)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -2054,6 +2140,13 @@ model DrmrDetail {
   @@index([kvkId])
 }
 
+/// Real "Details Augmenting Rapeseed-Mustard Production... Input
+/// Distribution" table (super-v2-prod.pdf p.80-81) is one row per input
+/// item (Seeds/Equipment/Fertilizers/Plant Protection/Literature/Kisan
+/// Mela/Other), each with a Unit+Quantity and a General/OBC/SC/ST x M/F/T
+/// breakdown - a completely different real shape than the original
+/// training/flds/awarenessCamps/distributionOfLiterature guess, which is
+/// kept (not deleted) alongside the real fields below.
 model DrmrActivity {
   id                       String   @id @default(cuid())
   kvkId                    String
@@ -2065,6 +2158,10 @@ model DrmrActivity {
   flds                     String?
   awarenessCamps           String?
   distributionOfLiterature String?
+  itemActivity             String?
+  unit                     String?
+  quantity                 Decimal? @db.Decimal(12, 2)
+  farmersByCategory        Json?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -2078,15 +2175,23 @@ model DrmrActivity {
 // ---------------------------------------------------------------------------
 
 model CraDetail {
-  id                     String  @id @default(cuid())
+  id                     String   @id @default(cuid())
   kvkId                  String
-  kvk                    Kvk     @relation(fields: [kvkId], references: [id])
+  kvk                    Kvk      @relation(fields: [kvkId], references: [id])
   zoneId                 String
   season                 String
   technologyDemonstrated String
   croppingSystem         String
-  areaHa                 Decimal @db.Decimal(10, 2)
+  areaHa                 Decimal  @db.Decimal(10, 2)
   noOfFarmer             Int
+  /// Remaining real columns from "3.11.A CRA Details" (super-v2-prod.pdf p.81) - State-grouped in the reference (derived here via kvk.state, not stored), with a General/OBC/SC/ST x M/F/T farmer breakdown kept as flexible JSON like this app's other fixed-but-large demographic grids.
+  farmingSystem          String?
+  crop                   String?
+  cropYieldQha           Decimal? @db.Decimal(10, 2)
+  systemProductivityQha  Decimal? @db.Decimal(10, 2)
+  totalReturnRsHa        Decimal? @db.Decimal(14, 2)
+  yieldFarmerPracticeQha Decimal? @db.Decimal(10, 2)
+  farmersByCategory      Json?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -2140,15 +2245,24 @@ model CsisaDetail {
 // ---------------------------------------------------------------------------
 
 model SeedHubProgram {
-  id       String  @id @default(cuid())
-  kvkId    String
-  kvk      Kvk     @relation(fields: [kvkId], references: [id])
-  zoneId   String
-  season   String
-  cropName String
-  variety  String
-  areaHa   Decimal @db.Decimal(10, 2)
-  yieldHa  Decimal @db.Decimal(10, 2)
+  id                       String   @id @default(cuid())
+  kvkId                    String
+  kvk                      Kvk      @relation(fields: [kvkId], references: [id])
+  zoneId                   String
+  season                   String
+  cropName                 String
+  variety                  String
+  areaHa                   Decimal  @db.Decimal(10, 2)
+  yieldHa                  Decimal  @db.Decimal(10, 2)
+  /// Remaining real columns from "3.13.A Seed Hub Program" (super-v2-prod.pdf p.82).
+  qtySeedProducedQ         Decimal? @db.Decimal(12, 2)
+  qtySeedSaleOutQ          Decimal? @db.Decimal(12, 2)
+  farmersPurchased         Int?
+  qtySeedSaleOutToFarmersQ Decimal? @db.Decimal(12, 2)
+  villagesCovered          Int?
+  qtySeedSaleOutOtherOrgQ  Decimal? @db.Decimal(12, 2)
+  amountGeneratedLakh      Decimal? @db.Decimal(14, 2)
+  totalAmountInProjectLakh Decimal? @db.Decimal(14, 2)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -2162,15 +2276,17 @@ model SeedHubProgram {
 // ---------------------------------------------------------------------------
 
 model OtherProgramme {
-  id            String   @id @default(cuid())
-  kvkId         String
-  kvk           Kvk      @relation(fields: [kvkId], references: [id])
-  zoneId        String
-  programmeName String
-  programmeDate DateTime
-  venue         String?
-  purpose       String?
-  participants  Int
+  id                String   @id @default(cuid())
+  kvkId             String
+  kvk               Kvk      @relation(fields: [kvkId], references: [id])
+  zoneId            String
+  programmeName     String
+  programmeDate     DateTime
+  venue             String?
+  purpose           String?
+  participants      Int
+  /// General/OBC/SC/ST x M/F/T breakdown from "3.14.A Other Programmes" (super-v2-prod.pdf p.82) - kept flexible JSON, same convention as CfldTechnicalParameter.farmersByCategory.
+  farmersByCategory Json?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -2251,6 +2367,48 @@ model DistrictLevelData {
   @@index([kvkId, reportingYear])
 }
 
+/// Real report's "4.2.A District Level Data" section (super-v2-prod.pdf
+/// p.83) is actually 3 distinct tables under one heading - DistrictLevelData
+/// above covers only the first (Items/Remarks); this covers the second
+/// ("Productivity of major 2-3 crops...").
+model DistrictCropProductivity {
+  id              String  @id @default(cuid())
+  kvkId           String
+  kvk             Kvk     @relation(fields: [kvkId], references: [id])
+  zoneId          String
+  season          String
+  type            String
+  cropName        String
+  areaHa          Decimal @db.Decimal(10, 2)
+  productionMt    Decimal @db.Decimal(10, 2)
+  productivityQha Decimal @db.Decimal(10, 2)
+  remarks         String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([zoneId])
+  @@index([kvkId])
+}
+
+/// Third of the 3 real tables under "4.2.A District Level Data" ("Production
+/// of major livestock products like milk, egg, meat etc").
+model DistrictLivestockProduction {
+  id            String  @id @default(cuid())
+  kvkId         String
+  kvk           Kvk     @relation(fields: [kvkId], references: [id])
+  zoneId        String
+  livestockName String
+  number        Decimal @db.Decimal(12, 2)
+  remarks       String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([zoneId])
+  @@index([kvkId])
+}
+
 model OperationalAreaDetail {
   id            String  @id @default(cuid())
   kvkId         String
@@ -2304,13 +2462,21 @@ model PriorityThrustArea {
 }
 
 model DemonstrationUnit {
-  id           String  @id @default(cuid())
+  id           String   @id @default(cuid())
   kvkId        String
-  kvk          Kvk     @relation(fields: [kvkId], references: [id])
+  kvk          Kvk      @relation(fields: [kvkId], references: [id])
   zoneId       String
   demoUnitName String
   yearOfEstt   Int
-  areaSqMt     Decimal @db.Decimal(10, 2)
+  areaSqMt     Decimal  @db.Decimal(10, 2)
+  /// Real report's "4.3.A Demonstration Units" table (super-v2-prod.pdf
+  /// p.84) has 6 more columns than this model originally had.
+  varietyBreed String?
+  produce      String?
+  qty          Decimal? @db.Decimal(12, 2)
+  costOfInputs Decimal? @db.Decimal(14, 2)
+  grossIncome  Decimal? @db.Decimal(14, 2)
+  remarks      String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -2320,12 +2486,19 @@ model DemonstrationUnit {
 }
 
 model InstructionalFarmCrop {
-  id       String  @id @default(cuid())
-  kvkId    String
-  kvk      Kvk     @relation(fields: [kvkId], references: [id])
-  zoneId   String
-  cropName String
-  areaHa   Decimal @db.Decimal(10, 2)
+  id           String   @id @default(cuid())
+  kvkId        String
+  kvk          Kvk      @relation(fields: [kvkId], references: [id])
+  zoneId       String
+  cropName     String
+  areaHa       Decimal  @db.Decimal(10, 2)
+  season       String?
+  variety      String?
+  produceType  String?
+  qty          Decimal? @db.Decimal(12, 2)
+  costOfInputs Decimal? @db.Decimal(14, 2)
+  grossIncome  Decimal? @db.Decimal(14, 2)
+  remarks      String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -2335,12 +2508,15 @@ model InstructionalFarmCrop {
 }
 
 model ProductionUnit {
-  id          String  @id @default(cuid())
-  kvkId       String
-  kvk         Kvk     @relation(fields: [kvkId], references: [id])
-  zoneId      String
-  productName String
-  qty         Decimal @db.Decimal(12, 2)
+  id           String   @id @default(cuid())
+  kvkId        String
+  kvk          Kvk      @relation(fields: [kvkId], references: [id])
+  zoneId       String
+  productName  String
+  qty          Decimal  @db.Decimal(12, 2)
+  costOfInputs Decimal? @db.Decimal(14, 2)
+  grossIncome  Decimal? @db.Decimal(14, 2)
+  remarks      String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -2350,13 +2526,17 @@ model ProductionUnit {
 }
 
 model InstructionalFarmLivestock {
-  id           String  @id @default(cuid())
+  id           String   @id @default(cuid())
   kvkId        String
-  kvk          Kvk     @relation(fields: [kvkId], references: [id])
+  kvk          Kvk      @relation(fields: [kvkId], references: [id])
   zoneId       String
   animalName   String
   speciesBreed String?
   produceType  String?
+  qty          Decimal? @db.Decimal(12, 2)
+  costOfInputs Decimal? @db.Decimal(14, 2)
+  grossIncome  Decimal? @db.Decimal(14, 2)
+  remarks      String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -2366,13 +2546,14 @@ model InstructionalFarmLivestock {
 }
 
 model HostelUtilization {
-  id             String @id @default(cuid())
-  kvkId          String
-  kvk            Kvk    @relation(fields: [kvkId], references: [id])
-  zoneId         String
-  months         String
-  traineesStayed Int
-  traineeDays    Int
+  id                 String  @id @default(cuid())
+  kvkId              String
+  kvk                Kvk     @relation(fields: [kvkId], references: [id])
+  zoneId             String
+  months             String
+  traineesStayed     Int
+  traineeDays        Int
+  reasonForShortFall String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -2416,16 +2597,23 @@ model RainWaterHarvesting {
 }
 
 model BudgetDetail {
-  id                      String  @id @default(cuid())
+  id                      String   @id @default(cuid())
   kvkId                   String
-  kvk                     Kvk     @relation(fields: [kvkId], references: [id])
+  kvk                     Kvk      @relation(fields: [kvkId], references: [id])
   zoneId                  String
-  salaryAllocation        Decimal @db.Decimal(14, 2)
-  salaryExpenditure       Decimal @db.Decimal(14, 2)
-  generalGrantAllocation  Decimal @db.Decimal(14, 2)
-  generalGrantExpenditure Decimal @db.Decimal(14, 2)
-  capitalGrantAllocation  Decimal @db.Decimal(14, 2)
-  capitalGrantExpenditure Decimal @db.Decimal(14, 2)
+  salaryAllocation        Decimal  @db.Decimal(14, 2)
+  salaryExpenditure       Decimal  @db.Decimal(14, 2)
+  generalGrantAllocation  Decimal  @db.Decimal(14, 2)
+  generalGrantExpenditure Decimal  @db.Decimal(14, 2)
+  capitalGrantAllocation  Decimal  @db.Decimal(14, 2)
+  capitalGrantExpenditure Decimal  @db.Decimal(14, 2)
+  /// Real "4.4.A Budget Details" (super-v2-prod.pdf p.86) breaks General and Capital Allocation into Main Grant/TSP/SCSP, alongside (not replacing) the existing Allocation/Expenditure fields above.
+  generalMainGrant        Decimal? @db.Decimal(14, 2)
+  generalTsp              Decimal? @db.Decimal(14, 2)
+  generalScsp             Decimal? @db.Decimal(14, 2)
+  capitalMainGrant        Decimal? @db.Decimal(14, 2)
+  capitalTsp              Decimal? @db.Decimal(14, 2)
+  capitalScsp             Decimal? @db.Decimal(14, 2)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -2440,6 +2628,7 @@ model ProjectWiseBudgetPerformance {
   kvk             Kvk     @relation(fields: [kvkId], references: [id])
   zoneId          String
   projectName     String
+  accountNumber   String?
   fundingAgency   String?
   budgetEstimate  Decimal @db.Decimal(14, 2)
   budgetAllocated Decimal @db.Decimal(14, 2)
@@ -2490,14 +2679,15 @@ model RevenueGeneration {
 }
 
 model ResourceGeneration {
-  id            String  @id @default(cuid())
-  kvkId         String
-  kvk           Kvk     @relation(fields: [kvkId], references: [id])
-  zoneId        String
-  programmeName String
-  purpose       String?
-  sourcesOfFund String?
-  amountLakhs   Decimal @db.Decimal(14, 2)
+  id                    String  @id @default(cuid())
+  kvkId                 String
+  kvk                   Kvk     @relation(fields: [kvkId], references: [id])
+  zoneId                String
+  programmeName         String
+  purpose               String?
+  sourcesOfFund         String?
+  amountLakhs           Decimal @db.Decimal(14, 2)
+  infrastructureCreated String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -2603,16 +2793,19 @@ model PrevalentDiseaseCrop {
 }
 
 model PrevalentDiseaseLivestock {
-  id                 String   @id @default(cuid())
-  kvkId              String
-  kvk                Kvk      @relation(fields: [kvkId], references: [id])
-  zoneId             String
-  diseaseName        String
-  speciesAffected    String
-  outbreakDate       DateTime
-  mortalityMorbidity String?
-  animalsVaccinated  Int
-  preventiveMeasures String?
+  id                   String   @id @default(cuid())
+  kvkId                String
+  kvk                  Kvk      @relation(fields: [kvkId], references: [id])
+  zoneId               String
+  diseaseName          String
+  speciesAffected      String
+  outbreakDate         DateTime
+  mortalityMorbidity   String?
+  animalsVaccinated    Int
+  preventiveMeasures   String?
+  /// Real report's "5.1.B Prevalent diseases in Livestocks" columns (super-v2-prod.pdf p.88), same shape as the Crop table's - kept alongside the existing mortality/vaccination fields rather than replacing them.
+  areaAffected         Decimal? @db.Decimal(10, 2)
+  commodityLossPercent Decimal? @db.Decimal(5, 2)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -2641,16 +2834,18 @@ model NykTraining {
 }
 
 model PpvFraTrainingProgramme {
-  id             String   @id @default(cuid())
-  kvkId          String
-  kvk            Kvk      @relation(fields: [kvkId], references: [id])
-  zoneId         String
-  date           DateTime
-  title          String
-  type           String?
-  venue          String?
-  resourcePerson String?
-  participants   Int
+  id                String   @id @default(cuid())
+  kvkId             String
+  kvk               Kvk      @relation(fields: [kvkId], references: [id])
+  zoneId            String
+  date              DateTime
+  title             String
+  type              String?
+  venue             String?
+  resourcePerson    String?
+  participants      Int
+  /// General/OBC/SC/ST x M/F/T breakdown from "5.2.A Training & Awareness Program" (super-v2-prod.pdf p.88) - `participants` stays as the pre-existing single total, this adds the real category split alongside it.
+  farmersByCategory Json?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -2660,16 +2855,19 @@ model PpvFraTrainingProgramme {
 }
 
 model PpvFraFarmerDetail {
-  id             String  @id @default(cuid())
-  kvkId          String
-  kvk            Kvk     @relation(fields: [kvkId], references: [id])
-  zoneId         String
-  year           Int
-  crop           String
-  registrationNo String
-  farmerName     String
-  block          String?
-  district       String?
+  id              String  @id @default(cuid())
+  kvkId           String
+  kvk             Kvk     @relation(fields: [kvkId], references: [id])
+  zoneId          String
+  year            Int
+  crop            String
+  registrationNo  String
+  farmerName      String
+  block           String?
+  district        String?
+  mobileNo        String?
+  village         String?
+  characteristics String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -2789,19 +2987,33 @@ model DigitalKmas {
   @@index([kvkId])
 }
 
+/// Real "Details of messages send through other channels" (super-v2-prod.pdf
+/// p.90-91) is one row per channel per KVK (Text/WhatsApp/Weather Bulletin/
+/// Social Media), each with farmers-covered/advisories-sent plus a 6-way
+/// message-type breakdown - a long format, not the original wide
+/// one-row-per-KVK-with-4-channel-pairs shape below (kept, not deleted).
 model DigitalOtherChannel {
-  id                        String @id @default(cuid())
+  id                        String  @id @default(cuid())
   kvkId                     String
-  kvk                       Kvk    @relation(fields: [kvkId], references: [id])
+  kvk                       Kvk     @relation(fields: [kvkId], references: [id])
   zoneId                    String
-  textAdvisories            Int    @default(0)
-  textFarmers               Int    @default(0)
-  whatsappAdvisories        Int    @default(0)
-  whatsappFarmers           Int    @default(0)
-  socialMediaAdvisories     Int    @default(0)
-  socialMediaFarmers        Int    @default(0)
-  weatherBulletinAdvisories Int    @default(0)
-  weatherBulletinFarmers    Int    @default(0)
+  textAdvisories            Int     @default(0)
+  textFarmers               Int     @default(0)
+  whatsappAdvisories        Int     @default(0)
+  whatsappFarmers           Int     @default(0)
+  socialMediaAdvisories     Int     @default(0)
+  socialMediaFarmers        Int     @default(0)
+  weatherBulletinAdvisories Int     @default(0)
+  weatherBulletinFarmers    Int     @default(0)
+  channel                   String?
+  farmersCovered            Int?
+  advisoriesSent            Int?
+  messagesCrop              Int?    @default(0)
+  messagesLivestock         Int?    @default(0)
+  messagesWeather           Int?    @default(0)
+  messagesMarketing         Int?    @default(0)
+  messagesAwareness         Int?    @default(0)
+  messagesOtherEnterprises  Int?    @default(0)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

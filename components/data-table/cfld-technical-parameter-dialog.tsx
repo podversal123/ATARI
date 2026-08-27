@@ -15,11 +15,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { DISTRICTS } from "@/lib/rbac";
 import {
   DemographicBreakdown,
   type DemographicValues,
 } from "./demographic-breakdown";
+import { percentIncreaseInYield, yieldGapMinimizedPercent } from "@/lib/cfld-formulas";
 
 const TABS = [
   "Technical Parameter",
@@ -126,6 +126,14 @@ export function CfldTechnicalParameterDialog({
   const [submitting, setSubmitting] = useState(false);
   const [loading, setLoading] = useState(false);
   const editingId = typeof editingRow?.id === "string" ? editingRow.id : undefined;
+
+  /** Live preview of the client's own "CFLD formula.docx" yield-gap formulas, computed the same way the API recomputes them authoritatively on submit. */
+  const num = (v: string | undefined) => (v?.trim() ? Number(v) : undefined);
+  const fmtPercent = (v: number | undefined) => (v === undefined ? "" : `${v.toFixed(2)}%`);
+  const percentIncrease = fmtPercent(percentIncreaseInYield(num(technical.demoYieldAvg), num(technical.farmerYield)));
+  const gapDistrict = fmtPercent(yieldGapMinimizedPercent(num(technical.districtYield), num(technical.demoYieldAvg)));
+  const gapState = fmtPercent(yieldGapMinimizedPercent(num(technical.stateYield), num(technical.demoYieldAvg)));
+  const gapPotential = fmtPercent(yieldGapMinimizedPercent(num(technical.potentialYield), num(technical.demoYieldAvg)));
 
   useEffect(() => {
     if (!open || !editingId) return;
@@ -401,6 +409,7 @@ export function CfldTechnicalParameterDialog({
                   <Input
                     id="cfld-yield-increase"
                     disabled
+                    value={percentIncrease}
                     placeholder="Calculated once yields are entered"
                     className="bg-muted"
                   />
@@ -416,26 +425,17 @@ export function CfldTechnicalParameterDialog({
                     <Label htmlFor="cfld-district-yield">
                       District Yield (D)
                     </Label>
-                    <select
+                    <Input
                       id="cfld-district-yield"
-                      value={technical.district ?? ""}
+                      type="number"
+                      value={technical.districtYield ?? ""}
                       onChange={(e) =>
                         setTechnical((p) => ({
                           ...p,
-                          district: e.target.value,
+                          districtYield: e.target.value,
                         }))
                       }
-                      className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring"
-                    >
-                      <option value="" disabled>
-                        Select District
-                      </option>
-                      {DISTRICTS.map((d) => (
-                        <option key={d} value={d}>
-                          {d}
-                        </option>
-                      ))}
-                    </select>
+                    />
                   </div>
                   <div className="space-y-1.5">
                     <Label htmlFor="cfld-state-yield">State Yield (S)</Label>
@@ -466,6 +466,26 @@ export function CfldTechnicalParameterDialog({
                         }))
                       }
                     />
+                  </div>
+                </div>
+                <div className="grid gap-4 sm:grid-cols-3">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="cfld-gap-district">
+                      % Gap Minimised (District)
+                    </Label>
+                    <Input id="cfld-gap-district" disabled value={gapDistrict} placeholder="Calculated" className="bg-muted" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="cfld-gap-state">
+                      % Gap Minimised (State)
+                    </Label>
+                    <Input id="cfld-gap-state" disabled value={gapState} placeholder="Calculated" className="bg-muted" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="cfld-gap-potential">
+                      % Gap Minimised (Potential)
+                    </Label>
+                    <Input id="cfld-gap-potential" disabled value={gapPotential} placeholder="Calculated" className="bg-muted" />
                   </div>
                 </div>
               </div>

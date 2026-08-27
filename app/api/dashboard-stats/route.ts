@@ -27,14 +27,32 @@ export async function GET(request: Request) {
   const auth = await requireSession();
   if (!auth.ok) return auth.response;
 
-  const scopeParam = new URL(request.url).searchParams.get("scope");
+  const url = new URL(request.url);
+  const scopeParam = url.searchParams.get("scope");
   const needs = (key: "oft" | "fld" | "training" | "extension") => !scopeParam || scopeParam === key;
 
-  const kvkId = auth.session.role === "KVK_ADMIN" ? auth.session.kvkId ?? undefined : undefined;
-  const scope = kvkId ? { kvkId } : { zoneId: auth.session.zoneId };
+  const isKvkAdmin = auth.session.role === "KVK_ADMIN";
+  const kvkId = isKvkAdmin ? auth.session.kvkId ?? undefined : undefined;
+
+  /** Super Admin's own Year/KVK filter dropdowns - real query params now instead of the always-"All" placeholder they used to be. A KVK Admin is already scoped to their own KVK, so the `kvk` param never applies to them. The dropdown shows KVK names (not internal ids), so this resolves the selected name back to an id. */
+  const yearParam = url.searchParams.get("year");
+  const reportingYear = yearParam && yearParam !== "All" ? Number(yearParam) : undefined;
+  const kvkParam = !isKvkAdmin ? url.searchParams.get("kvk") : null;
+  const filterKvk =
+    kvkParam && kvkParam !== "All"
+      ? await prisma.kvk.findFirst({ where: { zoneId: auth.session.zoneId, name: kvkParam }, select: { id: true } })
+      : null;
+  const filterKvkId = filterKvk?.id;
+
+  const baseScope = (kvkId ?? filterKvkId) ? { kvkId: kvkId ?? filterKvkId } : { zoneId: auth.session.zoneId };
+  const scope = reportingYear ? { ...baseScope, reportingYear } : baseScope;
+  const fldDemoScope = kvkId ?? filterKvkId
+    ? { fld: { kvkId: kvkId ?? filterKvkId, ...(reportingYear ? { reportingYear } : {}) } }
+    : { zoneId: auth.session.zoneId, ...(reportingYear ? { fld: { reportingYear } } : {}) };
 
   const [
     kvks,
+    kvkOptions,
     totalKvks,
     oftByKvkStatus,
     fldByKvkStatus,
@@ -44,31 +62,63 @@ export async function GET(request: Request) {
     staffByRoleGroups,
     oftAgg,
     fldDemoAgg,
+    oftYears,
+    fldYears,
+    trainingYears,
+    extensionYears,
   ] = await Promise.all([
     prisma.kvk.findMany({
-      where: kvkId ? { id: kvkId } : { zoneId: auth.session.zoneId },
+      where: (kvkId ?? filterKvkId) ? { id: kvkId ?? filterKvkId } : { zoneId: auth.session.zoneId },
       select: { id: true, name: true },
       orderBy: { name: "asc" },
     }),
+    /** The KVK dropdown's own option list - always every KVK in the zone (or just the KVK Admin's own), never narrowed by the currently-selected filter, otherwise picking a KVK would make every other KVK disappear from the dropdown itself. */
+    scopeParam
+      ? Promise.resolve([])
+      : prisma.kvk.findMany({
+          where: kvkId ? { id: kvkId } : { zoneId: auth.session.zoneId },
+          select: { id: true, name: true },
+          orderBy: { name: "asc" },
+        }),
     scopeParam ? Promise.resolve(0) : prisma.kvk.count({ where: { zoneId: auth.session.zoneId } }),
     needs("oft") ? prisma.oft.groupBy({ by: ["kvkId", "status"], where: scope, _count: { _all: true } }) : Promise.resolve([]),
     needs("fld") ? prisma.fld.groupBy({ by: ["kvkId", "status"], where: scope, _count: { _all: true } }) : Promise.resolve([]),
     needs("training") ? prisma.training.groupBy({ by: ["kvkId"], where: scope, _count: { _all: true } }) : Promise.resolve([]),
     needs("extension") ? prisma.extensionActivity.groupBy({ by: ["kvkId"], where: scope, _count: { _all: true } }) : Promise.resolve([]),
     needs("extension") ? prisma.otherExtensionActivity.groupBy({ by: ["kvkId"], where: scope, _count: { _all: true } }) : Promise.resolve([]),
-    scopeParam ? Promise.resolve([]) : prisma.staff.groupBy({ by: ["sanctionedPost"], where: scope, _count: { _all: true } }),
+    scopeParam
+      ? Promise.resolve([])
+      : prisma.staff.groupBy({
+          by: ["sanctionedPost"],
+          where: "kvkId" in baseScope ? { kvkId: baseScope.kvkId } : { zoneId: auth.session.zoneId },
+          _count: { _all: true },
+        }),
     /** Real per-OFT fields (not just the ongoing/completed status split) for the "OFT - detailed analytics" page's Cost/Quantity/Replications stat cards. */
     needs("oft")
       ? prisma.oft.aggregate({ where: scope, _sum: { quantity: true, costOfOft: true, noOfTrialReplicationFarmer: true } })
       : Promise.resolve({ _sum: { quantity: null, costOfOft: null, noOfTrialReplicationFarmer: null } }),
     /** FLD's own model has no quantity/farmer/demonstration fields - those live on the child FldDemonstrationDetail rows, scoped via the parent FLD's kvkId since the child itself only carries zoneId. */
     needs("fld")
-      ? prisma.fldDemonstrationDetail.aggregate({
-          where: kvkId ? { fld: { kvkId } } : { zoneId: auth.session.zoneId },
-          _sum: { noOfDemonstrations: true, noOfFarmers: true },
-        })
+      ? prisma.fldDemonstrationDetail.aggregate({ where: fldDemoScope, _sum: { noOfDemonstrations: true, noOfFarmers: true } })
       : Promise.resolve({ _sum: { noOfDemonstrations: null, noOfFarmers: null } }),
+    /** Real distinct reporting years for the Year filter dropdown - merged across the 4 models that carry one, rather than guessing a static range. Unscoped by year/kvk (the dropdown itself must list every year regardless of what's currently selected). */
+    scopeParam
+      ? Promise.resolve([])
+      : prisma.oft.findMany({ where: { zoneId: auth.session.zoneId }, select: { reportingYear: true }, distinct: ["reportingYear"] }),
+    scopeParam
+      ? Promise.resolve([])
+      : prisma.fld.findMany({ where: { zoneId: auth.session.zoneId }, select: { reportingYear: true }, distinct: ["reportingYear"] }),
+    scopeParam
+      ? Promise.resolve([])
+      : prisma.training.findMany({ where: { zoneId: auth.session.zoneId }, select: { reportingYear: true }, distinct: ["reportingYear"] }),
+    scopeParam
+      ? Promise.resolve([])
+      : prisma.extensionActivity.findMany({ where: { zoneId: auth.session.zoneId }, select: { reportingYear: true }, distinct: ["reportingYear"] }),
   ]);
+
+  const years = Array.from(
+    new Set([...oftYears, ...fldYears, ...trainingYears, ...extensionYears].map((r) => r.reportingYear)),
+  ).sort((a, b) => b - a);
 
   const staffByRole = Object.fromEntries(
     staffByRoleGroups.map((g) => [g.sanctionedPost, g._count._all]),
@@ -88,13 +138,22 @@ export async function GET(request: Request) {
     return { total: ongoing + completed, ongoing, completed, kvksWithEntries: kvkSet.size };
   }
 
-  /** One row per KVK in scope (even KVKs with zero entries), sorted busiest-first for the Bar/List/Area chart views. */
+  /**
+   * One row per KVK in scope (even KVKs with zero entries), sorted
+   * busiest-first for the Bar/List/Area chart views. TrialStatus has a real
+   * third value (TRANSFERRED, folded into "completed" the same way
+   * statusSummary above does) - this must accumulate (+=) rather than
+   * assign (=), since a KVK can have both a COMPLETED and a TRANSFERRED
+   * group and an assignment would silently drop whichever is processed
+   * first (a real bug found live: a KVK with COMPLETED=2 and
+   * TRANSFERRED=3 was showing "completed: 3", not the real 5).
+   */
   function buildStatusRows(groups: { kvkId: string; status: string; _count: { _all: number } }[]) {
     const byKvk = new Map<string, { ongoing: number; completed: number }>();
     for (const g of groups) {
       const row = byKvk.get(g.kvkId) ?? { ongoing: 0, completed: 0 };
-      if (g.status === "ONGOING") row.ongoing = g._count._all;
-      else row.completed = g._count._all;
+      if (g.status === "ONGOING") row.ongoing += g._count._all;
+      else row.completed += g._count._all;
       byKvk.set(g.kvkId, row);
     }
     return kvks
@@ -134,6 +193,8 @@ export async function GET(request: Request) {
 
   return NextResponse.json({
     totalKvks,
+    years,
+    kvkOptions,
     oft: {
       ...oft,
       quantity: Number(oftAgg._sum.quantity ?? 0),

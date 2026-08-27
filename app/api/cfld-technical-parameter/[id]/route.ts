@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/api-auth";
+import { percentIncreaseInYield, yieldGapMinimizedPercent } from "@/lib/cfld-formulas";
 
 const str = (v: string | undefined) => (v?.trim() ? v.trim() : undefined);
 const reqStr = (v: string | undefined) => v?.trim() ?? "";
@@ -47,7 +48,7 @@ export async function GET(
       demoYieldMax: numStr(record.yieldDemoMaxQha),
       demoYieldMin: numStr(record.yieldDemoMinQha),
       demoYieldAvg: numStr(record.yieldDemoAvgQha),
-      district: "",
+      districtYield: numStr(record.districtYield),
       stateYield: numStr(record.stateYield),
       potentialYield: numStr(record.potentialYield),
       numberOfFarmers: numStr(record.numberOfFarmers),
@@ -122,6 +123,12 @@ export async function PUT(
     return NextResponse.json({ error: "Crop and Technology Demonstrated are required." }, { status: 400 });
   }
 
+  const farmerYield = dec(technical.farmerYield);
+  const demoYieldAvg = dec(technical.demoYieldAvg);
+  const districtYield = dec(technical.districtYield);
+  const stateYield = dec(technical.stateYield);
+  const potentialYield = dec(technical.potentialYield);
+
   await prisma.cfldTechnicalParameter.update({
     where: { id },
     data: {
@@ -134,12 +141,17 @@ export async function PUT(
       farmersByCategory: demographics,
       detailOfTechnologyDemonstrated: reqStr(technical.technologyDemonstrated),
       existingFarmerPractice: str(technical.existingFarmerPractice),
-      yieldFarmerFieldQha: dec(technical.farmerYield),
+      yieldFarmerFieldQha: farmerYield,
       yieldDemoMaxQha: dec(technical.demoYieldMax),
       yieldDemoMinQha: dec(technical.demoYieldMin),
-      yieldDemoAvgQha: dec(technical.demoYieldAvg),
-      stateYield: dec(technical.stateYield),
-      potentialYield: dec(technical.potentialYield),
+      yieldDemoAvgQha: demoYieldAvg,
+      districtYield,
+      stateYield,
+      potentialYield,
+      percentIncrease: percentIncreaseInYield(demoYieldAvg, farmerYield),
+      yieldGapMinimizedPercentDistrict: yieldGapMinimizedPercent(districtYield, demoYieldAvg),
+      yieldGapMinimizedPercentState: yieldGapMinimizedPercent(stateYield, demoYieldAvg),
+      yieldGapMinimizedPercentPotential: yieldGapMinimizedPercent(potentialYield, demoYieldAvg),
       status,
     },
   });

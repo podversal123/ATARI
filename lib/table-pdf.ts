@@ -10,12 +10,24 @@ import type { MasterColumn } from "./navigation";
  * download rather than a decorative one (client request, 2026-08-24).
  * Opens in a new tab so it behaves like clicking any other PDF link.
  */
+const BORDER_GRAY: [number, number, number] = [190, 190, 190];
+
+/** Thin page-edge frame around every page, same border color/weight as the multi-section report PDF (lib/report-pdf.ts) - this export had none before, leaving the title/table floating on bare white. */
+function drawPageBorder(doc: jsPDF) {
+  const pageW = doc.internal.pageSize.getWidth();
+  const pageH = doc.internal.pageSize.getHeight();
+  doc.setDrawColor(...BORDER_GRAY);
+  doc.setLineWidth(0.4);
+  doc.rect(6, 6, pageW - 12, pageH - 12);
+}
+
 export function downloadTablePdf(
   title: string,
   columns: MasterColumn[],
   rows: Record<string, ReactNode>[] | undefined,
 ) {
   const doc = new jsPDF({ orientation: "landscape" });
+  drawPageBorder(doc);
   doc.setFontSize(14);
   doc.text(title, 14, 14);
 
@@ -33,8 +45,11 @@ export function downloadTablePdf(
     startY: 20,
     head: [["S.No", ...columns.map((column) => column.label)]],
     body,
-    styles: { fontSize: 8 },
-    headStyles: { fillColor: [40, 108, 74] },
+    theme: "grid",
+    styles: { fontSize: 8, lineColor: BORDER_GRAY, lineWidth: 0.15 },
+    headStyles: { fillColor: [40, 108, 74], lineColor: BORDER_GRAY, lineWidth: 0.15 },
+    margin: { left: 10, right: 10 },
+    didDrawPage: () => drawPageBorder(doc),
   });
 
   const blobUrl = doc.output("bloburl");

@@ -82,65 +82,649 @@ const MODEL_FIELDS: Record<string, string[]> = {
   aryaPreviousYearEvaluation: ["enterprise", "totalClosed", "closingDate", "totalRestarted", "restartedDate"],
   nfGeographicalInfo: ["startDate", "endDate", "agroClimaticZone", "farmingSituation", "latitude", "longitude"],
   nfPhysicalInfo: ["activityName", "trainingTitle", "trainingDate", "venue", "participants"],
-  nfDemonstrationInfo: ["farmerName", "activityName", "crop", "variety"],
-  nfAlreadyPracticing: ["farmerName", "address", "normalCropsGrown", "practicingYear"],
+  nfDemonstrationInfo: ["farmerName", "activityName", "crop", "variety", "farmerAddress", "farmerContact", "agroClimaticZone", "croppingPattern", "farmingSituation", "latitude", "longitude", "season", "technologyDemonstrated", "areaHa", "farmerPracticeDetail", "farmerFeedback"],
+  nfAlreadyPracticing: ["farmerName", "address", "normalCropsGrown", "practicingYear", "contactNumber", "activityName", "crop", "technologyDemonstrated", "areaHa", "farmerFeedback"],
   nfBeneficiary: ["numberOfBlock", "numberOfVillage", "numberOfTraining", "farmersInfluenced"],
   nfSoilData: ["season", "type", "crop", "beforePh", "beforeEc", "beforeEcOc", "afterPh", "afterEc", "afterEcOc"],
   nfBudgetExpenditure: ["activityName", "activitiesOrganised", "budgetSanction", "budgetExpenditure", "totalBudgetExpenditure"],
   subPlanActivity: ["type", "activities", "noOfTraining", "beneficiaries"],
-  nariNutritionGarden: ["nutriSmartVillage", "typeOfNutritionalGarden", "numbers", "areaSqm"],
-  nariBioFortified: ["nutriSmartVillage", "season", "activity", "categoryOfCrop"],
-  nariValueAddition: ["nutriSmartVillage", "cropName", "valueAddedProduct", "activity"],
-  nariTraining: ["nutriSmartVillage", "areaOfTraining", "activity", "titleOfTraining"],
-  nariExtension: ["nutriSmartVillage", "activity", "nameOfActivity", "noOfActivities"],
-  agriDroneIntroduction: ["year", "centreName", "companyOfDrone", "modelOfDrone", "dronesSanctioned", "dronesPurchased", "amountSanctioned"],
+  nariNutritionGarden: ["nutriSmartVillage", "typeOfNutritionalGarden", "numbers", "areaSqm", "activity", "male", "female"],
+  nariBioFortified: ["nutriSmartVillage", "season", "activity", "categoryOfCrop", "numberOfCrops", "male", "female"],
+  nariValueAddition: ["nutriSmartVillage", "cropName", "valueAddedProduct", "activity", "numberOfProducts", "male", "female"],
+  nariTraining: ["nutriSmartVillage", "areaOfTraining", "activity", "titleOfTraining", "numberOfCourses", "male", "female"],
+  nariExtension: ["nutriSmartVillage", "activity", "nameOfActivity", "noOfActivities", "male", "female"],
+  agriDroneIntroduction: ["year", "centreName", "companyOfDrone", "modelOfDrone", "dronesSanctioned", "dronesPurchased", "amountSanctioned", "costPerDrone", "pilotNameContact", "targetAreaHa", "amountSanctionedDemo", "amountUtilisedDemo", "areaCoveredDemoHa", "operationType", "farmersParticipated", "advantages"],
   agriDroneDemonstration: ["centreName", "district", "dateOfDemos", "placeOfDemos", "cropName", "noOfDemos", "areaCovered", "noOfFarmers"],
   fpoCbboDetail: ["noOfBlocksAllocated", "noOfFposRegistered", "trainingReceived", "businessPlanPrepared", "noOfFposDoingBusiness"],
-  fpoManagement: ["registrationNo", "dateOfRegistration", "fpoName", "fpoAddress", "totalBomMembers", "financialPosition"],
-  drmrDetail: ["varietiesUsedInIp", "situations", "varietiesUsedInFp", "netReturnImprovedPractice", "netReturnFarmerPractice"],
-  drmrActivity: ["startDate", "endDate", "training", "flds", "awarenessCamps", "distributionOfLiterature"],
-  craDetail: ["season", "technologyDemonstrated", "croppingSystem", "areaHa", "noOfFarmer"],
+  fpoManagement: ["registrationNo", "dateOfRegistration", "fpoName", "fpoAddress", "totalBomMembers", "financialPosition", "proposedActivity", "commodityIdentified", "areaHa", "totalFarmersAttached", "successIndicator"],
+  drmrDetail: ["varietiesUsedInIp", "situations", "varietiesUsedInFp", "netReturnImprovedPractice", "netReturnFarmerPractice", "yieldKgHaIp", "yieldKgHaFp", "yiofpPercentIp", "yiofpPercentFp", "cocRsHaIp", "cocRsHaFp", "gmrRsHaIp", "gmrRsHaFp", "anmrRsHaIp", "anmrRsHaFp", "bcRatioIp", "bcRatioFp"],
+  drmrActivity: ["startDate", "endDate", "training", "flds", "awarenessCamps", "distributionOfLiterature", "itemActivity", "unit", "quantity"],
+  craDetail: ["season", "technologyDemonstrated", "croppingSystem", "areaHa", "noOfFarmer", "farmingSystem", "crop", "cropYieldQha", "systemProductivityQha", "totalReturnRsHa", "yieldFarmerPracticeQha"],
   craExtensionActivity: ["extensionActivity", "startDate", "endDate", "withinOrWithoutState", "exposureVisits", "farmersUnderExposure"],
   csisaDetail: ["season", "villageCovered", "blockCovered", "districtCovered"],
-  seedHubProgram: ["season", "cropName", "variety", "areaHa", "yieldHa"],
+  seedHubProgram: ["season", "cropName", "variety", "areaHa", "yieldHa", "qtySeedProducedQ", "qtySeedSaleOutQ", "farmersPurchased", "qtySeedSaleOutToFarmersQ", "villagesCovered", "qtySeedSaleOutOtherOrgQ", "amountGeneratedLakh", "totalAmountInProjectLakh"],
   otherProgramme: ["programmeName", "programmeDate", "venue", "purpose", "participants"],
   kvkActivityImpact: ["specificArea", "briefDetails", "farmersBenefitted", "horizontalSpread", "adoptionPercent"],
   entrepreneurshipDetail: ["entrepreneurOrEnterprise", "enterpriseType", "membersAssociated", "annualIncome"],
   successStory: ["farmerOrEntrepreneur", "experience", "majorAchievement", "storyTitle"],
   districtLevelData: ["reportingYear", "items", "information"],
+  districtCropProductivity: ["season", "type", "cropName", "areaHa", "productionMt", "productivityQha", "remarks"],
+  districtLivestockProduction: ["livestockName", "number", "remarks"],
   operationalAreaDetail: ["reportingYear", "taluk", "block", "village", "majorCrops", "majorProblems", "thrustAreas"],
   villageAdoptionProgramme: ["reportingYear", "village", "block", "actionTaken"],
   priorityThrustArea: ["reportingYear", "thrustArea"],
-  demonstrationUnit: ["demoUnitName", "yearOfEstt", "areaSqMt"],
-  instructionalFarmCrop: ["cropName", "areaHa"],
-  productionUnit: ["productName", "qty"],
-  instructionalFarmLivestock: ["animalName", "speciesBreed", "produceType"],
-  hostelUtilization: ["months", "traineesStayed", "traineeDays"],
+  demonstrationUnit: ["demoUnitName", "yearOfEstt", "areaSqMt", "varietyBreed", "produce", "qty", "costOfInputs", "grossIncome", "remarks"],
+  instructionalFarmCrop: ["cropName", "areaHa", "season", "variety", "produceType", "qty", "costOfInputs", "grossIncome", "remarks"],
+  productionUnit: ["productName", "qty", "costOfInputs", "grossIncome", "remarks"],
+  instructionalFarmLivestock: ["animalName", "speciesBreed", "produceType", "qty", "costOfInputs", "grossIncome", "remarks"],
+  hostelUtilization: ["months", "traineesStayed", "traineeDays", "reasonForShortFall"],
   rainWaterHarvesting: ["trainingProgrammes", "demonstrations", "plantMaterialProduced", "farmerVisits", "officialVisits"],
-  budgetDetail: ["salaryAllocation", "salaryExpenditure", "generalGrantAllocation", "generalGrantExpenditure", "capitalGrantAllocation", "capitalGrantExpenditure"],
-  projectWiseBudgetPerformance: ["projectName", "fundingAgency", "budgetEstimate", "budgetAllocated", "budgetReleased", "expenditure", "unspentBalance"],
+  budgetDetail: ["salaryAllocation", "salaryExpenditure", "generalGrantAllocation", "generalGrantExpenditure", "capitalGrantAllocation", "capitalGrantExpenditure", "generalMainGrant", "generalTsp", "generalScsp", "capitalMainGrant", "capitalTsp", "capitalScsp"],
+  projectWiseBudgetPerformance: ["projectName", "accountNumber", "fundingAgency", "budgetEstimate", "budgetAllocated", "budgetReleased", "expenditure", "unspentBalance"],
   revolvingFund: ["reportingYear", "openingBalance", "incomeDuringYear", "expenditureDuringYear", "closing", "kind"],
   revenueGeneration: ["headName", "income", "sponsoringAgency"],
-  resourceGeneration: ["programmeName", "purpose", "sourcesOfFund", "amountLakhs"],
+  resourceGeneration: ["programmeName", "purpose", "sourcesOfFund", "amountLakhs", "infrastructureCreated"],
   functionalLinkage: ["organizationName", "natureOfLinkage"],
   prevalentDiseaseCrop: ["diseaseName", "crop", "outbreakDate", "areaAffected", "commodityLossPercent", "preventiveMeasures"],
-  prevalentDiseaseLivestock: ["diseaseName", "speciesAffected", "outbreakDate", "mortalityMorbidity", "animalsVaccinated", "preventiveMeasures"],
+  prevalentDiseaseLivestock: ["diseaseName", "speciesAffected", "outbreakDate", "mortalityMorbidity", "animalsVaccinated", "preventiveMeasures", "areaAffected", "commodityLossPercent"],
   ppvFraTrainingProgramme: ["date", "title", "type", "venue", "resourcePerson", "participants"],
-  ppvFraFarmerDetail: ["year", "crop", "registrationNo", "farmerName", "block", "district"],
+  ppvFraFarmerDetail: ["year", "crop", "registrationNo", "farmerName", "block", "district", "mobileNo", "village", "characteristics"],
   raweFetFitProgramme: ["startDate", "endDate", "attachmentType", "numberOfStudents", "daysStayed"],
   vipVisitor: ["visitDate", "dignitaryType", "ministerName", "observations"],
   digitalMobileApp: ["mobileAppsDeveloped", "appName", "appLanguage", "meantFor", "timesDownloaded"],
   digitalWebPortal: ["visitors", "farmersRegistered"],
   digitalKisanSarathi: ["farmersRegisteredKsp", "phoneCallAddressed", "answeredCall"],
   digitalKmas: ["farmersCovered", "advisoriesSent", "messagesCrop", "messagesLivestock", "messagesWeather", "messagesMarketing", "messagesAwareness", "messagesOtherEnterprises", "messagesAnyOther"],
-  digitalOtherChannel: ["textAdvisories", "textFarmers", "whatsappAdvisories", "whatsappFarmers", "socialMediaAdvisories", "socialMediaFarmers", "weatherBulletinAdvisories", "weatherBulletinFarmers"],
+  digitalOtherChannel: ["channel", "farmersCovered", "advisoriesSent", "messagesCrop", "messagesLivestock", "messagesWeather", "messagesMarketing", "messagesAwareness", "messagesOtherEnterprises"],
   sacMeeting: ["startDate", "endDate", "participants", "statutoryMembers", "recommendations", "actionTaken", "reason"],
   otherMeeting: ["date", "meetingType", "agenda", "representativeFromAtari"],
 };
 
 type ScopeMode = "direct" | { via: string };
 
-type Entry = { code: string; title: string; model: string; scope: ScopeMode };
+/**
+ * `custom` covers the tables whose real shape (super-v2-prod.pdf) is a
+ * State/KVK-grouped aggregate rather than a flat per-record dump of one
+ * model's own columns - `model`/`scope` are unused for these (kept required
+ * on the type only so every other entry stays a plain object literal).
+ */
+type Entry = { code: string; title: string; model: string; scope: ScopeMode; custom?: (scope: ReportScope) => Promise<{ columns: ReportColumn[]; rows: Record<string, string>[] }> };
+
+const OFT_SUBJECT_ORDER = [
+  "Technologies Assessed under Various Crops by KVKs (Crop Production)",
+  "Technologies assessed under livestock and fisheries",
+  "Technologies assessed under various enterprises",
+  "Technologies assessed under women empowerment (Home science)",
+  "Technologies assessed under various crops (Horticulture crops)",
+];
+const SECTOR_LETTERS = ["A", "B", "C", "D", "E"];
+
+/**
+ * "2.2.A OFT Summary" in the real report (super-v2-prod.pdf p.21-24) is a
+ * State x Sector x Thematic Area pivot ("Technology Assessed by KVK"), not a
+ * flat dump of Oft's own columns - confirmed directly against that PDF, not
+ * guessed. The A-E sector grouping comes from OftSubject/
+ * OftThematicAreaMaster, whose seeded names match the real report's A)-E)
+ * groups thematic-area-for-thematic-area.
+ *
+ * Caveat (flagged, not asserted as certain): the real report never defines
+ * "No. of technologies assessed" / "Locations" / "Trial/Replications"
+ * precisely. This reads them as: technologies assessed = count of Oft
+ * records in that thematic area, Locations = distinct KVKs, Trial/
+ * Replications = sum of noOfTrialReplicationFarmer. Worth checking against
+ * the client's own numbers once real OFT data exists in both states.
+ */
+async function buildOftTechnologySummary(scope: ReportScope) {
+  const [subjects, oftRows, states] = await Promise.all([
+    prisma.oftSubject.findMany({
+      where: { zoneId: scope.zoneId, name: { in: OFT_SUBJECT_ORDER } },
+      include: { thematicAreas: { orderBy: { id: "asc" } } },
+    }),
+    prisma.oft.findMany({
+      where: scope.kvkId ? { kvkId: scope.kvkId } : { zoneId: scope.zoneId },
+      select: {
+        thematicArea: true,
+        noOfTrialReplicationFarmer: true,
+        kvkId: true,
+        kvk: { select: { state: { select: { name: true } } } },
+      },
+    }),
+    prisma.state.findMany({ where: { zoneId: scope.zoneId }, orderBy: { name: "asc" } }),
+  ]);
+
+  const stateNames = states.map((s) => s.name);
+  const allCols = [...stateNames, "Total"];
+  const columns: ReportColumn[] = [
+    { key: "sector", label: "Sector wise Thematic Area" },
+    ...allCols.flatMap((s) => [
+      { key: `${s} tech`, label: `${s} - Technologies Assessed` },
+      { key: `${s} loc`, label: `${s} - Locations` },
+      { key: `${s} trial`, label: `${s} - Trial/Replications` },
+    ]),
+  ];
+  const countKeys = allCols.flatMap((s) => [`${s} tech`, `${s} loc`, `${s} trial`]);
+
+  function countsFor(matching: typeof oftRows) {
+    const out: Record<string, number> = {};
+    for (const state of stateNames) {
+      const inState = matching.filter((r) => r.kvk.state.name === state);
+      out[`${state} tech`] = inState.length;
+      out[`${state} loc`] = new Set(inState.map((r) => r.kvkId)).size;
+      out[`${state} trial`] = inState.reduce((sum, r) => sum + (r.noOfTrialReplicationFarmer ?? 0), 0);
+    }
+    out["Total tech"] = matching.length;
+    out["Total loc"] = new Set(matching.map((r) => r.kvkId)).size;
+    out["Total trial"] = matching.reduce((sum, r) => sum + (r.noOfTrialReplicationFarmer ?? 0), 0);
+    return out;
+  }
+
+  const rows: Record<string, string>[] = [];
+  const grandCounts: Record<string, number> = Object.fromEntries(countKeys.map((k) => [k, 0]));
+
+  OFT_SUBJECT_ORDER.forEach((subjectName, i) => {
+    const subject = subjects.find((s) => s.name === subjectName);
+    if (!subject) return;
+    rows.push({ sector: `${SECTOR_LETTERS[i]}) ${subject.name}` });
+
+    const subTotalCounts: Record<string, number> = Object.fromEntries(countKeys.map((k) => [k, 0]));
+    for (const area of subject.thematicAreas) {
+      const matching = oftRows.filter((r) => r.thematicArea === area.name);
+      const counts = countsFor(matching);
+      const row: Record<string, string> = { sector: area.name };
+      for (const key of countKeys) {
+        row[key] = String(counts[key]);
+        subTotalCounts[key] += counts[key];
+        grandCounts[key] += counts[key];
+      }
+      rows.push(row);
+    }
+
+    const subRow: Record<string, string> = { sector: `Sub Total (${SECTOR_LETTERS[i]})` };
+    for (const key of countKeys) subRow[key] = String(subTotalCounts[key]);
+    rows.push(subRow);
+  });
+
+  const grandRow: Record<string, string> = { sector: "Grand Total" };
+  for (const key of countKeys) grandRow[key] = String(grandCounts[key]);
+  rows.push(grandRow);
+
+  return { columns, rows };
+}
+
+const OFT_DEMOGRAPHIC_FIELDS = ["generalMale", "generalFemale", "obcMale", "obcFemale", "scMale", "scFemale", "stMale", "stFemale"] as const;
+
+/**
+ * "2.2.B State Wise OFT Details" (super-v2-prod.pdf p.24) - state-wise
+ * rollup of the Farmers Details block (General/OBC/SC/ST x M/F) added to
+ * Oft this session. Column order (category x gender, Total last) confirmed
+ * from the reference's own row totals: the sum of the 8 category values
+ * equals the last number in every one of its rows.
+ */
+async function buildOftStateWiseDetails(scope: ReportScope) {
+  const [oftRows, states] = await Promise.all([
+    prisma.oft.findMany({
+      where: scope.kvkId ? { kvkId: scope.kvkId } : { zoneId: scope.zoneId },
+      select: {
+        generalMale: true, generalFemale: true, obcMale: true, obcFemale: true,
+        scMale: true, scFemale: true, stMale: true, stFemale: true,
+        kvk: { select: { state: { select: { name: true } } } },
+      },
+    }),
+    prisma.state.findMany({ where: { zoneId: scope.zoneId }, orderBy: { name: "asc" } }),
+  ]);
+
+  const columns: ReportColumn[] = [
+    { key: "state", label: "States" },
+    ...OFT_DEMOGRAPHIC_FIELDS.map((f) => ({ key: f, label: humanize(f) })),
+    { key: "total", label: "Total" },
+  ];
+
+  const rows: Record<string, string>[] = [];
+  const grand: Record<string, number> = Object.fromEntries(OFT_DEMOGRAPHIC_FIELDS.map((f) => [f, 0]));
+  for (const state of states.map((s) => s.name)) {
+    const inState = oftRows.filter((r) => r.kvk.state.name === state);
+    const row: Record<string, string> = { state };
+    let total = 0;
+    for (const f of OFT_DEMOGRAPHIC_FIELDS) {
+      const sum = inState.reduce((s, r) => s + r[f], 0);
+      row[f] = String(sum);
+      total += sum;
+      grand[f] += sum;
+    }
+    row.total = String(total);
+    rows.push(row);
+  }
+  const grandRow: Record<string, string> = { state: "Total" };
+  let grandTotal = 0;
+  for (const f of OFT_DEMOGRAPHIC_FIELDS) {
+    grandRow[f] = String(grand[f]);
+    grandTotal += grand[f];
+  }
+  grandRow.total = String(grandTotal);
+  rows.push(grandRow);
+
+  return { columns, rows };
+}
+
+/**
+ * "2.2.C KVK Wise OFT Details" in the real report is a full narrative
+ * write-up per trial (18 numbered fields + a photo placeholder + nested
+ * Technology Option/Results tables) grouped under each KVK's own heading -
+ * this report engine's flat grid renderer can't reproduce that document
+ * layout, but every field it lists is one this app already collects on
+ * Oft, so this renders that same full field set as a flat table sorted by
+ * KVK instead. A deliberate, flagged simplification of presentation, not a
+ * guess at the underlying data.
+ */
+async function buildOftKvkWiseDetails(scope: ReportScope) {
+  const fields = MODEL_FIELDS.oft;
+  const rows = await prisma.oft.findMany({
+    where: scope.kvkId ? { kvkId: scope.kvkId } : { zoneId: scope.zoneId },
+    select: { ...Object.fromEntries(fields.map((f) => [f, true])), kvk: { select: { name: true } } },
+    orderBy: { kvk: { name: "asc" } },
+  });
+  const columns: ReportColumn[] = [{ key: "kvk", label: "KVK" }, ...fields.map((f) => ({ key: f, label: humanize(f) }))];
+  const outRows = rows.map((r) => {
+    const row: Record<string, string> = { kvk: r.kvk.name };
+    for (const f of fields) row[f] = stringifyValue((r as unknown as Record<string, unknown>)[f]);
+    return row;
+  });
+  return { columns, rows: outRows };
+}
+
+/** Real, fixed order the reference report lists FLD sectors in (super-v2-prod.pdf p.34-37) - matches this app's own FLD Sector Master 1:1. */
+const FLD_SECTOR_ORDER = [
+  "Crop Production",
+  "Horticultural Crops",
+  "Livestock and Fisheries",
+  "Other Enterprises",
+  "Women Empowerment",
+  "Farm Implements and Machinery",
+  "Crop Hybrid Varieties",
+];
+
+/**
+ * "2.3.A FLD Summary" is a per-sector rollup of FldDemonstrationDetail, not
+ * a dump of the parent Fld record's own fields (confirmed against
+ * super-v2-prod.pdf p.34-35 directly). No. of FLDs/Demonstrations/Area/
+ * beneficiaries are unambiguous sums; the Yield Demo/Check columns use a
+ * demonstration-count-weighted average across that sector's rows - the
+ * reference never states its own formula and the numbers on the one real
+ * page checked don't cleanly resolve to a simple sum or plain average, so
+ * this is a best-effort reading flagged for the client to verify once real
+ * multi-row FLD data exists, not asserted as exact.
+ */
+async function buildFldSectorSummary(scope: ReportScope) {
+  const details = await prisma.fldDemonstrationDetail.findMany({
+    where: scope.kvkId ? { fld: { kvkId: scope.kvkId } } : { zoneId: scope.zoneId },
+    select: { fldId: true, sector: true, noOfDemonstrations: true, areaHa: true, noOfFarmers: true, yieldDemoQha: true, yieldCheckQha: true },
+  });
+
+  const columns: ReportColumn[] = [
+    { key: "sector", label: "Sector" },
+    { key: "flds", label: "No. of FLDs" },
+    { key: "demos", label: "No. of Demonstrations" },
+    { key: "area", label: "Area (ha)" },
+    { key: "beneficiaries", label: "No. of beneficiaries" },
+    { key: "yieldDemo", label: "Yield in Demo (q/ha)" },
+    { key: "yieldCheck", label: "Yield in Check (q/ha)" },
+  ];
+
+  function weightedYield(rows: typeof details, key: "yieldDemoQha" | "yieldCheckQha") {
+    let weightedSum = 0;
+    let weight = 0;
+    for (const r of rows) {
+      const v = r[key];
+      if (v === null) continue;
+      const w = r.noOfDemonstrations || 1;
+      weightedSum += Number(v) * w;
+      weight += w;
+    }
+    return weight === 0 ? 0 : weightedSum / weight;
+  }
+
+  const rows: Record<string, string>[] = [];
+  let totalFlds = 0, totalDemos = 0, totalArea = 0, totalBeneficiaries = 0;
+  const allRowsForYield: typeof details = [];
+
+  for (const sector of FLD_SECTOR_ORDER) {
+    const inSector = details.filter((d) => d.sector === sector);
+    allRowsForYield.push(...inSector);
+    const flds = new Set(inSector.map((d) => d.fldId)).size;
+    const demos = inSector.reduce((s, d) => s + d.noOfDemonstrations, 0);
+    const area = inSector.reduce((s, d) => s + Number(d.areaHa), 0);
+    const beneficiaries = inSector.reduce((s, d) => s + d.noOfFarmers, 0);
+    totalFlds += flds; totalDemos += demos; totalArea += area; totalBeneficiaries += beneficiaries;
+    rows.push({
+      sector,
+      flds: String(flds),
+      demos: String(demos),
+      area: area.toFixed(2),
+      beneficiaries: String(beneficiaries),
+      yieldDemo: weightedYield(inSector, "yieldDemoQha").toFixed(2),
+      yieldCheck: weightedYield(inSector, "yieldCheckQha").toFixed(2),
+    });
+  }
+
+  rows.push({
+    sector: "Total",
+    flds: String(totalFlds),
+    demos: String(totalDemos),
+    area: totalArea.toFixed(2),
+    beneficiaries: String(totalBeneficiaries),
+    yieldDemo: weightedYield(allRowsForYield, "yieldDemoQha").toFixed(2),
+    yieldCheck: weightedYield(allRowsForYield, "yieldCheckQha").toFixed(2),
+  });
+
+  return { columns, rows };
+}
+
+/**
+ * "2.3.B State wise details of Front-Line Demonstration" (super-v2-prod.pdf
+ * p.35) - the reference gives each sector its own sub-column set (Farm
+ * Implements and Machinery reports "No. of Implements" instead of an area
+ * figure, matching its labor/cost-reduction economics variant). This report
+ * engine's flat single-header-row table can't vary columns per sector, so
+ * every sector uses the same 3 columns (farmers/demonstrations/area) that
+ * apply to the majority of sectors - a flagged simplification for the one
+ * sector (Farm Implements and Machinery) whose real column meaning differs.
+ */
+async function buildFldStateWiseDetails(scope: ReportScope) {
+  const [details, states] = await Promise.all([
+    prisma.fldDemonstrationDetail.findMany({
+      where: scope.kvkId ? { fld: { kvkId: scope.kvkId } } : { zoneId: scope.zoneId },
+      select: { sector: true, noOfDemonstrations: true, areaHa: true, noOfFarmers: true, fld: { select: { kvk: { select: { state: { select: { name: true } } } } } } },
+    }),
+    prisma.state.findMany({ where: { zoneId: scope.zoneId }, orderBy: { name: "asc" } }),
+  ]);
+
+  const stateNames = states.map((s) => s.name);
+  const columns: ReportColumn[] = [
+    { key: "state", label: "States" },
+    ...FLD_SECTOR_ORDER.flatMap((sector) => [
+      { key: `${sector} farmers`, label: `${sector} - No. of farmers` },
+      { key: `${sector} demo`, label: `${sector} - No. of demo` },
+      { key: `${sector} area`, label: `${sector} - Area (ha)` },
+    ]),
+    { key: "Total farmers", label: "Total - No. of farmers" },
+    { key: "Total demo", label: "Total - No. of demo" },
+    { key: "Total area", label: "Total - Area (ha)" },
+  ];
+
+  function rowFor(rowsInScope: typeof details) {
+    const row: Record<string, string> = {};
+    let totalFarmers = 0, totalDemo = 0, totalArea = 0;
+    for (const sector of FLD_SECTOR_ORDER) {
+      const inSector = rowsInScope.filter((d) => d.sector === sector);
+      const farmers = inSector.reduce((s, d) => s + d.noOfFarmers, 0);
+      const demo = inSector.reduce((s, d) => s + d.noOfDemonstrations, 0);
+      const area = inSector.reduce((s, d) => s + Number(d.areaHa), 0);
+      row[`${sector} farmers`] = String(farmers);
+      row[`${sector} demo`] = String(demo);
+      row[`${sector} area`] = area.toFixed(2);
+      totalFarmers += farmers; totalDemo += demo; totalArea += area;
+    }
+    row["Total farmers"] = String(totalFarmers);
+    row["Total demo"] = String(totalDemo);
+    row["Total area"] = totalArea.toFixed(2);
+    return row;
+  }
+
+  const rows: Record<string, string>[] = stateNames.map((state) => ({
+    state,
+    ...rowFor(details.filter((d) => d.fld.kvk.state.name === state)),
+  }));
+  rows.push({ state: "Total", ...rowFor(details) });
+
+  return { columns, rows };
+}
+
+/**
+ * "2.3.C Details of Front-Line Demonstration" (super-v2-prod.pdf p.35-37) -
+ * grouped by sector, then by thematic area, listing every crop x state
+ * combination with the same economics/yield columns FldDemonstrationDetail
+ * already stores 1:1 (confirmed against the reference's own column
+ * headers). The reference further nests a "Cereals of Crop Production"-
+ * style category label between sector and crop that this schema has no
+ * distinct field for (only sector/cropOrItem/thematicArea exist) - grouped
+ * by thematic area here instead as the closest real field, a flagged
+ * simplification of the grouping label only, not of the underlying data.
+ */
+async function buildFldDetailsBySector(scope: ReportScope) {
+  const details = await prisma.fldDemonstrationDetail.findMany({
+    where: scope.kvkId ? { fld: { kvkId: scope.kvkId } } : { zoneId: scope.zoneId },
+    select: {
+      sector: true, cropOrItem: true, thematicArea: true, noOfDemonstrations: true, noOfFarmers: true, areaHa: true,
+      yieldDemoQha: true, yieldCheckQha: true, percentIncrease: true,
+      grossCostDemo: true, grossReturnDemo: true, netReturnDemo: true, bcrDemo: true,
+      grossCostCheck: true, grossReturnCheck: true, netReturnCheck: true, bcrCheck: true,
+      fld: { select: { kvk: { select: { state: { select: { name: true } } } } } },
+    },
+  });
+
+  const columns: ReportColumn[] = [
+    { key: "sector", label: "Sector" },
+    { key: "thematicArea", label: "Thematic Area" },
+    { key: "crop", label: "Crop" },
+    { key: "state", label: "State" },
+    { key: "demos", label: "No. of Demonstration" },
+    { key: "farmers", label: "No. of Farmers" },
+    { key: "area", label: "Area(ha)" },
+    { key: "yieldDemo", label: "Yield Demo (q/ha)" },
+    { key: "yieldCheck", label: "Yield Check (q/ha)" },
+    { key: "percentIncrease", label: "% Increase" },
+    { key: "grossCostDemo", label: "Gross Cost Demo" },
+    { key: "grossReturnDemo", label: "Gross Return Demo" },
+    { key: "netReturnDemo", label: "Net Return Demo" },
+    { key: "bcrDemo", label: "BCR Demo" },
+    { key: "grossCostCheck", label: "Gross Cost Check" },
+    { key: "grossReturnCheck", label: "Gross Return Check" },
+    { key: "netReturnCheck", label: "Net Return Check" },
+    { key: "bcrCheck", label: "BCR Check" },
+  ];
+
+  const sorted = [...details].sort((a, b) => {
+    const bySector = FLD_SECTOR_ORDER.indexOf(a.sector) - FLD_SECTOR_ORDER.indexOf(b.sector);
+    if (bySector !== 0) return bySector;
+    return a.thematicArea?.localeCompare(b.thematicArea ?? "") ?? 0;
+  });
+
+  const rows = sorted.map((d) => ({
+    sector: d.sector,
+    thematicArea: d.thematicArea ?? "",
+    crop: d.cropOrItem,
+    state: d.fld.kvk.state.name,
+    demos: String(d.noOfDemonstrations),
+    farmers: String(d.noOfFarmers),
+    area: Number(d.areaHa).toFixed(2),
+    yieldDemo: stringifyValue(d.yieldDemoQha),
+    yieldCheck: stringifyValue(d.yieldCheckQha),
+    percentIncrease: stringifyValue(d.percentIncrease),
+    grossCostDemo: stringifyValue(d.grossCostDemo),
+    grossReturnDemo: stringifyValue(d.grossReturnDemo),
+    netReturnDemo: stringifyValue(d.netReturnDemo),
+    bcrDemo: stringifyValue(d.bcrDemo),
+    grossCostCheck: stringifyValue(d.grossCostCheck),
+    grossReturnCheck: stringifyValue(d.grossReturnCheck),
+    netReturnCheck: stringifyValue(d.netReturnCheck),
+    bcrCheck: stringifyValue(d.bcrCheck),
+  }));
+
+  return { columns, rows };
+}
+
+/**
+ * "2.7.A Swachhta hi Sewa" / "2.7.B Swachta Pakhwada" are two separate
+ * tables in the real report (super-v2-prod.pdf p.41), not one combined
+ * table distinguished by a "Kind" column - this schema already stores them
+ * that way (SwachhtaObservance.kind), so this just filters by kind instead
+ * of rendering kind as a column.
+ */
+function buildSwachhtaByKind(kind: "SEWA" | "PAKHWADA") {
+  return async (scope: ReportScope) => {
+    const fields = MODEL_FIELDS.swachhtaObservance.filter((f) => f !== "kind");
+    const rows = await prisma.swachhtaObservance.findMany({
+      where: { kind, ...(scope.kvkId ? { kvkId: scope.kvkId } : { zoneId: scope.zoneId }) },
+      select: Object.fromEntries(fields.map((f) => [f, true])),
+      take: 200,
+    });
+    const columns: ReportColumn[] = fields.map((key) => ({ key, label: humanize(key) }));
+    const outRows = rows.map((r) => Object.fromEntries(fields.map((f) => [f, stringifyValue((r as Record<string, unknown>)[f])])));
+    return { columns, rows: outRows };
+  };
+}
+
+/**
+ * Real, fixed row order for "3.6.A TSP Activities" / "3.6.B SCSP
+ * Activities" (super-v2-prod.pdf p.75-76: "a. Achievements of physical
+ * output under TSP/SCSP") - matches this app's own TSP/SCSP Activity
+ * Master 1:1 (5 values: Trainings, OFT, FLD, "Mobile agro- advisory to
+ * farmers", Other activities).
+ */
+const SUB_PLAN_ACTIVITY_ORDER = ["Trainings", "OFT", "FLD", "Mobile agro- advisory to farmers", "Other activities"];
+
+/**
+ * "3.6.A TSP Activities" / "3.6.B SCSP Activities" in the real report is a
+ * Bihar/Jharkhand x fixed-Activity pivot ("No. of Trainings/Demos" and "No.
+ * of Farmers" per activity) - not a flat dump of SubPlanActivity's own rows
+ * (confirmed against the reference PDF directly). Uses the existing
+ * type/activities/noOfTraining/beneficiaries fields, just grouped instead
+ * of listed.
+ */
+function buildSubPlanByType(type: "TSP" | "SCSP") {
+  return async (scope: ReportScope) => {
+    const rows = await prisma.subPlanActivity.findMany({
+      where: { type, ...(scope.kvkId ? { kvkId: scope.kvkId } : { zoneId: scope.zoneId }) },
+      select: { activities: true, noOfTraining: true, beneficiaries: true, kvk: { select: { state: { select: { name: true } } } } },
+    });
+    const states = await prisma.state.findMany({ where: { zoneId: scope.zoneId }, orderBy: { name: "asc" } });
+    const stateNames = states.map((s) => s.name);
+    const allCols = [...stateNames, "Total"];
+
+    const columns: ReportColumn[] = [
+      { key: "activity", label: "Name of Activities" },
+      ...allCols.flatMap((s) => [
+        { key: `${s} demos`, label: `${s} - No. of Trainings/Demos` },
+        { key: `${s} farmers`, label: `${s} - No. of Farmers` },
+      ]),
+    ];
+
+    const outRows: Record<string, string>[] = [];
+    const grand: Record<string, number> = Object.fromEntries(allCols.flatMap((s) => [[`${s} demos`, 0], [`${s} farmers`, 0]]));
+
+    for (const activity of SUB_PLAN_ACTIVITY_ORDER) {
+      const matching = rows.filter((r) => r.activities === activity);
+      const row: Record<string, string> = { activity };
+      for (const state of stateNames) {
+        const inState = matching.filter((r) => r.kvk.state.name === state);
+        const demos = inState.reduce((s, r) => s + r.noOfTraining, 0);
+        const farmers = inState.reduce((s, r) => s + r.beneficiaries, 0);
+        row[`${state} demos`] = String(demos);
+        row[`${state} farmers`] = String(farmers);
+        grand[`${state} demos`] += demos;
+        grand[`${state} farmers`] += farmers;
+      }
+      const totalDemos = matching.reduce((s, r) => s + r.noOfTraining, 0);
+      const totalFarmers = matching.reduce((s, r) => s + r.beneficiaries, 0);
+      row["Total demos"] = String(totalDemos);
+      row["Total farmers"] = String(totalFarmers);
+      grand["Total demos"] += totalDemos;
+      grand["Total farmers"] += totalFarmers;
+      outRows.push(row);
+    }
+
+    const grandRow: Record<string, string> = { activity: "Grand Total" };
+    for (const key of Object.keys(grand)) grandRow[key] = String(grand[key]);
+    outRows.push(grandRow);
+
+    return { columns, rows: outRows };
+  };
+}
+
+/** Real, fixed row order for NARI's "3.7.A/B/C" State x Activity pivots (super-v2-prod.pdf p.76-77) - matches this app's own NARI Activity Master 1:1 (OFT, FLD, Not Specified). */
+const NARI_ACTIVITY_ORDER = ["OFT", "FLD", "Not Specified"];
+
+/**
+ * "3.7.A Nutrition Garden" / "3.7.B Bio-fortified Crops" / "3.7.C Value
+ * Addition" in the real report are all the same shape: Bihar/Jharkhand/
+ * Total x Activity(OFT/FLD/Not Specified), each with a count column (No.
+ * of Gardens/Crops/Products) plus Male/Female/Total - confirmed directly
+ * against the reference PDF, not a flat dump of each model's own rows.
+ * `countField`/`countLabel` are the one thing that differs per model.
+ */
+function buildNariByActivity(
+  model: "nariNutritionGarden" | "nariBioFortified" | "nariValueAddition" | "nariTraining" | "nariExtension",
+  countField: "numbers" | "numberOfCrops" | "numberOfProducts" | "numberOfCourses" | "noOfActivities",
+  countLabel: string,
+) {
+  return async (scope: ReportScope) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const delegate = (prisma as any)[model];
+    const rows: { activity: string; count: number; male: number; female: number; kvk: { state: { name: string } } }[] =
+      await delegate.findMany({
+        where: scope.kvkId ? { kvkId: scope.kvkId } : { zoneId: scope.zoneId },
+        select: { activity: true, [countField]: true, male: true, female: true, kvk: { select: { state: { select: { name: true } } } } },
+      }).then((rs: Record<string, unknown>[]) =>
+        rs.map((r) => ({ activity: String(r.activity), count: Number(r[countField]), male: Number(r.male), female: Number(r.female), kvk: r.kvk as { state: { name: string } } })),
+      );
+    const states = await prisma.state.findMany({ where: { zoneId: scope.zoneId }, orderBy: { name: "asc" } });
+    const stateNames = states.map((s) => s.name);
+    const allCols = [...stateNames, "Total"];
+
+    const columns: ReportColumn[] = [
+      { key: "activity", label: "Activity" },
+      ...allCols.flatMap((s) => [
+        { key: `${s} count`, label: `${s} - ${countLabel}` },
+        { key: `${s} male`, label: `${s} - Male` },
+        { key: `${s} female`, label: `${s} - Female` },
+        { key: `${s} total`, label: `${s} - Total` },
+      ]),
+    ];
+
+    const outRows: Record<string, string>[] = [];
+    const grand: Record<string, number> = Object.fromEntries(
+      allCols.flatMap((s) => [[`${s} count`, 0], [`${s} male`, 0], [`${s} female`, 0], [`${s} total`, 0]]),
+    );
+
+    for (const activity of NARI_ACTIVITY_ORDER) {
+      const matching = rows.filter((r) => r.activity === activity);
+      const row: Record<string, string> = { activity };
+      for (const state of stateNames) {
+        const inState = matching.filter((r) => r.kvk.state.name === state);
+        const count = inState.reduce((s, r) => s + r.count, 0);
+        const male = inState.reduce((s, r) => s + r.male, 0);
+        const female = inState.reduce((s, r) => s + r.female, 0);
+        row[`${state} count`] = String(count);
+        row[`${state} male`] = String(male);
+        row[`${state} female`] = String(female);
+        row[`${state} total`] = String(male + female);
+        grand[`${state} count`] += count;
+        grand[`${state} male`] += male;
+        grand[`${state} female`] += female;
+        grand[`${state} total`] += male + female;
+      }
+      const totalCount = matching.reduce((s, r) => s + r.count, 0);
+      const totalMale = matching.reduce((s, r) => s + r.male, 0);
+      const totalFemale = matching.reduce((s, r) => s + r.female, 0);
+      row["Total count"] = String(totalCount);
+      row["Total male"] = String(totalMale);
+      row["Total female"] = String(totalFemale);
+      row["Total total"] = String(totalMale + totalFemale);
+      grand["Total count"] += totalCount;
+      grand["Total male"] += totalMale;
+      grand["Total female"] += totalFemale;
+      grand["Total total"] += totalMale + totalFemale;
+      outRows.push(row);
+    }
+
+    const grandRow: Record<string, string> = { activity: "Grand Total" };
+    for (const key of Object.keys(grand)) grandRow[key] = String(grand[key]);
+    outRows.push(grandRow);
+
+    return { columns, rows: outRows };
+  };
+}
+
 type Sub = { num: string; title: string; items: Entry[] };
 type Sec = { num: string; title: string; subs: Sub[] };
 
@@ -152,7 +736,6 @@ const PROJECTS_SECTION: Sec = {
         { code: "3.1.A", title: "Technical Parameter", model: "cfldTechnicalParameter", scope: "direct" },
         { code: "3.1.B", title: "Extension Activity", model: "cfldExtensionActivity", scope: "direct" },
         { code: "3.1.C", title: "Budget Utilization", model: "cfldBudgetUtilization", scope: "direct" },
-        { code: "3.1.D", title: "Socio-Economic Impact", model: "cfldSocioEconomicImpact", scope: { via: "cfldTechnicalParameter" } },
       ]},
       { num: "3.2", title: "NICRA", items: [
         { code: "3.2.A", title: "Basic Information", model: "nicraBasicInformation", scope: "direct" },
@@ -184,14 +767,15 @@ const PROJECTS_SECTION: Sec = {
         { code: "3.5.G", title: "Budget Expenditure", model: "nfBudgetExpenditure", scope: "direct" },
       ]},
       { num: "3.6", title: "TSP/SCSP", items: [
-        { code: "3.6.A", title: "TSP / SCSP Activities", model: "subPlanActivity", scope: "direct" },
+        { code: "3.6.A", title: "TSP Activities", model: "subPlanActivity", scope: "direct", custom: buildSubPlanByType("TSP") },
+        { code: "3.6.B", title: "SCSP Activities", model: "subPlanActivity", scope: "direct", custom: buildSubPlanByType("SCSP") },
       ]},
       { num: "3.7", title: "NARI", items: [
-        { code: "3.7.A", title: "Nutrition Garden", model: "nariNutritionGarden", scope: "direct" },
-        { code: "3.7.B", title: "Bio-fortified Crops", model: "nariBioFortified", scope: "direct" },
-        { code: "3.7.C", title: "Value Addition", model: "nariValueAddition", scope: "direct" },
-        { code: "3.7.D", title: "Training Program", model: "nariTraining", scope: "direct" },
-        { code: "3.7.E", title: "Extension Activities", model: "nariExtension", scope: "direct" },
+        { code: "3.7.A", title: "Nutrition Garden", model: "nariNutritionGarden", scope: "direct", custom: buildNariByActivity("nariNutritionGarden", "numbers", "No. of Gardens") },
+        { code: "3.7.B", title: "Bio-fortified Crops", model: "nariBioFortified", scope: "direct", custom: buildNariByActivity("nariBioFortified", "numberOfCrops", "No. of Crops") },
+        { code: "3.7.C", title: "Value Addition", model: "nariValueAddition", scope: "direct", custom: buildNariByActivity("nariValueAddition", "numberOfProducts", "No. of Products") },
+        { code: "3.7.D", title: "Training Program", model: "nariTraining", scope: "direct", custom: buildNariByActivity("nariTraining", "numberOfCourses", "No. of Courses") },
+        { code: "3.7.E", title: "Extension Activities", model: "nariExtension", scope: "direct", custom: buildNariByActivity("nariExtension", "noOfActivities", "No. of Activities") },
       ]},
       { num: "3.8", title: "Agri-Drone", items: [
         { code: "3.8.A", title: "Introduction", model: "agriDroneIntroduction", scope: "direct" },
@@ -278,10 +862,14 @@ const SUPER_ADMIN_TREE: Sec[] = [
         { code: "2.1.A", title: "Technical Achievement Summary", model: "technicalAchievementSummaryEntry", scope: "direct" },
       ]},
       { num: "2.2", title: "On Farm Trial", items: [
-        { code: "2.2.A", title: "OFT Summary", model: "oft", scope: "direct" },
+        { code: "2.2.A", title: "OFT Summary", model: "oft", scope: "direct", custom: buildOftTechnologySummary },
+        { code: "2.2.B", title: "State Wise OFT Details", model: "oft", scope: "direct", custom: buildOftStateWiseDetails },
+        { code: "2.2.C", title: "KVK Wise OFT Details", model: "oft", scope: "direct", custom: buildOftKvkWiseDetails },
       ]},
       { num: "2.3", title: "Front Line Demonstration", items: [
-        { code: "2.3.A", title: "FLD Summary", model: "fld", scope: "direct" },
+        { code: "2.3.A", title: "FLD Summary", model: "fld", scope: "direct", custom: buildFldSectorSummary },
+        { code: "2.3.B", title: "State Wise FLD Details", model: "fld", scope: "direct", custom: buildFldStateWiseDetails },
+        { code: "2.3.C", title: "FLD Details", model: "fld", scope: "direct", custom: buildFldDetailsBySector },
         { code: "2.3.D", title: "Extension & Training activities under FLD", model: "fldExtensionTraining", scope: { via: "fld" } },
         { code: "2.3.E", title: "Technical Feedback on FLD", model: "fldTechnicalFeedback", scope: { via: "fld" } },
       ]},
@@ -299,7 +887,8 @@ const SUPER_ADMIN_TREE: Sec[] = [
         { code: "2.6.D", title: "Poshan Maah", model: "poshanMaaha", scope: "direct" },
       ]},
       { num: "2.7", title: "Swacha Bharat Abhiyan", items: [
-        { code: "2.7.A", title: "Swachhta hi Sewa / Pakhwada", model: "swachhtaObservance", scope: "direct" },
+        { code: "2.7.A", title: "Swachhta hi Sewa", model: "swachhtaObservance", scope: "direct", custom: buildSwachhtaByKind("SEWA") },
+        { code: "2.7.B", title: "Swachta Pakhwada", model: "swachhtaObservance", scope: "direct", custom: buildSwachhtaByKind("PAKHWADA") },
         { code: "2.7.C", title: "Budget Expenditure", model: "swachhtaBudgetExpenditure", scope: "direct" },
       ]},
       { num: "2.8", title: "Production & Supply", items: [
@@ -331,6 +920,8 @@ const SUPER_ADMIN_TREE: Sec[] = [
       ]},
       { num: "4.2", title: "District and Village Performance", items: [
         { code: "4.2.A", title: "District Level Data", model: "districtLevelData", scope: "direct" },
+        { code: "4.2.A.1", title: "Productivity of Major Crops", model: "districtCropProductivity", scope: "direct" },
+        { code: "4.2.A.2", title: "Production of Major Livestock Products", model: "districtLivestockProduction", scope: "direct" },
         { code: "4.2.B", title: "Operational Area Details", model: "operationalAreaDetail", scope: "direct" },
         { code: "4.2.C", title: "Village Adoption Programme", model: "villageAdoptionProgramme", scope: "direct" },
         { code: "4.2.D", title: "Priority Thrust Area", model: "priorityThrustArea", scope: "direct" },
@@ -411,10 +1002,12 @@ const KVK_TREE: Sec[] = [
         { code: "2.1.A", title: "Technical Achievement Summary", model: "technicalAchievementSummaryEntry", scope: "direct" },
       ]},
       { num: "2.2", title: "On Farm Trial", items: [
-        { code: "2.2.A", title: "OFT Summary", model: "oft", scope: "direct" },
+        { code: "2.2.A", title: "OFT Summary", model: "oft", scope: "direct", custom: buildOftTechnologySummary },
+        { code: "2.2.B", title: "KVK Wise OFT Details", model: "oft", scope: "direct", custom: buildOftKvkWiseDetails },
       ]},
       { num: "2.3", title: "Front Line Demonstration", items: [
-        { code: "2.3.A", title: "FLD Summary", model: "fld", scope: "direct" },
+        { code: "2.3.A", title: "FLD Summary", model: "fld", scope: "direct", custom: buildFldSectorSummary },
+        { code: "2.3.B", title: "FLD Details", model: "fld", scope: "direct", custom: buildFldDetailsBySector },
         { code: "2.3.C", title: "Extension & Training activities under FLD", model: "fldExtensionTraining", scope: { via: "fld" } },
         { code: "2.3.D", title: "Technical Feedback on FLD", model: "fldTechnicalFeedback", scope: { via: "fld" } },
       ]},
@@ -432,7 +1025,8 @@ const KVK_TREE: Sec[] = [
         { code: "2.6.D", title: "Poshan Maah", model: "poshanMaaha", scope: "direct" },
       ]},
       { num: "2.7", title: "Swacha Bharat Abhiyan", items: [
-        { code: "2.7.A", title: "Swachhta hi Sewa / Pakhwada", model: "swachhtaObservance", scope: "direct" },
+        { code: "2.7.A", title: "Swachhta hi Sewa", model: "swachhtaObservance", scope: "direct", custom: buildSwachhtaByKind("SEWA") },
+        { code: "2.7.B", title: "Swachta Pakhwada", model: "swachhtaObservance", scope: "direct", custom: buildSwachhtaByKind("PAKHWADA") },
         { code: "2.7.C", title: "Budget Expenditure", model: "swachhtaBudgetExpenditure", scope: "direct" },
       ]},
       { num: "2.8", title: "Production & Supply", items: [
@@ -464,6 +1058,8 @@ const KVK_TREE: Sec[] = [
       ]},
       { num: "4.2", title: "District and Village Performance", items: [
         { code: "4.2.A", title: "District Level Data", model: "districtLevelData", scope: "direct" },
+        { code: "4.2.A.1", title: "Productivity of Major Crops", model: "districtCropProductivity", scope: "direct" },
+        { code: "4.2.A.2", title: "Production of Major Livestock Products", model: "districtLivestockProduction", scope: "direct" },
         { code: "4.2.B", title: "Operational Area Details", model: "operationalAreaDetail", scope: "direct" },
         { code: "4.2.C", title: "Village Adoption Programme", model: "villageAdoptionProgramme", scope: "direct" },
         { code: "4.2.D", title: "Priority Thrust Area", model: "priorityThrustArea", scope: "direct" },
@@ -520,6 +1116,14 @@ function whereFor(entry: Entry, scope: ReportScope): Record<string, unknown> {
 }
 
 async function fetchTable(entry: Entry, scope: ReportScope): Promise<ReportTable> {
+  if (entry.custom) {
+    try {
+      const { columns, rows } = await entry.custom(scope);
+      return { code: entry.code, title: entry.title, columns, rows };
+    } catch {
+      return { code: entry.code, title: entry.title, columns: [], rows: [] };
+    }
+  }
   const fields = MODEL_FIELDS[entry.model] ?? [];
   const columns: ReportColumn[] = fields.map((key) => ({ key, label: humanize(key) }));
   try {

@@ -15,6 +15,11 @@ export type ReportWordOptions = {
 
 const GREEN = "286C4A";
 
+/** A subsection with exactly one table repeating its own code/title (e.g. "6.1 SAC Meetings") shouldn't get a second heading - matches the real reference's own single-line rendering there. */
+function isRedundantTableHeading(sub: { num: string; title: string }, table: { code: string; title: string }) {
+  return table.code === sub.num && table.title === sub.title;
+}
+
 /**
  * Real downloadable Word export of the same report tree the PDF/Excel
  * exports use. Every section/subsection/table title is a real Word Heading
@@ -66,7 +71,9 @@ export async function generateReportWord(opts: ReportWordOptions): Promise<Blob>
       children.push(new Paragraph({ heading: HeadingLevel.HEADING_2, spacing: { before: 150, after: 100 }, children: [new TextRun({ text: `${sub.num}  ${sub.title}` })] }));
 
       for (const table of sub.tables) {
-        children.push(new Paragraph({ heading: HeadingLevel.HEADING_3, spacing: { before: 100, after: 80 }, children: [new TextRun({ text: `${table.code}  ${table.title}` })] }));
+        if (!isRedundantTableHeading(sub, table)) {
+          children.push(new Paragraph({ heading: HeadingLevel.HEADING_3, spacing: { before: 100, after: 80 }, children: [new TextRun({ text: `${table.code}  ${table.title}` })] }));
+        }
 
         if (table.rows.length === 0) {
           children.push(new Paragraph({ spacing: { after: 150 }, children: [new TextRun({ text: "No data available in table", italics: true, color: "999999" })] }));

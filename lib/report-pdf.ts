@@ -26,6 +26,16 @@ function spaced(text: string) {
   return text.split("").join(" ");
 }
 
+/**
+ * A subsection with exactly one table whose code/title exactly repeat the
+ * subsection's own (e.g. "6.1 SAC Meetings" containing a single table also
+ * titled "SAC Meetings") shouldn't get a second heading line - the real
+ * reference's own TOC and body only print one line for these, not two.
+ */
+function isRedundantTableHeading(sub: { num: string; title: string }, table: { code: string; title: string }) {
+  return table.code === sub.num && table.title === sub.title;
+}
+
 function docId() {
   const d = new Date();
   const pad = (n: number) => String(n).padStart(2, "0");
@@ -75,6 +85,7 @@ function layoutToc(sections: ReportSection[], pageH: number): { pageCount: numbe
       y += SUB_ROW_H;
 
       for (const table of sub.tables) {
+        if (isRedundantTableHeading(sub, table)) continue;
         breakIfNeeded();
         lines.push({ pageIndex, y, level: "table", text: `${table.code}   ${table.title}`, x: MARGIN + 12, rowHeight: TABLE_ROW_H, targetKey: `tab-${table.code}` });
         y += TABLE_ROW_H;
@@ -196,11 +207,13 @@ export function generateReportPdf(opts: ReportPdfOptions) {
           cursorY = 16;
         }
         targetPageByKey[`tab-${table.code}`] = doc.getNumberOfPages();
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(10);
-        doc.setTextColor(0, 0, 0);
-        doc.text(`${table.code}  ${table.title}`, MARGIN, cursorY);
-        cursorY += 5;
+        if (!isRedundantTableHeading(sub, table)) {
+          doc.setFont("helvetica", "bold");
+          doc.setFontSize(10);
+          doc.setTextColor(0, 0, 0);
+          doc.text(`${table.code}  ${table.title}`, MARGIN, cursorY);
+          cursorY += 5;
+        }
 
         if (table.rows.length === 0) {
           doc.setFont("helvetica", "italic");

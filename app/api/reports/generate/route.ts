@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/api-auth";
 import { buildReportSections } from "@/lib/report-data";
+import { zoneReportLabel } from "@/lib/reports";
 
 /**
  * Real report data for the "Download Report" PDF - the exact section tree
@@ -38,7 +39,7 @@ export async function GET(request: Request) {
   const sections = await buildReportSections({ kvkId, zoneId: auth.session.zoneId });
 
   return NextResponse.json({
-    zoneLabel: zone?.name ?? "ATARI",
+    zoneLabel: zone?.name ? zoneReportLabel(zone.name) : "ATARI",
     kvkNames: kvks.map((k) => k.name),
     sections,
   });

@@ -26,6 +26,8 @@ type TotalRow = { id: string; label: string; total: number };
 
 type DashboardStats = {
   totalKvks: number;
+  years: number[];
+  kvkOptions: { id: string; name: string }[];
   oft: { total: number; ongoing: number; completed: number; kvksWithEntries: number };
   fld: { total: number; ongoing: number; completed: number; kvksWithEntries: number };
   training: { total: number; kvksWithEntries: number };
@@ -37,6 +39,8 @@ type DashboardStats = {
 
 const EMPTY_STATS: DashboardStats = {
   totalKvks: 0,
+  years: [],
+  kvkOptions: [],
   oft: { total: 0, ongoing: 0, completed: 0, kvksWithEntries: 0 },
   fld: { total: 0, ongoing: 0, completed: 0, kvksWithEntries: 0 },
   training: { total: 0, kvksWithEntries: 0 },
@@ -111,13 +115,19 @@ function KvkUserDashboard({ kvkName }: { kvkName?: string }) {
 export default function DashboardPage() {
   const session = useSession();
   const [stats, setStats] = useState<DashboardStats>(EMPTY_STATS);
+  const [yearFilter, setYearFilter] = useState("All");
+  const [kvkFilter, setKvkFilter] = useState("All");
 
   const filterCardRef = useRef<HTMLDivElement>(null);
   const statGridRef = useRef<HTMLDivElement>(null);
   const [filterCardWidth, setFilterCardWidth] = useState<number>();
 
-  function loadStats() {
-    fetch("/api/dashboard-stats")
+  function loadStats(year = yearFilter, kvk = kvkFilter) {
+    const params = new URLSearchParams();
+    if (year !== "All") params.set("year", year);
+    if (kvk !== "All") params.set("kvk", kvk);
+    const query = params.toString();
+    fetch(`/api/dashboard-stats${query ? `?${query}` : ""}`)
       .then((res) => (res.ok ? res.json() : null))
       .then((data: DashboardStats | null) => {
         if (data) setStats(data);
@@ -128,10 +138,25 @@ export default function DashboardPage() {
   useEffect(() => {
     if (session.role === "kvk-user") return;
     loadStats();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session.role]);
   usePolling(() => {
     if (session.role !== "kvk-user") loadStats();
   });
+
+  function applyYear(next: string) {
+    setYearFilter(next);
+    loadStats(next, kvkFilter);
+  }
+  function applyKvk(next: string) {
+    setKvkFilter(next);
+    loadStats(yearFilter, next);
+  }
+  function resetFilters() {
+    setYearFilter("All");
+    setKvkFilter("All");
+    loadStats("All", "All");
+  }
 
   /**
    * The filter card's left edge must land exactly on Ext. Activity's left
@@ -167,12 +192,12 @@ export default function DashboardPage() {
   const isKvkAdmin = session.role === "kvk-admin";
 
   const statCards = [
-    { icon: BarChart3, label: "KVK", value: stats.totalKvks },
-    { icon: Users, label: "Total OFT", value: stats.oft.total },
-    { icon: FileText, label: "Total FLD", value: stats.fld.total },
-    { icon: GraduationCap, label: "Training", value: stats.training.total },
-    { icon: Activity, label: "Ext. Activity", value: stats.extension.total },
-    { icon: Tags, label: "Total Staff", value: stats.staff.total },
+    { icon: BarChart3, label: "KVK", value: stats.totalKvks, href: "/masters/basic/kvk-master" },
+    { icon: Users, label: "Total OFT", value: stats.oft.total, href: "/dashboard/analytics/oft" },
+    { icon: FileText, label: "Total FLD", value: stats.fld.total, href: "/dashboard/analytics/fld" },
+    { icon: GraduationCap, label: "Training", value: stats.training.total, href: "/dashboard/analytics/training" },
+    { icon: Activity, label: "Ext. Activity", value: stats.extension.total, href: "/dashboard/analytics/extension" },
+    { icon: Tags, label: "Total Staff", value: stats.staff.total, href: "/forms/about-kvk/employee/employee-details" },
   ].filter((stat) => !isKvkAdmin || stat.label !== "KVK");
 
   /** "64 of 65 KVKs with entries · 1 not started" - only meaningful cross-KVK, so Super Admin only. */
@@ -202,19 +227,23 @@ export default function DashboardPage() {
         >
           <FilterSelect
             label="Year"
-            options={["All"]}
+            options={["All", ...stats.years.map(String)]}
+            value={yearFilter}
+            onChange={applyYear}
             className="flex-1"
             selectClassName="min-w-0 flex-1"
           />
           {!isKvkAdmin && (
             <FilterSelect
               label="KVK"
-              options={["All"]}
+              options={["All", ...stats.kvkOptions.map((k) => k.name)]}
+              value={kvkFilter}
+              onChange={applyKvk}
               className="flex-1"
               selectClassName="min-w-0 flex-1"
             />
           )}
-          <Button variant="outline-primary" size="sm">
+          <Button variant="outline-primary" size="sm" onClick={resetFilters}>
             Reset
           </Button>
         </div>
@@ -234,6 +263,7 @@ export default function DashboardPage() {
             icon={stat.icon}
             label={stat.label}
             value={stat.value}
+            href={stat.href}
           />
         ))}
       </div>

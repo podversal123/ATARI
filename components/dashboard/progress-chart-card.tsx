@@ -410,16 +410,13 @@ export function ProgressChartCard({
 
       {/* Real reference (atari-client.vercel.app/dashboard, Bar/Area tabs): a tilted KVK-name label under every bar/point - was missing entirely, the chart area had no space reserved for it. Rendered height/rotation confirmed with a real Playwright screenshot this time (not guessed), List view already shows the name inline per row, so it's excluded here. */}
       {(view === "bar" || (view === "area" && rows.length > 1)) && (
-        <div className="relative mt-2 flex h-14 gap-2 pl-6">
+        <div className="relative mt-2 flex h-20 gap-1 pl-6">
           {(() => {
             const labelRows = view === "bar" ? pageRows : rows;
-            /** 70px keeps a crowded multi-KVK page (Super Admin) from overlapping; a KVK Admin's own chart has only 1-2 bars and plenty of room, so the cap only needs to kick in once bars actually get tight. */
-            const labelMaxWidth = labelRows.length <= 3 ? 160 : 70;
             return labelRows.map((row) => (
               <div key={row.id} className="relative w-full overflow-visible">
                 <span
-                  className="absolute top-3 left-1/2 origin-top-left rotate-45 truncate text-[10px] whitespace-nowrap text-muted-foreground"
-                  style={{ maxWidth: labelMaxWidth }}
+                  className="absolute top-3 left-1/2 origin-top-left rotate-45 whitespace-nowrap text-[8px] text-muted-foreground"
                   title={row.label}
                 >
                   {row.label}

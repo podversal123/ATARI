@@ -19,6 +19,11 @@ function sheetName(raw: string) {
   return raw.replace(/[:\\/?*[\]]/g, "-").slice(0, 31);
 }
 
+/** A subsection with exactly one table repeating its own code/title (e.g. "6.1 SAC Meetings") shouldn't get a second heading row - matches the real reference's own single-line rendering there. */
+function isRedundantTableHeading(sub: { num: string; title: string }, table: { code: string; title: string }) {
+  return table.code === sub.num && table.title === sub.title;
+}
+
 /**
  * Real downloadable Excel export of the same report tree the PDF/Word
  * exports use - one worksheet per top-level section (mirrors the PDF's
@@ -89,9 +94,11 @@ export async function generateReportExcel(opts: ReportExcelOptions): Promise<Exc
       r += 2;
 
       for (const table of sub.tables) {
-        sheet.getCell(`A${r}`).value = `${table.code}  ${table.title}`;
-        sheet.getCell(`A${r}`).font = { bold: true, size: 10, color: { argb: "FF333333" } };
-        r += 1;
+        if (!isRedundantTableHeading(sub, table)) {
+          sheet.getCell(`A${r}`).value = `${table.code}  ${table.title}`;
+          sheet.getCell(`A${r}`).font = { bold: true, size: 10, color: { argb: "FF333333" } };
+          r += 1;
+        }
 
         if (table.rows.length === 0) {
           sheet.getCell(`A${r}`).value = "No data available in table";

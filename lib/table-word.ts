@@ -9,9 +9,11 @@ export async function generateTableWord(
   columns: MasterColumn[],
   rows: Record<string, ReactNode>[] | undefined,
 ): Promise<Blob> {
-  const { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, WidthType, ShadingType } = await import(
-    "docx"
-  );
+  const { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, WidthType, ShadingType, BorderStyle } =
+    await import("docx");
+
+  const cellBorder = { style: BorderStyle.SINGLE, size: 4, color: "888888" };
+  const tableBorders = { top: cellBorder, bottom: cellBorder, left: cellBorder, right: cellBorder, insideHorizontal: cellBorder, insideVertical: cellBorder };
 
   const headers = ["S.No", ...columns.map((c) => c.label)];
   const headerRow = new TableRow({
@@ -45,7 +47,7 @@ export async function generateTableWord(
           new Paragraph({ spacing: { after: 200 }, children: [new TextRun({ text: title, bold: true, size: 32, color: GREEN })] }),
           (rows ?? []).length === 0
             ? new Paragraph({ children: [new TextRun({ text: "No data available in table", italics: true, color: "999999" })] })
-            : new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, rows: [headerRow, ...dataRows] }),
+            : new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, borders: tableBorders, rows: [headerRow, ...dataRows] }),
         ],
       },
     ],
