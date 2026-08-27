@@ -174,8 +174,8 @@ export function EmptyDataTable({
   const session = useSession();
   const router = useRouter();
   const isSuperAdmin = session.role === "super-admin";
-  /** OFT/FLD's Action column (Edit/Transfer/Add Result) is only meaningful for the KVK that owns the record - a Super Admin gets no actions there at all, so the column itself is dropped rather than left rendering as empty header/cells with no purpose. */
-  const showActionColumn = !(oftFldStatus && isSuperAdmin);
+  /** Every list table gets a real Action column (Edit/Delete) regardless of role, matching every other leaf in the app - Transfer/Add Result specifically stay KVK-only below (transferring or marking a trial's own result isn't a Super Admin action), but that no longer means hiding Edit/Delete from Super Admin too. */
+  const showActionColumn = true;
   const Icon = icon ? SIDEBAR_ICONS[icon] : undefined;
   /** Unique per instance - a page can render more than one EmptyDataTable (e.g. Notifications' Received + Sent tables), and duplicate ids break label association. */
   const instanceId = useId();
@@ -857,7 +857,7 @@ export function EmptyDataTable({
                               <Pencil className="size-3.5" />
                               Edit
                             </DropdownMenuItem>
-                            {oftFldStatus && (
+                            {oftFldStatus && !isSuperAdmin && (
                               <>
                                 {row.status === "Ongoing" && (
                                   <DropdownMenuItem

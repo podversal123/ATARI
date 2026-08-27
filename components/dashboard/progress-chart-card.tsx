@@ -57,11 +57,12 @@ function Tooltip({ children, content }: { children: ReactNode; content: string }
   );
 }
 
+/** Real reference tooltip (atari-client.vercel.app/dashboard) always lists all 4 lines - Not started, Completed, Ongoing, Total - in that order, not just a standalone "Not started" message when a KVK has zero entries. */
 function tooltipText(row: ProgressChartRow, mode: "split" | "total") {
   const total = row.ongoing + row.completed;
-  if (total === 0) return `${row.label}\nNot started`;
-  if (mode === "total") return `${row.label}\nEntries: ${row.completed}`;
-  return `${row.label}\nOngoing: ${row.ongoing}\nCompleted: ${row.completed}\nTotal: ${total}`;
+  const notStarted = total === 0 ? 1 : 0;
+  if (mode === "total") return `${row.label}\nNot started: ${notStarted}\nEntries: ${row.completed}`;
+  return `${row.label}\nNot started: ${notStarted}\nCompleted: ${row.completed}\nOngoing: ${row.ongoing}\nTotal: ${total}`;
 }
 
 /**
@@ -85,6 +86,9 @@ export function ProgressChartCard({
 }: ProgressChartCardProps) {
   const [view, setView] = useState<ChartView>(defaultView);
   const [page, setPage] = useState(0);
+  /** "Show all (N)" was a disabled, decorative button - real now: shows every row unpaginated (same as how Area view already behaves), toggled back off by switching view/page. */
+  const [showAll, setShowAll] = useState(false);
+  const allShown = view === "area" || showAll;
 
   const maxTotal = useMemo(
     () => Math.max(1, ...rows.map((r) => r.ongoing + r.completed)),
@@ -93,7 +97,10 @@ export function ProgressChartCard({
   const pageCount = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
   const currentPage = Math.min(page, pageCount - 1);
   const pageRows =
-    view === "area" ? rows : rows.slice(currentPage * PAGE_SIZE, currentPage * PAGE_SIZE + PAGE_SIZE);
+    allShown ? rows : rows.slice(currentPage * PAGE_SIZE, currentPage * PAGE_SIZE + PAGE_SIZE);
+  /** Only "Show all" on a wide KVK list needs the horizontal-scroll treatment below - the ordinary paginated/short case renders exactly as before, so its bar-hover tooltip isn't affected by the scroll wrapper's clipping. */
+  const needsScroll =
+    (view === "bar" && pageRows.length > 12) || (view === "area" && rows.length > 12);
 
   function changePage(delta: number) {
     setPage((p) => Math.min(pageCount - 1, Math.max(0, p + delta)));
@@ -194,10 +201,15 @@ export function ProgressChartCard({
           {showAllLabel && (
             <button
               type="button"
-              disabled
-              className="rounded-md border border-border px-2.5 py-1 font-medium text-primary disabled:cursor-default disabled:opacity-70"
+              onClick={() => setShowAll((v) => !v)}
+              className={cn(
+                "rounded-md border px-2.5 py-1 font-medium transition-colors",
+                showAll
+                  ? "border-primary bg-primary/10 text-primary"
+                  : "border-border text-primary hover:bg-accent",
+              )}
             >
-              {showAllLabel}
+              {showAll ? "Show less" : showAllLabel}
             </button>
           )}
         </div>
@@ -223,7 +235,32 @@ export function ProgressChartCard({
         )}
       </div>
 
-      <div className="relative mt-4 h-56 pl-6">
+      {/*
+        Real reference (screenshot comparison, 2026-08-27): "Show all" on a
+        66-KVK zone crammed every bar+label into the card's fixed width,
+        producing an illegible overlapping mess - each column shrank to
+        ~10px, nowhere near enough room for a rotated full KVK name. Past
+        ~12 columns this now scrolls horizontally instead, with a real
+        minimum width per column, so "Show all" stays legible instead of
+        just cramming everything in. Paginated views (<=10 rows) render
+        exactly as before, no scrollbar, no risk to the tooltip below.
+        `overflow-x-auto` clips vertical overflow too (setting overflow-x
+        alone forces the browser to treat overflow-y as auto per the CSS
+        spec) - that clipped the bar-hover tooltip, which pops up above the
+        chart via `bottom-full`. pt-20/-mt-20 gives it that room back inside
+        the scroll box without visually shifting the chart down.
+      */}
+      <div className={needsScroll ? "overflow-x-auto pt-20 -mt-20" : undefined}>
+      <div
+        className="relative mt-4 h-56 pl-6"
+        style={
+          view === "bar" && pageRows.length > 12
+            ? { minWidth: `${pageRows.length * 42 + 24}px` }
+            : view === "area" && rows.length > 12
+              ? { minWidth: `${rows.length * 42 + 24}px` }
+              : undefined
+        }
+      >
         <div className="absolute inset-y-0 right-0 left-6 flex flex-col justify-between">
           {[0, 1, 2, 3].map((line) => (
             <div key={line} className="w-full border-t border-dashed border-border" />
@@ -242,8 +279,9 @@ export function ProgressChartCard({
               const total = row.ongoing + row.completed;
               return (
                 <Tooltip key={row.id} content={tooltipText(row, mode)}>
+                  {/* Real reference (atari-client.vercel.app/dashboard, FLD Progress bar chart): each bar is a slim column with visible gaps on both sides, not edge-to-edge with its neighbors - w-full here was filling the whole column, making every bar look far thicker than the reference. */}
                   <div
-                    className="flex w-full flex-col justify-end overflow-hidden rounded-t-sm"
+                    className="flex w-3/5 flex-col justify-end overflow-hidden rounded-t-sm"
                     style={{ height: `${total === 0 ? 2 : (total / maxTotal) * 100}%` }}
                   >
                     {total === 0 ? (
@@ -408,9 +446,18 @@ export function ProgressChartCard({
         )}
       </div>
 
-      {/* Real reference (atari-client.vercel.app/dashboard, Bar/Area tabs): a tilted KVK-name label under every bar/point - was missing entirely, the chart area had no space reserved for it. Rendered height/rotation confirmed with a real Playwright screenshot this time (not guessed), List view already shows the name inline per row, so it's excluded here. */}
+      {/* Real reference (atari-client.vercel.app/dashboard, Bar/Area tabs): a tilted KVK-name label under every bar/point - was missing entirely, the chart area had no space reserved for it. Rendered height/rotation confirmed with a real Playwright screenshot this time (not guessed), List view already shows the name inline per row, so it's excluded here. Gap here must match the bars' gap-2 above (this row was gap-1 before) - otherwise each label drifts further out from under its own bar the further right you go. */}
       {(view === "bar" || (view === "area" && rows.length > 1)) && (
-        <div className="relative mt-2 flex h-20 gap-1 pl-6">
+        <div
+          className="relative mt-2 flex h-20 gap-2 pl-6"
+          style={
+            view === "bar" && pageRows.length > 12
+              ? { minWidth: `${pageRows.length * 42 + 24}px` }
+              : view === "area" && rows.length > 12
+                ? { minWidth: `${rows.length * 42 + 24}px` }
+                : undefined
+          }
+        >
           {(() => {
             const labelRows = view === "bar" ? pageRows : rows;
             return labelRows.map((row) => (
@@ -426,11 +473,12 @@ export function ProgressChartCard({
           })()}
         </div>
       )}
+      </div>
 
       <div className="mt-3 flex items-center justify-between text-sm text-muted-foreground">
         <span>
           {footer ??
-            (view === "area"
+            (allShown
               ? `Showing all ${rows.length}`
               : `Showing ${pageRows.length === 0 ? 0 : currentPage * PAGE_SIZE + 1}-${currentPage * PAGE_SIZE + pageRows.length} of ${rows.length || totalCount}`)}
         </span>
@@ -438,12 +486,12 @@ export function ProgressChartCard({
           <Button
             variant="outline"
             size="sm"
-            disabled={view === "area" || currentPage === 0}
+            disabled={allShown || currentPage === 0}
             onClick={() => changePage(-1)}
           >
             Prev
           </Button>
-          {view !== "area" && (
+          {!allShown && (
             <span className="text-xs">
               {currentPage + 1}/{pageCount}
             </span>
@@ -451,7 +499,7 @@ export function ProgressChartCard({
           <Button
             variant="outline"
             size="sm"
-            disabled={view === "area" || currentPage >= pageCount - 1}
+            disabled={allShown || currentPage >= pageCount - 1}
             onClick={() => changePage(1)}
           >
             Next

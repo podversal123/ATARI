@@ -3,11 +3,8 @@ import { requireSession } from "@/lib/api-auth";
 import { LEAF_DELETE_REGISTRY } from "@/lib/leaf-record-registry";
 
 export async function POST(request: Request) {
-  const auth = await requireSession(["KVK_ADMIN"]);
+  const auth = await requireSession(["KVK_ADMIN", "SUPER_ADMIN"]);
   if (!auth.ok) return auth.response;
-  if (!auth.session.kvkId) {
-    return NextResponse.json({ error: "No KVK on this account." }, { status: 400 });
-  }
 
   const body = await request.json().catch(() => null);
   const path = typeof body?.path === "string" ? body.path : "";

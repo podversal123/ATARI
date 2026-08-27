@@ -1,50 +1,35 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ChevronLeft } from "lucide-react";
 import { AnalyticsFilterBar } from "@/components/dashboard/analytics-filter-bar";
 import { MetricCard } from "@/components/dashboard/metric-card";
 import { ProgressChartCard, type ProgressChartRow } from "@/components/dashboard/progress-chart-card";
+import { useAnalyticsFilters, type AnalyticsData } from "@/lib/use-analytics-filters";
 
-type OftStats = {
-  total: number;
-  quantity: number;
-  cost: number;
-  replications: number;
+type OftData = AnalyticsData & {
+  oft: { total: number; quantity: number; cost: number; replications: number; farmersCovered: number };
+  charts: { oft: ProgressChartRow[] };
 };
-
-const EMPTY: OftStats = { total: 0, quantity: 0, cost: 0, replications: 0 };
 
 /**
  * Real data (was a static `value: 0` placeholder for every metric and an
  * empty chart - never wired to /api/dashboard-stats, unlike the main
- * Dashboard). "Farmers Covered" and "Locations" have no confidently-matching
- * field anywhere in the Oft schema (only `noOfTrialReplicationFarmer`, which
- * maps to Replications) - shown as "-" rather than a guessed number.
+ * Dashboard). Farmers Covered is the real "Farmers Details" demographic sum
+ * (General/OBC/SC/ST x M/F, added to Oft this session) - "Locations" still
+ * has no confidently-matching field anywhere in the Oft schema, shown as
+ * "-" rather than a guessed number. Year/State/District/KVK/Group By filters
+ * are real now too (2026-08-27) - see lib/use-analytics-filters.ts.
  */
 export default function OftDetailedAnalyticsPage() {
-  const [stats, setStats] = useState<OftStats>(EMPTY);
-  const [rows, setRows] = useState<ProgressChartRow[]>([]);
-
-  useEffect(() => {
-    let cancelled = false;
-    fetch("/api/dashboard-stats?scope=oft")
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => {
-        if (cancelled || !data) return;
-        setStats({ total: data.oft.total, quantity: data.oft.quantity, cost: data.oft.cost, replications: data.oft.replications });
-        setRows(data.charts.oft);
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  const { filters, setFilters, data: raw } = useAnalyticsFilters("oft");
+  const data = raw as unknown as OftData | null;
+  const stats = data?.oft ?? { total: 0, quantity: 0, cost: 0, replications: 0, farmersCovered: 0 };
+  const rows = data?.charts.oft ?? [];
 
   const metrics = [
     { label: "Trials", value: stats.total },
-    { label: "Farmers Covered", value: "-" },
+    { label: "Farmers Covered", value: stats.farmersCovered },
     { label: "Locations", value: "-" },
     { label: "Replications", value: stats.replications },
     { label: "Cost of OFT", value: stats.cost.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) },
@@ -69,7 +54,16 @@ export default function OftDetailedAnalyticsPage() {
       </p>
 
       <div className="mt-6">
-        <AnalyticsFilterBar />
+        <AnalyticsFilterBar
+          filters={filters}
+          onChange={setFilters}
+          years={data?.years ?? []}
+          zoneName={data?.zoneName ?? null}
+          states={data?.stateOptions ?? []}
+          districts={data?.districtOptions ?? []}
+          kvks={(data?.kvkOptions ?? []).map((k) => k.name)}
+          institutes={data?.instituteOptions ?? []}
+        />
       </div>
 
       <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">

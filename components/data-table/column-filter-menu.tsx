@@ -1,7 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { ArrowDown, ArrowUp, Filter, Search } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { ArrowDown, ArrowUp, Filter, GripHorizontal, Search } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -44,6 +44,43 @@ export function ColumnFilterMenu({
   const [search, setSearch] = useState("");
   const [draft, setDraft] = useState<ColumnFilterState>(state);
 
+  /**
+   * Client request (2026-08-27): this popup was covering the very row data
+   * a user opened it to check, with no way to move it out of the way - drag
+   * the whole popup from its own grip handle to reposition it. The offset
+   * is applied as a `transform: translate(...)` on top of the library's own
+   * computed position, so Base UI's Positioner keeps anchoring/flipping
+   * normally and this only shifts the final paint, not its layout math.
+   */
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  const dragStateRef = useRef<{ startX: number; startY: number; originX: number; originY: number } | null>(null);
+  const [dragging, setDragging] = useState(false);
+
+  useEffect(() => {
+    if (!dragging) return;
+    function onMove(e: PointerEvent) {
+      const drag = dragStateRef.current;
+      if (!drag) return;
+      setDragOffset({ x: drag.originX + (e.clientX - drag.startX), y: drag.originY + (e.clientY - drag.startY) });
+    }
+    function onUp() {
+      setDragging(false);
+      dragStateRef.current = null;
+    }
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+    return () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+    };
+  }, [dragging]);
+
+  function startDrag(e: React.PointerEvent) {
+    e.preventDefault();
+    dragStateRef.current = { startX: e.clientX, startY: e.clientY, originX: dragOffset.x, originY: dragOffset.y };
+    setDragging(true);
+  }
+
   const filteredValues = useMemo(
     () =>
       values.filter((v) =>
@@ -63,6 +100,7 @@ export function ColumnFilterMenu({
     if (next) {
       setDraft(state);
       setSearch("");
+      setDragOffset({ x: 0, y: 0 });
     }
   }
 
@@ -135,7 +173,21 @@ export function ColumnFilterMenu({
           </button>
         }
       />
-      <DropdownMenuContent align="start" className="w-64 p-3">
+      <DropdownMenuContent
+        align="start"
+        className="w-64 p-3"
+        style={{ transform: `translate(${dragOffset.x}px, ${dragOffset.y}px)` }}
+      >
+        <div
+          onPointerDown={startDrag}
+          className={cn(
+            "mb-2 -mt-1 -mx-1 flex items-center justify-center gap-1 rounded-md py-1 text-muted-foreground/60 hover:bg-accent hover:text-muted-foreground",
+            dragging ? "cursor-grabbing" : "cursor-grab",
+          )}
+          title="Drag to move"
+        >
+          <GripHorizontal className="size-3.5" />
+        </div>
         <p className="mb-2 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
           {columnLabel}
         </p>

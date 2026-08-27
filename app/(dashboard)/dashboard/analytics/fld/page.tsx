@@ -1,40 +1,29 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ChevronLeft } from "lucide-react";
 import { AnalyticsFilterBar } from "@/components/dashboard/analytics-filter-bar";
 import { MetricCard } from "@/components/dashboard/metric-card";
 import { ProgressChartCard, type ProgressChartRow } from "@/components/dashboard/progress-chart-card";
+import { useAnalyticsFilters, type AnalyticsData } from "@/lib/use-analytics-filters";
 
-type FldStats = { total: number; demonstrations: number; farmersCovered: number };
-
-const EMPTY: FldStats = { total: 0, demonstrations: 0, farmersCovered: 0 };
+type FldData = AnalyticsData & {
+  fld: { total: number; demonstrations: number; farmersCovered: number };
+  charts: { fld: ProgressChartRow[] };
+};
 
 /**
  * Real data (was a static `value: 0` placeholder for every metric and an
  * empty chart). "Quantity" has no matching field anywhere in Fld or
  * FldDemonstrationDetail's schema - shown as "-" rather than a guessed
- * number, same rule as OFT's Farmers Covered/Locations.
+ * number, same rule as OFT's Locations. Year/State/District/KVK/Group By
+ * filters are real now too (2026-08-27) - see lib/use-analytics-filters.ts.
  */
 export default function FldDetailedAnalyticsPage() {
-  const [stats, setStats] = useState<FldStats>(EMPTY);
-  const [rows, setRows] = useState<ProgressChartRow[]>([]);
-
-  useEffect(() => {
-    let cancelled = false;
-    fetch("/api/dashboard-stats?scope=fld")
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => {
-        if (cancelled || !data) return;
-        setStats({ total: data.fld.total, demonstrations: data.fld.demonstrations, farmersCovered: data.fld.farmersCovered });
-        setRows(data.charts.fld);
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  const { filters, setFilters, data: raw } = useAnalyticsFilters("fld");
+  const data = raw as unknown as FldData | null;
+  const stats = data?.fld ?? { total: 0, demonstrations: 0, farmersCovered: 0 };
+  const rows = data?.charts.fld ?? [];
 
   const metrics = [
     { label: "FLDs", value: stats.total },
@@ -61,7 +50,16 @@ export default function FldDetailedAnalyticsPage() {
       </p>
 
       <div className="mt-6">
-        <AnalyticsFilterBar />
+        <AnalyticsFilterBar
+          filters={filters}
+          onChange={setFilters}
+          years={data?.years ?? []}
+          zoneName={data?.zoneName ?? null}
+          states={data?.stateOptions ?? []}
+          districts={data?.districtOptions ?? []}
+          kvks={(data?.kvkOptions ?? []).map((k) => k.name)}
+          institutes={data?.instituteOptions ?? []}
+        />
       </div>
 
       <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">

@@ -34,21 +34,76 @@ export async function GET(request: Request) {
   const isKvkAdmin = auth.session.role === "KVK_ADMIN";
   const kvkId = isKvkAdmin ? auth.session.kvkId ?? undefined : undefined;
 
-  /** Super Admin's own Year/KVK filter dropdowns - real query params now instead of the always-"All" placeholder they used to be. A KVK Admin is already scoped to their own KVK, so the `kvk` param never applies to them. The dropdown shows KVK names (not internal ids), so this resolves the selected name back to an id. */
+  /** Super Admin's own Year/State/District/KVK filter dropdowns - real query params now instead of the always-"All" placeholder they used to be. A KVK Admin is already scoped to their own KVK, so none of these apply to them. Dropdowns show names (not internal ids), so each resolves the selected name back to an id via the real State/District/Kvk tables - no guessed slugs. */
   const yearParam = url.searchParams.get("year");
   const reportingYear = yearParam && yearParam !== "All" ? Number(yearParam) : undefined;
   const kvkParam = !isKvkAdmin ? url.searchParams.get("kvk") : null;
-  const filterKvk =
+  const stateParam = !isKvkAdmin ? url.searchParams.get("state") : null;
+  const districtParam = !isKvkAdmin ? url.searchParams.get("district") : null;
+  /**
+   * "Group By" on the analytics detail pages - re-buckets the same per-KVK
+   * counts by a different real dimension (Zone/State/District/KVK) instead
+   * of a new query per dimension. "Institute" is a real master list
+   * (prisma.institute) but has no relation to Kvk anywhere in the schema
+   * (confirmed - no kvks[] back-reference, no instituteId on Kvk), so it
+   * can't validly group or filter KVK-derived data; it falls back to KVK
+   * grouping rather than being guessed.
+   */
+  const groupByParam = url.searchParams.get("groupBy");
+  const groupBy: "zone" | "state" | "district" | "kvk" =
+    groupByParam === "zone" || groupByParam === "state" || groupByParam === "district" ? groupByParam : "kvk";
+
+  const [filterKvk, filterState, filterDistrict] = await Promise.all([
     kvkParam && kvkParam !== "All"
-      ? await prisma.kvk.findFirst({ where: { zoneId: auth.session.zoneId, name: kvkParam }, select: { id: true } })
-      : null;
+      ? prisma.kvk.findFirst({ where: { zoneId: auth.session.zoneId, name: kvkParam }, select: { id: true } })
+      : Promise.resolve(null),
+    stateParam && stateParam !== "All"
+      ? prisma.state.findFirst({ where: { zoneId: auth.session.zoneId, name: stateParam }, select: { id: true } })
+      : Promise.resolve(null),
+    districtParam && districtParam !== "All"
+      ? prisma.district.findFirst({ where: { zoneId: auth.session.zoneId, name: districtParam }, select: { id: true } })
+      : Promise.resolve(null),
+  ]);
   const filterKvkId = filterKvk?.id;
 
-  const baseScope = (kvkId ?? filterKvkId) ? { kvkId: kvkId ?? filterKvkId } : { zoneId: auth.session.zoneId };
+  /** Kvk-relation filter shared by every model below - flat `kvkId` when a KVK Admin or a specific KVK is picked (fastest, no join), otherwise a `kvk: {...}` relation filter once State/District narrows things, otherwise just the zone. */
+  const kvkWhere: Record<string, unknown> =
+    kvkId || filterKvkId
+      ? { kvkId: kvkId ?? filterKvkId }
+      : filterState || filterDistrict
+        ? { kvk: { zoneId: auth.session.zoneId, ...(filterState ? { stateId: filterState.id } : {}), ...(filterDistrict ? { districtId: filterDistrict.id } : {}) } }
+        : { zoneId: auth.session.zoneId };
+
+  const baseScope = kvkWhere;
   const scope = reportingYear ? { ...baseScope, reportingYear } : baseScope;
-  const fldDemoScope = kvkId ?? filterKvkId
-    ? { fld: { kvkId: kvkId ?? filterKvkId, ...(reportingYear ? { reportingYear } : {}) } }
+  /** FldDemonstrationDetail carries its own `zoneId` directly but no `kvkId`/`stateId`/`districtId` of its own - only reachable through the parent `fld` relation. Zone-only case keeps the original flat-`zoneId` fast path; any KVK-level filter (KVK/State/District) routes through `fld` instead. */
+  const fldDemoScope = kvkId || filterKvkId || filterState || filterDistrict
+    ? {
+        fld: {
+          ...(kvkId || filterKvkId
+            ? { kvkId: kvkId ?? filterKvkId }
+            : {
+                kvk: {
+                  zoneId: auth.session.zoneId,
+                  ...(filterState ? { stateId: filterState.id } : {}),
+                  ...(filterDistrict ? { districtId: filterDistrict.id } : {}),
+                },
+              }),
+          ...(reportingYear ? { reportingYear } : {}),
+        },
+      }
     : { zoneId: auth.session.zoneId, ...(reportingYear ? { fld: { reportingYear } } : {}) };
+  /** `kvks` (row-building, narrowed by every active filter including the selected KVK) vs `kvkOptions` (the KVK dropdown's own option list - narrowed by State/District so picking Bihar only lists Bihar's KVKs, but never by the currently-selected KVK itself, otherwise picking one KVK would hide every other KVK from the dropdown). */
+  const kvkListWhere = {
+    ...(kvkId ? { id: kvkId } : filterKvkId ? { id: filterKvkId } : { zoneId: auth.session.zoneId }),
+    ...(filterState ? { stateId: filterState.id } : {}),
+    ...(filterDistrict ? { districtId: filterDistrict.id } : {}),
+  };
+  const kvkOptionsWhere = {
+    ...(kvkId ? { id: kvkId } : { zoneId: auth.session.zoneId }),
+    ...(filterState ? { stateId: filterState.id } : {}),
+    ...(filterDistrict ? { districtId: filterDistrict.id } : {}),
+  };
 
   const [
     kvks,
@@ -66,20 +121,31 @@ export async function GET(request: Request) {
     fldYears,
     trainingYears,
     extensionYears,
+    zone,
+    states,
+    districts,
+    institutes,
   ] = await Promise.all([
     prisma.kvk.findMany({
-      where: (kvkId ?? filterKvkId) ? { id: kvkId ?? filterKvkId } : { zoneId: auth.session.zoneId },
+      where: kvkListWhere,
+      select: {
+        id: true,
+        name: true,
+        zoneId: true,
+        stateId: true,
+        districtId: true,
+        zone: { select: { name: true } },
+        state: { select: { name: true } },
+        district: { select: { name: true } },
+      },
+      orderBy: { name: "asc" },
+    }),
+    /** The KVK dropdown's own option list - every KVK in the zone (narrowed by State/District, never by the currently-selected KVK itself, otherwise picking a KVK would make every other KVK disappear from the dropdown). Also used by the `?scope=` analytics detail pages' own KVK filter, so this always runs regardless of scope. */
+    prisma.kvk.findMany({
+      where: kvkOptionsWhere,
       select: { id: true, name: true },
       orderBy: { name: "asc" },
     }),
-    /** The KVK dropdown's own option list - always every KVK in the zone (or just the KVK Admin's own), never narrowed by the currently-selected filter, otherwise picking a KVK would make every other KVK disappear from the dropdown itself. */
-    scopeParam
-      ? Promise.resolve([])
-      : prisma.kvk.findMany({
-          where: kvkId ? { id: kvkId } : { zoneId: auth.session.zoneId },
-          select: { id: true, name: true },
-          orderBy: { name: "asc" },
-        }),
     scopeParam ? Promise.resolve(0) : prisma.kvk.count({ where: { zoneId: auth.session.zoneId } }),
     needs("oft") ? prisma.oft.groupBy({ by: ["kvkId", "status"], where: scope, _count: { _all: true } }) : Promise.resolve([]),
     needs("fld") ? prisma.fld.groupBy({ by: ["kvkId", "status"], where: scope, _count: { _all: true } }) : Promise.resolve([]),
@@ -90,30 +156,64 @@ export async function GET(request: Request) {
       ? Promise.resolve([])
       : prisma.staff.groupBy({
           by: ["sanctionedPost"],
-          where: "kvkId" in baseScope ? { kvkId: baseScope.kvkId } : { zoneId: auth.session.zoneId },
+          where: kvkId ?? filterKvkId ? { kvkId: kvkId ?? filterKvkId } : { zoneId: auth.session.zoneId },
           _count: { _all: true },
         }),
     /** Real per-OFT fields (not just the ongoing/completed status split) for the "OFT - detailed analytics" page's Cost/Quantity/Replications stat cards. */
     needs("oft")
-      ? prisma.oft.aggregate({ where: scope, _sum: { quantity: true, costOfOft: true, noOfTrialReplicationFarmer: true } })
-      : Promise.resolve({ _sum: { quantity: null, costOfOft: null, noOfTrialReplicationFarmer: null } }),
+      ? prisma.oft.aggregate({
+          where: scope,
+          _sum: {
+            quantity: true,
+            costOfOft: true,
+            noOfTrialReplicationFarmer: true,
+            generalMale: true,
+            generalFemale: true,
+            obcMale: true,
+            obcFemale: true,
+            scMale: true,
+            scFemale: true,
+            stMale: true,
+            stFemale: true,
+          },
+        })
+      : Promise.resolve({
+          _sum: {
+            quantity: null,
+            costOfOft: null,
+            noOfTrialReplicationFarmer: null,
+            generalMale: null,
+            generalFemale: null,
+            obcMale: null,
+            obcFemale: null,
+            scMale: null,
+            scFemale: null,
+            stMale: null,
+            stFemale: null,
+          },
+        }),
     /** FLD's own model has no quantity/farmer/demonstration fields - those live on the child FldDemonstrationDetail rows, scoped via the parent FLD's kvkId since the child itself only carries zoneId. */
     needs("fld")
       ? prisma.fldDemonstrationDetail.aggregate({ where: fldDemoScope, _sum: { noOfDemonstrations: true, noOfFarmers: true } })
       : Promise.resolve({ _sum: { noOfDemonstrations: null, noOfFarmers: null } }),
-    /** Real distinct reporting years for the Year filter dropdown - merged across the 4 models that carry one, rather than guessing a static range. Unscoped by year/kvk (the dropdown itself must list every year regardless of what's currently selected). */
-    scopeParam
-      ? Promise.resolve([])
-      : prisma.oft.findMany({ where: { zoneId: auth.session.zoneId }, select: { reportingYear: true }, distinct: ["reportingYear"] }),
-    scopeParam
-      ? Promise.resolve([])
-      : prisma.fld.findMany({ where: { zoneId: auth.session.zoneId }, select: { reportingYear: true }, distinct: ["reportingYear"] }),
-    scopeParam
-      ? Promise.resolve([])
-      : prisma.training.findMany({ where: { zoneId: auth.session.zoneId }, select: { reportingYear: true }, distinct: ["reportingYear"] }),
-    scopeParam
-      ? Promise.resolve([])
-      : prisma.extensionActivity.findMany({ where: { zoneId: auth.session.zoneId }, select: { reportingYear: true }, distinct: ["reportingYear"] }),
+    /**
+     * Real distinct reporting years for the Year filter dropdown - merged
+     * across the 4 models that carry one, rather than guessing a static
+     * range. Unscoped by year/kvk (the dropdown itself must list every
+     * year regardless of what's currently selected). This used to skip
+     * entirely for `?scope=` requests (the 4 analytics detail pages) -
+     * real bug, since those pages' own Year dropdown needs exactly this
+     * and was showing only "All" as a result.
+     */
+    prisma.oft.findMany({ where: { zoneId: auth.session.zoneId }, select: { reportingYear: true }, distinct: ["reportingYear"] }),
+    prisma.fld.findMany({ where: { zoneId: auth.session.zoneId }, select: { reportingYear: true }, distinct: ["reportingYear"] }),
+    prisma.training.findMany({ where: { zoneId: auth.session.zoneId }, select: { reportingYear: true }, distinct: ["reportingYear"] }),
+    prisma.extensionActivity.findMany({ where: { zoneId: auth.session.zoneId }, select: { reportingYear: true }, distinct: ["reportingYear"] }),
+    /** Real Zone/State/District/Institute option lists for the analytics detail pages' filter bar - all scoped to the Super Admin's own zone (a session only ever belongs to one zone). Institute has no relation to Kvk anywhere in the schema, so its list is real but can't filter/group KVK-derived data (see the `groupBy` comment above). */
+    prisma.zone.findUnique({ where: { id: auth.session.zoneId }, select: { name: true } }),
+    prisma.state.findMany({ where: { zoneId: auth.session.zoneId }, select: { name: true }, orderBy: { name: "asc" } }),
+    prisma.district.findMany({ where: { zoneId: auth.session.zoneId }, select: { name: true }, orderBy: { name: "asc" } }),
+    prisma.institute.findMany({ where: { zoneId: auth.session.zoneId }, select: { name: true }, orderBy: { name: "asc" } }),
   ]);
 
   const years = Array.from(
@@ -138,15 +238,24 @@ export async function GET(request: Request) {
     return { total: ongoing + completed, ongoing, completed, kvksWithEntries: kvkSet.size };
   }
 
+  /** Real dimension key/label for a KVK under the current "Group By" - Zone/State/District bucket several KVKs into one row; the default (or "institute", which has no real link to Kvk anywhere in the schema) keeps one row per KVK. */
+  function dimension(k: (typeof kvks)[number]) {
+    if (groupBy === "zone") return { id: k.zoneId, label: k.zone.name };
+    if (groupBy === "state") return { id: k.stateId, label: k.state.name };
+    if (groupBy === "district") return { id: k.districtId, label: k.district.name };
+    return { id: k.id, label: k.name };
+  }
+
   /**
    * One row per KVK in scope (even KVKs with zero entries), sorted
-   * busiest-first for the Bar/List/Area chart views. TrialStatus has a real
-   * third value (TRANSFERRED, folded into "completed" the same way
-   * statusSummary above does) - this must accumulate (+=) rather than
-   * assign (=), since a KVK can have both a COMPLETED and a TRANSFERRED
-   * group and an assignment would silently drop whichever is processed
-   * first (a real bug found live: a KVK with COMPLETED=2 and
-   * TRANSFERRED=3 was showing "completed: 3", not the real 5).
+   * busiest-first for the Bar/List/Area chart views, then re-bucketed by
+   * the current Group By dimension. TrialStatus has a real third value
+   * (TRANSFERRED, folded into "completed" the same way statusSummary above
+   * does) - this must accumulate (+=) rather than assign (=), since a KVK
+   * can have both a COMPLETED and a TRANSFERRED group and an assignment
+   * would silently drop whichever is processed first (a real bug found
+   * live: a KVK with COMPLETED=2 and TRANSFERRED=3 was showing
+   * "completed: 3", not the real 5).
    */
   function buildStatusRows(groups: { kvkId: string; status: string; _count: { _all: number } }[]) {
     const byKvk = new Map<string, { ongoing: number; completed: number }>();
@@ -156,9 +265,16 @@ export async function GET(request: Request) {
       else row.completed += g._count._all;
       byKvk.set(g.kvkId, row);
     }
-    return kvks
-      .map((k) => ({ id: k.id, label: k.name, ...(byKvk.get(k.id) ?? { ongoing: 0, completed: 0 }) }))
-      .sort((a, b) => b.ongoing + b.completed - (a.ongoing + a.completed));
+    const byDimension = new Map<string, { id: string; label: string; ongoing: number; completed: number }>();
+    for (const k of kvks) {
+      const dim = dimension(k);
+      const counts = byKvk.get(k.id) ?? { ongoing: 0, completed: 0 };
+      const row = byDimension.get(dim.id) ?? { id: dim.id, label: dim.label, ongoing: 0, completed: 0 };
+      row.ongoing += counts.ongoing;
+      row.completed += counts.completed;
+      byDimension.set(dim.id, row);
+    }
+    return Array.from(byDimension.values()).sort((a, b) => b.ongoing + b.completed - (a.ongoing + a.completed));
   }
 
   function toCountMap(groups: { kvkId: string; _count: { _all: number } }[]) {
@@ -168,9 +284,14 @@ export async function GET(request: Request) {
   function buildTotalRows(...maps: Map<string, number>[]) {
     const combined = new Map<string, number>();
     for (const m of maps) for (const [id, count] of m) combined.set(id, (combined.get(id) ?? 0) + count);
-    return kvks
-      .map((k) => ({ id: k.id, label: k.name, total: combined.get(k.id) ?? 0 }))
-      .sort((a, b) => b.total - a.total);
+    const byDimension = new Map<string, { id: string; label: string; total: number }>();
+    for (const k of kvks) {
+      const dim = dimension(k);
+      const row = byDimension.get(dim.id) ?? { id: dim.id, label: dim.label, total: 0 };
+      row.total += combined.get(k.id) ?? 0;
+      byDimension.set(dim.id, row);
+    }
+    return Array.from(byDimension.values()).sort((a, b) => b.total - a.total);
   }
 
   /** Total entries + distinct-KVK count read off a plain groupBy(["kvkId"]) result, optionally merged with a second one (Extension = extensionActivity + otherExtensionActivity combined). */
@@ -195,11 +316,25 @@ export async function GET(request: Request) {
     totalKvks,
     years,
     kvkOptions,
+    zoneName: zone?.name ?? null,
+    stateOptions: states.map((s) => s.name),
+    districtOptions: districts.map((d) => d.name),
+    instituteOptions: institutes.map((i) => i.name),
     oft: {
       ...oft,
       quantity: Number(oftAgg._sum.quantity ?? 0),
       cost: Number(oftAgg._sum.costOfOft ?? 0),
       replications: oftAgg._sum.noOfTrialReplicationFarmer ?? 0,
+      /** Real "Farmers Details" breakdown (General/OBC/SC/ST x M/F) summed - the field the "OFT - detailed analytics" page's Farmers Covered card was missing before those columns existed on Oft. */
+      farmersCovered:
+        (oftAgg._sum.generalMale ?? 0) +
+        (oftAgg._sum.generalFemale ?? 0) +
+        (oftAgg._sum.obcMale ?? 0) +
+        (oftAgg._sum.obcFemale ?? 0) +
+        (oftAgg._sum.scMale ?? 0) +
+        (oftAgg._sum.scFemale ?? 0) +
+        (oftAgg._sum.stMale ?? 0) +
+        (oftAgg._sum.stFemale ?? 0),
     },
     fld: {
       ...fld,

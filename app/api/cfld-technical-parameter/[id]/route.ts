@@ -15,15 +15,12 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const auth = await requireSession(["KVK_ADMIN"]);
+  const auth = await requireSession(["KVK_ADMIN", "SUPER_ADMIN"]);
   if (!auth.ok) return auth.response;
-  if (!auth.session.kvkId) {
-    return NextResponse.json({ error: "No KVK on this account." }, { status: 400 });
-  }
   const { id } = await params;
 
   const record = await prisma.cfldTechnicalParameter.findFirst({
-    where: { id, kvkId: auth.session.kvkId },
+    where: { id, ...(auth.session.kvkId ? { kvkId: auth.session.kvkId } : { zoneId: auth.session.zoneId }) },
     include: { economicParameters: true, farmersPerceptions: true, socioEconomicImpacts: true },
   });
   if (!record) {

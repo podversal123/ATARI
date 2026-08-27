@@ -193,10 +193,10 @@ export default function DashboardPage() {
 
   const statCards = [
     { icon: BarChart3, label: "KVK", value: stats.totalKvks, href: "/masters/basic/kvk-master" },
-    { icon: Users, label: "Total OFT", value: stats.oft.total, href: "/dashboard/analytics/oft" },
-    { icon: FileText, label: "Total FLD", value: stats.fld.total, href: "/dashboard/analytics/fld" },
-    { icon: GraduationCap, label: "Training", value: stats.training.total, href: "/dashboard/analytics/training" },
-    { icon: Activity, label: "Ext. Activity", value: stats.extension.total, href: "/dashboard/analytics/extension" },
+    { icon: Users, label: "Total OFT", value: stats.oft.total, href: "/forms/achievements/oft" },
+    { icon: FileText, label: "Total FLD", value: stats.fld.total, href: "/forms/achievements/front-line-demonstration/view-fld" },
+    { icon: GraduationCap, label: "Training", value: stats.training.total, href: "/forms/achievements/trainings" },
+    { icon: Activity, label: "Ext. Activity", value: stats.extension.total, href: "/forms/achievements/extension/extension-activities" },
     { icon: Tags, label: "Total Staff", value: stats.staff.total, href: "/forms/about-kvk/employee/employee-details" },
   ].filter((stat) => !isKvkAdmin || stat.label !== "KVK");
 
@@ -231,7 +231,7 @@ export default function DashboardPage() {
             value={yearFilter}
             onChange={applyYear}
             className="flex-1"
-            selectClassName="min-w-0 flex-1"
+            selectClassName="min-w-0 max-w-20 flex-1"
           />
           {!isKvkAdmin && (
             <FilterSelect
@@ -240,7 +240,7 @@ export default function DashboardPage() {
               value={kvkFilter}
               onChange={applyKvk}
               className="flex-1"
-              selectClassName="min-w-0 flex-1"
+              selectClassName="min-w-0 max-w-36 flex-1"
             />
           )}
           <Button variant="outline-primary" size="sm" onClick={resetFilters}>
@@ -290,7 +290,7 @@ export default function DashboardPage() {
               ? `${stats.oft.completed} completed · ${stats.oft.ongoing} ongoing`
               : kvksWithEntriesSummary(stats.oft.kvksWithEntries)
           }
-          showAllLabel={`Show all (${stats.oft.total})`}
+          showAllLabel={`Show all (${stats.charts.oft.length})`}
           detailedHref="/dashboard/analytics/oft"
         />
         <ProgressChartCard
@@ -308,7 +308,7 @@ export default function DashboardPage() {
               ? `${stats.fld.completed} completed · ${stats.fld.ongoing} ongoing`
               : kvksWithEntriesSummary(stats.fld.kvksWithEntries)
           }
-          showAllLabel={`Show all (${stats.fld.total})`}
+          showAllLabel={`Show all (${stats.charts.fld.length})`}
           detailedHref="/dashboard/analytics/fld"
         />
         <ProgressChartCard
@@ -327,7 +327,7 @@ export default function DashboardPage() {
               ? `${stats.training.total} trainings recorded`
               : kvksWithEntriesSummary(stats.training.kvksWithEntries)
           }
-          showAllLabel={`Show all (${stats.training.total})`}
+          showAllLabel={`Show all (${stats.charts.training.length})`}
           detailedHref="/dashboard/analytics/training"
         />
         <ProgressChartCard
@@ -346,7 +346,7 @@ export default function DashboardPage() {
               ? `${stats.extension.total} activities recorded`
               : kvksWithEntriesSummary(stats.extension.kvksWithEntries)
           }
-          showAllLabel={`Show all (${stats.extension.total})`}
+          showAllLabel={`Show all (${stats.charts.extension.length})`}
           detailedHref="/dashboard/analytics/extension"
         />
       </div>
