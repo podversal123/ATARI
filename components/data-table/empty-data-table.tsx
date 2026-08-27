@@ -467,16 +467,42 @@ export function EmptyDataTable({
 
   /**
    * 10 rows per page, matching the reference's own "Showing 1-10 of N"
-   * footer - resets to page 1 whenever the filtered set changes so a stale
-   * page number never points past the end. Reset happens during render
-   * (React's documented pattern for "adjusting state when a prop changes")
-   * rather than in a useEffect, which would cause an extra render pass.
+   * footer - resets to page 1 whenever the *filter criteria themselves*
+   * change (typing a search, picking a column filter, a date range), not
+   * whenever `filteredRows` merely gets a new array identity. AutoRefresh
+   * (components/layout/auto-refresh.tsx) re-fetches `rows` from the server
+   * every ~20s, which built a brand-new `filteredRows` array on every tick
+   * regardless of whether anything actually changed - comparing that array
+   * by reference was a real bug: search to page 300, wait 20s, and the
+   * table silently snapped back to page 1 out from under the user. `page`
+   * still gets clamped separately below if the real row count shrinks.
+   * Reset happens during render (React's documented pattern for "adjusting
+   * state when a prop changes") rather than in a useEffect, which would
+   * cause an extra render pass.
    */
+  const filterSignature = useMemo(
+    () =>
+      JSON.stringify({
+        search: search.trim().toLowerCase(),
+        columnFilters: Object.fromEntries(
+          Object.entries(columnFilters).map(([key, state]) => [
+            key,
+            { selected: state.selected ? Array.from(state.selected).sort() : null, sort: state.sort },
+          ]),
+        ),
+        oftFldStatus,
+        reportingYear,
+        hasActiveDates,
+        fromDate,
+        toDate,
+      }),
+    [search, columnFilters, oftFldStatus, reportingYear, hasActiveDates, fromDate, toDate],
+  );
   const PAGE_SIZE = 10;
   const [page, setPage] = useState(1);
-  const [prevFilteredRows, setPrevFilteredRows] = useState(filteredRows);
-  if (filteredRows !== prevFilteredRows) {
-    setPrevFilteredRows(filteredRows);
+  const [prevFilterSignature, setPrevFilterSignature] = useState(filterSignature);
+  if (filterSignature !== prevFilterSignature) {
+    setPrevFilterSignature(filterSignature);
     setPage(1);
   }
   const filteredCount = filteredRows?.length ?? 0;

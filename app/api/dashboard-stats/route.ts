@@ -40,20 +40,16 @@ export async function GET(request: Request) {
   const kvkParam = !isKvkAdmin ? url.searchParams.get("kvk") : null;
   const stateParam = !isKvkAdmin ? url.searchParams.get("state") : null;
   const districtParam = !isKvkAdmin ? url.searchParams.get("district") : null;
-  /**
-   * "Group By" on the analytics detail pages - re-buckets the same per-KVK
-   * counts by a different real dimension (Zone/State/District/KVK) instead
-   * of a new query per dimension. "Institute" is a real master list
-   * (prisma.institute) but has no relation to Kvk anywhere in the schema
-   * (confirmed - no kvks[] back-reference, no instituteId on Kvk), so it
-   * can't validly group or filter KVK-derived data; it falls back to KVK
-   * grouping rather than being guessed.
-   */
+  /** Real now (2026-08-27) - Kvk.instituteId was added (client request) after the real "Create KVK" reference form turned out to already have a required Institute field that was never wired to the backend. Existing KVKs seeded before that stay instituteless until edited. */
+  const instituteParam = !isKvkAdmin ? url.searchParams.get("institute") : null;
+  /** "Group By" on the analytics detail pages - re-buckets the same per-KVK counts by a different real dimension (Zone/State/District/Institute/KVK) instead of a new query per dimension. */
   const groupByParam = url.searchParams.get("groupBy");
-  const groupBy: "zone" | "state" | "district" | "kvk" =
-    groupByParam === "zone" || groupByParam === "state" || groupByParam === "district" ? groupByParam : "kvk";
+  const groupBy: "zone" | "state" | "district" | "institute" | "kvk" =
+    groupByParam === "zone" || groupByParam === "state" || groupByParam === "district" || groupByParam === "institute"
+      ? groupByParam
+      : "kvk";
 
-  const [filterKvk, filterState, filterDistrict] = await Promise.all([
+  const [filterKvk, filterState, filterDistrict, filterInstitute] = await Promise.all([
     kvkParam && kvkParam !== "All"
       ? prisma.kvk.findFirst({ where: { zoneId: auth.session.zoneId, name: kvkParam }, select: { id: true } })
       : Promise.resolve(null),
@@ -63,21 +59,31 @@ export async function GET(request: Request) {
     districtParam && districtParam !== "All"
       ? prisma.district.findFirst({ where: { zoneId: auth.session.zoneId, name: districtParam }, select: { id: true } })
       : Promise.resolve(null),
+    instituteParam && instituteParam !== "All"
+      ? prisma.institute.findFirst({ where: { zoneId: auth.session.zoneId, name: instituteParam }, select: { id: true } })
+      : Promise.resolve(null),
   ]);
   const filterKvkId = filterKvk?.id;
 
-  /** Kvk-relation filter shared by every model below - flat `kvkId` when a KVK Admin or a specific KVK is picked (fastest, no join), otherwise a `kvk: {...}` relation filter once State/District narrows things, otherwise just the zone. */
+  /** Kvk-relation filter shared by every model below - flat `kvkId` when a KVK Admin or a specific KVK is picked (fastest, no join), otherwise a `kvk: {...}` relation filter once State/District/Institute narrows things, otherwise just the zone. */
   const kvkWhere: Record<string, unknown> =
     kvkId || filterKvkId
       ? { kvkId: kvkId ?? filterKvkId }
-      : filterState || filterDistrict
-        ? { kvk: { zoneId: auth.session.zoneId, ...(filterState ? { stateId: filterState.id } : {}), ...(filterDistrict ? { districtId: filterDistrict.id } : {}) } }
+      : filterState || filterDistrict || filterInstitute
+        ? {
+            kvk: {
+              zoneId: auth.session.zoneId,
+              ...(filterState ? { stateId: filterState.id } : {}),
+              ...(filterDistrict ? { districtId: filterDistrict.id } : {}),
+              ...(filterInstitute ? { instituteId: filterInstitute.id } : {}),
+            },
+          }
         : { zoneId: auth.session.zoneId };
 
   const baseScope = kvkWhere;
   const scope = reportingYear ? { ...baseScope, reportingYear } : baseScope;
-  /** FldDemonstrationDetail carries its own `zoneId` directly but no `kvkId`/`stateId`/`districtId` of its own - only reachable through the parent `fld` relation. Zone-only case keeps the original flat-`zoneId` fast path; any KVK-level filter (KVK/State/District) routes through `fld` instead. */
-  const fldDemoScope = kvkId || filterKvkId || filterState || filterDistrict
+  /** FldDemonstrationDetail carries its own `zoneId` directly but no `kvkId`/`stateId`/`districtId`/`instituteId` of its own - only reachable through the parent `fld` relation. Zone-only case keeps the original flat-`zoneId` fast path; any KVK-level filter (KVK/State/District/Institute) routes through `fld` instead. */
+  const fldDemoScope = kvkId || filterKvkId || filterState || filterDistrict || filterInstitute
     ? {
         fld: {
           ...(kvkId || filterKvkId
@@ -87,22 +93,25 @@ export async function GET(request: Request) {
                   zoneId: auth.session.zoneId,
                   ...(filterState ? { stateId: filterState.id } : {}),
                   ...(filterDistrict ? { districtId: filterDistrict.id } : {}),
+                  ...(filterInstitute ? { instituteId: filterInstitute.id } : {}),
                 },
               }),
           ...(reportingYear ? { reportingYear } : {}),
         },
       }
     : { zoneId: auth.session.zoneId, ...(reportingYear ? { fld: { reportingYear } } : {}) };
-  /** `kvks` (row-building, narrowed by every active filter including the selected KVK) vs `kvkOptions` (the KVK dropdown's own option list - narrowed by State/District so picking Bihar only lists Bihar's KVKs, but never by the currently-selected KVK itself, otherwise picking one KVK would hide every other KVK from the dropdown). */
+  /** `kvks` (row-building, narrowed by every active filter including the selected KVK) vs `kvkOptions` (the KVK dropdown's own option list - narrowed by State/District/Institute so picking Bihar only lists Bihar's KVKs, but never by the currently-selected KVK itself, otherwise picking one KVK would hide every other KVK from the dropdown). */
   const kvkListWhere = {
     ...(kvkId ? { id: kvkId } : filterKvkId ? { id: filterKvkId } : { zoneId: auth.session.zoneId }),
     ...(filterState ? { stateId: filterState.id } : {}),
     ...(filterDistrict ? { districtId: filterDistrict.id } : {}),
+    ...(filterInstitute ? { instituteId: filterInstitute.id } : {}),
   };
   const kvkOptionsWhere = {
     ...(kvkId ? { id: kvkId } : { zoneId: auth.session.zoneId }),
     ...(filterState ? { stateId: filterState.id } : {}),
     ...(filterDistrict ? { districtId: filterDistrict.id } : {}),
+    ...(filterInstitute ? { instituteId: filterInstitute.id } : {}),
   };
 
   const [
@@ -134,9 +143,11 @@ export async function GET(request: Request) {
         zoneId: true,
         stateId: true,
         districtId: true,
+        instituteId: true,
         zone: { select: { name: true } },
         state: { select: { name: true } },
         district: { select: { name: true } },
+        institute: { select: { name: true } },
       },
       orderBy: { name: "asc" },
     }),
@@ -238,11 +249,12 @@ export async function GET(request: Request) {
     return { total: ongoing + completed, ongoing, completed, kvksWithEntries: kvkSet.size };
   }
 
-  /** Real dimension key/label for a KVK under the current "Group By" - Zone/State/District bucket several KVKs into one row; the default (or "institute", which has no real link to Kvk anywhere in the schema) keeps one row per KVK. */
+  /** Real dimension key/label for a KVK under the current "Group By" - Zone/State/District/Institute bucket several KVKs into one row; the default keeps one row per KVK. A KVK without an Institute set (most existing ones, seeded before this link existed) buckets under "Not set" rather than being silently dropped from the chart. */
   function dimension(k: (typeof kvks)[number]) {
     if (groupBy === "zone") return { id: k.zoneId, label: k.zone.name };
     if (groupBy === "state") return { id: k.stateId, label: k.state.name };
     if (groupBy === "district") return { id: k.districtId, label: k.district.name };
+    if (groupBy === "institute") return { id: k.instituteId ?? "none", label: k.institute?.name ?? "Not set" };
     return { id: k.id, label: k.name };
   }
 

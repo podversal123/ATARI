@@ -36,6 +36,7 @@ export async function POST(request: Request) {
   const name = typeof body?.name === "string" ? body.name.trim() : "";
   const stateName = typeof body?.stateName === "string" ? body.stateName : "";
   const districtName = typeof body?.districtName === "string" ? body.districtName : "";
+  const instituteName = typeof body?.instituteName === "string" ? body.instituteName : "";
   const hostOrgName = typeof body?.hostOrgName === "string" ? body.hostOrgName : "";
   const address = typeof body?.address === "string" ? body.address : "";
   const email = typeof body?.email === "string" ? body.email : "";
@@ -73,6 +74,11 @@ export async function POST(request: Request) {
       { status: 400 },
     );
   }
+  /** Institute is a real, required field on the reference "Create KVK" form (kvk-master-add-form.tsx) that was never actually sent to the backend before - wired through 2026-08-27. */
+  const institute = instituteName ? await prisma.institute.findFirst({ where: { zoneId, name: instituteName } }) : null;
+  if (instituteName && !institute) {
+    return NextResponse.json({ error: `Unknown institute: ${instituteName}` }, { status: 400 });
+  }
 
   const existing = await prisma.kvk.findUnique({ where: { zoneId_name: { zoneId, name } } });
   if (existing) {
@@ -91,6 +97,7 @@ export async function POST(request: Request) {
       stateId: state.id,
       districtId: district.id,
       hostOrgId: hostOrg.id,
+      instituteId: institute?.id,
     },
   });
 

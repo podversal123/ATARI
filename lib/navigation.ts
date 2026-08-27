@@ -397,10 +397,9 @@ const basicMasters = group(
       { key: "stateName", label: "State Name" },
       { key: "districtName", label: "District Name" },
     ]),
+    /** State Name/District Name columns removed (2026-08-27) - the real reference's 4 institutes (ICAR/NGO/CAU/SAU) are national bodies with no state/district of their own, and no confirmed reference ever showed those columns on this leaf; they rendered permanently blank. */
     leaf("institute-master", "Institute Master", [
       { key: "zoneName", label: "Zone Name" },
-      { key: "stateName", label: "State Name" },
-      { key: "districtName", label: "District Name" },
       { key: "instituteName", label: "Institute Name", staticOptions: INSTITUTE_MASTER_ROWS.map((r) => r.instituteName) },
     ]),
     leaf("host-master", "Host Master", [
@@ -413,11 +412,13 @@ const basicMasters = group(
       { key: "email", label: "Email" },
     ]),
     /** Column order/labels confirmed exactly against the reference: Mobile, Email, Address, Year of Sanction - not the Mobile/Address/E-Mail/Sanction Year order this leaf had before. */
+    /** Institute column added 2026-08-27 - the real "Create KVK" reference form (kvk-master-add-form.tsx) already had a required Institute field, it was just never submitted to the backend. */
     leaf("kvk-master", "KVK Master", [
       { key: "zoneName", label: "Zone Name" },
       { key: "stateName", label: "State Name" },
       { key: "hostOrg", label: "Host Org" },
       { key: "districtName", label: "District Name" },
+      { key: "instituteName", label: "Institute", staticOptions: INSTITUTE_MASTER_ROWS.map((r) => r.instituteName) },
       { key: "kvk", label: "KVK" },
       { key: "mobile", label: "Mobile" },
       { key: "fax", label: "Fax" },

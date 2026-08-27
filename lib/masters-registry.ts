@@ -60,7 +60,11 @@ async function resolveKvkParents(v: Record<string, string>, zoneId: string) {
   if (!district) throw new Error(`Unknown district: ${districtName}`);
   const hostOrg = await prisma.hostOrganization.findFirst({ where: { zoneId, name: hostOrgName } });
   if (!hostOrg) throw new Error(`Unknown host organization: ${hostOrgName}`);
-  return { name, stateId: state.id, districtId: district.id, hostOrgId: hostOrg.id };
+  /** Institute is optional (client request, 2026-08-27) - unlike State/District/Host Org, a KVK doesn't have to carry one. */
+  const instituteName = reqStr(v.instituteName);
+  const institute = instituteName ? await prisma.institute.findFirst({ where: { zoneId, name: instituteName } }) : null;
+  if (instituteName && !institute) throw new Error(`Unknown institute: ${instituteName}`);
+  return { name, stateId: state.id, districtId: district.id, hostOrgId: hostOrg.id, instituteId: institute?.id ?? null };
 }
 
 const SIMPLE_MASTERS: Record<string, { type: MasterListType; column: string }> = {
@@ -191,38 +195,25 @@ const dedicated: Record<string, MasterLeafEntry> = {
     list: async (zoneId) => {
       const rows = await prisma.institute.findMany({
         where: { zoneId },
-        include: { zone: true, state: true, district: true },
+        include: { zone: true },
         orderBy: { name: "asc" },
       });
       return rows.map((r) => ({
         id: r.id,
         instituteName: r.name,
         zoneName: r.zone.name,
-        stateName: r.state?.name ?? "",
-        districtName: r.district?.name ?? "",
       }));
     },
+    /** State/District columns removed (2026-08-27, real-reference mismatch - see lib/navigation.ts) - Institute still carries optional stateId/districtId in the schema, just not settable through this leaf's form until a confirmed reference asks for it back. */
     create: async (v, zoneId) => {
       const name = reqStr(v.instituteName);
       if (!name) throw new Error("Institute name is required.");
-      const stateName = reqStr(v.stateName);
-      const districtName = reqStr(v.districtName);
-      const state = stateName ? await prisma.state.findFirst({ where: { zoneId, name: stateName } }) : null;
-      if (stateName && !state) throw new Error(`Unknown state: ${stateName}`);
-      const district = state && districtName ? await prisma.district.findFirst({ where: { stateId: state.id, name: districtName } }) : null;
-      if (districtName && !district) throw new Error(`Unknown district: ${districtName}`);
-      return prisma.institute.create({ data: { name, zoneId, stateId: state?.id, districtId: district?.id } });
+      return prisma.institute.create({ data: { name, zoneId } });
     },
     update: async (id, v, zoneId) => {
       const name = reqStr(v.instituteName);
       if (!name) throw new Error("Institute name is required.");
-      const stateName = reqStr(v.stateName);
-      const districtName = reqStr(v.districtName);
-      const state = stateName ? await prisma.state.findFirst({ where: { zoneId, name: stateName } }) : null;
-      if (stateName && !state) throw new Error(`Unknown state: ${stateName}`);
-      const district = state && districtName ? await prisma.district.findFirst({ where: { stateId: state.id, name: districtName } }) : null;
-      if (districtName && !district) throw new Error(`Unknown district: ${districtName}`);
-      return prisma.institute.updateMany({ where: { id, zoneId }, data: { name, stateId: state?.id, districtId: district?.id } });
+      return prisma.institute.updateMany({ where: { id, zoneId }, data: { name } });
     },
     delete: (id, zoneId) => prisma.institute.deleteMany({ where: { id, zoneId } }),
   },
@@ -280,7 +271,7 @@ const dedicated: Record<string, MasterLeafEntry> = {
     list: async (zoneId) => {
       const kvks = await prisma.kvk.findMany({
         where: { zoneId },
-        include: { state: true, district: true, hostOrg: true, zone: true },
+        include: { state: true, district: true, hostOrg: true, zone: true, institute: true },
         orderBy: { name: "asc" },
       });
       return kvks.map((k) => ({
@@ -289,6 +280,7 @@ const dedicated: Record<string, MasterLeafEntry> = {
         stateName: k.state.name,
         hostOrg: k.hostOrg.name,
         districtName: k.district.name,
+        instituteName: k.institute?.name ?? "",
         kvk: k.name,
         mobile: k.officePhone ?? "-",
         fax: k.fax ?? "-",
@@ -298,7 +290,7 @@ const dedicated: Record<string, MasterLeafEntry> = {
       }));
     },
     create: async (v, zoneId) => {
-      const { name, stateId, districtId, hostOrgId } = await resolveKvkParents(v, zoneId);
+      const { name, stateId, districtId, hostOrgId, instituteId } = await resolveKvkParents(v, zoneId);
       return prisma.kvk.create({
         data: {
           name,
@@ -306,6 +298,7 @@ const dedicated: Record<string, MasterLeafEntry> = {
           stateId,
           districtId,
           hostOrgId,
+          instituteId,
           officePhone: reqStr(v.mobile) || undefined,
           fax: reqStr(v.fax) || undefined,
           email: reqStr(v.email) || undefined,
@@ -315,7 +308,7 @@ const dedicated: Record<string, MasterLeafEntry> = {
       });
     },
     update: async (id, v, zoneId) => {
-      const { name, stateId, districtId, hostOrgId } = await resolveKvkParents(v, zoneId);
+      const { name, stateId, districtId, hostOrgId, instituteId } = await resolveKvkParents(v, zoneId);
       return prisma.kvk.updateMany({
         where: { id, zoneId },
         data: {
@@ -323,6 +316,7 @@ const dedicated: Record<string, MasterLeafEntry> = {
           stateId,
           districtId,
           hostOrgId,
+          instituteId,
           officePhone: reqStr(v.mobile) || undefined,
           fax: reqStr(v.fax) || undefined,
           email: reqStr(v.email) || undefined,

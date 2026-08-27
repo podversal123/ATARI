@@ -60,7 +60,7 @@ export function KvkMasterAddForm({ trail, backHref }: KvkMasterAddFormProps) {
 
   async function submit() {
     setError(null);
-    if (!kvkName || !sanctionYear || !email || !mobile || !state || !district || !host || !kvkAddress) {
+    if (!kvkName || !sanctionYear || !email || !mobile || !state || !district || !institute || !host || !kvkAddress) {
       setError("Please fill all required fields.");
       return;
     }
@@ -77,6 +77,7 @@ export function KvkMasterAddForm({ trail, backHref }: KvkMasterAddFormProps) {
           fax,
           stateName: state,
           districtName: district,
+          instituteName: institute,
           hostOrgName: host,
           address: kvkAddress,
         }),

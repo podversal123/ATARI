@@ -94,15 +94,12 @@ export async function PUT(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const auth = await requireSession(["KVK_ADMIN"]);
+  const auth = await requireSession(["KVK_ADMIN", "SUPER_ADMIN"]);
   if (!auth.ok) return auth.response;
-  if (!auth.session.kvkId) {
-    return NextResponse.json({ error: "No KVK on this account." }, { status: 400 });
-  }
   const { id } = await params;
 
   const existing = await prisma.cfldTechnicalParameter.findFirst({
-    where: { id, kvkId: auth.session.kvkId },
+    where: { id, ...(auth.session.kvkId ? { kvkId: auth.session.kvkId } : { zoneId: auth.session.zoneId }) },
   });
   if (!existing) {
     return NextResponse.json({ error: "Record not found." }, { status: 404 });

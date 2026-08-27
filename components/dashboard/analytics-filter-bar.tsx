@@ -5,6 +5,7 @@ export type AnalyticsFilters = {
   year: string;
   state: string;
   district: string;
+  institute: string;
   kvk: string;
   groupBy: string;
 };
@@ -13,6 +14,7 @@ export const EMPTY_ANALYTICS_FILTERS: AnalyticsFilters = {
   year: "All",
   state: "All",
   district: "All",
+  institute: "All",
   kvk: "All",
   groupBy: "",
 };
@@ -30,16 +32,16 @@ type AnalyticsFilterBarProps = {
 
 /**
  * Filter row for the OFT/FLD/Training/Extension "detailed analytics" pages.
- * Year/State/District/KVK/Group By are real and wired (2026-08-27) - each
- * re-fetches /api/dashboard-stats with the matching query param, same
- * pattern as the main Dashboard's own Year/KVK filter. Zone and Institute
- * show real data (a Super Admin session only ever has one real zone; the
- * Institute list is real master data) but can't actually filter - Zone
- * because the whole page is already scoped to that one zone, Institute
- * because nothing in the schema links a Kvk to an Institute row (confirmed:
- * no `kvks` back-reference, no `instituteId` on Kvk). Breakdown has only
- * one real value (Status) - Training/Extension Activity have no status
- * column at all, so there's nothing else to break down by.
+ * Year/State/District/Institute/KVK/Group By are all real and wired
+ * (2026-08-27) - each re-fetches /api/dashboard-stats with the matching
+ * query param, same pattern as the main Dashboard's own Year/KVK filter.
+ * Institute filters/groups via the real Kvk.instituteId link added this
+ * session - KVKs seeded before that link existed show up under "Not set"
+ * until a Super Admin edits them in KVK Master. Zone stays disabled - a
+ * Super Admin session only ever has one real zone, already applied to
+ * every card below, so there's nothing a second option could filter to.
+ * Breakdown has only one real value (Status) - Training/Extension Activity
+ * have no status column at all, so there's nothing else to break down by.
  */
 export function AnalyticsFilterBar({
   filters,
@@ -112,10 +114,9 @@ export function AnalyticsFilterBar({
         <div>
           <label className="text-[11px] font-semibold tracking-wide text-primary uppercase">Institute</label>
           <select
-            disabled
-            value="All"
-            title="Real master list, but no KVK in this system is linked to an Institute record, so it can't filter these numbers."
-            className="mt-1 h-8 w-full rounded-md border border-border bg-card px-2 text-sm text-foreground outline-none disabled:opacity-70"
+            value={filters.institute}
+            onChange={(e) => set("institute", e.target.value)}
+            className="mt-1 h-8 w-full rounded-md border border-border bg-card px-2 text-sm text-foreground outline-none focus-visible:border-ring"
           >
             <option>All</option>
             {institutes.map((i) => (
@@ -147,6 +148,7 @@ export function AnalyticsFilterBar({
             <option value="zone">Zone</option>
             <option value="state">State</option>
             <option value="district">District</option>
+            <option value="institute">Institute</option>
             <option value="kvk">KVK</option>
           </select>
         </div>

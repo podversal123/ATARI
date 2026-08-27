@@ -13,17 +13,15 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const auth = await requireSession(["KVK_ADMIN"]);
+  const auth = await requireSession(["KVK_ADMIN", "SUPER_ADMIN"]);
   if (!auth.ok) return auth.response;
-  if (!auth.session.kvkId) {
-    return NextResponse.json({ error: "No KVK on this account." }, { status: 400 });
-  }
   const { id } = await params;
   const slug = new URL(request.url).searchParams.get("slug");
+  const kvkScope = auth.session.kvkId ? { kvkId: auth.session.kvkId } : { zoneId: auth.session.zoneId };
 
   if (slug === "technology-week-celebration") {
     const record = await prisma.technologyWeekCelebration.findFirst({
-      where: { id, kvkId: auth.session.kvkId },
+      where: { id, ...kvkScope },
     });
     if (!record) return NextResponse.json({ error: "Record not found." }, { status: 404 });
     return NextResponse.json({
@@ -40,7 +38,7 @@ export async function GET(
 
   if (slug === "world-soil-day") {
     const record = await prisma.worldSoilDay.findFirst({
-      where: { id, kvkId: auth.session.kvkId },
+      where: { id, ...kvkScope },
     });
     if (!record) return NextResponse.json({ error: "Record not found." }, { status: 404 });
     return NextResponse.json({
@@ -61,12 +59,10 @@ export async function PUT(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const auth = await requireSession(["KVK_ADMIN"]);
+  const auth = await requireSession(["KVK_ADMIN", "SUPER_ADMIN"]);
   if (!auth.ok) return auth.response;
-  if (!auth.session.kvkId) {
-    return NextResponse.json({ error: "No KVK on this account." }, { status: 400 });
-  }
   const { id } = await params;
+  const kvkScope = auth.session.kvkId ? { kvkId: auth.session.kvkId } : { zoneId: auth.session.zoneId };
 
   const body = await request.json().catch(() => null);
   const slug = body?.slug;
@@ -74,7 +70,7 @@ export async function PUT(
 
   if (slug === "technology-week-celebration") {
     const result = await prisma.technologyWeekCelebration.updateMany({
-      where: { id, kvkId: auth.session.kvkId },
+      where: { id, ...kvkScope },
       data: {
         startDate: reqDate(v.startDate),
         endDate: reqDate(v.endDate),
@@ -90,7 +86,7 @@ export async function PUT(
 
   if (slug === "world-soil-day") {
     const result = await prisma.worldSoilDay.updateMany({
-      where: { id, kvkId: auth.session.kvkId },
+      where: { id, ...kvkScope },
       data: {
         noOfActivitiesConducted: reqInt(v.noOfActivitiesConducted),
         soilHealthCardsDistributed: reqInt(v.soilHealthCardsDistributed),

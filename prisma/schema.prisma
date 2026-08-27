@@ -298,6 +298,8 @@ model Institute {
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
 
+  kvks Kvk[]
+
   @@index([zoneId])
   @@index([stateId])
   @@index([districtId])
@@ -342,14 +344,17 @@ model Kvk {
   email        String?
   sanctionYear Int?
 
-  zoneId     String
-  zone       Zone             @relation(fields: [zoneId], references: [id])
-  stateId    String
-  state      State            @relation(fields: [stateId], references: [id])
-  districtId String
-  district   District         @relation(fields: [districtId], references: [id])
-  hostOrgId  String
-  hostOrg    HostOrganization @relation(fields: [hostOrgId], references: [id])
+  zoneId      String
+  zone        Zone             @relation(fields: [zoneId], references: [id])
+  stateId     String
+  state       State            @relation(fields: [stateId], references: [id])
+  districtId  String
+  district    District         @relation(fields: [districtId], references: [id])
+  hostOrgId   String
+  hostOrg     HostOrganization @relation(fields: [hostOrgId], references: [id])
+  /// Which Institute Master category (ICAR/NGO/CAU/SAU) runs this KVK - optional (client request, 2026-08-27: no confirmed reference ever linked Institute to a KVK before this, so existing KVKs are left unset rather than guessed).
+  instituteId String?
+  institute   Institute?       @relation(fields: [instituteId], references: [id])
 
   users             User[]
   loginActivities   LoginActivity[]
