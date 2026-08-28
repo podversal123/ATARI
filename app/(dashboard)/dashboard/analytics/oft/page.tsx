@@ -63,6 +63,7 @@ export default function OftDetailedAnalyticsPage() {
           districts={data?.districtOptions ?? []}
           kvks={(data?.kvkOptions ?? []).map((k) => k.name)}
           institutes={data?.instituteOptions ?? []}
+          hasStatus
         />
       </div>
 

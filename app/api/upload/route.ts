@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { requireSession } from "@/lib/api-auth";
 import { uploadPrivateFile, type UploadKind } from "@/lib/blob";
 
-const VALID_KINDS: UploadKind[] = ["staff-photo", "staff-resume", "cfld-crop-image"];
+const VALID_KINDS: UploadKind[] = ["staff-photo", "staff-resume", "cfld-crop-image", "module-image"];
 
 export async function POST(request: Request) {
   const auth = await requireSession();

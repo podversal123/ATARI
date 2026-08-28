@@ -90,6 +90,23 @@ export async function POST(request: Request) {
     update: { targetValue, roleId: auth.session.roleId },
   });
 
+  /** Real auto-notification to the target KVK (client-confirmed 2026-08-29) - only a Super Admin setting/updating another KVK's target triggers this; a KVK Admin/User setting their own target has no one to notify. */
+  if (auth.session.role === "SUPER_ADMIN") {
+    const senderUser = await prisma.user.findUnique({ where: { id: auth.session.sub }, select: { name: true, username: true } });
+    await prisma.notification.create({
+      data: {
+        zoneId: auth.session.zoneId,
+        title: `New ${category} Target - ${reportingYear}`,
+        message: `Your ${category} target for ${reportingYear} has been set to ${targetValue}.`,
+        senderId: auth.session.sub,
+        senderName: senderUser?.name ?? senderUser?.username ?? "Super Admin",
+        senderRole: "SUPER_ADMIN",
+        recipientKvkIds: [kvkId],
+        source: "TARGET",
+      },
+    });
+  }
+
   return NextResponse.json({ ok: true, id: target.id }, { status: 201 });
 }
 

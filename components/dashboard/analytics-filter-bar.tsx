@@ -1,14 +1,25 @@
 import { RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { MultiFilterSelect } from "@/components/dashboard/multi-filter-select";
 
 export type AnalyticsFilters = {
+  /** Comma-joined when multiple values are picked ("All" = nothing selected) - same convention the checkbox multi-selects below use. */
   year: string;
   state: string;
   district: string;
   institute: string;
   kvk: string;
   groupBy: string;
+  breakdown: string;
 };
+
+/** "All"/"" <-> Set<string>, at the boundary between this component's comma-joined filter strings and MultiFilterSelect's own Set-based selection. */
+function toSet(value: string): Set<string> {
+  return value === "All" || value === "" ? new Set() : new Set(value.split(","));
+}
+function fromSet(next: Set<string>): string {
+  return next.size === 0 ? "All" : Array.from(next).join(",");
+}
 
 export const EMPTY_ANALYTICS_FILTERS: AnalyticsFilters = {
   year: "All",
@@ -17,6 +28,7 @@ export const EMPTY_ANALYTICS_FILTERS: AnalyticsFilters = {
   institute: "All",
   kvk: "All",
   groupBy: "",
+  breakdown: "",
 };
 
 type AnalyticsFilterBarProps = {
@@ -28,6 +40,8 @@ type AnalyticsFilterBarProps = {
   districts: string[];
   kvks: string[];
   institutes: string[];
+  /** OFT/FLD carry a real TrialStatus (Ongoing/Completed/Not started) - Training/Extension Activity have no status column anywhere in the schema, so Breakdown stays a single fixed "Status" value for those. */
+  hasStatus?: boolean;
 };
 
 /**
@@ -52,6 +66,7 @@ export function AnalyticsFilterBar({
   districts,
   kvks,
   institutes,
+  hasStatus = false,
 }: AnalyticsFilterBarProps) {
   function set<K extends keyof AnalyticsFilters>(key: K, value: string) {
     onChange({ ...filters, [key]: value });
@@ -62,16 +77,15 @@ export function AnalyticsFilterBar({
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4 lg:grid-cols-8">
         <div>
           <label className="text-[11px] font-semibold tracking-wide text-primary uppercase">Year</label>
-          <select
-            value={filters.year}
-            onChange={(e) => set("year", e.target.value)}
-            className="mt-1 h-8 w-full rounded-md border border-border bg-card px-2 text-sm text-foreground outline-none focus-visible:border-ring"
-          >
-            <option>All</option>
-            {years.map((y) => (
-              <option key={y}>{y}</option>
-            ))}
-          </select>
+          <MultiFilterSelect
+            label="Year"
+            hideLabel
+            options={years.map(String)}
+            selected={toSet(filters.year)}
+            onChange={(next) => set("year", fromSet(next))}
+            className="mt-1"
+            triggerClassName="w-full"
+          />
         </div>
         <div>
           <label className="text-[11px] font-semibold tracking-wide text-primary uppercase">Zone</label>
@@ -87,55 +101,51 @@ export function AnalyticsFilterBar({
         </div>
         <div>
           <label className="text-[11px] font-semibold tracking-wide text-primary uppercase">State</label>
-          <select
-            value={filters.state}
-            onChange={(e) => set("state", e.target.value)}
-            className="mt-1 h-8 w-full rounded-md border border-border bg-card px-2 text-sm text-foreground outline-none focus-visible:border-ring"
-          >
-            <option>All</option>
-            {states.map((s) => (
-              <option key={s}>{s}</option>
-            ))}
-          </select>
+          <MultiFilterSelect
+            label="State"
+            hideLabel
+            options={states}
+            selected={toSet(filters.state)}
+            onChange={(next) => set("state", fromSet(next))}
+            className="mt-1"
+            triggerClassName="w-full"
+          />
         </div>
         <div>
           <label className="text-[11px] font-semibold tracking-wide text-primary uppercase">District</label>
-          <select
-            value={filters.district}
-            onChange={(e) => set("district", e.target.value)}
-            className="mt-1 h-8 w-full rounded-md border border-border bg-card px-2 text-sm text-foreground outline-none focus-visible:border-ring"
-          >
-            <option>All</option>
-            {districts.map((d) => (
-              <option key={d}>{d}</option>
-            ))}
-          </select>
+          <MultiFilterSelect
+            label="District"
+            hideLabel
+            options={districts}
+            selected={toSet(filters.district)}
+            onChange={(next) => set("district", fromSet(next))}
+            className="mt-1"
+            triggerClassName="w-full"
+          />
         </div>
         <div>
           <label className="text-[11px] font-semibold tracking-wide text-primary uppercase">Institute</label>
-          <select
-            value={filters.institute}
-            onChange={(e) => set("institute", e.target.value)}
-            className="mt-1 h-8 w-full rounded-md border border-border bg-card px-2 text-sm text-foreground outline-none focus-visible:border-ring"
-          >
-            <option>All</option>
-            {institutes.map((i) => (
-              <option key={i}>{i}</option>
-            ))}
-          </select>
+          <MultiFilterSelect
+            label="Institute"
+            hideLabel
+            options={institutes}
+            selected={toSet(filters.institute)}
+            onChange={(next) => set("institute", fromSet(next))}
+            className="mt-1"
+            triggerClassName="w-full"
+          />
         </div>
         <div>
           <label className="text-[11px] font-semibold tracking-wide text-primary uppercase">KVK</label>
-          <select
-            value={filters.kvk}
-            onChange={(e) => set("kvk", e.target.value)}
-            className="mt-1 h-8 w-full rounded-md border border-border bg-card px-2 text-sm text-foreground outline-none focus-visible:border-ring"
-          >
-            <option>All</option>
-            {kvks.map((k) => (
-              <option key={k}>{k}</option>
-            ))}
-          </select>
+          <MultiFilterSelect
+            label="KVK"
+            hideLabel
+            options={kvks}
+            selected={toSet(filters.kvk)}
+            onChange={(next) => set("kvk", fromSet(next))}
+            className="mt-1"
+            triggerClassName="w-full"
+          />
         </div>
         <div>
           <label className="text-[11px] font-semibold tracking-wide text-primary uppercase">Group By</label>
@@ -154,13 +164,26 @@ export function AnalyticsFilterBar({
         </div>
         <div>
           <label className="text-[11px] font-semibold tracking-wide text-primary uppercase">Breakdown</label>
-          <select
-            disabled
-            value="Status"
-            className="mt-1 h-8 w-full rounded-md border border-border bg-card px-2 text-sm text-foreground outline-none disabled:opacity-70"
-          >
-            <option>Status</option>
-          </select>
+          {hasStatus ? (
+            <select
+              value={filters.breakdown}
+              onChange={(e) => set("breakdown", e.target.value)}
+              className="mt-1 h-8 w-full rounded-md border border-border bg-card px-2 text-sm text-foreground outline-none focus-visible:border-ring"
+            >
+              <option value="">Status (All)</option>
+              <option value="ongoing">Ongoing</option>
+              <option value="completed">Completed</option>
+              <option value="notStarted">Not Started</option>
+            </select>
+          ) : (
+            <select
+              disabled
+              value="Status"
+              className="mt-1 h-8 w-full rounded-md border border-border bg-card px-2 text-sm text-foreground outline-none disabled:opacity-70"
+            >
+              <option>Status</option>
+            </select>
+          )}
         </div>
       </div>
       <div className="mt-3 flex justify-end">

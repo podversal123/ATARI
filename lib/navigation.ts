@@ -44,8 +44,20 @@ export type MasterColumn = {
     dependsOnKey?: string;
     filterKey?: string;
   };
-  /** Renders as a real checkbox instead of a text input - the stored value is the string "true"/"false". */
-  fieldKind?: "checkbox";
+  /**
+   * Renders as a real checkbox instead of a text input ("checkbox", stored
+   * as "true"/"false") - or, for "demographic-breakdown", the shared
+   * General/OBC/SC/ST x Male/Female table (DemographicBreakdown) instead of
+   * a single input. A demographic-breakdown column is display-only in the
+   * list table (never a real column there - `readonly` would be for a
+   * single value, not a whole block) and spans both grid columns on the
+   * Add/Edit form.
+   */
+  fieldKind?: "checkbox" | "demographic-breakdown";
+  /** demographic-breakdown only - prepended to DemographicBreakdown's own key convention (e.g. "farmers" -> "farmersGeneralMale") so one form can hold two independent blocks (Farmers + Extension Officials). Omit for a single block. */
+  demographicPrefix?: string;
+  /** True for a column that only makes sense on the Add/Edit form (currently just demographic-breakdown, which represents 8 real DB columns, not one) - excluded from the list table's header/rows entirely, the opposite of `readonly` (which excludes a column from the form, not the table). */
+  formOnly?: boolean;
   /** Renders as a <select> from a fixed, known-real option list (not another master's saved rows, not free text) - e.g. Institute Name's real 4-option set. */
   staticOptions?: string[];
 };
@@ -58,6 +70,8 @@ export type NavLeaf = {
   columns: MasterColumn[];
   /** Overrides `label` on the landing-page card only, for the confirmed real cases where a bare leaf's card title differs from its own page title (e.g. card "Technical Achievement" vs page "Technical Achievement Summary"). */
   cardLabel?: string;
+  /** Overrides `label` on the leaf's own detail page (H1 + breadcrumb) only - mirrors NavGroup.pageTitle, for the confirmed real case where the landing-card link text differs from the page's own title (card link "OFT" vs page "On Farm Trials (OFT)", confirmed live 2026-08-15 reference screenshot). */
+  pageTitle?: string;
   /**
    * Whether the Add/Create form shows the "Mark as 'Other' option" checkbox.
    * The real reference shows this on almost every simple master's create
@@ -77,6 +91,8 @@ export type NavGroup = {
   children: NavItem[];
   /** Overrides `label` for the page H1/breadcrumb only - used when the sidebar name and the real in-page title differ (confirmed real case: sidebar says "Production Masters", the page itself says "Production & Projects"). */
   pageTitle?: string;
+  /** Overrides `label` on the *parent's* landing-page card only (mirrors NavLeaf.cardLabel) - confirmed real case: NICRA's own page/report-section title is the longer "NICRA (Technology Demonstration component)", but its card on the Projects landing page just says "NICRA". */
+  cardLabel?: string;
   /** Subtitle shown under the page title on a group's landing page, when confirmed from the reference. */
   description?: string;
 };
@@ -125,8 +141,9 @@ function leaf(
   columns: MasterColumn[] = GENERIC_MASTER_COLUMNS,
   cardLabel?: string,
   showMarkAsOther?: boolean,
+  pageTitle?: string,
 ): NavLeaf {
-  return { type: "leaf", slug, label, columns, cardLabel, showMarkAsOther };
+  return { type: "leaf", slug, label, columns, cardLabel, showMarkAsOther, pageTitle };
 }
 
 /**
@@ -142,7 +159,7 @@ export function landingCards(node: NavGroup): NavGroup[] {
   if (!hasSubGroup) return [node];
   return node.children.map((child) =>
     child.type === "group"
-      ? child
+      ? { ...child, label: child.cardLabel ?? child.label }
       : {
           type: "group",
           slug: child.slug,
@@ -156,7 +173,7 @@ function group(
   slug: string,
   label: string,
   children: NavItem[],
-  extra?: { pageTitle?: string; description?: string },
+  extra?: { pageTitle?: string; cardLabel?: string; description?: string },
 ): NavGroup {
   return { type: "group", slug, label, children, ...extra };
 }
@@ -646,6 +663,7 @@ const aboutKvk = group(
        * institute per row), and "Year of Sanction" at the very end before
        * Action.
        */
+      /** "Host Organization Name" used to duplicate the "Host Org" column above (same `hostOrg` key twice) - real bug, fixed 2026-08-28. */
       leaf("view-kvks", "View KVKs", [
         { key: "zoneName", label: "Zone Name" },
         { key: "stateName", label: "State Name" },
@@ -655,7 +673,6 @@ const aboutKvk = group(
         { key: "mobile", label: "Mobile" },
         { key: "email", label: "Email" },
         { key: "address", label: "Address" },
-        { key: "hostOrg", label: "Host Organization Name" },
         { key: "sanctionYear", label: "Year of Sanction" },
       ]),
       leaf("bank-account-details", "Bank Account Details", [
@@ -821,6 +838,9 @@ const achievements = group("achievements", "Achievements", [
       { key: "status", label: "Ongoing/Completed" },
     ],
     "On Farm Trial",
+    undefined,
+    /** Real page H1/breadcrumb confirmed live 2026-08-15 ("project over" reference): "On Farm Trials (OFT)" - the landing-card link text stays the short "OFT" (label, above). */
+    "On Farm Trials (OFT)",
   ),
   /**
    * Client direction (2026-08-25): keep this app's existing flow/structure
@@ -833,6 +853,7 @@ const achievements = group("achievements", "Achievements", [
    * View FLD's own columns did get a real fix: Reporting Year/Start
    * Date/End Date, confirmed present in the real table.
    */
+  /** Card label confirmed live 2026-08-15 ("project over" reference): the landing card reads the short "Front Line Demonstration" (singular, no "(FLD)") - the group's own label stays the long form for the leaf breadcrumbs/tabs beneath it. */
   group("front-line-demonstration", "Front Line Demonstrations (FLD)", [
     leaf(
       "view-fld",
@@ -875,7 +896,7 @@ const achievements = group("achievements", "Achievements", [
       ],
       "Technical Feedback on the demonstrated technology",
     ),
-  ]),
+  ], { cardLabel: "Front Line Demonstration" }),
   /** Columns re-confirmed live against atariams.org's own "Achievements On Training" screenshot (2026-08-24, client pointer #9) - the real table has 3 more columns than the earlier AMS User Manual pass caught: Start Date, End Date, and Training Title all sit between KVK Name and Venue; "Training Type" was never a real column, replaced by these. */
   leaf(
     "trainings",
@@ -889,7 +910,25 @@ const achievements = group("achievements", "Achievements", [
       { key: "title", label: "Training Title" },
       { key: "venue", label: "Venue" },
       { key: "trainingDiscipline", label: "Training Discipline" },
-      { key: "thematicArea", label: "Thematic Area" },
+      /**
+       * Real 3-level master chain confirmed live 2026-08-15 ("project over"
+       * reference): Training Type -> Training Area -> Training Thematic
+       * Area (see `trainingMaster` group above). `thematicArea` already
+       * existed as a plain field, now wired to the chain's real dropdown
+       * instead of free text; `trainingType`/`trainingArea` are new. All
+       * three are `formOnly` since the real LIST table (re-confirmed live
+       * 2026-08-24, comment above) does NOT show them, only the Edit form does.
+       */
+      { key: "trainingType", label: "Training Type", sourceMaster: { master: "training-type", optionKey: "trainingType" }, formOnly: true },
+      { key: "trainingArea", label: "Training Area", sourceMaster: { master: "training-area", optionKey: "trainingAreaName", dependsOnKey: "trainingType", filterKey: "trainingType" }, formOnly: true },
+      { key: "thematicArea", label: "Thematic Area", sourceMaster: { master: "training-thematic-area", optionKey: "thematicArea", dependsOnKey: "trainingArea", filterKey: "trainingAreaName" } },
+      /** Real dropdown added 2026-08-28 (client request) - sourced from the real Training Clientele Master, same sourceMaster pattern as every other cross-master dropdown. Venue has no equivalent master anywhere in the reference (only ever appears as a free-text field), so it stays plain text rather than guessing option values. */
+      { key: "clientele", label: "Clientele", sourceMaster: { master: "training-clientele", optionKey: "clientele" } },
+      { key: "onCampusOffCampus", label: "On Campus/Off Campus", staticOptions: ["On Campus", "Off Campus"], formOnly: true },
+      { key: "courseCoordinator", label: "Course Co-ordinator", formOnly: true },
+      { key: "fundingSource", label: "Funding Source", formOnly: true },
+      { key: "fundingAgencyName", label: "Funding Agency Name", formOnly: true },
+      { key: "farmersDetails", label: "Farmers Details", fieldKind: "demographic-breakdown", formOnly: true },
     ],
     "Training",
   ),
@@ -900,12 +939,18 @@ const achievements = group("achievements", "Achievements", [
       { key: "kvk", label: "KVK Name" },
       { key: "startDate", label: "Start Date" },
       { key: "endDate", label: "End Date" },
+      /** Real dropdown (client request, 2026-08-28) - sourced from the real Extension Activity Master, same sourceMaster pattern as every other cross-master dropdown. */
       {
         key: "natureOfExtensionActivity",
         label: "Nature of Extension Activity",
+        sourceMaster: { master: "extension-activity", optionKey: "activityName" },
       },
       { key: "noOfActivities", label: "No. of Activities" },
       { key: "noOfParticipants", label: "No. of Participants" },
+      /** Real Edit form fields confirmed live 2026-08-15 ("project over" reference, "Edit Extension Activities") - `staff` plain text (same convention as Oft.staff); two independent demographic blocks (Farmers + Extension Officials), both previously entirely missing. */
+      { key: "staff", label: "Name of SMS/KVK Head", formOnly: true },
+      { key: "farmersDetails", label: "Farmers", fieldKind: "demographic-breakdown", demographicPrefix: "farmers", formOnly: true },
+      { key: "extensionOfficials", label: "Extension Officials", fieldKind: "demographic-breakdown", demographicPrefix: "officials", formOnly: true },
     ]),
     leaf("other-extension-activities", "Other Extension Activities", [
       { key: "reportingYear", label: "Reporting Year" },
@@ -913,8 +958,13 @@ const achievements = group("achievements", "Achievements", [
       {
         key: "natureOfExtensionActivity",
         label: "Nature of Extension Activity",
+        sourceMaster: { master: "other-extension-activity", optionKey: "activityName" },
       },
       { key: "noOfActivities", label: "No. of Activities" },
+      /** Real Edit form fields confirmed live 2026-08-15 ("Edit Other Extension Activities") - were entirely missing before this. */
+      { key: "staff", label: "Name of SMS/KVK Head", formOnly: true },
+      { key: "startDate", label: "Start Date", formOnly: true },
+      { key: "endDate", label: "End Date", formOnly: true },
     ]),
   ]),
   group("special-days", "Special Days", [
@@ -937,6 +987,9 @@ const achievements = group("achievements", "Achievements", [
       { key: "importantDay", label: "Important Days" },
       { key: "eventDate", label: "Event Date" },
       { key: "noOfActivities", label: "No of Activities" },
+      /** Real Edit form fields confirmed live 2026-08-15 ("Edit Celebration Days") - same two-block shape as Extension Activities above, were entirely missing before this. */
+      { key: "farmersDetails", label: "Farmers", fieldKind: "demographic-breakdown", demographicPrefix: "farmers", formOnly: true },
+      { key: "extensionOfficials", label: "Extension Officials", fieldKind: "demographic-breakdown", demographicPrefix: "officials", formOnly: true },
     ]),
     /** Real columns confirmed live, extended 2026-08-24 with the participant breakdown from the client's own Poshan Maah reporting sheet. */
     leaf("poshan-maaha", "Poshan Maaha", [
@@ -1077,6 +1130,8 @@ const achievements = group("achievements", "Achievements", [
       "World Soil Day",
       [
         { key: "kvk", label: "KVK Name" },
+        /** Real field confirmed live 2026-08-15 - was entirely missing before this. */
+        { key: "reportingYear", label: "Reporting Year" },
         {
           key: "noOfActivitiesConducted",
           label: "No. of Activity Conducted",
@@ -1380,8 +1435,8 @@ const projects = group(
           { key: "name", label: "Name" },
         ]),
       ]),
-    ]),
-    /** Real group label confirmed live: no "/SAFAL" - drops it. */
+    ], { cardLabel: "NICRA" }),
+    /** Card label confirmed live (2026-08-29, "project over" reference): "ARYA / SAFAL", not the earlier no-"/SAFAL" guess. */
     group("arya-safal", "Attracting and Retaining Youth in Agriculture(ARYA)", [
       leaf("arya-safal-current-year", "Current Year Details", [
         { key: "kvk", label: "KVK Name" },
@@ -1401,8 +1456,8 @@ const projects = group(
         { key: "totalRestarted", label: "Total Restarted" },
         { key: "restartedDate", label: "Restarted date" },
       ]),
-    ]),
-    /** Real group label confirmed live: "Out-scaling of Natural Farming", not plain "Natural Farming". */
+    ], { cardLabel: "ARYA / SAFAL" }),
+    /** Real group label confirmed live: "Out-scaling of Natural Farming" (in-page title); card label on the Projects landing page is the short "Natural Farming" (confirmed live, 2026-08-29 "project over" reference). */
     group("natural-farming", "Out-scaling of Natural Farming", [
       leaf("nf-geographical", "Geographical information", [
         { key: "kvk", label: "KVK Name" },
@@ -1500,7 +1555,7 @@ const projects = group(
           label: "Total Budget Expenditure (Rs)",
         },
       ]),
-    ]),
+    ], { cardLabel: "Natural Farming" }),
     /** Real structure confirmed live: ONE combined leaf "View Sub Plan Activity" with a Type column (TSP/SCSP), not two separate leaves. */
     group("tsp-scsp", "TSP/SCSP", [
       leaf("view-sub-plan-activity", "View Sub Plan Activity", [

@@ -5,7 +5,18 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { FileUploadField } from "./file-upload-field";
+import { DemographicBreakdown, type DemographicValues } from "./demographic-breakdown";
 import type { MasterColumn } from "@/lib/navigation";
+
+export const DEMOGRAPHIC_KEYS = [
+  "generalMale", "generalFemale", "obcMale", "obcFemale",
+  "scMale", "scFemale", "stMale", "stFemale",
+] as const;
+
+/** "farmers" + "generalMale" -> "farmersGeneralMale" (real Prisma column name) - no prefix leaves the bare suffix untouched. Shared by every reader/writer of a prefixed demographic-breakdown block (this file, EmptyDataTable's openEdit, leaf-record-registry.ts) so they can never drift out of sync on casing. */
+export function prefixedDemographicKey(prefix: string, suffix: string): string {
+  return prefix ? `${prefix}${suffix[0].toUpperCase()}${suffix.slice(1)}` : suffix;
+}
 import {
   REPORT_ZONE_OPTIONS,
   districtsForState,
@@ -148,6 +159,25 @@ export function MasterFormFields({
         const isDistrictField =
           cascadeType === "institute" && column.key === "districtName";
         const isStateField = column.key === "stateName";
+
+        if (column.fieldKind === "demographic-breakdown") {
+          const prefix = column.demographicPrefix ?? "";
+          const demoValues: DemographicValues = {};
+          for (const suffix of DEMOGRAPHIC_KEYS) {
+            demoValues[suffix] = formValues[prefixedDemographicKey(prefix, suffix)] ?? "";
+          }
+          return (
+            <div key={column.key} className="space-y-2 sm:col-span-2 lg:col-span-3">
+              <p className="text-sm font-semibold text-primary">{column.label}</p>
+              <DemographicBreakdown
+                values={demoValues}
+                onChange={(key, value) =>
+                  onChange({ ...formValues, [prefixedDemographicKey(prefix, key)]: value })
+                }
+              />
+            </div>
+          );
+        }
 
         if (column.fieldKind === "checkbox") {
           return (

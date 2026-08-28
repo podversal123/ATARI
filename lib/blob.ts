@@ -1,13 +1,19 @@
 import "server-only";
 import { put, get } from "@vercel/blob";
 
-export type UploadKind = "staff-photo" | "staff-resume" | "cfld-crop-image";
+export type UploadKind = "staff-photo" | "staff-resume" | "cfld-crop-image" | "module-image";
 
 const UPLOAD_RULES: Record<UploadKind, { folder: string; maxBytes: number; mimeTypes: string[] }> = {
   "staff-photo": {
     folder: "staff/photos",
     maxBytes: 5 * 1024 * 1024,
     mimeTypes: ["image/jpeg", "image/png", "image/webp"],
+  },
+  /** Matches lib/module-images.ts's own ALLOWED_IMAGE_TYPES/MAX_IMAGE_SIZE_MB (JPG/JPEG/PNG, 5MB) - kept in sync, not re-derived. */
+  "module-image": {
+    folder: "module-images",
+    maxBytes: 5 * 1024 * 1024,
+    mimeTypes: ["image/jpeg", "image/png"],
   },
   "cfld-crop-image": {
     folder: "cfld/crop-images",

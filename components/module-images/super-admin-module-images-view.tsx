@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Download,
   Eye,
@@ -30,7 +30,6 @@ import {
   BULK_DOWNLOAD_OPTIONS,
   MODULE_IMAGE_CATEGORIES,
   MODULE_IMAGE_REPORTING_YEARS,
-  MODULE_IMAGE_ROWS,
   PUBLISH_FILTER_OPTIONS,
   type ModuleImageRecord,
   type PublishFilter,
@@ -46,14 +45,26 @@ import { KVKS } from "@/lib/rbac";
  * All Images. Super Admin has no Upload/Edit here (spec section 1) - every
  * action is view/filter/download only.
  *
- * `MODULE_IMAGE_ROWS` is empty today (no backend/storage yet), but the
- * filtering + row-rendering below is real, not stubbed - the same
- * "filter real rows client-side, show the honest empty state only when
- * there truly are none" pattern `EmptyDataTable` already uses for Masters.
- * That way this table actually works the moment real rows exist, instead
- * of needing a rewrite later.
+ * Real backend wired 2026-08-28 (GET /api/module-images returns every
+ * image across the zone for this role) - was reading the always-empty
+ * MODULE_IMAGE_ROWS constant before.
  */
 export function SuperAdminModuleImagesView() {
+  const [rows, setRows] = useState<ModuleImageRecord[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const loadRows = useCallback(() => {
+    fetch("/api/module-images")
+      .then((res) => (res.ok ? res.json() : { rows: [] }))
+      .then((data) => setRows(data.rows ?? []))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  useEffect(() => {
+    loadRows();
+  }, [loadRows]);
+
   const [reportingYear, setReportingYear] = useState(
     MODULE_IMAGE_REPORTING_YEARS[0],
   );
@@ -93,7 +104,7 @@ export function SuperAdminModuleImagesView() {
 
   const filteredRows = useMemo(() => {
     const query = search.trim().toLowerCase();
-    return MODULE_IMAGE_ROWS.filter((row) => {
+    return rows.filter((row) => {
       if (row.reportingYear !== reportingYear) return false;
       if (selectedKvks.size > 0 && !selectedKvks.has(row.kvk)) return false;
       if (!selectedCategories.has(row.categoryPath)) return false;
@@ -113,6 +124,7 @@ export function SuperAdminModuleImagesView() {
       return true;
     });
   }, [
+    rows,
     reportingYear,
     selectedKvks,
     selectedCategories,
@@ -142,7 +154,17 @@ export function SuperAdminModuleImagesView() {
   }
 
   function togglePublish(id: string, current: boolean) {
-    setPublishOverrides((prev) => ({ ...prev, [id]: !current }));
+    const next = !current;
+    setPublishOverrides((prev) => ({ ...prev, [id]: next }));
+    fetch(`/api/module-images/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ published: next }),
+    })
+      .then(() => loadRows())
+      .catch(() => {
+        setPublishOverrides((prev) => ({ ...prev, [id]: current }));
+      });
   }
 
   const kvkLabel = useMemo(() => {
@@ -361,7 +383,13 @@ export function SuperAdminModuleImagesView() {
               </tr>
             </thead>
             <tbody>
-              {filteredRows.length === 0 ? (
+              {loading ? (
+                <tr>
+                  <td colSpan={9} className="px-4 py-16 text-center text-sm text-muted-foreground">
+                    Loading…
+                  </td>
+                </tr>
+              ) : filteredRows.length === 0 ? (
                 <tr>
                   <td
                     colSpan={9}

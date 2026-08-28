@@ -34,6 +34,7 @@ export function useAnalyticsFilters(scope: "oft" | "fld" | "training" | "extensi
     if (filters.institute !== "All") params.set("institute", filters.institute);
     if (filters.kvk !== "All") params.set("kvk", filters.kvk);
     if (filters.groupBy) params.set("groupBy", filters.groupBy);
+    if (filters.breakdown) params.set("breakdown", filters.breakdown);
 
     fetch(`/api/dashboard-stats?${params.toString()}`)
       .then((res) => (res.ok ? res.json() : null))
@@ -44,7 +45,7 @@ export function useAnalyticsFilters(scope: "oft" | "fld" | "training" | "extensi
     return () => {
       cancelled = true;
     };
-  }, [scope, filters.year, filters.state, filters.district, filters.institute, filters.kvk, filters.groupBy]);
+  }, [scope, filters.year, filters.state, filters.district, filters.institute, filters.kvk, filters.groupBy, filters.breakdown]);
 
   return { filters, setFilters, data };
 }

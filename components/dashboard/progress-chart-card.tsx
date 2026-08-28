@@ -46,23 +46,60 @@ type ProgressChartCardProps = {
   footer?: ReactNode;
 };
 
-function Tooltip({ children, content }: { children: ReactNode; content: string }) {
+function Tooltip({ children, content }: { children: ReactNode; content: ReactNode }) {
   return (
     <div className="group/tip relative flex h-full flex-1 items-end justify-center">
       {children}
-      <div className="pointer-events-none absolute bottom-full left-1/2 z-10 mb-1.5 w-max max-w-48 -translate-x-1/2 rounded-md bg-foreground px-2 py-1 text-center text-[11px] whitespace-pre-line text-background opacity-0 shadow-md transition-opacity group-hover/tip:opacity-100">
+      <div className="pointer-events-none absolute bottom-full left-1/2 z-10 mb-1.5 w-max max-w-48 -translate-x-1/2 rounded-md bg-foreground px-2 py-1.5 text-[11px] text-background opacity-0 shadow-md transition-opacity group-hover/tip:opacity-100">
         {content}
       </div>
     </div>
   );
 }
 
-/** Real reference tooltip (atari-client.vercel.app/dashboard) always lists all 4 lines - Not started, Completed, Ongoing, Total - in that order, not just a standalone "Not started" message when a KVK has zero entries. */
-function tooltipText(row: ProgressChartRow, mode: "split" | "total") {
+/**
+ * Real reference tooltip (atari-client.vercel.app/dashboard) always lists
+ * all 4 lines - Not started, Completed, Ongoing, Total - in that order, not
+ * just a standalone "Not started" message when a KVK has zero entries.
+ * Each line now carries the same colored dot as the legend above the chart
+ * (Ongoing/Completed/Not started use the exact same ONGOING_COLOR/
+ * COMPLETED_COLOR/muted tokens already established there) - the tooltip
+ * was plain text with no color coding at all before, out of step with
+ * every other status indicator in this component.
+ */
+function TooltipContent({ row, mode }: { row: ProgressChartRow; mode: "split" | "total" }) {
   const total = row.ongoing + row.completed;
   const notStarted = total === 0 ? 1 : 0;
-  if (mode === "total") return `${row.label}\nNot started: ${notStarted}\nEntries: ${row.completed}`;
-  return `${row.label}\nNot started: ${notStarted}\nCompleted: ${row.completed}\nOngoing: ${row.ongoing}\nTotal: ${total}`;
+  const line = (color: string | null, label: string, value: number) => (
+    <div key={label} className="flex items-center justify-between gap-3">
+      <span className="flex items-center gap-1.5">
+        <span
+          className={cn("size-1.5 rounded-full", !color && "bg-background/40")}
+          style={color ? { backgroundColor: color } : undefined}
+        />
+        {label}
+      </span>
+      <span className="font-semibold">{value}</span>
+    </div>
+  );
+  return (
+    <div className="space-y-0.5">
+      <p className="mb-1 border-b border-background/20 pb-1 text-center font-semibold">{row.label}</p>
+      {line(null, "Not started", notStarted)}
+      {mode === "total" ? (
+        line(COMPLETED_COLOR, "Entries", row.completed)
+      ) : (
+        <>
+          {line(COMPLETED_COLOR, "Completed", row.completed)}
+          {line(ONGOING_COLOR, "Ongoing", row.ongoing)}
+          <div className="mt-1 flex items-center justify-between gap-3 border-t border-background/20 pt-1">
+            <span>Total</span>
+            <span className="font-semibold">{total}</span>
+          </div>
+        </>
+      )}
+    </div>
+  );
 }
 
 /**
@@ -101,6 +138,8 @@ export function ProgressChartCard({
   /** Only "Show all" on a wide KVK list needs the horizontal-scroll treatment below - the ordinary paginated/short case renders exactly as before, so its bar-hover tooltip isn't affected by the scroll wrapper's clipping. */
   const needsScroll =
     (view === "bar" && pageRows.length > 12) || (view === "area" && rows.length > 12);
+  /** List "Show all" on a long KVK list was squeezing every row into the same fixed h-56 box via `justify-between` with no scroll - rows shrank and overlapped instead of scrolling. Only kicks in once there's actually more than a screenful of rows. */
+  const needsListScroll = view === "list" && pageRows.length > 8;
 
   function changePage(delta: number) {
     setPage((p) => Math.min(pageCount - 1, Math.max(0, p + delta)));
@@ -252,7 +291,10 @@ export function ProgressChartCard({
       */}
       <div className={needsScroll ? "overflow-x-auto pt-20 -mt-20" : undefined}>
       <div
-        className="relative mt-4 h-56 pl-6"
+        className={cn(
+          "relative mt-4 pr-16 pl-6",
+          needsListScroll ? "max-h-72 overflow-y-auto" : "h-56",
+        )}
         style={
           view === "bar" && pageRows.length > 12
             ? { minWidth: `${pageRows.length * 42 + 24}px` }
@@ -278,7 +320,7 @@ export function ProgressChartCard({
             {pageRows.map((row) => {
               const total = row.ongoing + row.completed;
               return (
-                <Tooltip key={row.id} content={tooltipText(row, mode)}>
+                <Tooltip key={row.id} content={<TooltipContent row={row} mode={mode} />}>
                   {/* Real reference (atari-client.vercel.app/dashboard, FLD Progress bar chart): each bar is a slim column with visible gaps on both sides, not edge-to-edge with its neighbors - w-full here was filling the whole column, making every bar look far thicker than the reference. */}
                   <div
                     className="flex w-3/5 flex-col justify-end overflow-hidden rounded-t-sm"
@@ -312,7 +354,12 @@ export function ProgressChartCard({
             })}
           </div>
         ) : view === "list" ? (
-          <div className="flex h-full flex-col justify-between gap-1.5 overflow-hidden">
+          <div
+            className={cn(
+              "flex flex-col gap-1.5",
+              needsListScroll ? "justify-start" : "h-full justify-between overflow-hidden",
+            )}
+          >
             {/*
               Real reference: each row's track is always full width - the
               orange/green split is the ongoing:completed ratio within that
@@ -377,8 +424,8 @@ export function ProgressChartCard({
                         total > 0 && <div className="h-full w-full bg-primary" />
                       )}
                     </div>
-                    <div className="pointer-events-none absolute top-full left-0 z-10 mt-1 w-max max-w-48 rounded-md bg-foreground px-2 py-1 text-[11px] whitespace-pre-line text-background opacity-0 shadow-md transition-opacity group-hover/tip:opacity-100">
-                      {tooltipText(row, mode)}
+                    <div className="pointer-events-none absolute top-full left-0 z-10 mt-1 w-max max-w-48 rounded-md bg-foreground px-2 py-1.5 text-[11px] text-background opacity-0 shadow-md transition-opacity group-hover/tip:opacity-100">
+                      <TooltipContent row={row} mode={mode} />
                     </div>
                   </div>
                 </div>
@@ -449,7 +496,7 @@ export function ProgressChartCard({
       {/* Real reference (atari-client.vercel.app/dashboard, Bar/Area tabs): a tilted KVK-name label under every bar/point - was missing entirely, the chart area had no space reserved for it. Rendered height/rotation confirmed with a real Playwright screenshot this time (not guessed), List view already shows the name inline per row, so it's excluded here. Gap here must match the bars' gap-2 above (this row was gap-1 before) - otherwise each label drifts further out from under its own bar the further right you go. */}
       {(view === "bar" || (view === "area" && rows.length > 1)) && (
         <div
-          className="relative mt-2 flex h-20 gap-2 pl-6"
+          className="relative mt-2 flex h-20 gap-2 pr-16 pl-6"
           style={
             view === "bar" && pageRows.length > 12
               ? { minWidth: `${pageRows.length * 42 + 24}px` }

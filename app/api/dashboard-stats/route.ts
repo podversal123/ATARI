@@ -36,82 +36,121 @@ export async function GET(request: Request) {
 
   /** Super Admin's own Year/State/District/KVK filter dropdowns - real query params now instead of the always-"All" placeholder they used to be. A KVK Admin is already scoped to their own KVK, so none of these apply to them. Dropdowns show names (not internal ids), so each resolves the selected name back to an id via the real State/District/Kvk tables - no guessed slugs. */
   const yearParam = url.searchParams.get("year");
-  const reportingYear = yearParam && yearParam !== "All" ? Number(yearParam) : undefined;
+  /**
+   * Year and KVK are comma-separated multi-selects (main Dashboard's real
+   * checkbox dropdowns, 2026-08-28) - purely additive on top of the
+   * existing single-value contract the 4 analytics detail pages already
+   * depend on (a single value with no comma behaves exactly as before,
+   * their own filter bar never sends more than one).
+   */
+  const yearValues = yearParam && yearParam !== "All" ? yearParam.split(",").map((v) => v.trim()).filter(Boolean) : [];
+  const reportingYears = yearValues.map(Number).filter((n) => Number.isFinite(n));
+  const reportingYearFilter: number | { in: number[] } | undefined =
+    reportingYears.length === 0 ? undefined : reportingYears.length === 1 ? reportingYears[0] : { in: reportingYears };
   const kvkParam = !isKvkAdmin ? url.searchParams.get("kvk") : null;
+  const kvkValues = kvkParam && kvkParam !== "All" ? kvkParam.split(",").map((v) => v.trim()).filter(Boolean) : [];
+  /** State/District/Institute are comma-separated multi-selects too (analytics-page real checkbox dropdowns, 2026-08-28) - same additive contract as Year/KVK above. */
   const stateParam = !isKvkAdmin ? url.searchParams.get("state") : null;
+  const stateValues = stateParam && stateParam !== "All" ? stateParam.split(",").map((v) => v.trim()).filter(Boolean) : [];
   const districtParam = !isKvkAdmin ? url.searchParams.get("district") : null;
+  const districtValues = districtParam && districtParam !== "All" ? districtParam.split(",").map((v) => v.trim()).filter(Boolean) : [];
   /** Real now (2026-08-27) - Kvk.instituteId was added (client request) after the real "Create KVK" reference form turned out to already have a required Institute field that was never wired to the backend. Existing KVKs seeded before that stay instituteless until edited. */
   const instituteParam = !isKvkAdmin ? url.searchParams.get("institute") : null;
+  const instituteValues = instituteParam && instituteParam !== "All" ? instituteParam.split(",").map((v) => v.trim()).filter(Boolean) : [];
   /** "Group By" on the analytics detail pages - re-buckets the same per-KVK counts by a different real dimension (Zone/State/District/Institute/KVK) instead of a new query per dimension. */
   const groupByParam = url.searchParams.get("groupBy");
   const groupBy: "zone" | "state" | "district" | "institute" | "kvk" =
     groupByParam === "zone" || groupByParam === "state" || groupByParam === "district" || groupByParam === "institute"
       ? groupByParam
       : "kvk";
+  /** OFT/FLD "Breakdown" filter (real TrialStatus) - Training/Extension have no status column, so this only ever applies to those two scopes. "notStarted" isn't a real TrialStatus value (it's the absence of any record), so it's handled separately below rather than as a DB-level status filter. */
+  const breakdownParam = url.searchParams.get("breakdown");
+  const breakdown: "ongoing" | "completed" | "notStarted" | null =
+    breakdownParam === "ongoing" || breakdownParam === "completed" || breakdownParam === "notStarted"
+      ? breakdownParam
+      : null;
 
-  const [filterKvk, filterState, filterDistrict, filterInstitute] = await Promise.all([
-    kvkParam && kvkParam !== "All"
-      ? prisma.kvk.findFirst({ where: { zoneId: auth.session.zoneId, name: kvkParam }, select: { id: true } })
-      : Promise.resolve(null),
-    stateParam && stateParam !== "All"
-      ? prisma.state.findFirst({ where: { zoneId: auth.session.zoneId, name: stateParam }, select: { id: true } })
-      : Promise.resolve(null),
-    districtParam && districtParam !== "All"
-      ? prisma.district.findFirst({ where: { zoneId: auth.session.zoneId, name: districtParam }, select: { id: true } })
-      : Promise.resolve(null),
-    instituteParam && instituteParam !== "All"
-      ? prisma.institute.findFirst({ where: { zoneId: auth.session.zoneId, name: instituteParam }, select: { id: true } })
-      : Promise.resolve(null),
+  const [filterKvks, filterStates, filterDistricts, filterInstitutes] = await Promise.all([
+    kvkValues.length > 0
+      ? prisma.kvk.findMany({ where: { zoneId: auth.session.zoneId, name: { in: kvkValues } }, select: { id: true } })
+      : Promise.resolve([]),
+    stateValues.length > 0
+      ? prisma.state.findMany({ where: { zoneId: auth.session.zoneId, name: { in: stateValues } }, select: { id: true } })
+      : Promise.resolve([]),
+    districtValues.length > 0
+      ? prisma.district.findMany({ where: { zoneId: auth.session.zoneId, name: { in: districtValues } }, select: { id: true } })
+      : Promise.resolve([]),
+    instituteValues.length > 0
+      ? prisma.institute.findMany({ where: { zoneId: auth.session.zoneId, name: { in: instituteValues } }, select: { id: true } })
+      : Promise.resolve([]),
   ]);
-  const filterKvkId = filterKvk?.id;
+  const filterKvkIds = filterKvks.map((k) => k.id);
+  /** Single id (existing behaviour, unchanged) or a real `{in: [...]}` for a multi-selection. Same pattern applied to State/District/Institute below. */
+  const filterKvkIdFilter: string | { in: string[] } | undefined =
+    filterKvkIds.length === 0 ? undefined : filterKvkIds.length === 1 ? filterKvkIds[0] : { in: filterKvkIds };
+  const filterStateIds = filterStates.map((s) => s.id);
+  const filterStateIdFilter: string | { in: string[] } | undefined =
+    filterStateIds.length === 0 ? undefined : filterStateIds.length === 1 ? filterStateIds[0] : { in: filterStateIds };
+  const filterDistrictIds = filterDistricts.map((d) => d.id);
+  const filterDistrictIdFilter: string | { in: string[] } | undefined =
+    filterDistrictIds.length === 0 ? undefined : filterDistrictIds.length === 1 ? filterDistrictIds[0] : { in: filterDistrictIds };
+  const filterInstituteIds = filterInstitutes.map((i) => i.id);
+  const filterInstituteIdFilter: string | { in: string[] } | undefined =
+    filterInstituteIds.length === 0 ? undefined : filterInstituteIds.length === 1 ? filterInstituteIds[0] : { in: filterInstituteIds };
+  const hasLocationFilter =
+    filterStateIdFilter !== undefined || filterDistrictIdFilter !== undefined || filterInstituteIdFilter !== undefined;
 
-  /** Kvk-relation filter shared by every model below - flat `kvkId` when a KVK Admin or a specific KVK is picked (fastest, no join), otherwise a `kvk: {...}` relation filter once State/District/Institute narrows things, otherwise just the zone. */
+  /** Kvk-relation filter shared by every model below - flat `kvkId` when a KVK Admin or specific KVK(s) are picked (fastest, no join), otherwise a `kvk: {...}` relation filter once State/District/Institute narrows things, otherwise just the zone. */
   const kvkWhere: Record<string, unknown> =
-    kvkId || filterKvkId
-      ? { kvkId: kvkId ?? filterKvkId }
-      : filterState || filterDistrict || filterInstitute
+    kvkId || filterKvkIdFilter !== undefined
+      ? { kvkId: kvkId ?? filterKvkIdFilter }
+      : hasLocationFilter
         ? {
             kvk: {
               zoneId: auth.session.zoneId,
-              ...(filterState ? { stateId: filterState.id } : {}),
-              ...(filterDistrict ? { districtId: filterDistrict.id } : {}),
-              ...(filterInstitute ? { instituteId: filterInstitute.id } : {}),
+              ...(filterStateIdFilter !== undefined ? { stateId: filterStateIdFilter } : {}),
+              ...(filterDistrictIdFilter !== undefined ? { districtId: filterDistrictIdFilter } : {}),
+              ...(filterInstituteIdFilter !== undefined ? { instituteId: filterInstituteIdFilter } : {}),
             },
           }
         : { zoneId: auth.session.zoneId };
 
   const baseScope = kvkWhere;
-  const scope = reportingYear ? { ...baseScope, reportingYear } : baseScope;
+  const scope = reportingYearFilter !== undefined ? { ...baseScope, reportingYear: reportingYearFilter } : baseScope;
   /** FldDemonstrationDetail carries its own `zoneId` directly but no `kvkId`/`stateId`/`districtId`/`instituteId` of its own - only reachable through the parent `fld` relation. Zone-only case keeps the original flat-`zoneId` fast path; any KVK-level filter (KVK/State/District/Institute) routes through `fld` instead. */
-  const fldDemoScope = kvkId || filterKvkId || filterState || filterDistrict || filterInstitute
+  const fldDemoScope = kvkId || filterKvkIdFilter !== undefined || hasLocationFilter
     ? {
         fld: {
-          ...(kvkId || filterKvkId
-            ? { kvkId: kvkId ?? filterKvkId }
+          ...(kvkId || filterKvkIdFilter !== undefined
+            ? { kvkId: kvkId ?? filterKvkIdFilter }
             : {
                 kvk: {
                   zoneId: auth.session.zoneId,
-                  ...(filterState ? { stateId: filterState.id } : {}),
-                  ...(filterDistrict ? { districtId: filterDistrict.id } : {}),
-                  ...(filterInstitute ? { instituteId: filterInstitute.id } : {}),
+                  ...(filterStateIdFilter !== undefined ? { stateId: filterStateIdFilter } : {}),
+                  ...(filterDistrictIdFilter !== undefined ? { districtId: filterDistrictIdFilter } : {}),
+                  ...(filterInstituteIdFilter !== undefined ? { instituteId: filterInstituteIdFilter } : {}),
                 },
               }),
-          ...(reportingYear ? { reportingYear } : {}),
+          ...(reportingYearFilter !== undefined ? { reportingYear: reportingYearFilter } : {}),
         },
       }
-    : { zoneId: auth.session.zoneId, ...(reportingYear ? { fld: { reportingYear } } : {}) };
-  /** `kvks` (row-building, narrowed by every active filter including the selected KVK) vs `kvkOptions` (the KVK dropdown's own option list - narrowed by State/District/Institute so picking Bihar only lists Bihar's KVKs, but never by the currently-selected KVK itself, otherwise picking one KVK would hide every other KVK from the dropdown). */
+    : { zoneId: auth.session.zoneId, ...(reportingYearFilter !== undefined ? { fld: { reportingYear: reportingYearFilter } } : {}) };
+  /** `kvks` (row-building, narrowed by every active filter including the selected KVK(s)) vs `kvkOptions` (the KVK dropdown's own option list - narrowed by State/District/Institute so picking Bihar only lists Bihar's KVKs, but never by the currently-selected KVK itself, otherwise picking one KVK would hide every other KVK from the dropdown). */
   const kvkListWhere = {
-    ...(kvkId ? { id: kvkId } : filterKvkId ? { id: filterKvkId } : { zoneId: auth.session.zoneId }),
-    ...(filterState ? { stateId: filterState.id } : {}),
-    ...(filterDistrict ? { districtId: filterDistrict.id } : {}),
-    ...(filterInstitute ? { instituteId: filterInstitute.id } : {}),
+    ...(kvkId
+      ? { id: kvkId }
+      : filterKvkIdFilter !== undefined
+        ? { id: filterKvkIdFilter }
+        : { zoneId: auth.session.zoneId }),
+    ...(filterStateIdFilter !== undefined ? { stateId: filterStateIdFilter } : {}),
+    ...(filterDistrictIdFilter !== undefined ? { districtId: filterDistrictIdFilter } : {}),
+    ...(filterInstituteIdFilter !== undefined ? { instituteId: filterInstituteIdFilter } : {}),
   };
   const kvkOptionsWhere = {
     ...(kvkId ? { id: kvkId } : { zoneId: auth.session.zoneId }),
-    ...(filterState ? { stateId: filterState.id } : {}),
-    ...(filterDistrict ? { districtId: filterDistrict.id } : {}),
-    ...(filterInstitute ? { instituteId: filterInstitute.id } : {}),
+    ...(filterStateIdFilter !== undefined ? { stateId: filterStateIdFilter } : {}),
+    ...(filterDistrictIdFilter !== undefined ? { districtId: filterDistrictIdFilter } : {}),
+    ...(filterInstituteIdFilter !== undefined ? { instituteId: filterInstituteIdFilter } : {}),
   };
 
   const [
@@ -167,7 +206,10 @@ export async function GET(request: Request) {
       ? Promise.resolve([])
       : prisma.staff.groupBy({
           by: ["sanctionedPost"],
-          where: kvkId ?? filterKvkId ? { kvkId: kvkId ?? filterKvkId } : { zoneId: auth.session.zoneId },
+          where:
+            kvkId || filterKvkIdFilter !== undefined
+              ? { kvkId: kvkId ?? filterKvkIdFilter }
+              : { zoneId: auth.session.zoneId },
           _count: { _all: true },
         }),
     /** Real per-OFT fields (not just the ongoing/completed status split) for the "OFT - detailed analytics" page's Cost/Quantity/Replications stat cards. */
@@ -236,12 +278,24 @@ export async function GET(request: Request) {
   );
   const staffTotal = staffByRoleGroups.reduce((sum, g) => sum + g._count._all, 0);
 
-  /** Ongoing/completed/total/kvksWithEntries, all read off one status-split groupBy result. */
+  /** Breakdown="ongoing"/"completed" narrows the raw status groups before they're summarized or bucketed into rows - "notStarted" isn't a real TrialStatus value (it's the absence of any record), so it's applied after buildStatusRows instead, against the full KVK list. */
+  function filterGroupsByBreakdown(groups: { kvkId: string; status: string; _count: { _all: number } }[]) {
+    if (breakdown === "ongoing") return groups.filter((g) => g.status === "ONGOING");
+    if (breakdown === "completed") return groups.filter((g) => g.status !== "ONGOING");
+    return groups;
+  }
+
+  /** Ongoing/completed/total/kvksWithEntries, all read off one status-split groupBy result. "Not Started" can't be read off the groups at all (a KVK with zero entries never appears in a groupBy result) - it's the count of real KVKs in scope that have no entry here, checked against the full `kvks` list instead. */
   function statusSummary(groups: { kvkId: string; status: string; _count: { _all: number } }[]) {
+    if (breakdown === "notStarted") {
+      const withEntries = new Set(groups.map((g) => g.kvkId));
+      const notStarted = kvks.filter((k) => !withEntries.has(k.id)).length;
+      return { total: notStarted, ongoing: 0, completed: 0, kvksWithEntries: 0 };
+    }
     let ongoing = 0;
     let completed = 0;
     const kvkSet = new Set<string>();
-    for (const g of groups) {
+    for (const g of filterGroupsByBreakdown(groups)) {
       if (g.status === "ONGOING") ongoing += g._count._all;
       else completed += g._count._all;
       kvkSet.add(g.kvkId);
@@ -271,7 +325,7 @@ export async function GET(request: Request) {
    */
   function buildStatusRows(groups: { kvkId: string; status: string; _count: { _all: number } }[]) {
     const byKvk = new Map<string, { ongoing: number; completed: number }>();
-    for (const g of groups) {
+    for (const g of filterGroupsByBreakdown(groups)) {
       const row = byKvk.get(g.kvkId) ?? { ongoing: 0, completed: 0 };
       if (g.status === "ONGOING") row.ongoing += g._count._all;
       else row.completed += g._count._all;
@@ -286,7 +340,10 @@ export async function GET(request: Request) {
       row.completed += counts.completed;
       byDimension.set(dim.id, row);
     }
-    return Array.from(byDimension.values()).sort((a, b) => b.ongoing + b.completed - (a.ongoing + a.completed));
+    /** "Not Started" isn't a real TrialStatus, so it's not something filterGroupsByBreakdown can select at the group level - it means "this dimension bucket has zero real entries", checked here once every KVK's real ongoing/completed counts are already folded in. */
+    const rows = Array.from(byDimension.values());
+    const filtered = breakdown === "notStarted" ? rows.filter((r) => r.ongoing + r.completed === 0) : rows;
+    return filtered.sort((a, b) => b.ongoing + b.completed - (a.ongoing + a.completed));
   }
 
   function toCountMap(groups: { kvkId: string; _count: { _all: number } }[]) {

@@ -7,7 +7,7 @@
  * come from one of those two, not guessed.
  */
 
-import { KVK_MASTER_ROWS } from "./masters";
+import { DISTRICT_MASTER_ROWS, KVK_MASTER_ROWS } from "./masters";
 
 export type ScopeKind =
   | "system"
@@ -125,33 +125,24 @@ export type Permission = (typeof PERMISSIONS)[number];
 export const STATES = ["Bihar", "Jharkhand"];
 
 /**
- * True geographic district names (I/II-split KVK districts like "East
- * Champaran-I"/"-II" collapsed to their one real district), derived from the
- * full 66-KVK list in `KVK_MASTER_ROWS` (lib/masters.ts), which is itself
- * transcribed from the client's live AAMS export - not guessed. Bihar comes
- * out to its real 38 districts; Jharkhand to 23 of its real 24 (the one
- * district with no KVK in that export naturally doesn't appear here).
+ * Real district names sourced from the client's own "District Master
+ * Report" PDF (69 total, 2026-08-27), not derived from which districts
+ * happen to have a KVK - the earlier derive-from-KVK approach silently
+ * dropped 3 real districts with no KVK yet (Hazaribagh, Jamshedpur,
+ * Madhubani) and invented a uniform "-I"/"-II" naming split KVK districts
+ * don't actually use in the real reference (e.g. real is "Gaya" / "Gaya II
+ * (Aamas)", not "Gaya-I" / "Gaya-II"). Bihar comes out to its real 44
+ * districts (some split, e.g. "West Champaran" and "West Champaran II
+ * (Narkatiyaganj)" are two separate real rows); Jharkhand to its real 25.
  */
-function baseDistrictName(districtName: string): string {
-  return districtName.replace(/-(I{1,2}|1|2)$/i, "");
-}
-
-export const DISTRICTS = Array.from(
-  new Set(
-    KVK_MASTER_ROWS.filter((row) => row.stateName === "Bihar").map((row) =>
-      baseDistrictName(row.districtName),
-    ),
-  ),
-);
+export const DISTRICTS = DISTRICT_MASTER_ROWS.filter(
+  (row) => row.stateName === "Bihar",
+).map((row) => row.districtName);
 
 /** Jharkhand district names - see `DISTRICTS` above for sourcing. */
-export const JHARKHAND_DISTRICTS = Array.from(
-  new Set(
-    KVK_MASTER_ROWS.filter((row) => row.stateName === "Jharkhand").map(
-      (row) => baseDistrictName(row.districtName),
-    ),
-  ),
-);
+export const JHARKHAND_DISTRICTS = DISTRICT_MASTER_ROWS.filter(
+  (row) => row.stateName === "Jharkhand",
+).map((row) => row.districtName);
 
 /** All 66 real KVKs (name, district, state), derived from `KVK_MASTER_ROWS` - replaces the earlier `KVK <District>` template, which only ever covered 24 of the 66 real KVKs and mis-derived names for districts split across two KVKs (e.g. East Champaran). */
 export const KVKS = KVK_MASTER_ROWS.map((row) => ({

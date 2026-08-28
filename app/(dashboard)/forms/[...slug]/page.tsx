@@ -14,7 +14,7 @@ import {
   type MasterTab,
 } from "@/components/data-table/empty-data-table";
 import { AddLeafPage } from "@/components/data-table/add-leaf-page";
-import { ViewKvksAddForm } from "@/components/data-table/view-kvks-add-form";
+import { KvkMasterAddForm } from "@/components/data-table/kvk-master-add-form";
 import { EmployeeDetailsAddForm } from "@/components/data-table/employee-details-add-form";
 import { OftAddForm } from "@/components/data-table/oft-add-form";
 import { TechnicalAchievementSummaryPanel } from "@/components/data-table/technical-achievement-summary-panel";
@@ -98,7 +98,7 @@ export default async function FormsPage({ params }: FormsPageProps) {
     });
     const backHref = `/forms/${slug.join("/")}`;
     if (node.slug === "view-kvks") {
-      return <ViewKvksAddForm trail={addTrail} backHref={backHref} />;
+      return <KvkMasterAddForm trail={addTrail} backHref={backHref} title="Create View KVKs" />;
     }
     if (node.slug === "employee-details") {
       return <EmployeeDetailsAddForm trail={addTrail} backHref={backHref} />;
@@ -134,7 +134,9 @@ export default async function FormsPage({ params }: FormsPageProps) {
         .join("/")}`,
     });
   });
-  trailCrumbs.push({ label: node.label });
+  trailCrumbs.push({
+    label: node.type === "leaf" ? (node.pageTitle ?? node.label) : node.label,
+  });
 
   /**
    * Back must return to the immediate parent page - the crumb directly to
@@ -494,6 +496,21 @@ export default async function FormsPage({ params }: FormsPageProps) {
         venue: r.venue ?? "",
         trainingDiscipline: r.trainingDiscipline ?? "",
         thematicArea: r.thematicArea ?? "",
+        clientele: r.clientele ?? "",
+        trainingType: r.trainingType ?? "",
+        trainingArea: r.trainingArea ?? "",
+        onCampusOffCampus: r.onCampusOffCampus ?? "",
+        courseCoordinator: r.courseCoordinator ?? "",
+        fundingSource: r.fundingSource ?? "",
+        fundingAgencyName: r.fundingAgencyName ?? "",
+        generalMale: String(r.generalMale),
+        generalFemale: String(r.generalFemale),
+        obcMale: String(r.obcMale),
+        obcFemale: String(r.obcFemale),
+        scMale: String(r.scMale),
+        scFemale: String(r.scFemale),
+        stMale: String(r.stMale),
+        stFemale: String(r.stFemale),
       })),
       totalCount: rows.length,
     };
@@ -513,6 +530,23 @@ export default async function FormsPage({ params }: FormsPageProps) {
         natureOfExtensionActivity: r.natureOfExtensionActivity,
         noOfActivities: String(r.noOfActivities),
         noOfParticipants: String(r.noOfParticipants),
+        staff: r.staff ?? "",
+        farmersGeneralMale: String(r.farmersGeneralMale),
+        farmersGeneralFemale: String(r.farmersGeneralFemale),
+        farmersObcMale: String(r.farmersObcMale),
+        farmersObcFemale: String(r.farmersObcFemale),
+        farmersScMale: String(r.farmersScMale),
+        farmersScFemale: String(r.farmersScFemale),
+        farmersStMale: String(r.farmersStMale),
+        farmersStFemale: String(r.farmersStFemale),
+        officialsGeneralMale: String(r.officialsGeneralMale),
+        officialsGeneralFemale: String(r.officialsGeneralFemale),
+        officialsObcMale: String(r.officialsObcMale),
+        officialsObcFemale: String(r.officialsObcFemale),
+        officialsScMale: String(r.officialsScMale),
+        officialsScFemale: String(r.officialsScFemale),
+        officialsStMale: String(r.officialsStMale),
+        officialsStFemale: String(r.officialsStFemale),
       })),
       totalCount: rows.length,
     };
@@ -529,6 +563,9 @@ export default async function FormsPage({ params }: FormsPageProps) {
         kvk: r.kvk.name,
         natureOfExtensionActivity: r.natureOfExtensionActivity,
         noOfActivities: String(r.noOfActivities),
+        staff: r.staff ?? "",
+        startDate: r.startDate ? r.startDate.toISOString().slice(0, 10) : "",
+        endDate: r.endDate ? r.endDate.toISOString().slice(0, 10) : "",
       })),
       totalCount: rows.length,
     };
@@ -564,6 +601,22 @@ export default async function FormsPage({ params }: FormsPageProps) {
         importantDay: r.importantDay,
         eventDate: r.eventDate.toISOString().slice(0, 10),
         noOfActivities: String(r.noOfActivities),
+        farmersGeneralMale: String(r.farmersGeneralMale),
+        farmersGeneralFemale: String(r.farmersGeneralFemale),
+        farmersObcMale: String(r.farmersObcMale),
+        farmersObcFemale: String(r.farmersObcFemale),
+        farmersScMale: String(r.farmersScMale),
+        farmersScFemale: String(r.farmersScFemale),
+        farmersStMale: String(r.farmersStMale),
+        farmersStFemale: String(r.farmersStFemale),
+        officialsGeneralMale: String(r.officialsGeneralMale),
+        officialsGeneralFemale: String(r.officialsGeneralFemale),
+        officialsObcMale: String(r.officialsObcMale),
+        officialsObcFemale: String(r.officialsObcFemale),
+        officialsScMale: String(r.officialsScMale),
+        officialsScFemale: String(r.officialsScFemale),
+        officialsStMale: String(r.officialsStMale),
+        officialsStFemale: String(r.officialsStFemale),
       })),
       totalCount: rows.length,
     };
@@ -691,6 +744,7 @@ export default async function FormsPage({ params }: FormsPageProps) {
       rows: rows.map((r) => ({
         id: r.id,
         kvk: r.kvk.name,
+        reportingYear: r.reportingYear !== null ? String(r.reportingYear) : "",
         noOfActivitiesConducted: String(r.noOfActivitiesConducted),
         soilHealthCardsDistributed: String(r.soilHealthCardsDistributed),
         noOfVip: String(r.noOfVip),
@@ -2233,10 +2287,10 @@ export default async function FormsPage({ params }: FormsPageProps) {
         <TechnicalAchievementSummaryPanel />
       ) : node.type === "leaf" ? (
         <EmptyDataTable
-          title={node.label}
+          title={node.pageTitle ?? node.label}
           icon="form-management"
           columns={node.columns}
-          subtitle={`Manage and view all ${node.label.toLowerCase()} in the system`}
+          subtitle={`Manage and view all ${(node.pageTitle ?? node.label).toLowerCase()} in the system`}
           tabs={tabs}
           rows={formData?.rows}
           totalCount={formData?.totalCount}

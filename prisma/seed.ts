@@ -12,6 +12,8 @@ import { PrismaNeon } from "@prisma/adapter-neon";
 import bcrypt from "bcryptjs";
 import {
   ZONE_MASTER_ROWS,
+  STATE_MASTER_ROWS,
+  DISTRICT_MASTER_ROWS,
   HOST_MASTER_ROWS,
   KVK_MASTER_ROWS,
 } from "../lib/masters";
@@ -37,6 +39,51 @@ async function main() {
   const stateIdByName = new Map<string, string>();
   const districtIdByKey = new Map<string, string>();
   const hostOrgIdByName = new Map<string, string>();
+
+  /**
+   * District Master and Host Master are real, independent master lists -
+   * they must not depend on which districts/hosts a KVK happens to
+   * reference. Real bug found (client report, 2026-08-27): 3 real
+   * districts (Hazaribagh, Jamshedpur, Madhubani) have no KVK yet, and the
+   * real "NGO" host has no KVK yet either, so the old KVK-driven-only loop
+   * below silently never created them on a fresh seed. Seed every real row
+   * from both master lists up front; the KVK loop below then just reuses
+   * whatever a KVK's own row already created.
+   */
+  for (const row of STATE_MASTER_ROWS) {
+    const state = await prisma.state.upsert({
+      where: { zoneId_name: { zoneId: zone.id, name: row.stateName } },
+      update: {},
+      create: { name: row.stateName, zoneId: zone.id },
+    });
+    stateIdByName.set(row.stateName, state.id);
+  }
+  for (const row of DISTRICT_MASTER_ROWS) {
+    const stateId = stateIdByName.get(row.stateName)!;
+    const district = await prisma.district.upsert({
+      where: { stateId_name: { stateId, name: row.districtName } },
+      update: {},
+      create: { name: row.districtName, stateId, zoneId: zone.id },
+    });
+    districtIdByKey.set(`${row.stateName}::${row.districtName}`, district.id);
+  }
+  for (const row of HOST_MASTER_ROWS) {
+    const existing = await prisma.hostOrganization.findFirst({
+      where: { zoneId: zone.id, name: row.hostName },
+    });
+    const hostOrg =
+      existing ??
+      (await prisma.hostOrganization.create({
+        data: {
+          name: row.hostName,
+          address: row.address,
+          officePhone: row.phone,
+          email: row.email,
+          zoneId: zone.id,
+        },
+      }));
+    hostOrgIdByName.set(row.hostName, hostOrg.id);
+  }
 
   for (const row of KVK_MASTER_ROWS) {
     if (!stateIdByName.has(row.stateName)) {

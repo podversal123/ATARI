@@ -59,6 +59,7 @@ export default function FldDetailedAnalyticsPage() {
           districts={data?.districtOptions ?? []}
           kvks={(data?.kvkOptions ?? []).map((k) => k.name)}
           institutes={data?.instituteOptions ?? []}
+          hasStatus
         />
       </div>
 

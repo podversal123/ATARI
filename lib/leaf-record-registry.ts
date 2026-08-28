@@ -40,6 +40,23 @@ function farmersByCategory(v: Record<string, string>) {
 }
 
 /**
+ * Same 8 General/OBC/SC/ST x Male/Female keys, but as 8 discrete real int
+ * columns (Training/ExtensionActivity/CelebrationDay's own shape) instead of
+ * the farmersByCategory JSON blob above - matches DemographicBreakdown's
+ * component convention directly. `prefix` supports a form with two
+ * independent blocks (e.g. "farmers"/"officials" on ExtensionActivity and
+ * CelebrationDay) reading from MasterFormFields' own prefixed keys.
+ */
+function demographicColumns(v: Record<string, string>, prefix = "") {
+  return Object.fromEntries(
+    demographicKeys.map((k) => {
+      const key = prefix ? `${prefix}${k[0].toUpperCase()}${k.slice(1)}` : k;
+      return [key, reqInt(v[key])];
+    }),
+  );
+}
+
+/**
  * One entry per Form Management leaf that uses the generic AddLeafPage
  * (columns -> plain-text fields). Keyed by the leaf's full nav path
  * ("achievements/oft") since several leaf slugs repeat across different
@@ -199,19 +216,43 @@ export const LEAF_RECORD_REGISTRY: Record<string, CreateFn> = {
   },
   "achievements/trainings": (v, ctx) =>
     prisma.training.create({
-      data: { ...ctx, reportingYear: reqInt(v.reportingYear), startDate: date(v.startDate), endDate: date(v.endDate), program: reqStr(v.program), title: reqStr(v.title), venue: str(v.venue), trainingDiscipline: str(v.trainingDiscipline), thematicArea: str(v.thematicArea) },
+      data: {
+        ...ctx,
+        reportingYear: reqInt(v.reportingYear), startDate: date(v.startDate), endDate: date(v.endDate),
+        program: reqStr(v.program), title: reqStr(v.title), venue: str(v.venue),
+        trainingDiscipline: str(v.trainingDiscipline), thematicArea: str(v.thematicArea), clientele: str(v.clientele),
+        trainingType: str(v.trainingType), trainingArea: str(v.trainingArea), onCampusOffCampus: str(v.onCampusOffCampus),
+        courseCoordinator: str(v.courseCoordinator), fundingSource: str(v.fundingSource), fundingAgencyName: str(v.fundingAgencyName),
+        ...demographicColumns(v),
+      },
     }),
   "achievements/extension/extension-activities": (v, ctx) =>
     prisma.extensionActivity.create({
-      data: { ...ctx, reportingYear: reqInt(v.reportingYear), startDate: date(v.startDate), endDate: date(v.endDate), natureOfExtensionActivity: reqStr(v.natureOfExtensionActivity), noOfActivities: reqInt(v.noOfActivities), noOfParticipants: reqInt(v.noOfParticipants) },
+      data: {
+        ...ctx,
+        reportingYear: reqInt(v.reportingYear), startDate: date(v.startDate), endDate: date(v.endDate),
+        natureOfExtensionActivity: reqStr(v.natureOfExtensionActivity), noOfActivities: reqInt(v.noOfActivities), noOfParticipants: reqInt(v.noOfParticipants),
+        staff: str(v.staff),
+        ...demographicColumns(v, "farmers"),
+        ...demographicColumns(v, "officials"),
+      },
     }),
   "achievements/extension/other-extension-activities": (v, ctx) =>
     prisma.otherExtensionActivity.create({
-      data: { ...ctx, reportingYear: reqInt(v.reportingYear), natureOfExtensionActivity: reqStr(v.natureOfExtensionActivity), noOfActivities: reqInt(v.noOfActivities) },
+      data: {
+        ...ctx,
+        reportingYear: reqInt(v.reportingYear), natureOfExtensionActivity: reqStr(v.natureOfExtensionActivity), noOfActivities: reqInt(v.noOfActivities),
+        staff: str(v.staff), startDate: date(v.startDate), endDate: date(v.endDate),
+      },
     }),
   "achievements/special-days/celebration-days": (v, ctx) =>
     prisma.celebrationDay.create({
-      data: { ...ctx, importantDay: reqStr(v.importantDay), eventDate: reqDate(v.eventDate), noOfActivities: reqInt(v.noOfActivities) },
+      data: {
+        ...ctx,
+        importantDay: reqStr(v.importantDay), eventDate: reqDate(v.eventDate), noOfActivities: reqInt(v.noOfActivities),
+        ...demographicColumns(v, "farmers"),
+        ...demographicColumns(v, "officials"),
+      },
     }),
   "achievements/swachhta-bharat-abhiyaan/sewa": (v, ctx) =>
     prisma.swachhtaObservance.create({
@@ -1160,22 +1201,42 @@ export const LEAF_UPDATE_REGISTRY: Record<string, UpdateFn> = {
   "achievements/trainings": (id, v, ctx) =>
     prisma.training.updateMany({
       where: { id, ...kvkScope(ctx) },
-      data: { reportingYear: reqInt(v.reportingYear), startDate: date(v.startDate), endDate: date(v.endDate), program: reqStr(v.program), title: reqStr(v.title), venue: str(v.venue), trainingDiscipline: str(v.trainingDiscipline), thematicArea: str(v.thematicArea) },
+      data: {
+        reportingYear: reqInt(v.reportingYear), startDate: date(v.startDate), endDate: date(v.endDate),
+        program: reqStr(v.program), title: reqStr(v.title), venue: str(v.venue),
+        trainingDiscipline: str(v.trainingDiscipline), thematicArea: str(v.thematicArea), clientele: str(v.clientele),
+        trainingType: str(v.trainingType), trainingArea: str(v.trainingArea), onCampusOffCampus: str(v.onCampusOffCampus),
+        courseCoordinator: str(v.courseCoordinator), fundingSource: str(v.fundingSource), fundingAgencyName: str(v.fundingAgencyName),
+        ...demographicColumns(v),
+      },
     }),
   "achievements/extension/extension-activities": (id, v, ctx) =>
     prisma.extensionActivity.updateMany({
       where: { id, ...kvkScope(ctx) },
-      data: { reportingYear: reqInt(v.reportingYear), startDate: date(v.startDate), endDate: date(v.endDate), natureOfExtensionActivity: reqStr(v.natureOfExtensionActivity), noOfActivities: reqInt(v.noOfActivities), noOfParticipants: reqInt(v.noOfParticipants) },
+      data: {
+        reportingYear: reqInt(v.reportingYear), startDate: date(v.startDate), endDate: date(v.endDate),
+        natureOfExtensionActivity: reqStr(v.natureOfExtensionActivity), noOfActivities: reqInt(v.noOfActivities), noOfParticipants: reqInt(v.noOfParticipants),
+        staff: str(v.staff),
+        ...demographicColumns(v, "farmers"),
+        ...demographicColumns(v, "officials"),
+      },
     }),
   "achievements/extension/other-extension-activities": (id, v, ctx) =>
     prisma.otherExtensionActivity.updateMany({
       where: { id, ...kvkScope(ctx) },
-      data: { reportingYear: reqInt(v.reportingYear), natureOfExtensionActivity: reqStr(v.natureOfExtensionActivity), noOfActivities: reqInt(v.noOfActivities) },
+      data: {
+        reportingYear: reqInt(v.reportingYear), natureOfExtensionActivity: reqStr(v.natureOfExtensionActivity), noOfActivities: reqInt(v.noOfActivities),
+        staff: str(v.staff), startDate: date(v.startDate), endDate: date(v.endDate),
+      },
     }),
   "achievements/special-days/celebration-days": (id, v, ctx) =>
     prisma.celebrationDay.updateMany({
       where: { id, ...kvkScope(ctx) },
-      data: { importantDay: reqStr(v.importantDay), eventDate: reqDate(v.eventDate), noOfActivities: reqInt(v.noOfActivities) },
+      data: {
+        importantDay: reqStr(v.importantDay), eventDate: reqDate(v.eventDate), noOfActivities: reqInt(v.noOfActivities),
+        ...demographicColumns(v, "farmers"),
+        ...demographicColumns(v, "officials"),
+      },
     }),
   "achievements/swachhta-bharat-abhiyaan/sewa": (id, v, ctx) =>
     prisma.swachhtaObservance.updateMany({

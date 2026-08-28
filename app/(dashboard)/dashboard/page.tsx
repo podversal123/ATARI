@@ -14,7 +14,7 @@ import { StatCard } from "@/components/dashboard/stat-card";
 import { ProgressChartCard } from "@/components/dashboard/progress-chart-card";
 import { StaffSummaryCard } from "@/components/dashboard/staff-summary-card";
 import { RecentLogHistoryCard } from "@/components/dashboard/recent-log-history-card";
-import { FilterSelect } from "@/components/dashboard/filter-select";
+import { MultiFilterSelect } from "@/components/dashboard/multi-filter-select";
 import { Button } from "@/components/ui/button";
 import { useSession } from "@/lib/session";
 import { cn } from "@/lib/utils";
@@ -115,8 +115,9 @@ function KvkUserDashboard({ kvkName }: { kvkName?: string }) {
 export default function DashboardPage() {
   const session = useSession();
   const [stats, setStats] = useState<DashboardStats>(EMPTY_STATS);
-  const [yearFilter, setYearFilter] = useState("All");
-  const [kvkFilter, setKvkFilter] = useState("All");
+  /** Empty set = "All" - real checkbox multi-select (client request, 2026-08-28), replacing the earlier single-value dropdown. */
+  const [yearFilter, setYearFilter] = useState<Set<string>>(new Set());
+  const [kvkFilter, setKvkFilter] = useState<Set<string>>(new Set());
 
   const filterCardRef = useRef<HTMLDivElement>(null);
   const statGridRef = useRef<HTMLDivElement>(null);
@@ -124,8 +125,8 @@ export default function DashboardPage() {
 
   function loadStats(year = yearFilter, kvk = kvkFilter) {
     const params = new URLSearchParams();
-    if (year !== "All") params.set("year", year);
-    if (kvk !== "All") params.set("kvk", kvk);
+    if (year.size > 0) params.set("year", Array.from(year).join(","));
+    if (kvk.size > 0) params.set("kvk", Array.from(kvk).join(","));
     const query = params.toString();
     fetch(`/api/dashboard-stats${query ? `?${query}` : ""}`)
       .then((res) => (res.ok ? res.json() : null))
@@ -144,18 +145,18 @@ export default function DashboardPage() {
     if (session.role !== "kvk-user") loadStats();
   });
 
-  function applyYear(next: string) {
+  function applyYear(next: Set<string>) {
     setYearFilter(next);
     loadStats(next, kvkFilter);
   }
-  function applyKvk(next: string) {
+  function applyKvk(next: Set<string>) {
     setKvkFilter(next);
     loadStats(yearFilter, next);
   }
   function resetFilters() {
-    setYearFilter("All");
-    setKvkFilter("All");
-    loadStats("All", "All");
+    setYearFilter(new Set());
+    setKvkFilter(new Set());
+    loadStats(new Set(), new Set());
   }
 
   /**
@@ -192,7 +193,7 @@ export default function DashboardPage() {
   const isKvkAdmin = session.role === "kvk-admin";
 
   const statCards = [
-    { icon: BarChart3, label: "KVK", value: stats.totalKvks, href: "/masters/basic/kvk-master" },
+    { icon: BarChart3, label: "KVK", value: stats.totalKvks, href: "/forms/about-kvk/basic/view-kvks" },
     { icon: Users, label: "Total OFT", value: stats.oft.total, href: "/forms/achievements/oft" },
     { icon: FileText, label: "Total FLD", value: stats.fld.total, href: "/forms/achievements/front-line-demonstration/view-fld" },
     { icon: GraduationCap, label: "Training", value: stats.training.total, href: "/forms/achievements/trainings" },
@@ -225,22 +226,22 @@ export default function DashboardPage() {
           className="flex flex-nowrap items-center justify-between gap-1.5 overflow-x-auto rounded-lg border border-border bg-card p-3"
           style={filterCardWidth ? { width: filterCardWidth } : undefined}
         >
-          <FilterSelect
+          <MultiFilterSelect
             label="Year"
-            options={["All", ...stats.years.map(String)]}
-            value={yearFilter}
+            options={stats.years.map(String)}
+            selected={yearFilter}
             onChange={applyYear}
             className="flex-1"
-            selectClassName="min-w-0 max-w-20 flex-1"
+            triggerClassName="min-w-0 max-w-20 flex-1"
           />
           {!isKvkAdmin && (
-            <FilterSelect
+            <MultiFilterSelect
               label="KVK"
-              options={["All", ...stats.kvkOptions.map((k) => k.name)]}
-              value={kvkFilter}
+              options={stats.kvkOptions.map((k) => k.name)}
+              selected={kvkFilter}
               onChange={applyKvk}
               className="flex-1"
-              selectClassName="min-w-0 max-w-36 flex-1"
+              triggerClassName="min-w-0 max-w-36 flex-1"
             />
           )}
           <Button variant="outline-primary" size="sm" onClick={resetFilters}>

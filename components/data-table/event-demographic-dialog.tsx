@@ -56,6 +56,7 @@ export function EventDemographicDialog({
   const [noOfActivities, setNoOfActivities] = useState("");
   const [relatedCropTechnology, setRelatedCropTechnology] = useState("");
   const [demographics, setDemographics] = useState<DemographicValues>({});
+  const [reportingYear, setReportingYear] = useState("");
   const [noOfActivitiesConducted, setNoOfActivitiesConducted] = useState("");
   const [soilHealthCardsDistributed, setSoilHealthCardsDistributed] = useState("");
   const [noOfVip, setNoOfVip] = useState("");
@@ -64,8 +65,6 @@ export function EventDemographicDialog({
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [loading, setLoading] = useState(false);
-  /** Technology Week Celebration has no persisted per-category breakdown (only the summed total) - editing without touching the demographic fields resubmits this original total rather than a fabricated 0. */
-  const [existingParticipantTotal, setExistingParticipantTotal] = useState("");
   const editingId = typeof editingRow?.id === "string" ? editingRow.id : undefined;
 
   useEffect(() => {
@@ -80,14 +79,21 @@ export function EventDemographicDialog({
             return;
           }
           const v = data.values ?? {};
+          const demoKeys = [
+            "generalMale", "generalFemale", "obcMale", "obcFemale",
+            "scMale", "scFemale", "stMale", "stFemale",
+          ] as const;
+          const loadedDemographics: DemographicValues = {};
+          for (const key of demoKeys) loadedDemographics[key] = v[key] ?? "";
+          setDemographics(loadedDemographics);
           if (isTechnologyWeek) {
             setStartDate(v.startDate ?? "");
             setEndDate(v.endDate ?? "");
             setTypeOfActivities(v.typeOfActivities ?? "");
             setNoOfActivities(v.noOfActivities ?? "");
             setRelatedCropTechnology(v.relatedCropTechnology ?? "");
-            setExistingParticipantTotal(v.numberOfParticipants ?? "");
           } else {
+            setReportingYear(v.reportingYear ?? "");
             setNoOfActivitiesConducted(v.noOfActivitiesConducted ?? "");
             setSoilHealthCardsDistributed(v.soilHealthCardsDistributed ?? "");
             setNoOfVip(v.noOfVip ?? "");
@@ -109,12 +115,12 @@ export function EventDemographicDialog({
       setNoOfActivities("");
       setRelatedCropTechnology("");
       setDemographics({});
+      setReportingYear("");
       setNoOfActivitiesConducted("");
       setSoilHealthCardsDistributed("");
       setNoOfVip("");
       setVipNames("");
       setTotalParticipants("");
-      setExistingParticipantTotal("");
       setError(null);
     }
     onOpenChange(next);
@@ -139,17 +145,20 @@ export function EventDemographicDialog({
                     typeOfActivities,
                     noOfActivities,
                     relatedCropTechnology,
-                    numberOfParticipants: String(sum(demographics) || Number(existingParticipantTotal) || 0),
+                    numberOfParticipants: String(sum(demographics)),
+                    ...demographics,
                   },
                 }
               : {
                   slug,
                   values: {
+                    reportingYear,
                     noOfActivitiesConducted,
                     soilHealthCardsDistributed,
                     noOfVip,
                     vipNames,
                     totalParticipants,
+                    ...demographics,
                   },
                 },
           ),
@@ -253,6 +262,15 @@ export function EventDemographicDialog({
             <>
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-1.5">
+                  <Label htmlFor="wsd-reporting-year">Reporting Year</Label>
+                  <Input
+                    id="wsd-reporting-year"
+                    type="number"
+                    value={reportingYear}
+                    onChange={(e) => setReportingYear(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1.5">
                   <Label htmlFor="wsd-activities-conducted">
                     No. of Activity Conducted
                   </Label>
@@ -263,6 +281,8 @@ export function EventDemographicDialog({
                     onChange={(e) => setNoOfActivitiesConducted(e.target.value)}
                   />
                 </div>
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-1.5">
                   <Label htmlFor="wsd-shc">Soil Health Cards Distributed</Label>
                   <Input
@@ -272,8 +292,6 @@ export function EventDemographicDialog({
                     onChange={(e) => setSoilHealthCardsDistributed(e.target.value)}
                   />
                 </div>
-              </div>
-              <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-1.5">
                   <Label htmlFor="wsd-vip">No. of VIP</Label>
                   <Input
@@ -283,17 +301,17 @@ export function EventDemographicDialog({
                     onChange={(e) => setNoOfVip(e.target.value)}
                   />
                 </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="wsd-total-participants">
-                    Total No. of Participants
-                  </Label>
-                  <Input
-                    id="wsd-total-participants"
-                    type="number"
-                    value={totalParticipants}
-                    onChange={(e) => setTotalParticipants(e.target.value)}
-                  />
-                </div>
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="wsd-total-participants">
+                  Total No. of Participants
+                </Label>
+                <Input
+                  id="wsd-total-participants"
+                  type="number"
+                  value={totalParticipants}
+                  onChange={(e) => setTotalParticipants(e.target.value)}
+                />
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="wsd-vip-names">
@@ -303,6 +321,17 @@ export function EventDemographicDialog({
                   id="wsd-vip-names"
                   value={vipNames}
                   onChange={(e) => setVipNames(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <p className="text-sm font-semibold text-primary">
+                  Farmers Details
+                </p>
+                <DemographicBreakdown
+                  values={demographics}
+                  onChange={(key, value) =>
+                    setDemographics((p) => ({ ...p, [key]: value }))
+                  }
                 />
               </div>
             </>

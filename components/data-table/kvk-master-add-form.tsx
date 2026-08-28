@@ -19,6 +19,8 @@ import { hostOrgsForState } from "@/lib/reports";
 type KvkMasterAddFormProps = {
   trail: Crumb[];
   backHref: string;
+  /** "About KVK -> View KVKs" reaches this exact same real form under a different title ("Create View KVKs" - confirmed identical field-for-field against the reference, 2026-08-28) - see ViewKvksAddForm's re-export below. */
+  title?: string;
 };
 
 const SANCTION_YEARS = Array.from({ length: 50 }, (_, index) =>
@@ -35,7 +37,7 @@ const SANCTION_YEARS = Array.from({ length: 50 }, (_, index) =>
  * form) once a Host is picked - reusing the real contact details now in
  * HOST_MASTER_ROWS, same approach as ViewKvksAddForm.
  */
-export function KvkMasterAddForm({ trail, backHref }: KvkMasterAddFormProps) {
+export function KvkMasterAddForm({ trail, backHref, title = "Create KVK" }: KvkMasterAddFormProps) {
   const router = useRouter();
   const [kvkName, setKvkName] = useState("");
   const [sanctionYear, setSanctionYear] = useState("");
@@ -112,7 +114,7 @@ export function KvkMasterAddForm({ trail, backHref }: KvkMasterAddFormProps) {
 
   return (
     <div>
-      <PageHeader backHref={backHref} trail={trail} title="Create KVK" />
+      <PageHeader backHref={backHref} trail={trail} title={title} />
 
       <div className="rounded-lg border border-border bg-card p-5">
         <p className="mb-3 text-sm font-semibold text-primary">

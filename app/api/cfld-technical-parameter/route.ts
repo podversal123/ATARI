@@ -50,6 +50,7 @@ export async function POST(request: Request) {
     data: {
       ...ctx,
       reportingYear: reqInt(technical.reportingYear),
+      month: str(technical.month),
       season: reqStr(technical.season),
       crop: reqStr(technical.crop),
       cropDemonstrated: reqStr(technical.crop),

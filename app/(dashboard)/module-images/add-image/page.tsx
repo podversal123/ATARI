@@ -20,6 +20,7 @@ import { useSession } from "@/lib/session";
 
 type PendingImage = {
   id: string;
+  file: File;
   previewUrl: string;
   caption: string;
   uploadDate: string;
@@ -35,8 +36,10 @@ function today(): string {
  * per spec section 12, not free text), Reporting Year, Date of Activity,
  * then upload one or more images each with a mandatory caption (spec
  * section 15 - Add to List is blocked unless both are present) before
- * Save & Submit. Uploaded images live in local component state only -
- * there is no backend/storage yet, so nothing here is actually persisted.
+ * Save & Submit. "Add to List" still only stages locally (same UX as
+ * before) - Save & Submit now actually uploads each staged file to Blob
+ * storage and creates a real ModuleImage row per image (2026-08-28),
+ * where before nothing here was persisted at all.
  */
 export default function AddModuleImagePage() {
   return (
@@ -108,6 +111,7 @@ function AddModuleImageForm() {
       ...prev,
       {
         id: crypto.randomUUID(),
+        file: pendingFile,
         previewUrl: pendingPreviewUrl,
         caption: caption.trim(),
         uploadDate: today(),
@@ -123,7 +127,9 @@ function AddModuleImageForm() {
     setUploadedImages((prev) => prev.filter((img) => img.id !== id));
   }
 
-  function handleSubmit() {
+  const [submitting, setSubmitting] = useState(false);
+
+  async function handleSubmit(forceDraft = false) {
     if (!categoryPath) {
       setFormError("Select a Category / Form first.");
       return;
@@ -133,8 +139,38 @@ function AddModuleImageForm() {
       return;
     }
     setFormError(null);
-    // No backend/storage yet - nothing to persist until Phase 2/3.
-    router.push("/module-images");
+    setSubmitting(true);
+    try {
+      for (const img of uploadedImages) {
+        const uploadForm = new FormData();
+        uploadForm.set("file", img.file);
+        uploadForm.set("kind", "module-image");
+        const uploadRes = await fetch("/api/upload", { method: "POST", body: uploadForm });
+        const uploadData = await uploadRes.json();
+        if (!uploadRes.ok) throw new Error(uploadData.error ?? "Upload failed.");
+
+        const createRes = await fetch("/api/module-images", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            categoryPath,
+            reportingYear,
+            activityDate,
+            caption: img.caption,
+            imageUrl: uploadData.url,
+            published: forceDraft ? false : publishOnSubmit,
+          }),
+        });
+        const createData = await createRes.json();
+        if (!createRes.ok) throw new Error(createData.error ?? "Could not save this photograph.");
+      }
+      router.push("/module-images");
+      router.refresh();
+    } catch (error) {
+      setFormError(error instanceof Error ? error.message : "Something went wrong. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   const isKvk = session.role !== "super-admin";
@@ -366,20 +402,27 @@ function AddModuleImageForm() {
           )}
         </div>
 
+        {formError && (
+          <p className="text-right text-sm font-medium text-destructive">{formError}</p>
+        )}
         <div className="flex justify-end gap-2">
           <Button
             variant="outline"
             onClick={() => router.push("/module-images")}
+            disabled={submitting}
           >
             Cancel
           </Button>
           <Button
             variant="outline"
-            onClick={() => router.push("/module-images")}
+            onClick={() => handleSubmit(true)}
+            disabled={submitting}
           >
-            Save as Draft
+            {submitting ? "Saving…" : "Save as Draft"}
           </Button>
-          <Button onClick={handleSubmit}>Save &amp; Submit</Button>
+          <Button onClick={() => handleSubmit(false)} disabled={submitting}>
+            {submitting ? "Saving…" : "Save & Submit"}
+          </Button>
         </div>
       </div>
     </div>

@@ -35,6 +35,7 @@ export async function GET(
   return NextResponse.json({
     technical: {
       reportingYear: numStr(record.reportingYear),
+      month: record.month ?? "",
       season: record.season,
       crop: record.crop,
       variety: "",
@@ -127,6 +128,7 @@ export async function PUT(
     where: { id },
     data: {
       reportingYear: reqInt(technical.reportingYear),
+      month: str(technical.month),
       season: reqStr(technical.season),
       crop: reqStr(technical.crop),
       cropDemonstrated: reqStr(technical.crop),

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
   Download,
@@ -22,7 +22,6 @@ import { SelectCategoryDropdown } from "./select-category-dropdown";
 import {
   ALL_CATEGORY_PATHS,
   MODULE_IMAGE_REPORTING_YEARS,
-  MODULE_IMAGE_ROWS,
   PUBLISH_FILTER_OPTIONS,
   type ModuleImageRecord,
   type PublishFilter,
@@ -35,13 +34,29 @@ import { KVK_MASTER_ROWS } from "@/lib/masters";
  * photographs against a Form Management category via the dedicated Add
  * Image page, and this list shows only their own KVK's uploads, filterable
  * by Reporting Year / Category / date range - no cross-KVK picker (data
- * isolation, same rule as Log History). Rows are scoped to `session.kvkName`
- * before anything else runs, so this can never render another KVK's data
- * even once `MODULE_IMAGE_ROWS` has real rows in it.
+ * isolation, same rule as Log History). The API itself already scopes to
+ * the caller's own KVK (GET /api/module-images), so there's no client-side
+ * KVK filter to apply on top - real backend wired 2026-08-28, replacing
+ * the always-empty MODULE_IMAGE_ROWS this used to read from.
  */
 export function KvkModuleImagesView() {
   const session = useSession();
   const currentKvkName = session.kvkName ?? KVK_MASTER_ROWS[0].kvk;
+
+  const [rows, setRows] = useState<ModuleImageRecord[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const loadRows = useCallback(() => {
+    fetch("/api/module-images")
+      .then((res) => (res.ok ? res.json() : { rows: [] }))
+      .then((data) => setRows(data.rows ?? []))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  useEffect(() => {
+    loadRows();
+  }, [loadRows]);
 
   const [reportingYear, setReportingYear] = useState(
     MODULE_IMAGE_REPORTING_YEARS[0],
@@ -53,7 +68,7 @@ export function KvkModuleImagesView() {
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
   const [search, setSearch] = useState("");
-  /** This KVK's own publish toggles, keyed by row id - in-memory only until the backend lands. */
+  /** Optimistic local overrides while a PATCH is in flight - loadRows() reconciles with the real saved state right after. */
   const [publishOverrides, setPublishOverrides] = useState<
     Record<string, boolean>
   >({});
@@ -70,7 +85,7 @@ export function KvkModuleImagesView() {
 
   const filteredRows = useMemo(() => {
     const query = search.trim().toLowerCase();
-    return MODULE_IMAGE_ROWS.filter((row) => {
+    return rows.filter((row) => {
       if (row.kvk !== currentKvkName) return false;
       if (row.reportingYear !== reportingYear) return false;
       if (!selectedCategories.has(row.categoryPath)) return false;
@@ -90,6 +105,7 @@ export function KvkModuleImagesView() {
       return true;
     });
   }, [
+    rows,
     currentKvkName,
     reportingYear,
     selectedCategories,
@@ -114,7 +130,17 @@ export function KvkModuleImagesView() {
   }
 
   function togglePublish(id: string, current: boolean) {
-    setPublishOverrides((prev) => ({ ...prev, [id]: !current }));
+    const next = !current;
+    setPublishOverrides((prev) => ({ ...prev, [id]: next }));
+    fetch(`/api/module-images/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ published: next }),
+    })
+      .then(() => loadRows())
+      .catch(() => {
+        setPublishOverrides((prev) => ({ ...prev, [id]: current }));
+      });
   }
 
   return (
@@ -261,7 +287,13 @@ export function KvkModuleImagesView() {
               </tr>
             </thead>
             <tbody>
-              {filteredRows.length === 0 ? (
+              {loading ? (
+                <tr>
+                  <td colSpan={7} className="px-4 py-16 text-center text-sm text-muted-foreground">
+                    Loading…
+                  </td>
+                </tr>
+              ) : filteredRows.length === 0 ? (
                 <tr>
                   <td
                     colSpan={7}

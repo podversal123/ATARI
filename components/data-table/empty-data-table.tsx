@@ -58,7 +58,8 @@ import {
   type TabName as CfldTabName,
 } from "./cfld-technical-parameter-dialog";
 import { EventDemographicDialog } from "./event-demographic-dialog";
-import { MasterFormFields } from "./master-form-fields";
+import { FldResultDialog } from "./fld-result-dialog";
+import { MasterFormFields, DEMOGRAPHIC_KEYS, prefixedDemographicKey } from "./master-form-fields";
 
 export type MasterTab = { label: string; href: string; active: boolean };
 
@@ -120,6 +121,8 @@ type EmptyDataTableProps = {
    * gets a read-only Action column instead - no dropdown.
    */
   oftFldStatus?: boolean;
+  /** Which real "Add/Edit Result" dialog Add Result opens - "fld" (real, wired to /api/fld-result) or "oft" (still the placeholder textarea pending its own real dynamic-table result feature). Only meaningful when oftFldStatus is true. */
+  resultKind?: "oft" | "fld";
   /** Shown as a note banner above the table - e.g. OFT/FLD's "mark your result as Completed" instruction. */
   note?: string;
   /** Registry key in lib/leaf-record-registry.ts (Form Management) or lib/masters-registry.ts (All Masters) - enables real Edit/Delete for this leaf's rows. Omit for leaves not wired to the database yet. */
@@ -167,6 +170,7 @@ export function EmptyDataTable({
   addNewHref,
   hideAddNew,
   oftFldStatus,
+  resultKind,
   note,
   recordPath,
   recordKind = "form",
@@ -176,6 +180,8 @@ export function EmptyDataTable({
   const isSuperAdmin = session.role === "super-admin";
   /** Every list table gets a real Action column (Edit/Delete) regardless of role, matching every other leaf in the app - Transfer/Add Result specifically stay KVK-only below (transferring or marking a trial's own result isn't a Super Admin action), but that no longer means hiding Edit/Delete from Super Admin too. */
   const showActionColumn = true;
+  /** `columns` includes any `formOnly` entries (demographic-breakdown blocks) needed by the Add/Edit form below - the list table itself only ever renders real, single-value columns, so every table concern (header, rows, colSpan, exports) uses this filtered list instead. */
+  const tableColumns = columns.filter((c) => !c.formOnly);
   const Icon = icon ? SIDEBAR_ICONS[icon] : undefined;
   /** Unique per instance - a page can render more than one EmptyDataTable (e.g. Notifications' Received + Sent tables), and duplicate ids break label association. */
   const instanceId = useId();
@@ -207,15 +213,15 @@ export function EmptyDataTable({
    * changes (a different `columns` array arrives) rather than carrying a
    * stale order from a previous table into a new one.
    */
-  const [columnOrder, setColumnOrder] = useState(() => columns.map((c) => c.key));
-  const columnKeySignature = columns.map((c) => c.key).join("|");
+  const [columnOrder, setColumnOrder] = useState(() => tableColumns.map((c) => c.key));
+  const columnKeySignature = tableColumns.map((c) => c.key).join("|");
   const [lastColumnKeySignature, setLastColumnKeySignature] = useState(columnKeySignature);
   if (columnKeySignature !== lastColumnKeySignature) {
     setLastColumnKeySignature(columnKeySignature);
-    setColumnOrder(columns.map((c) => c.key));
+    setColumnOrder(tableColumns.map((c) => c.key));
   }
   const orderedColumns = columnOrder
-    .map((key) => columns.find((c) => c.key === key))
+    .map((key) => tableColumns.find((c) => c.key === key))
     .filter((c): c is MasterColumn => c !== undefined);
   const draggedColumnKey = useRef<string | null>(null);
   const [dragOverColumnKey, setDragOverColumnKey] = useState<string | null>(null);
@@ -355,6 +361,16 @@ export function EmptyDataTable({
   function openEdit(row: Record<string, ReactNode>, tab?: CfldTabName) {
     const values: Record<string, string> = {};
     for (const column of columns) {
+      if (column.fieldKind === "demographic-breakdown") {
+        // Represents 8 real row fields (prefix + DEMOGRAPHIC_KEYS), not row[column.key] itself.
+        const prefix = column.demographicPrefix ?? "";
+        for (const suffix of DEMOGRAPHIC_KEYS) {
+          const key = prefixedDemographicKey(prefix, suffix);
+          const value = row[key];
+          values[key] = typeof value === "string" || typeof value === "number" ? String(value) : "";
+        }
+        continue;
+      }
       const value = row[column.key];
       values[column.key] =
         typeof value === "string" || typeof value === "number"
@@ -420,8 +436,8 @@ export function EmptyDataTable({
 
   /** Every column whose key is a date field, by this schema's own consistent naming (startDate/endDate/dateOfVisit/activityDate/meetingDate/... always end in "Date", or the bare key "date") - used by the From/To Date range filter below, since which single column is "the" date varies per leaf and there's no one universal key. */
   const dateColumnKeys = useMemo(
-    () => columns.map((c) => c.key).filter((key) => key === "date" || /Date$/.test(key)),
-    [columns],
+    () => tableColumns.map((c) => c.key).filter((key) => key === "date" || /Date$/.test(key)),
+    [tableColumns],
   );
 
   const filteredRows = useMemo(() => {
@@ -565,7 +581,7 @@ export function EmptyDataTable({
                 // (`displayedRows` is a pagination slice of `filteredRows` -
                 // exporting that silently dropped every row past page 1).
                 const { downloadTablePdf } = await import("@/lib/table-pdf");
-                downloadTablePdf(title, columns, filteredRows);
+                downloadTablePdf(title, tableColumns, filteredRows);
               }}
             >
               <FileDown className="size-3.5" />
@@ -576,7 +592,7 @@ export function EmptyDataTable({
               size="lg"
               onClick={async () => {
                 const { generateTableExcel } = await import("@/lib/table-excel");
-                const wb = await generateTableExcel(title, columns, filteredRows);
+                const wb = await generateTableExcel(title, tableColumns, filteredRows);
                 const buffer = await wb.xlsx.writeBuffer();
                 downloadBlob(
                   new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }),
@@ -592,7 +608,7 @@ export function EmptyDataTable({
               size="lg"
               onClick={async () => {
                 const { generateTableWord } = await import("@/lib/table-word");
-                const blob = await generateTableWord(title, columns, filteredRows);
+                const blob = await generateTableWord(title, tableColumns, filteredRows);
                 downloadBlob(blob, `${title}.docx`);
               }}
             >
@@ -773,7 +789,7 @@ export function EmptyDataTable({
               {rowCount === 0 ? (
                 <tr>
                   <td
-                    colSpan={columns.length + (showActionColumn ? 2 : 1)}
+                    colSpan={tableColumns.length + (showActionColumn ? 2 : 1)}
                     className="px-4 py-16 text-center text-muted-foreground"
                   >
                     No records found.
@@ -1133,8 +1149,15 @@ export function EmptyDataTable({
         </AlertDialog>
       )}
 
-      {/* Add Result - OFT/FLD only; saving a result is how a record moves from Ongoing to Completed. */}
-      {oftFldStatus && (
+      {/* Add Result - OFT/FLD only; saving a result is how a record moves from Ongoing to Completed. FLD's is real (FldResultDialog, wired to /api/fld-result); OFT's stays this placeholder until its own real dynamic-table result feature lands. */}
+      {oftFldStatus && resultKind === "fld" && (
+        <FldResultDialog
+          fldId={typeof resultRow?.id === "string" ? resultRow.id : null}
+          open={resultRow !== null}
+          onOpenChange={(open) => !open && setResultRow(null)}
+        />
+      )}
+      {oftFldStatus && resultKind !== "fld" && (
         <Dialog
           open={resultRow !== null}
           onOpenChange={(open) => !open && setResultRow(null)}

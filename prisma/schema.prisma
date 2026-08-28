@@ -145,6 +145,8 @@ model User {
   updatedAt    DateTime          @updatedAt
 
   loginActivities LoginActivity[]
+  moduleImages    ModuleImage[]
+  notifications   Notification[]
 
   @@index([zoneId])
   @@index([kvkId])
@@ -212,6 +214,52 @@ model Target {
   @@index([kvkId])
 }
 
+/// Real backend for the Notifications page (client-documented flow: Super
+/// Admin notifies KVKs - all or a chosen few; a KVK Admin notifies their own
+/// KVK's users only; a KVK Admin's sends also surface to the Super Admin for
+/// oversight). Also the real delivery mechanism behind Target's "notify the
+/// KVK" behaviour (source="TARGET", client-confirmed 2026-08-29): a Super
+/// Admin setting/updating a KVK's target auto-creates one of these.
+model Notification {
+  id     String @id @default(cuid())
+  zoneId String
+  zone   Zone   @relation(fields: [zoneId], references: [id])
+
+  title   String
+  message String
+
+  /// Nullable + SetNull, same reasoning as LoginActivity.userId above -
+  /// deleting a User must still be possible after they've sent a
+  /// notification. senderName/senderRole are snapshotted at write time so
+  /// history stays readable even once this link is gone.
+  senderId      String?
+  sender        User?     @relation(fields: [senderId], references: [id], onDelete: SetNull)
+  senderName    String
+  senderRole    AuthLevel
+  /// Set only when a KVK_ADMIN sends (their own KVK) - lets the recipient
+  /// KVK's users resolve "who sent this" and lets the Super Admin's
+  /// oversight view group by KVK, without a live join through `sender`.
+  senderKvkId   String?
+  senderKvk     Kvk?      @relation(fields: [senderKvkId], references: [id])
+  senderKvkName String?
+
+  /// Which KVKs receive this - Super Admin sends only. Empty means every KVK
+  /// in the zone ("Select All" convention, same as SelectKvksMultiDropdown/
+  /// MultiFilterSelect elsewhere in this app). Unused for a KVK_ADMIN send,
+  /// whose recipient is implicitly senderKvkId's own users.
+  recipientKvkIds String[] @default([])
+
+  /// "MANUAL" (compose form) | "TARGET" (auto-sent on a Super Admin
+  /// Target set/update).
+  source String @default("MANUAL")
+
+  createdAt DateTime @default(now())
+
+  @@index([zoneId])
+  @@index([senderId])
+  @@index([senderKvkId])
+}
+
 // ---------------------------------------------------------------------------
 // Geography / reference masters (All Masters -> Basic Masters)
 // ---------------------------------------------------------------------------
@@ -238,6 +286,7 @@ model Zone {
   equipmentMasters      EquipmentMaster[]
   presentStatusOptions  PresentStatusOption[]
   trainingTypeMasters   TrainingTypeMaster[]
+  notifications         Notification[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -470,6 +519,8 @@ model Kvk {
   digitalKisanSarathis          DigitalKisanSarathi[]
   digitalKmasEntries            DigitalKmas[]
   digitalOtherChannels          DigitalOtherChannel[]
+  moduleImages                  ModuleImage[]
+  sentNotifications             Notification[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -860,6 +911,20 @@ model Fld {
   technologyDemonstrated String
   status                 TrialStatus
 
+  /// Real "Add Result" / "Edit FLD" tab confirmed live 2026-08-15 ("project
+  /// over" reference) - Yield (Demo/Check/%Increase auto-calc) + Economics
+  /// (Gross Cost/Return/Net Return auto-calc/BCR auto-calc), same shape as
+  /// FldDemonstrationDetail's own fields but stored directly on Fld since
+  /// this is a real single "one result per FLD" feature (that separate
+  /// model serves the multi-row Form Summary report breakdown instead).
+  yieldDemoQha    Decimal? @db.Decimal(10, 2)
+  yieldCheckQha   Decimal? @db.Decimal(10, 2)
+  percentIncrease Decimal? @db.Decimal(6, 2)
+  grossCostDemo   Decimal? @db.Decimal(12, 2)
+  grossReturnDemo Decimal? @db.Decimal(12, 2)
+  netReturnDemo   Decimal? @db.Decimal(12, 2)
+  bcrDemo         Decimal? @db.Decimal(6, 2)
+
   extensionTrainings   FldExtensionTraining[]
   technicalFeedback    FldTechnicalFeedback[]
   demonstrationDetails FldDemonstrationDetail[]
@@ -961,6 +1026,25 @@ model Training {
   venue              String?
   trainingDiscipline String?
   thematicArea       String?
+  /// Real dropdown added 2026-08-28 (client request), sourced from the real Training Clientele Master.
+  clientele          String?
+  /// Real fields confirmed live 2026-08-15 ("project over" reference, "Edit Trainings" form) - were entirely missing before this. `trainingType`/`trainingArea` are distinct real masters from `trainingDiscipline`/`thematicArea` above, not duplicates.
+  trainingType       String?
+  trainingArea       String?
+  onCampusOffCampus  String?
+  courseCoordinator  String?
+  fundingSource      String?
+  fundingAgencyName  String?
+
+  /// "Farmers Details" breakdown on the real Edit Trainings form - same shape as Oft's own breakdown above.
+  generalMale   Int @default(0)
+  generalFemale Int @default(0)
+  obcMale       Int @default(0)
+  obcFemale     Int @default(0)
+  scMale        Int @default(0)
+  scFemale      Int @default(0)
+  stMale        Int @default(0)
+  stFemale      Int @default(0)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -980,6 +1064,26 @@ model ExtensionActivity {
   natureOfExtensionActivity String
   noOfActivities            Int
   noOfParticipants          Int
+  /// Real "Name of SMS/KVK Head" field confirmed live 2026-08-15 - plain text, same convention as Oft.staff (that field is also plain text there, not a real staff-master dropdown).
+  staff                     String?
+
+  /// Real "Farmers" + "Extension Officials" breakdown blocks confirmed live 2026-08-15 ("Edit Extension Activities" form) - two independent General/OBC/SC/ST x M/F blocks, prefixed since a single row needs both.
+  farmersGeneralMale     Int @default(0)
+  farmersGeneralFemale   Int @default(0)
+  farmersObcMale         Int @default(0)
+  farmersObcFemale       Int @default(0)
+  farmersScMale          Int @default(0)
+  farmersScFemale        Int @default(0)
+  farmersStMale          Int @default(0)
+  farmersStFemale        Int @default(0)
+  officialsGeneralMale   Int @default(0)
+  officialsGeneralFemale Int @default(0)
+  officialsObcMale       Int @default(0)
+  officialsObcFemale     Int @default(0)
+  officialsScMale        Int @default(0)
+  officialsScFemale      Int @default(0)
+  officialsStMale        Int @default(0)
+  officialsStFemale      Int @default(0)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -989,13 +1093,17 @@ model ExtensionActivity {
 }
 
 model OtherExtensionActivity {
-  id                        String @id @default(cuid())
+  id                        String    @id @default(cuid())
   kvkId                     String
-  kvk                       Kvk    @relation(fields: [kvkId], references: [id])
+  kvk                       Kvk       @relation(fields: [kvkId], references: [id])
   zoneId                    String
   reportingYear             Int
   natureOfExtensionActivity String
   noOfActivities            Int
+  /// Real fields confirmed live 2026-08-15 ("Edit Other Extension Activities" form) - were entirely missing before this.
+  staff                     String?
+  startDate                 DateTime?
+  endDate                   DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1014,7 +1122,18 @@ model TechnologyWeekCelebration {
   typeOfActivities      String
   noOfActivities        Int
   relatedCropTechnology String?
+  /// Real total, kept in sync with the granular breakdown below (sum of all 8) - existing report/dashboard code already reads this flat total, so it stays a real stored value rather than becoming a derived-only field.
   numberOfParticipants  Int
+
+  /// Real "Farmers Details" per-category breakdown confirmed live 2026-08-15 - previously collected in the UI (DemographicBreakdown) but silently discarded, only the sum above was ever persisted.
+  generalMale   Int @default(0)
+  generalFemale Int @default(0)
+  obcMale       Int @default(0)
+  obcFemale     Int @default(0)
+  scMale        Int @default(0)
+  scFemale      Int @default(0)
+  stMale        Int @default(0)
+  stFemale      Int @default(0)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1031,6 +1150,24 @@ model CelebrationDay {
   importantDay   String
   eventDate      DateTime
   noOfActivities Int
+
+  /// Real "Farmers" + "Extension Officials" breakdown blocks confirmed live 2026-08-15 ("Edit Celebration Days" form) - same two-block shape as ExtensionActivity above, were entirely missing before this.
+  farmersGeneralMale     Int @default(0)
+  farmersGeneralFemale   Int @default(0)
+  farmersObcMale         Int @default(0)
+  farmersObcFemale       Int @default(0)
+  farmersScMale          Int @default(0)
+  farmersScFemale        Int @default(0)
+  farmersStMale          Int @default(0)
+  farmersStFemale        Int @default(0)
+  officialsGeneralMale   Int @default(0)
+  officialsGeneralFemale Int @default(0)
+  officialsObcMale       Int @default(0)
+  officialsObcFemale     Int @default(0)
+  officialsScMale        Int @default(0)
+  officialsScFemale      Int @default(0)
+  officialsStMale        Int @default(0)
+  officialsStFemale      Int @default(0)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1166,11 +1303,23 @@ model WorldSoilDay {
   kvkId                      String
   kvk                        Kvk     @relation(fields: [kvkId], references: [id])
   zoneId                     String
+  /// Real field confirmed live 2026-08-15 - was entirely missing before this (the real form's own first field, marked required).
+  reportingYear              Int?
   noOfActivitiesConducted    Int
   soilHealthCardsDistributed Int
   noOfVip                    Int
   vipNames                   String?
   totalParticipants          Int
+
+  /// Real "Farmers Details" per-category breakdown confirmed live 2026-08-15 - same gap as TechnologyWeekCelebration above (collected in the UI, never persisted).
+  generalMale   Int @default(0)
+  generalFemale Int @default(0)
+  obcMale       Int @default(0)
+  obcFemale     Int @default(0)
+  scMale        Int @default(0)
+  scFemale      Int @default(0)
+  stMale        Int @default(0)
+  stFemale      Int @default(0)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1289,6 +1438,8 @@ model CfldTechnicalParameter {
   kvk                               Kvk                @relation(fields: [kvkId], references: [id])
   zoneId                            String
   reportingYear                     Int
+  /// Real field added 2026-08-28 (client reference, "Edit Technical Parameter" screen) - was missing entirely.
+  month                             String?
   season                            String
   crop                              String
   cropDemonstrated                  String
@@ -3371,4 +3522,37 @@ model PresentStatusOption {
 
   @@unique([zoneId, kind, statusCode])
   @@index([zoneId])
+}
+
+// ---------------------------------------------------------------------------
+// Module Images / Gallery (client spec: "Module Images UI.pdf") - real
+// backend added 2026-08-28. A KVK uploads photographs against a Form
+// Management category (categoryPath is a NavLeafPath.path string from
+// lib/reports.ts's REPORT_FORM_LEAVES, not its own separate master list per
+// the spec's own rule that new Form Management leaves must automatically
+// become available here). Uploads land unpublished by default - the KVK
+// decides when a photo goes live, Super Admin holds final override either
+// way. Gallery (a separate page) only ever shows `published` rows.
+// ---------------------------------------------------------------------------
+
+model ModuleImage {
+  id            String   @id @default(cuid())
+  kvkId         String
+  kvk           Kvk      @relation(fields: [kvkId], references: [id])
+  zoneId        String
+  categoryPath  String
+  categoryLabel String
+  reportingYear Int
+  activityDate  DateTime
+  caption       String
+  imageUrl      String
+  published     Boolean  @default(false)
+  uploadedById  String?
+  uploadedBy    User?    @relation(fields: [uploadedById], references: [id])
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([zoneId])
+  @@index([kvkId, reportingYear])
+  @@index([categoryPath])
 }

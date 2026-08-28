@@ -6,8 +6,40 @@ const reqStr = (v: string | undefined) => v?.trim() ?? "";
 const reqInt = (v: string | undefined) => parseInt(v ?? "0", 10) || 0;
 const str = (v: string | undefined) => (v?.trim() ? v.trim() : undefined);
 const reqDate = (v: string | undefined) => new Date(v ?? Date.now());
+const int = (v: string | undefined) => (v?.trim() ? parseInt(v, 10) || 0 : undefined);
 const numStr = (v: unknown) => (v === null || v === undefined ? "" : String(v));
 const dateStr = (v: Date | null | undefined) => (v ? v.toISOString().slice(0, 10) : "");
+
+/** DemographicBreakdown's own key convention - shared write side, mirrors app/api/event-demographic/route.ts. */
+function demographicData(v: Record<string, string>) {
+  return {
+    generalMale: reqInt(v.generalMale),
+    generalFemale: reqInt(v.generalFemale),
+    obcMale: reqInt(v.obcMale),
+    obcFemale: reqInt(v.obcFemale),
+    scMale: reqInt(v.scMale),
+    scFemale: reqInt(v.scFemale),
+    stMale: reqInt(v.stMale),
+    stFemale: reqInt(v.stFemale),
+  };
+}
+
+/** Read side - same 8 keys, back out as strings for the dialog's own DemographicValues state. */
+function demographicValues(record: {
+  generalMale: number; generalFemale: number; obcMale: number; obcFemale: number;
+  scMale: number; scFemale: number; stMale: number; stFemale: number;
+}) {
+  return {
+    generalMale: numStr(record.generalMale),
+    generalFemale: numStr(record.generalFemale),
+    obcMale: numStr(record.obcMale),
+    obcFemale: numStr(record.obcFemale),
+    scMale: numStr(record.scMale),
+    scFemale: numStr(record.scFemale),
+    stMale: numStr(record.stMale),
+    stFemale: numStr(record.stFemale),
+  };
+}
 
 export async function GET(
   request: Request,
@@ -32,6 +64,7 @@ export async function GET(
         noOfActivities: numStr(record.noOfActivities),
         relatedCropTechnology: record.relatedCropTechnology ?? "",
         numberOfParticipants: numStr(record.numberOfParticipants),
+        ...demographicValues(record),
       },
     });
   }
@@ -43,11 +76,13 @@ export async function GET(
     if (!record) return NextResponse.json({ error: "Record not found." }, { status: 404 });
     return NextResponse.json({
       values: {
+        reportingYear: numStr(record.reportingYear ?? ""),
         noOfActivitiesConducted: numStr(record.noOfActivitiesConducted),
         soilHealthCardsDistributed: numStr(record.soilHealthCardsDistributed),
         noOfVip: numStr(record.noOfVip),
         vipNames: record.vipNames ?? "",
         totalParticipants: numStr(record.totalParticipants),
+        ...demographicValues(record),
       },
     });
   }
@@ -69,6 +104,7 @@ export async function PUT(
   const v: Record<string, string> = body?.values ?? {};
 
   if (slug === "technology-week-celebration") {
+    const demographics = demographicData(v);
     const result = await prisma.technologyWeekCelebration.updateMany({
       where: { id, ...kvkScope },
       data: {
@@ -77,7 +113,9 @@ export async function PUT(
         typeOfActivities: reqStr(v.typeOfActivities),
         noOfActivities: reqInt(v.noOfActivities),
         relatedCropTechnology: str(v.relatedCropTechnology),
-        numberOfParticipants: reqInt(v.numberOfParticipants),
+        /** Server-computed, never trusted from the client - see app/api/event-demographic/route.ts's POST for why. */
+        numberOfParticipants: Object.values(demographics).reduce((sum, n) => sum + n, 0),
+        ...demographics,
       },
     });
     if (result.count === 0) return NextResponse.json({ error: "Record not found." }, { status: 404 });
@@ -88,11 +126,13 @@ export async function PUT(
     const result = await prisma.worldSoilDay.updateMany({
       where: { id, ...kvkScope },
       data: {
+        reportingYear: int(v.reportingYear),
         noOfActivitiesConducted: reqInt(v.noOfActivitiesConducted),
         soilHealthCardsDistributed: reqInt(v.soilHealthCardsDistributed),
         noOfVip: reqInt(v.noOfVip),
         vipNames: str(v.vipNames),
         totalParticipants: reqInt(v.totalParticipants),
+        ...demographicData(v),
       },
     });
     if (result.count === 0) return NextResponse.json({ error: "Record not found." }, { status: 404 });

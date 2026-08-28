@@ -238,7 +238,7 @@ export function CfldTechnicalParameterDialog({
         <div className="max-h-[50vh] space-y-4 overflow-y-auto">
           {activeTab === "Technical Parameter" && (
             <div className="space-y-4">
-              <div className="grid gap-4 sm:grid-cols-3">
+              <div className="grid gap-4 sm:grid-cols-4">
                 <div className="space-y-1.5">
                   <Label htmlFor="cfld-year">Year</Label>
                   <Input
@@ -251,6 +251,26 @@ export function CfldTechnicalParameterDialog({
                       }))
                     }
                   />
+                </div>
+                {/* Real field added 2026-08-28 (client reference, "Edit Technical Parameter" screen) - was missing entirely. */}
+                <div className="space-y-1.5">
+                  <Label htmlFor="cfld-month">Month</Label>
+                  <select
+                    id="cfld-month"
+                    value={technical.month ?? ""}
+                    onChange={(e) =>
+                      setTechnical((p) => ({ ...p, month: e.target.value }))
+                    }
+                    className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring"
+                  >
+                    <option value="">Select One</option>
+                    {[
+                      "January", "February", "March", "April", "May", "June",
+                      "July", "August", "September", "October", "November", "December",
+                    ].map((m) => (
+                      <option key={m} value={m}>{m}</option>
+                    ))}
+                  </select>
                 </div>
                 <div className="space-y-1.5">
                   <Label htmlFor="cfld-season">Season</Label>
