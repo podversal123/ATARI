@@ -2309,6 +2309,7 @@ export default async function FormsPage({ params }: FormsPageProps) {
           }
           eventSlug={node.slug}
           oftFldStatus={OFT_FLD_STATUS_SLUGS.has(node.slug)}
+          resultKind={node.slug === "view-fld" ? "fld" : node.slug === "oft" ? "oft" : undefined}
           /** Exact wording from the client's "changes required 1.0.pdf" (2026-08-25, item 4) - each leaf's own note only, no cross-reference to the other leaf. */
           note={
             node.slug === "oft"

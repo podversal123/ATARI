@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type ReactNode } from "react";
+import { useMemo, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { BarChart3, List, AreaChart, ArrowUpRight } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -125,6 +125,20 @@ export function ProgressChartCard({
   const [page, setPage] = useState(0);
   /** "Show all (N)" was a disabled, decorative button - real now: shows every row unpaginated (same as how Area view already behaves), toggled back off by switching view/page. */
   const [showAll, setShowAll] = useState(false);
+  /**
+   * "Show less" shrinks a tall "show all" list back down without the page's
+   * own scroll position adjusting - if the user had scrolled down (to see
+   * rows near the bottom) or right (the horizontal-scroll chart wrapper
+   * below, `needsScroll`), collapsing back to the short paginated view
+   * leaves the card's toggle button sitting outside the now-much-shorter
+   * page, and the chart wrapper's own leftover horizontal scroll position
+   * (no longer reachable once `overflow-x-auto` is removed) can leave the
+   * chart itself rendering mid-scroll on the next "Show all". Real bug fix
+   * (client report, 2026-08-29): reset the chart wrapper's own scroll
+   * before the card scrolls itself back into view.
+   */
+  const cardRef = useRef<HTMLDivElement>(null);
+  const chartScrollRef = useRef<HTMLDivElement>(null);
   const allShown = view === "area" || showAll;
 
   const maxTotal = useMemo(
@@ -196,7 +210,7 @@ export function ProgressChartCard({
   }, [view, rows, maxTotal, mode]);
 
   return (
-    <div className="rounded-lg border border-border bg-card p-5">
+    <div ref={cardRef} className="rounded-lg border border-border bg-card p-5">
       <div className="flex items-start justify-between gap-3">
         <p className="text-xs font-bold tracking-wide text-primary uppercase">
           {title}
@@ -240,7 +254,17 @@ export function ProgressChartCard({
           {showAllLabel && (
             <button
               type="button"
-              onClick={() => setShowAll((v) => !v)}
+              onClick={() => {
+                setShowAll((v) => {
+                  const next = !v;
+                  if (!next) {
+                    // Collapsing back down - reset any leftover horizontal scroll on the chart itself, then bring the whole card back into view in case the page had scrolled to see rows further down the "show all" list.
+                    if (chartScrollRef.current) chartScrollRef.current.scrollLeft = 0;
+                    requestAnimationFrame(() => cardRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
+                  }
+                  return next;
+                });
+              }}
               className={cn(
                 "rounded-md border px-2.5 py-1 font-medium transition-colors",
                 showAll
@@ -289,7 +313,7 @@ export function ProgressChartCard({
         chart via `bottom-full`. pt-20/-mt-20 gives it that room back inside
         the scroll box without visually shifting the chart down.
       */}
-      <div className={needsScroll ? "overflow-x-auto pt-20 -mt-20" : undefined}>
+      <div ref={chartScrollRef} className={needsScroll ? "overflow-x-auto pt-20 -mt-20" : undefined}>
       <div
         className={cn(
           "relative mt-4 pr-16 pl-6",

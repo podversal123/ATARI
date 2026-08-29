@@ -6,11 +6,13 @@ import { requireSession } from "@/lib/api-auth";
  * Real counts for the sections of the Technical Achievement Summary matrix
  * report that map unambiguously to an operational table (OFT/FLD counts,
  * trial/area totals, Training/Extension Activity/Soil-Water-Analysis
- * counts). "Target" and the General/OBC/SC/ST x M/F demographic breakdown
- * have no real data source anywhere in this schema (no target-setting
- * feature, no per-record caste/gender capture on these models) - those stay
- * 0 rather than fabricated, same honest-empty-state principle the UI
- * already documented before this route existed.
+ * counts), plus the real OFT/FLD/Training/Extension Activity Target values
+ * (client-confirmed 2026-08-29 - the Target model/`/targets` page landed
+ * after this route's own comment first said "no target-setting feature",
+ * which was true then but is stale now). The General/OBC/SC/ST x M/F
+ * demographic breakdown still has no real data source anywhere in this
+ * schema (no per-record caste/gender capture on these models) - those stay
+ * 0 rather than fabricated, same honest-empty-state principle as before.
  */
 export async function GET(request: Request) {
   const auth = await requireSession();
@@ -49,6 +51,7 @@ export async function GET(request: Request) {
     trainingCount,
     extensionCount,
     soilWaterCount,
+    targetsByCategory,
   ] = await Promise.all([
     prisma.oft.count({ where: { ...scope, reportingYear } }),
     prisma.oft
@@ -70,7 +73,16 @@ export async function GET(request: Request) {
     prisma.training.count({ where: { ...scope, reportingYear } }),
     prisma.extensionActivity.count({ where: { ...scope, reportingYear } }),
     prisma.soilWaterPlantAnalysis.count({ where: scope }),
+    /** Real Target values (client-confirmed 2026-08-29) - summed across every KVK in scope, same real Target rows /targets itself reads. */
+    prisma.target.groupBy({
+      by: ["category"],
+      where: { ...scope, reportingYear },
+      _sum: { targetValue: true },
+    }),
   ]);
+
+  const targetFor = (category: string) =>
+    targetsByCategory.find((t) => t.category === category)?._sum.targetValue ?? 0;
 
   const zeroMatrix = Array(11).fill(0);
 
@@ -78,22 +90,22 @@ export async function GET(request: Request) {
     reportingYear,
     sections: {
       "oft-fld-0": {
-        metrics: [0, oftCount, oftKvkCount, oftTrialSum._sum.noOfTrialReplicationFarmer ?? 0],
+        metrics: [targetFor("OFT"), oftCount, oftKvkCount, oftTrialSum._sum.noOfTrialReplicationFarmer ?? 0],
         leadColumn: 0,
         matrix: zeroMatrix,
       },
       "oft-fld-1": {
-        metrics: [0, fldCount, Number(fldAreaSum._sum.areaHa ?? 0)],
+        metrics: [targetFor("FLD"), fldCount, Number(fldAreaSum._sum.areaHa ?? 0)],
         leadColumn: 0,
         matrix: zeroMatrix,
       },
       "training-extension-0": {
-        metrics: [0, trainingCount],
+        metrics: [targetFor("Training"), trainingCount],
         leadColumn: 0,
         matrix: zeroMatrix,
       },
       "training-extension-1": {
-        metrics: [0, extensionCount],
+        metrics: [targetFor("Extension Activity"), extensionCount],
         leadColumn: 0,
         matrix: zeroMatrix,
       },
