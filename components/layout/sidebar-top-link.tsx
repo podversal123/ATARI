@@ -16,6 +16,8 @@ type SidebarTopLinkProps = {
   open: boolean;
   onToggle: () => void;
   children: ReactNode;
+  /** True when the current page is this section's own landing page or any page nested under it - same dark-green active pill as every other sidebar link (SidebarSectionLink, NavTree), per client direction (2026-08-30: one consistent active color everywhere, not white). This header previously had no active state of its own at all - hovering it while already on one of its pages just showed the same dark hover tint as any unvisited section. */
+  isActive?: boolean;
 };
 
 /**
@@ -38,15 +40,21 @@ export function SidebarTopLink({
   open,
   onToggle,
   children,
+  isActive,
 }: SidebarTopLinkProps) {
   const Icon = SIDEBAR_ICONS[iconName];
+  const activeClass = "bg-sidebar-accent text-sidebar-accent-foreground";
+  const inactiveClass = "text-white/80 hover:bg-black/10 hover:text-white";
 
   if (collapsed) {
     return (
       <Link
         href={href}
         title={label}
-        className="flex items-center justify-center rounded-md px-3 py-2 text-sm text-white/80 transition-colors hover:bg-black/10 hover:text-white"
+        className={cn(
+          "flex items-center justify-center rounded-md px-3 py-2 text-sm transition-colors",
+          isActive ? activeClass : inactiveClass,
+        )}
       >
         <Icon className="size-4 shrink-0" />
       </Link>
@@ -58,7 +66,10 @@ export function SidebarTopLink({
       <button
         type="button"
         onClick={onToggle}
-        className="flex w-full items-center justify-between rounded-md px-3 py-2 text-sm text-white/80 transition-colors hover:bg-black/10 hover:text-white"
+        className={cn(
+          "flex w-full items-center justify-between rounded-md px-3 py-2 text-sm transition-colors",
+          isActive ? activeClass : inactiveClass,
+        )}
       >
         <span className="flex min-w-0 items-center gap-2.5">
           <Icon className="size-4 shrink-0" />

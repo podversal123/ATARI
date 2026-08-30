@@ -118,15 +118,32 @@ export default function DashboardPage() {
   /** Empty set = "All" - real checkbox multi-select (client request, 2026-08-28), replacing the earlier single-value dropdown. */
   const [yearFilter, setYearFilter] = useState<Set<string>>(new Set());
   const [kvkFilter, setKvkFilter] = useState<Set<string>>(new Set());
+  /** Real per-card filters (client request, 2026-08-30) - Training Progress's own Clientele/Venue, Extension Activities Progress's own Nature of Extension Activity. Same "empty = All" convention, scoped only to their own card's query (see /api/dashboard-stats). */
+  const [trainingClientele, setTrainingClientele] = useState<Set<string>>(new Set());
+  const [trainingVenue, setTrainingVenue] = useState<Set<string>>(new Set());
+  const [extensionNature, setExtensionNature] = useState<Set<string>>(new Set());
+  /** Real option lists for the two dropdowns above - Clientele/Nature of Extension Activity come from their own real masters (same source Form Management's own Training/Extension forms already use), Venue's real values are the fixed On Campus/Off Campus pair already confirmed on Training's own Edit form (no separate master for it anywhere in the reference). */
+  const [clienteleOptions, setClienteleOptions] = useState<string[]>([]);
+  const [natureOptions, setNatureOptions] = useState<string[]>([]);
+  const VENUE_OPTIONS = ["On Campus", "Off Campus"];
 
   const filterCardRef = useRef<HTMLDivElement>(null);
   const statGridRef = useRef<HTMLDivElement>(null);
   const [filterCardWidth, setFilterCardWidth] = useState<number>();
 
-  function loadStats(year = yearFilter, kvk = kvkFilter) {
+  function loadStats(
+    year = yearFilter,
+    kvk = kvkFilter,
+    clientele = trainingClientele,
+    venue = trainingVenue,
+    nature = extensionNature,
+  ) {
     const params = new URLSearchParams();
     if (year.size > 0) params.set("year", Array.from(year).join(","));
     if (kvk.size > 0) params.set("kvk", Array.from(kvk).join(","));
+    if (clientele.size > 0) params.set("trainingClientele", Array.from(clientele).join(","));
+    if (venue.size > 0) params.set("trainingVenue", Array.from(venue).join(","));
+    if (nature.size > 0) params.set("extensionNature", Array.from(nature).join(","));
     const query = params.toString();
     fetch(`/api/dashboard-stats${query ? `?${query}` : ""}`)
       .then((res) => (res.ok ? res.json() : null))
@@ -139,6 +156,18 @@ export default function DashboardPage() {
   useEffect(() => {
     if (session.role === "kvk-user") return;
     loadStats();
+    fetch("/api/master-options?slug=training-clientele")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: { rows: { clientele: string }[] } | null) => {
+        if (data) setClienteleOptions(data.rows.map((r) => r.clientele).filter(Boolean));
+      })
+      .catch(() => {});
+    fetch("/api/master-options?slug=extension-activity")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: { rows: { activityName: string }[] } | null) => {
+        if (data) setNatureOptions(data.rows.map((r) => r.activityName).filter(Boolean));
+      })
+      .catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session.role]);
   usePolling(() => {
@@ -152,6 +181,18 @@ export default function DashboardPage() {
   function applyKvk(next: Set<string>) {
     setKvkFilter(next);
     loadStats(yearFilter, next);
+  }
+  function applyTrainingClientele(next: Set<string>) {
+    setTrainingClientele(next);
+    loadStats(yearFilter, kvkFilter, next, trainingVenue, extensionNature);
+  }
+  function applyTrainingVenue(next: Set<string>) {
+    setTrainingVenue(next);
+    loadStats(yearFilter, kvkFilter, trainingClientele, next, extensionNature);
+  }
+  function applyExtensionNature(next: Set<string>) {
+    setExtensionNature(next);
+    loadStats(yearFilter, kvkFilter, trainingClientele, trainingVenue, next);
   }
   function resetFilters() {
     setYearFilter(new Set());
@@ -232,7 +273,7 @@ export default function DashboardPage() {
             selected={yearFilter}
             onChange={applyYear}
             className="flex-1"
-            triggerClassName="min-w-0 max-w-20 flex-1"
+            triggerClassName="min-w-0 flex-1"
           />
           {!isKvkAdmin && (
             <MultiFilterSelect
@@ -241,7 +282,7 @@ export default function DashboardPage() {
               selected={kvkFilter}
               onChange={applyKvk}
               className="flex-1"
-              triggerClassName="min-w-0 max-w-36 flex-1"
+              triggerClassName="min-w-0 flex-1"
             />
           )}
           <Button variant="outline-primary" size="sm" onClick={resetFilters}>
@@ -275,7 +316,8 @@ export default function DashboardPage() {
         Admin, whose chart is about their own trials rather than a comparison
         across KVKs.
       */}
-      <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
+      {/* items-start overrides CSS Grid's default align-items:stretch - without it, two cards sharing a row are forced to the SAME height (matching the taller one), so a short List view sitting next to a taller Bar view left a big empty gap below the short one's own last row and its "Showing all N" footer (real bug, client report 2026-08-30). Each card now sizes to its own real content instead of stretching to match its sibling. */}
+      <div className="mt-4 grid grid-cols-1 items-start gap-4 lg:grid-cols-2">
         <ProgressChartCard
           title="OFT Progress"
           description={
@@ -323,6 +365,24 @@ export default function DashboardPage() {
           totalCount={stats.training.total}
           rows={toTotalChartRows(stats.charts.training)}
           mode="total"
+          filters={
+            <>
+              <MultiFilterSelect
+                label="Clientele"
+                options={clienteleOptions}
+                selected={trainingClientele}
+                onChange={applyTrainingClientele}
+                triggerClassName="h-7 min-w-20"
+              />
+              <MultiFilterSelect
+                label="Venue"
+                options={VENUE_OPTIONS}
+                selected={trainingVenue}
+                onChange={applyTrainingVenue}
+                triggerClassName="h-7 min-w-20"
+              />
+            </>
+          }
           summary={
             isKvkAdmin
               ? `${stats.training.total} trainings recorded`
@@ -342,6 +402,15 @@ export default function DashboardPage() {
           totalCount={stats.extension.total}
           rows={toTotalChartRows(stats.charts.extension)}
           mode="total"
+          filters={
+            <MultiFilterSelect
+              label="Nature of Extension Activity"
+              options={natureOptions}
+              selected={extensionNature}
+              onChange={applyExtensionNature}
+              triggerClassName="h-7 min-w-20"
+            />
+          }
           summary={
             isKvkAdmin
               ? `${stats.extension.total} activities recorded`
@@ -352,7 +421,8 @@ export default function DashboardPage() {
         />
       </div>
 
-      <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
+      {/* items-start overrides CSS Grid's default align-items:stretch - without it, two cards sharing a row are forced to the SAME height (matching the taller one), so a short List view sitting next to a taller Bar view left a big empty gap below the short one's own last row and its "Showing all N" footer (real bug, client report 2026-08-30). Each card now sizes to its own real content instead of stretching to match its sibling. */}
+      <div className="mt-4 grid grid-cols-1 items-start gap-4 lg:grid-cols-2">
         <StaffSummaryCard counts={stats.staffByRole} />
         <RecentLogHistoryCard />
       </div>

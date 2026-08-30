@@ -47,17 +47,17 @@ function LeafCard({ leaf }: { leaf: LeafSummary }) {
   return (
     <Link
       href={`/forms/${leaf.path}`}
-      className="flex items-center justify-between gap-2 rounded-md border border-border bg-card px-3 py-2 text-xs hover:border-primary/50"
+      className="flex items-center justify-between gap-2 rounded-md border border-border bg-card px-4 py-3 text-sm hover:border-primary/50"
     >
       <span className="truncate font-medium text-foreground">{leaf.label}</span>
       {leaf.count > 0 ? (
         <span className="flex shrink-0 items-center gap-1 text-primary">
-          <CheckCircle2 className="size-3.5" />
+          <CheckCircle2 className="size-4" />
           {leaf.count} {leaf.count === 1 ? "entry" : "entries"}
         </span>
       ) : (
         <span className="flex shrink-0 items-center gap-1 text-muted-foreground">
-          <Circle className="size-3.5" />
+          <Circle className="size-4" />
           Not started
         </span>
       )}
@@ -171,7 +171,7 @@ export default function FormSummaryPage() {
                 <p className="mb-3 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
                   {section.sectionLabel}
                 </p>
-                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2 lg:grid-cols-3">
                   {section.leaves.map((leaf) => (
                     <LeafCard key={leaf.path} leaf={leaf} />
                   ))}
@@ -310,7 +310,7 @@ export default function FormSummaryPage() {
                                       <p className="mb-2 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
                                         {section.sectionLabel}
                                       </p>
-                                      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                                      <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2 lg:grid-cols-3">
                                         {section.leaves.map((leaf) => (
                                           <LeafCard key={leaf.path} leaf={leaf} />
                                         ))}
@@ -331,30 +331,30 @@ export default function FormSummaryPage() {
           ) : (
             <div
               ref={matrixScrollRef}
-              className="mt-4 snap-x snap-mandatory overflow-auto rounded-lg border border-border"
+              className="mt-4 overflow-auto rounded-lg border border-border"
               /**
-               * The sticky "Form Name" column reserves 264px on the left
-               * (its own width), but the browser's scroll-snap math doesn't
-               * know that - it snaps each KVK column's left edge to true
-               * x=0, which is the same spot the sticky column paints over.
-               * Result: the very first KVK column (e.g. whichever KVK
-               * sorts first) lands hidden underneath the sticky column
-               * when snapped, and scrolling back to the start leaves a
-               * gap where the browser rounds to a snap point that isn't
-               * flush with the sticky column's right edge. scroll-padding
-               * tells the snap algorithm to treat that 264px as already
-               * spoken for, so "start" becomes flush against the sticky
-               * column instead of underneath it.
+               * No scroll-snap here (client report, 2026-08-30 - a real gap
+               * appeared between the sticky "Form Name" column and whichever
+               * KVK column landed next to it after scrolling to the end).
+               * This table used to snap each KVK column into place, which
+               * needed a `scrollPaddingLeft: 264` hack to keep the very
+               * first column from snapping underneath the sticky column.
+               * Snapping added a browser "settle" step after every scroll
+               * gesture that could re-align the content a frame or two
+               * after the sticky column had already redrawn, which is what
+               * opened this gap. Dropping snap entirely removes that settle
+               * step - the sticky column now always overlays whatever the
+               * raw scroll position is, in perfect 1:1 sync, with nothing
+               * left to re-align after the fact.
                */
-              style={{ scrollPaddingLeft: 264 }}
             >
               <table className="w-full border-separate border-spacing-0 text-sm">
                 <thead>
                   <tr className="border-b border-border bg-muted text-left text-xs font-semibold tracking-wide text-muted-foreground uppercase">
                     <th
                       colSpan={2}
-                      style={{ width: 264, minWidth: 264, maxWidth: 264 }}
-                      className="sticky left-0 z-10 bg-muted p-0 shadow-[inset_-1px_0_0_0_var(--border)]"
+                      style={{ width: 264, minWidth: 264, maxWidth: 264, willChange: "transform" }}
+                      className="sticky left-0 z-10 border-r border-border bg-muted p-0"
                     >
                       <div className="flex">
                         <div className="w-14 shrink-0 border-r border-border px-4 py-3">#</div>
@@ -362,7 +362,7 @@ export default function FormSummaryPage() {
                       </div>
                     </th>
                     {filteredSorted.map((kvk) => (
-                      <th key={kvk.id} className="min-w-28 snap-start border-r border-border bg-muted px-3 py-2 text-center">
+                      <th key={kvk.id} className="min-w-28 border-r border-border bg-muted px-3 py-2 text-center">
                         <div className="whitespace-nowrap normal-case">{kvk.name}</div>
                         <div className="mt-0.5 font-normal text-muted-foreground/70 normal-case">{kvk.percent}%</div>
                       </th>
@@ -374,8 +374,8 @@ export default function FormSummaryPage() {
                     <tr key={leafRef.path} className="border-b border-border last:border-0">
                       <td
                         colSpan={2}
-                        style={{ width: 264, minWidth: 264, maxWidth: 264 }}
-                        className="sticky left-0 z-10 bg-card p-0 shadow-[inset_-1px_0_0_0_var(--border)]"
+                        style={{ width: 264, minWidth: 264, maxWidth: 264, willChange: "transform" }}
+                        className="sticky left-0 z-10 border-r border-border bg-card p-0"
                       >
                         <div className="flex">
                           <div className="w-14 shrink-0 border-r border-border px-4 py-2.5 text-muted-foreground">

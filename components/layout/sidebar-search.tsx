@@ -80,7 +80,7 @@ export function SidebarSearch() {
                   setQuery("");
                   setOpen(false);
                 }}
-                className="block rounded-md px-3 py-2 text-sm text-foreground hover:bg-muted"
+                className="block rounded-md px-3 py-2 text-sm text-foreground hover:bg-primary/20"
               >
                 <span className="font-medium">{result.label}</span>
                 {result.section && (

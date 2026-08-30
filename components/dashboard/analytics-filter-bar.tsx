@@ -89,15 +89,13 @@ export function AnalyticsFilterBar({
         </div>
         <div>
           <label className="text-[11px] font-semibold tracking-wide text-primary uppercase">Zone</label>
-          <select
-            disabled
-            value="All"
+          {/* Not a real `<select>` (even disabled, it rendered with the exact same border/height as every live dropdown next to it, so it still read as clickable) and no longer hardcodes "All" - a Super Admin session only ever has one real zone, so showing it directly is more informative than a fake "All" (client report 2026-08-30). */}
+          <div
             title="This account only manages one zone - already applied to every card below."
-            className="mt-1 h-8 w-full rounded-md border border-border bg-card px-2 text-sm text-foreground outline-none disabled:opacity-70"
+            className="mt-1 flex h-8 w-full cursor-not-allowed items-center truncate rounded-md border border-border bg-muted/40 px-2 text-sm text-muted-foreground"
           >
-            <option>All</option>
-            {zoneName && <option>{zoneName}</option>}
-          </select>
+            {zoneName ?? "All"}
+          </div>
         </div>
         <div>
           <label className="text-[11px] font-semibold tracking-wide text-primary uppercase">State</label>

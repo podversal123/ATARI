@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState, type ReactNode } from "react";
+import { useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import Link from "next/link";
 import { BarChart3, List, AreaChart, ArrowUpRight } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -21,6 +21,15 @@ const VIEW_OPTIONS: {
 const PAGE_SIZE = 10;
 const ONGOING_COLOR = "#eaa624";
 const COMPLETED_COLOR = "var(--color-primary)";
+/** Bar view's own chart box height (`h-56` below) - the real, fixed pixel value a "safe headroom" calculation needs to be measured against. */
+const CHART_BOX_HEIGHT_PX = 224;
+/** TooltipContent's own tallest real shape (mode="split": KVK name + Not started + Completed + Ongoing + Total, each row ~24px, plus the card's p-3 padding and header border) - measured from its actual rendered markup, not guessed. */
+const TOOLTIP_SAFE_HEIGHT_PX = 150;
+/** The `mb-1.5` gap between a bar's top and its tooltip (see the `bottom: calc(...)` usage below) - must be included in the safe-height budget too, or a bar sitting exactly at the boundary would still overshoot the chart box's top edge by this much. */
+const TOOLTIP_GAP_PX = 6;
+/** Above this bar-height percentage, a `bottom`-anchored tooltip (plus its gap) would push part of itself above the chart box's own top edge - see the usage below for the `top-0` fallback that guarantees it can't. */
+const SAFE_MAX_BAR_PERCENT_FOR_BOTTOM_ANCHOR =
+  ((CHART_BOX_HEIGHT_PX - TOOLTIP_SAFE_HEIGHT_PX - TOOLTIP_GAP_PX) / CHART_BOX_HEIGHT_PX) * 100;
 
 export type ProgressChartRow = {
   id: string;
@@ -44,47 +53,70 @@ type ProgressChartCardProps = {
   /** When set, "Detailed" navigates to the full analytics page instead of toggling a view. */
   detailedHref?: string;
   footer?: ReactNode;
+  /** Real per-card filter dropdowns (client request, 2026-08-30: Training Progress's Clientele/Venue, Extension Activities Progress's Nature of Extension Activity) - rendered as their own row right under the description, above the summary/"Show all" row. Omitted for cards with no card-specific filter. */
+  filters?: ReactNode;
 };
 
-function Tooltip({ children, content }: { children: ReactNode; content: ReactNode }) {
+/**
+ * Positions the floating tooltip card relative to whatever `positionClass`
+ * says - the caller is responsible for making its own wrapper the
+ * positioned ancestor (`relative`) so `absolute` here resolves against
+ * *that specific element's own box*, not some larger shared container. Real
+ * bug fix (client report, 2026-08-30): the bar-chart tooltip used to be
+ * anchored to the full-height column every bar sits in, so it always popped
+ * up at the very top of the chart regardless of how tall or short that
+ * bar's own fill actually was - it must track each bar's own height
+ * instead.
+ */
+function TooltipPopup({
+  content,
+  positionClass,
+  style,
+}: {
+  content: ReactNode;
+  positionClass: string;
+  style?: CSSProperties;
+}) {
   return (
-    <div className="group/tip relative flex h-full flex-1 items-end justify-center">
-      {children}
-      <div className="pointer-events-none absolute bottom-full left-1/2 z-10 mb-1.5 w-max max-w-48 -translate-x-1/2 rounded-md bg-foreground px-2 py-1.5 text-[11px] text-background opacity-0 shadow-md transition-opacity group-hover/tip:opacity-100">
-        {content}
-      </div>
+    <div
+      style={style}
+      className={cn(
+        "pointer-events-none absolute z-10 w-max max-w-48 rounded-lg border border-border bg-card p-3 text-xs text-foreground shadow-lg",
+        positionClass,
+      )}
+    >
+      {content}
     </div>
   );
 }
 
 /**
- * Real reference tooltip (atari-client.vercel.app/dashboard) always lists
- * all 4 lines - Not started, Completed, Ongoing, Total - in that order, not
- * just a standalone "Not started" message when a KVK has zero entries.
- * Each line now carries the same colored dot as the legend above the chart
- * (Ongoing/Completed/Not started use the exact same ONGOING_COLOR/
- * COMPLETED_COLOR/muted tokens already established there) - the tooltip
- * was plain text with no color coding at all before, out of step with
- * every other status indicator in this component.
+ * Real reference tooltip (atari-client.vercel.app/dashboard) - a white card
+ * (not the dark/black box this used to be), listing all 4 lines - Not
+ * started, Completed, Ongoing, Total - in that order, not just a standalone
+ * "Not started" message when a KVK has zero entries. Each line carries the
+ * same colored dot as the legend above the chart (Ongoing/Completed/Not
+ * started use the exact same ONGOING_COLOR/COMPLETED_COLOR/muted tokens
+ * already established there).
  */
 function TooltipContent({ row, mode }: { row: ProgressChartRow; mode: "split" | "total" }) {
   const total = row.ongoing + row.completed;
   const notStarted = total === 0 ? 1 : 0;
   const line = (color: string | null, label: string, value: number) => (
-    <div key={label} className="flex items-center justify-between gap-3">
-      <span className="flex items-center gap-1.5">
+    <div key={label} className="flex items-center justify-between gap-4 py-0.5">
+      <span className="flex items-center gap-1.5 text-muted-foreground">
         <span
-          className={cn("size-1.5 rounded-full", !color && "bg-background/40")}
+          className={cn("size-2 rounded-full", !color && "bg-muted-foreground/40")}
           style={color ? { backgroundColor: color } : undefined}
         />
         {label}
       </span>
-      <span className="font-semibold">{value}</span>
+      <span className="font-semibold text-foreground">{value}</span>
     </div>
   );
   return (
-    <div className="space-y-0.5">
-      <p className="mb-1 border-b border-background/20 pb-1 text-center font-semibold">{row.label}</p>
+    <div>
+      <p className="mb-1.5 pb-1.5 border-b border-border text-sm font-semibold text-foreground">{row.label}</p>
       {line(null, "Not started", notStarted)}
       {mode === "total" ? (
         line(COMPLETED_COLOR, "Entries", row.completed)
@@ -92,9 +124,9 @@ function TooltipContent({ row, mode }: { row: ProgressChartRow; mode: "split" | 
         <>
           {line(COMPLETED_COLOR, "Completed", row.completed)}
           {line(ONGOING_COLOR, "Ongoing", row.ongoing)}
-          <div className="mt-1 flex items-center justify-between gap-3 border-t border-background/20 pt-1">
-            <span>Total</span>
-            <span className="font-semibold">{total}</span>
+          <div className="mt-1 flex items-center justify-between gap-4 border-t border-border pt-1.5">
+            <span className="text-muted-foreground">Total</span>
+            <span className="font-semibold text-foreground">{total}</span>
           </div>
         </>
       )}
@@ -120,9 +152,27 @@ export function ProgressChartCard({
   showAllLabel,
   detailedHref,
   footer,
+  filters,
 }: ProgressChartCardProps) {
   const [view, setView] = useState<ChartView>(defaultView);
   const [page, setPage] = useState(0);
+  /**
+   * The tooltip used to be permanently mounted for every row (shown/hidden
+   * purely via CSS `opacity` on `:hover`) - real bug (client report,
+   * 2026-08-30): even at `opacity-0`, an `absolute`-positioned element still
+   * counts toward its scrollable ancestor's own content height. In List
+   * view's "Show all" (`max-h-[32rem] overflow-y-auto`), every row's own
+   * always-present, always-invisible tooltip (rendered below the row via
+   * `top-full`, ~130-150px tall) inflated that scroll area well past where
+   * the visible rows actually ended, leaving a large empty gap before the
+   * footer. Mounting the tooltip only for the row actually being hovered
+   * (tracked here) means an unhovered row contributes nothing to layout at
+   * all, not just something invisible - the same fix applies to Bar view's
+   * tooltip for the same underlying reason, even though that one wasn't
+   * reported broken (its column doesn't scroll vertically, so it read fine
+   * despite the same layout cost being paid).
+   */
+  const [hoveredRowId, setHoveredRowId] = useState<string | null>(null);
   /** "Show all (N)" was a disabled, decorative button - real now: shows every row unpaginated (same as how Area view already behaves), toggled back off by switching view/page. */
   const [showAll, setShowAll] = useState(false);
   /**
@@ -139,13 +189,23 @@ export function ProgressChartCard({
    */
   const cardRef = useRef<HTMLDivElement>(null);
   const chartScrollRef = useRef<HTMLDivElement>(null);
-  const allShown = view === "area" || showAll;
 
-  const maxTotal = useMemo(
-    () => Math.max(1, ...rows.map((r) => r.ongoing + r.completed)),
-    [rows],
-  );
+  /**
+   * Axis ceiling gets real headroom above the tallest bar's own value
+   * (standard chart-domain padding, same idea every charting library
+   * defaults to) rather than exactly equalling it. Without this, a single
+   * KVK selection - or any filter that narrows down to one dominant row -
+   * always renders at exactly 100% height, since a lone value is trivially
+   * its own max; the bar looked oversized/maxed-out against the box edge no
+   * matter how small the real number was (client report 2026-08-30).
+   */
+  const maxTotal = useMemo(() => {
+    const rawMax = Math.max(1, ...rows.map((r) => r.ongoing + r.completed));
+    return Math.max(rawMax + 1, Math.ceil(rawMax * 1.2));
+  }, [rows]);
   const pageCount = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
+  /** A single page (e.g. one KVK selected) has nothing left for "Show all"/Prev/Next to do - same page 1 either way - so it's treated as always-shown, same as Area, instead of showing pagination controls with nothing to paginate (client report 2026-08-30). */
+  const allShown = view === "area" || showAll || pageCount <= 1;
   const currentPage = Math.min(page, pageCount - 1);
   const pageRows =
     allShown ? rows : rows.slice(currentPage * PAGE_SIZE, currentPage * PAGE_SIZE + PAGE_SIZE);
@@ -248,10 +308,22 @@ export function ProgressChartCard({
       </div>
       <p className="mt-0.5 text-xs text-muted-foreground">{description}</p>
 
+      {filters && <div className="mt-3 flex flex-wrap items-center gap-3">{filters}</div>}
+
       {(summary || showAllLabel) && (
         <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-border pt-3 text-xs text-muted-foreground">
           {summary && <span>{summary}</span>}
-          {showAllLabel && (
+          {/*
+            Area always plots every row already (`allShown = view === "area"
+            || showAll`) - the toggle button did nothing there (real bug,
+            client report 2026-08-30), so it's hidden entirely for this view
+            rather than sitting there clickable with no effect. Same
+            reasoning extends to a single-KVK (or any <= PAGE_SIZE) result:
+            with only one page of rows to begin with, "Show all" has nothing
+            further to reveal either (client report 2026-08-30, seen on a
+            single-KVK dashboard filter).
+          */}
+          {showAllLabel && view !== "area" && rows.length > PAGE_SIZE && (
             <button
               type="button"
               onClick={() => {
@@ -306,18 +378,27 @@ export function ProgressChartCard({
         ~12 columns this now scrolls horizontally instead, with a real
         minimum width per column, so "Show all" stays legible instead of
         just cramming everything in. Paginated views (<=10 rows) render
-        exactly as before, no scrollbar, no risk to the tooltip below.
-        `overflow-x-auto` clips vertical overflow too (setting overflow-x
-        alone forces the browser to treat overflow-y as auto per the CSS
-        spec) - that clipped the bar-hover tooltip, which pops up above the
-        chart via `bottom-full`. pt-20/-mt-20 gives it that room back inside
-        the scroll box without visually shifting the chart down.
+        exactly as before, no scrollbar.
+
+        No pt-20/-mt-20 trick here anymore - that existed only because the
+        old tooltip escaped above this box (`bottom-full` against the
+        full-height column) and needed reserved room inside the scroll box
+        so `overflow-x-auto` (which forces `overflow-y: auto` too, per the
+        CSS spec, whenever only overflow-x is set) wouldn't clip it. The
+        current tooltip (see the bar-view JSX below) is guaranteed to stay
+        inside its own column's bounds - `top-0` for tall bars, height-
+        tracking within the column for short ones - so nothing here ever
+        needs to escape vertically any more. Real bug fix (client report,
+        2026-08-30): keeping the now-pointless pt-20/-mt-20 around left
+        `overflow-y: auto` engaged for no reason, and it was intermittently
+        showing a real (if empty) vertical scrollbar next to the chart.
       */}
-      <div ref={chartScrollRef} className={needsScroll ? "overflow-x-auto pt-20 -mt-20" : undefined}>
+      <div ref={chartScrollRef} className={needsScroll ? "overflow-x-auto" : undefined}>
       <div
         className={cn(
-          "relative mt-4 pr-16 pl-6",
-          needsListScroll ? "max-h-72 overflow-y-auto" : "h-56",
+          "relative mt-4",
+          view === "list" ? "px-5" : "pr-16 pl-6",
+          needsListScroll ? "max-h-[32rem] overflow-y-auto" : "h-56",
         )}
         style={
           view === "bar" && pageRows.length > 12
@@ -327,13 +408,18 @@ export function ProgressChartCard({
               : undefined
         }
       >
-        <div className="absolute inset-y-0 right-0 left-6 flex flex-col justify-between">
-          {[0, 1, 2, 3].map((line) => (
-            <div key={line} className="w-full border-t border-dashed border-border" />
-          ))}
-        </div>
-        <span className="absolute bottom-0 left-0 text-[10px] text-muted-foreground/70">0</span>
-        <span className="absolute top-0 left-0 text-[10px] text-muted-foreground/70">{maxTotal}</span>
+        {/* The dashed gridlines and the 0/max value scale only mean anything against Bar/Area's own height-mapped bars - List has no such axis, so both were stray, unlabeled decoration bleeding into it before (real bug, client report 2026-08-30). */}
+        {view !== "list" && (
+          <>
+            <div className="absolute inset-y-0 right-0 left-6 flex flex-col justify-between">
+              {[0, 1, 2, 3].map((line) => (
+                <div key={line} className="w-full border-t border-dashed border-border" />
+              ))}
+            </div>
+            <span className="absolute bottom-0 left-0 text-[10px] text-muted-foreground/70">0</span>
+            <span className="absolute top-0 left-0 text-[10px] text-muted-foreground/70">{maxTotal}</span>
+          </>
+        )}
 
         {rows.length === 0 ? (
           <div className="flex h-full w-full items-center justify-center text-sm text-muted-foreground">
@@ -341,14 +427,81 @@ export function ProgressChartCard({
           </div>
         ) : view === "bar" ? (
           <div className="flex h-full items-end gap-2">
-            {pageRows.map((row) => {
+            {pageRows.map((row, index) => {
               const total = row.ongoing + row.completed;
+              const barHeightPercent = total === 0 ? 2 : (total / maxTotal) * 100;
+              /**
+               * Real bug (client screenshot, 2026-08-30): centering the
+               * tooltip under every column (`left-1/2 -translate-x-1/2`)
+               * pushed it half off the chart's own left edge for the very
+               * first bar (a 192px-wide tooltip centered under a ~42px-wide
+               * "Show all" column extends ~75px past that column's left
+               * edge, far more than the chart's own 24px of left padding) -
+               * "KVK Bhagalpur" rendered as "VK Bhagalpur" with its first
+               * letter cut off. The first/last column now anchor the
+               * tooltip to their own left/right edge instead of centering
+               * it, so it only ever extends toward the middle of the chart
+               * (where there's real room), never past either edge.
+               */
+              const horizontalAnchorClass =
+                index === 0
+                  ? "left-0"
+                  : index === pageRows.length - 1
+                    ? "right-0"
+                    : "left-1/2 -translate-x-1/2";
+              /**
+               * The chart box has very little real headroom above it (just
+               * the legend row - the description/title sit right above
+               * that, in normal document flow, which reserves nothing for
+               * an absolutely-positioned tooltip escaping upward). A bar
+               * anywhere near 100% height left its tooltip floating up past
+               * the chart entirely into the title/description text (real
+               * bug, client report 2026-08-30 - the new taller white-card
+               * tooltip made this far more visible than the old compact
+               * dark box did, but the underlying gap was already there).
+               *
+               * Not a heuristic cap - a hard guarantee: `top-0` positions
+               * the tooltip's own top edge exactly at the chart box's own
+               * top edge, which CSS cannot place any higher regardless of
+               * the tooltip's actual rendered height (unlike a `bottom`
+               * percentage, which keeps pushing the tooltip further up as
+               * its content grows taller). The switch point is a real
+               * measurement, not a guess: CHART_BOX_HEIGHT_PX matches this
+               * view's own `h-56` (14rem), and TOOLTIP_SAFE_HEIGHT_PX is
+               * this card's own TooltipContent measured in its tallest real
+               * shape (mode="split": name + 4 rows + padding, about 145px) -
+               * below that bar height, tracking the bar exactly (the
+               * original ask) still fits with room to spare; at or above
+               * it, `bottom` would push part of the tooltip above the box,
+               * so it pins to the box's own top instead.
+               */
+              const usesTopAnchor = barHeightPercent > SAFE_MAX_BAR_PERCENT_FOR_BOTTOM_ANCHOR;
               return (
-                <Tooltip key={row.id} content={<TooltipContent row={row} mode={mode} />}>
-                  {/* Real reference (atari-client.vercel.app/dashboard, FLD Progress bar chart): each bar is a slim column with visible gaps on both sides, not edge-to-edge with its neighbors - w-full here was filling the whole column, making every bar look far thicker than the reference. */}
+                <div
+                  key={row.id}
+                  className="relative flex h-full flex-1 items-end justify-center"
+                  onMouseEnter={() => setHoveredRowId(row.id)}
+                  onMouseLeave={() => setHoveredRowId((id) => (id === row.id ? null : id))}
+                >
+                  {/*
+                    `relative` stays on this full-width column (not the
+                    narrow bar inside it) so `horizontalAnchorClass` above
+                    has the full column to work with - anchoring it to the
+                    much narrower bar (w-1/3) instead let the tooltip's fixed
+                    max-w-48 overflow past the chart card's own edges near
+                    either end of a wide "Show all" row, which triggered a
+                    real horizontal scrollbar even though nothing was
+                    actually meant to scroll there (client report,
+                    2026-08-30). Vertical position still tracks each bar's
+                    own height individually via the inline `bottom` percentage
+                    below, rather than `bottom-full` (which would anchor to
+                    this full-height column and put every tooltip at the same
+                    height regardless of its own bar's size - the original
+                    bug this was built to fix).
+                  */}
                   <div
-                    className="flex w-3/5 flex-col justify-end overflow-hidden rounded-t-sm"
-                    style={{ height: `${total === 0 ? 2 : (total / maxTotal) * 100}%` }}
+                    className="flex w-1/3 flex-col justify-end overflow-hidden rounded-t-sm"
+                    style={{ height: `${barHeightPercent}%` }}
                   >
                     {total === 0 ? (
                       <div className="h-full w-full rounded-t-sm bg-muted-foreground/30" />
@@ -373,7 +526,14 @@ export function ProgressChartCard({
                       </>
                     )}
                   </div>
-                </Tooltip>
+                  {hoveredRowId === row.id && (
+                    <TooltipPopup
+                      content={<TooltipContent row={row} mode={mode} />}
+                      positionClass={cn(horizontalAnchorClass, usesTopAnchor && "top-0")}
+                      style={usesTopAnchor ? undefined : { bottom: `calc(${barHeightPercent}% + 0.375rem)` }}
+                    />
+                  )}
+                </div>
               );
             })}
           </div>
@@ -424,32 +584,32 @@ export function ProgressChartCard({
                       </span>
                     </span>
                   </div>
-                  <div className="group/tip relative h-1.5 w-full overflow-hidden rounded-full bg-muted-foreground/15">
-                    <div className="flex h-full w-full">
-                      {mode === "split" ? (
-                        <>
-                          {row.ongoing > 0 && (
-                            <div
-                              className="h-full"
-                              style={{
-                                backgroundColor: ONGOING_COLOR,
-                                width: `${total === 0 ? 0 : (row.ongoing / total) * 100}%`,
-                              }}
-                            />
-                          )}
-                          {row.completed > 0 && (
-                            <div
-                              className="h-full bg-primary"
-                              style={{ width: `${total === 0 ? 0 : (row.completed / total) * 100}%` }}
-                            />
-                          )}
-                        </>
-                      ) : (
-                        total > 0 && <div className="h-full w-full bg-primary" />
-                      )}
-                    </div>
-                    <div className="pointer-events-none absolute top-full left-0 z-10 mt-1 w-max max-w-48 rounded-md bg-foreground px-2 py-1.5 text-[11px] text-background opacity-0 shadow-md transition-opacity group-hover/tip:opacity-100">
-                      <TooltipContent row={row} mode={mode} />
+                  {/* No hover tooltip here (client direction, 2026-08-30) - every number it would show (Ongoing/Completed/Not started/Total) is already visible inline in the row above, so it was pure redundant duplication, not real information. */}
+                  <div className="h-1.5 w-full">
+                    <div className="h-full w-full overflow-hidden rounded-full bg-muted-foreground/15">
+                      <div className="flex h-full w-full">
+                        {mode === "split" ? (
+                          <>
+                            {row.ongoing > 0 && (
+                              <div
+                                className="h-full"
+                                style={{
+                                  backgroundColor: ONGOING_COLOR,
+                                  width: `${total === 0 ? 0 : (row.ongoing / total) * 100}%`,
+                                }}
+                              />
+                            )}
+                            {row.completed > 0 && (
+                              <div
+                                className="h-full bg-primary"
+                                style={{ width: `${total === 0 ? 0 : (row.completed / total) * 100}%` }}
+                              />
+                            )}
+                          </>
+                        ) : (
+                          total > 0 && <div className="h-full w-full bg-primary" />
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -534,7 +694,7 @@ export function ProgressChartCard({
             return labelRows.map((row) => (
               <div key={row.id} className="relative w-full overflow-visible">
                 <span
-                  className="absolute top-3 left-1/2 origin-top-left rotate-45 whitespace-nowrap text-[8px] text-muted-foreground"
+                  className="absolute top-3 left-1/2 origin-top-left rotate-45 whitespace-nowrap text-[10px] text-muted-foreground"
                   title={row.label}
                 >
                   {row.label}

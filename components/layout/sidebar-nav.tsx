@@ -35,7 +35,7 @@ export function NavTree({ items, basePath }: NavTreeProps) {
               className={cn(
                 "flex min-w-0 items-center rounded-md px-3 py-2 text-sm transition-colors",
                 isActive
-                  ? "bg-white font-medium text-sidebar-accent"
+                  ? "bg-sidebar-accent font-medium text-sidebar-accent-foreground"
                   : "text-white/80 hover:bg-black/10 hover:text-white",
               )}
             >

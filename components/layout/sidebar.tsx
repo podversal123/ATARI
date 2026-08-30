@@ -97,7 +97,7 @@ export function Sidebar() {
         )}
       >
         {!collapsed && (
-          <p className="truncate text-sm font-bold">ATARI Zone IV</p>
+          <p className="truncate text-lg font-bold">ATARI Zone IV</p>
         )}
         <button
           type="button"
@@ -169,6 +169,7 @@ export function Sidebar() {
                         prev === section.slug ? null : section.slug,
                       )
                     }
+                    isActive={pathname === `/${section.slug}` || pathname.startsWith(`/${section.slug}/`)}
                   >
                     <NavTree
                       items={section.children}

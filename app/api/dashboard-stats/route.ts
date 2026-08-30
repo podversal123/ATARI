@@ -117,6 +117,36 @@ export async function GET(request: Request) {
 
   const baseScope = kvkWhere;
   const scope = reportingYearFilter !== undefined ? { ...baseScope, reportingYear: reportingYearFilter } : baseScope;
+
+  /**
+   * Real per-card filters on the Dashboard's own Training Progress /
+   * Extension Activities Progress charts (client request, 2026-08-30) -
+   * `training-clientele` and Training's own real `onCampusOffCampus` field
+   * (Venue) for Training; the real `extension-activity` master's
+   * `natureOfExtensionActivity` for Extension. Comma-separated multi-selects,
+   * same "empty = no filter" contract as year/kvk/state/district/institute
+   * above. Deliberately narrower than `scope`: they only ever apply to the
+   * one model each is named after, never touching OFT/FLD/Staff, and the
+   * Extension filter only narrows the real `ExtensionActivity` rows - the
+   * separate `OtherExtensionActivity` model has no `natureOfExtensionActivity`
+   * sourced from the same master, so it's intentionally left unfiltered by
+   * this control rather than guessing an equivalent.
+   */
+  const trainingClienteleValues = (url.searchParams.get("trainingClientele") ?? "")
+    .split(",").map((v) => v.trim()).filter(Boolean);
+  const trainingVenueValues = (url.searchParams.get("trainingVenue") ?? "")
+    .split(",").map((v) => v.trim()).filter(Boolean);
+  const extensionNatureValues = (url.searchParams.get("extensionNature") ?? "")
+    .split(",").map((v) => v.trim()).filter(Boolean);
+  const trainingScope = {
+    ...scope,
+    ...(trainingClienteleValues.length > 0 ? { clientele: { in: trainingClienteleValues } } : {}),
+    ...(trainingVenueValues.length > 0 ? { onCampusOffCampus: { in: trainingVenueValues } } : {}),
+  };
+  const extensionScope = {
+    ...scope,
+    ...(extensionNatureValues.length > 0 ? { natureOfExtensionActivity: { in: extensionNatureValues } } : {}),
+  };
   /** FldDemonstrationDetail carries its own `zoneId` directly but no `kvkId`/`stateId`/`districtId`/`instituteId` of its own - only reachable through the parent `fld` relation. Zone-only case keeps the original flat-`zoneId` fast path; any KVK-level filter (KVK/State/District/Institute) routes through `fld` instead. */
   const fldDemoScope = kvkId || filterKvkIdFilter !== undefined || hasLocationFilter
     ? {
@@ -199,8 +229,8 @@ export async function GET(request: Request) {
     scopeParam ? Promise.resolve(0) : prisma.kvk.count({ where: { zoneId: auth.session.zoneId } }),
     needs("oft") ? prisma.oft.groupBy({ by: ["kvkId", "status"], where: scope, _count: { _all: true } }) : Promise.resolve([]),
     needs("fld") ? prisma.fld.groupBy({ by: ["kvkId", "status"], where: scope, _count: { _all: true } }) : Promise.resolve([]),
-    needs("training") ? prisma.training.groupBy({ by: ["kvkId"], where: scope, _count: { _all: true } }) : Promise.resolve([]),
-    needs("extension") ? prisma.extensionActivity.groupBy({ by: ["kvkId"], where: scope, _count: { _all: true } }) : Promise.resolve([]),
+    needs("training") ? prisma.training.groupBy({ by: ["kvkId"], where: trainingScope, _count: { _all: true } }) : Promise.resolve([]),
+    needs("extension") ? prisma.extensionActivity.groupBy({ by: ["kvkId"], where: extensionScope, _count: { _all: true } }) : Promise.resolve([]),
     needs("extension") ? prisma.otherExtensionActivity.groupBy({ by: ["kvkId"], where: scope, _count: { _all: true } }) : Promise.resolve([]),
     scopeParam
       ? Promise.resolve([])
@@ -262,7 +292,7 @@ export async function GET(request: Request) {
     prisma.fld.findMany({ where: { zoneId: auth.session.zoneId }, select: { reportingYear: true }, distinct: ["reportingYear"] }),
     prisma.training.findMany({ where: { zoneId: auth.session.zoneId }, select: { reportingYear: true }, distinct: ["reportingYear"] }),
     prisma.extensionActivity.findMany({ where: { zoneId: auth.session.zoneId }, select: { reportingYear: true }, distinct: ["reportingYear"] }),
-    /** Real Zone/State/District/Institute option lists for the analytics detail pages' filter bar - all scoped to the Super Admin's own zone (a session only ever belongs to one zone). Institute has no relation to Kvk anywhere in the schema, so its list is real but can't filter/group KVK-derived data (see the `groupBy` comment above). */
+    /** Real Zone/State/District/Institute option lists for the analytics detail pages' filter bar - all scoped to the Super Admin's own zone (a session only ever belongs to one zone). Institute filters/groups real KVK-derived data via `Kvk.instituteId` (see `filterInstituteIdFilter` above). */
     prisma.zone.findUnique({ where: { id: auth.session.zoneId }, select: { name: true } }),
     prisma.state.findMany({ where: { zoneId: auth.session.zoneId }, select: { name: true }, orderBy: { name: "asc" } }),
     prisma.district.findMany({ where: { zoneId: auth.session.zoneId }, select: { name: true }, orderBy: { name: "asc" } }),
