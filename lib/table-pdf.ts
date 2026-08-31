@@ -8,7 +8,14 @@ import type { MasterColumn } from "./navigation";
  * screen - no backend yet, so there is nothing to fetch a server-rendered
  * report from, but the "PDF" button itself should be a real, clickable
  * download rather than a decorative one (client request, 2026-08-24).
- * Opens in a new tab so it behaves like clicking any other PDF link.
+ *
+ * Downloads directly via `doc.save(...)` with an explicit `${title}.pdf`
+ * filename (changed 2026-08-31, real bug) - the earlier `window.open` +
+ * blob-URL approach left the saved file's name up to the browser's own
+ * guess (its PDF viewer's Download button doesn't reliably read the PDF's
+ * /Title metadata for that), so the file the user actually got often
+ * wasn't named after the table at all. `doc.save` is the same, already-
+ * working pattern the Reports PDF and the Excel/Word exports below use.
  */
 const BORDER_GRAY: [number, number, number] = [190, 190, 190];
 
@@ -58,6 +65,5 @@ export function downloadTablePdf(
     didDrawPage: () => drawPageBorder(doc),
   });
 
-  const blobUrl = doc.output("bloburl");
-  window.open(blobUrl, "_blank");
+  doc.save(`${title}.pdf`);
 }
