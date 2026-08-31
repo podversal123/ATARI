@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { SimpleSelect } from "@/components/ui/simple-select";
 import { cn } from "@/lib/utils";
 import { SelectCategoryDropdown } from "./select-category-dropdown";
 import {
@@ -176,17 +176,12 @@ export function KvkModuleImagesView() {
             <label className="text-xs font-medium text-muted-foreground">
               Reporting Year
             </label>
-            <select
+            <SimpleSelect
               value={reportingYear}
-              onChange={(e) => setReportingYear(e.target.value)}
-              className="mt-1 h-9 w-full rounded-md border border-border bg-card px-2.5 text-sm text-foreground outline-none focus-visible:border-ring"
-            >
-              {MODULE_IMAGE_REPORTING_YEARS.map((year) => (
-                <option key={year} value={year}>
-                  {year}
-                </option>
-              ))}
-            </select>
+              onValueChange={setReportingYear}
+              options={MODULE_IMAGE_REPORTING_YEARS.map((year) => ({ value: year, label: year }))}
+              className="mt-1"
+            />
           </div>
           <div>
             <label className="text-xs font-medium text-muted-foreground">
@@ -203,22 +198,17 @@ export function KvkModuleImagesView() {
             <label className="text-xs font-medium text-muted-foreground">
               Publish Status
             </label>
-            <select
+            <SimpleSelect
               value={publishFilter}
-              onChange={(e) =>
-                setPublishFilter(e.target.value as PublishFilter)
-              }
-              className="mt-1 h-9 w-full rounded-md border border-border bg-card px-2.5 text-sm text-foreground outline-none focus-visible:border-ring"
-            >
-              {PUBLISH_FILTER_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
+              onValueChange={(v) => setPublishFilter(v as PublishFilter)}
+              options={PUBLISH_FILTER_OPTIONS}
+              className="mt-1"
+            />
           </div>
           <div>
-            <Label className="text-xs text-muted-foreground">From Date</Label>
+            <label className="text-xs font-medium text-muted-foreground">
+              From Date
+            </label>
             <Input
               type="date"
               value={fromDate}
@@ -227,7 +217,9 @@ export function KvkModuleImagesView() {
             />
           </div>
           <div>
-            <Label className="text-xs text-muted-foreground">To Date</Label>
+            <label className="text-xs font-medium text-muted-foreground">
+              To Date
+            </label>
             <Input
               type="date"
               value={toDate}

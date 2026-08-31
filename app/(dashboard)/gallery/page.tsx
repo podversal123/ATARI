@@ -9,13 +9,13 @@ import {
   Images,
   LayoutGrid,
   List,
-  Search,
   Upload,
   X,
 } from "lucide-react";
 import { PageHeader } from "@/components/layout/page-header";
-import { Input } from "@/components/ui/input";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { SimpleSelect } from "@/components/ui/simple-select";
+import { SelectKvksMultiDropdown } from "@/components/module-images/select-kvks-multi-dropdown";
 import { cn } from "@/lib/utils";
 import { GALLERY_MODULES, type GalleryLeaf } from "@/lib/gallery-modules";
 import { MODULE_IMAGE_REPORTING_YEARS, type ModuleImageRecord } from "@/lib/module-images";
@@ -23,11 +23,13 @@ import { MODULE_IMAGE_REPORTING_YEARS, type ModuleImageRecord } from "@/lib/modu
 type ViewMode = "grid" | "list";
 
 /**
- * Real structure confirmed from a the reference of /gallery:
- * search + year filter, grid/list toggle, an active-filter chip row, a left
- * "MODULES" panel (expandable groups, each with a photo count) driving
+ * KVK filter + year filter, grid/list toggle, an active-filter chip row, a
+ * left "MODULES" panel (expandable groups, each with a photo count) driving
  * which module/form the grid is filtered to, and an empty state offering to
- * clear filters. Real backend wired 2026-08-28 - reads every *published*
+ * clear filters. The KVK filter replaced the original free-text search box
+ * (client direction, 2026-08-31 - matches Module Images' own "Select KVKs"
+ * picker instead of a caption/KVK/module text search). Real backend wired
+ * 2026-08-28 - reads every *published*
  * photo across the zone from the same ModuleImage table Module Images
  * writes to (GET /api/module-images?published=true); a photo only shows up
  * here once its own KVK (or Super Admin) has chosen to publish it. Upload
@@ -48,7 +50,7 @@ export default function GalleryPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  const [search, setSearch] = useState("");
+  const [selectedKvks, setSelectedKvks] = useState<Set<string>>(new Set());
   const [year, setYear] = useState("All");
   const [view, setView] = useState<ViewMode>("grid");
   /** Accordion, same as the main Sidebar's own top-level groups (client request, 2026-08-24): opening one module auto-closes whichever other one was open, rather than letting several stay expanded at once. */
@@ -63,28 +65,18 @@ export default function GalleryPage() {
 
   function clearAll() {
     setActiveLeaf(null);
-    setSearch("");
+    setSelectedKvks(new Set());
     setYear("All");
   }
 
   const filteredRows = useMemo(() => {
-    const query = search.trim().toLowerCase();
     return rows.filter((row) => {
       if (activeLeaf && row.categoryPath !== activeLeaf.path) return false;
       if (year !== "All" && row.reportingYear !== year) return false;
-      if (
-        query &&
-        !(
-          row.caption.toLowerCase().includes(query) ||
-          row.kvk.toLowerCase().includes(query) ||
-          row.categoryLabel.toLowerCase().includes(query)
-        )
-      ) {
-        return false;
-      }
+      if (selectedKvks.size > 0 && !selectedKvks.has(row.kvk)) return false;
       return true;
     });
-  }, [rows, activeLeaf, year, search]);
+  }, [rows, activeLeaf, year, selectedKvks]);
 
   const countForLeaf = (path: string) =>
     rows.filter((r) => r.categoryPath === path && (year === "All" || r.reportingYear === year)).length;
@@ -100,27 +92,18 @@ export default function GalleryPage() {
       <PageHeader trail={[{ label: "Gallery" }]} title="Gallery" icon={Images} />
 
       <div className="mb-3 flex flex-wrap items-center gap-2">
-        <div className="relative flex-1 min-w-56">
-          <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search captions, KVK, module..."
-            className="pl-8"
-          />
+        <div className="w-64">
+          <SelectKvksMultiDropdown selected={selectedKvks} onChange={setSelectedKvks} />
         </div>
-        <select
+        <SimpleSelect
           value={year}
-          onChange={(e) => setYear(e.target.value)}
-          className="h-8 rounded-md border border-border bg-card px-2.5 text-sm text-foreground outline-none focus-visible:border-ring"
-        >
-          <option>All</option>
-          {MODULE_IMAGE_REPORTING_YEARS.map((y) => (
-            <option key={y} value={y}>
-              {y}
-            </option>
-          ))}
-        </select>
+          onValueChange={setYear}
+          options={[
+            { value: "All", label: "All" },
+            ...MODULE_IMAGE_REPORTING_YEARS.map((y) => ({ value: y, label: y })),
+          ]}
+          className="h-8 w-28"
+        />
         <div className="ml-auto flex items-center gap-1 rounded-md border border-border bg-muted/50 p-0.5">
           <button
             type="button"

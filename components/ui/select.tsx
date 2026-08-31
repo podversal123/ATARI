@@ -61,7 +61,13 @@ function SelectContent({
   sideOffset = 4,
   align = "center",
   alignOffset = 0,
-  alignItemWithTrigger = true,
+  // Real bug, 2026-08-31: with this at its base-ui default (true) a select
+  // with only one option - or one already selected - aligned its popup
+  // exactly over the trigger, so it visually replaced/overlapped the
+  // trigger instead of opening as a normal list below it. `false` makes
+  // every Select open the same predictable way: a plain list under the
+  // trigger, matching `side="bottom"` above.
+  alignItemWithTrigger = false,
   ...props
 }: SelectPrimitive.Popup.Props &
   Pick<

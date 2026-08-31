@@ -1,5 +1,6 @@
 import { RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { SimpleSelect } from "@/components/ui/simple-select";
 import { MultiFilterSelect } from "@/components/dashboard/multi-filter-select";
 
 export type AnalyticsFilters = {
@@ -147,40 +148,42 @@ export function AnalyticsFilterBar({
         </div>
         <div>
           <label className="text-[11px] font-semibold tracking-wide text-primary uppercase">Group By</label>
-          <select
+          <SimpleSelect
             value={filters.groupBy}
-            onChange={(e) => set("groupBy", e.target.value)}
-            className="mt-1 h-8 w-full rounded-md border border-border bg-card px-2 text-sm text-foreground outline-none focus-visible:border-ring"
-          >
-            <option value="">Select</option>
-            <option value="zone">Zone</option>
-            <option value="state">State</option>
-            <option value="district">District</option>
-            <option value="institute">Institute</option>
-            <option value="kvk">KVK</option>
-          </select>
+            onValueChange={(v) => set("groupBy", v)}
+            placeholder="Select"
+            options={[
+              { value: "zone", label: "Zone" },
+              { value: "state", label: "State" },
+              { value: "district", label: "District" },
+              { value: "institute", label: "Institute" },
+              { value: "kvk", label: "KVK" },
+            ]}
+            className="mt-1 h-8"
+          />
         </div>
         <div>
           <label className="text-[11px] font-semibold tracking-wide text-primary uppercase">Breakdown</label>
           {hasStatus ? (
-            <select
+            <SimpleSelect
               value={filters.breakdown}
-              onChange={(e) => set("breakdown", e.target.value)}
-              className="mt-1 h-8 w-full rounded-md border border-border bg-card px-2 text-sm text-foreground outline-none focus-visible:border-ring"
-            >
-              <option value="">Status (All)</option>
-              <option value="ongoing">Ongoing</option>
-              <option value="completed">Completed</option>
-              <option value="notStarted">Not Started</option>
-            </select>
+              onValueChange={(v) => set("breakdown", v)}
+              placeholder="Status (All)"
+              options={[
+                { value: "ongoing", label: "Ongoing" },
+                { value: "completed", label: "Completed" },
+                { value: "notStarted", label: "Not Started" },
+              ]}
+              className="mt-1 h-8"
+            />
           ) : (
-            <select
+            <SimpleSelect
               disabled
               value="Status"
-              className="mt-1 h-8 w-full rounded-md border border-border bg-card px-2 text-sm text-foreground outline-none disabled:opacity-70"
-            >
-              <option>Status</option>
-            </select>
+              onValueChange={() => {}}
+              options={[{ value: "Status", label: "Status" }]}
+              className="mt-1 h-8 disabled:opacity-70"
+            />
           )}
         </div>
       </div>

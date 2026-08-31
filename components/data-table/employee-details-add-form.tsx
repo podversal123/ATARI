@@ -6,6 +6,7 @@ import { Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { SimpleSelect } from "@/components/ui/simple-select";
 import { PageHeader, type Crumb } from "@/components/layout/page-header";
 
 type EmployeeDetailsAddFormProps = {
@@ -101,19 +102,14 @@ export function EmployeeDetailsAddForm({
             <Label htmlFor="sanctioned-post">
               Sanctioned Post <span className="text-destructive">*</span>
             </Label>
-            <select
+            <SimpleSelect
               id="sanctioned-post"
               value={sanctionedPost}
-              onChange={(e) => setSanctionedPost(e.target.value)}
-              className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none hover:border-ring/60 focus-visible:border-ring"
-            >
-              <option value="">Please Select</option>
-              {SANCTIONED_POSTS.map((post) => (
-                <option key={post} value={post}>
-                  {post}
-                </option>
-              ))}
-            </select>
+              onValueChange={setSanctionedPost}
+              placeholder="Please Select"
+              options={SANCTIONED_POSTS.map((post) => ({ value: post, label: post }))}
+              className="h-8"
+            />
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="staff-name">
@@ -201,19 +197,14 @@ export function EmployeeDetailsAddForm({
 
           <div className="space-y-1.5">
             <Label htmlFor="staff-job-type">Permanent/Temporary</Label>
-            <select
+            <SimpleSelect
               id="staff-job-type"
               value={jobType}
-              onChange={(e) => setJobType(e.target.value)}
-              className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none hover:border-ring/60 focus-visible:border-ring"
-            >
-              <option value="">Please Select</option>
-              {JOB_TYPES.map((type) => (
-                <option key={type} value={type}>
-                  {type}
-                </option>
-              ))}
-            </select>
+              onValueChange={setJobType}
+              placeholder="Please Select"
+              options={JOB_TYPES.map((type) => ({ value: type, label: type }))}
+              className="h-8"
+            />
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="staff-allowances">Details of allowances</Label>
@@ -227,19 +218,14 @@ export function EmployeeDetailsAddForm({
             <Label htmlFor="staff-caste">
               Caste Category <span className="text-destructive">*</span>
             </Label>
-            <select
+            <SimpleSelect
               id="staff-caste"
               value={casteCategory}
-              onChange={(e) => setCasteCategory(e.target.value)}
-              className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none hover:border-ring/60 focus-visible:border-ring"
-            >
-              <option value="">Please Select</option>
-              {CASTE_CATEGORIES.map((category) => (
-                <option key={category} value={category}>
-                  {category}
-                </option>
-              ))}
-            </select>
+              onValueChange={setCasteCategory}
+              placeholder="Please Select"
+              options={CASTE_CATEGORIES.map((category) => ({ value: category, label: category }))}
+              className="h-8"
+            />
           </div>
 
           <div className="space-y-1.5">

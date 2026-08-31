@@ -6,6 +6,7 @@ import { Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { SimpleSelect } from "@/components/ui/simple-select";
 import { Textarea } from "@/components/ui/textarea";
 import { PageHeader, type Crumb } from "@/components/layout/page-header";
 import {
@@ -133,19 +134,14 @@ export function OftAddForm({ trail, backHref }: OftAddFormProps) {
         <Label htmlFor={id}>
           {label} {required && <span className="text-destructive">*</span>}
         </Label>
-        <select
+        <SimpleSelect
           id={id}
           value={value}
-          onChange={(e) => onChange(e.target.value)}
-          className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none hover:border-ring/60 focus-visible:border-ring"
-        >
-          <option value="">Please Select</option>
-          {options.map((option) => (
-            <option key={option} value={option}>
-              {option}
-            </option>
-          ))}
-        </select>
+          onValueChange={onChange}
+          placeholder="Please Select"
+          options={options.map((option) => ({ value: option, label: option }))}
+          className="h-8"
+        />
       </div>
     );
   }

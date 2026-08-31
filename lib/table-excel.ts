@@ -18,6 +18,7 @@ export async function generateTableExcel(
   const wb = new ExcelJSModule.Workbook();
   wb.creator = "ATARI AMS";
   wb.created = new Date();
+  wb.title = title;
 
   const sheet = wb.addWorksheet(title.replace(/[:\\/?*[\]]/g, "-").slice(0, 31) || "Sheet1");
   sheet.getCell("A1").value = title;

@@ -1116,6 +1116,33 @@ const achievements = group("achievements", "Achievements", [
       { key: "farmersDetails", label: "Farmers", fieldKind: "demographic-breakdown", demographicPrefix: "farmers", formOnly: true },
       { key: "extensionOfficials", label: "Extension Officials", fieldKind: "demographic-breakdown", demographicPrefix: "officials", formOnly: true },
     ]),
+    /**
+     * Moved back in here from the separate "Soil and Water Testing" group
+     * (client reference screenshot, 2026-08-31: the real Special Days tab
+     * bar shows 4 tabs - Technology week celebration, Celebration of
+     * important days, Details of World Soil Day Celebration, Poshan Maaha,
+     * in that order) - label matches that tab text exactly, not the
+     * shorter "World Soil Day" it used to carry.
+     */
+    leaf("world-soil-day", "Details of World Soil Day Celebration", [
+      { key: "kvk", label: "KVK Name" },
+      /** Real field confirmed live 2026-08-15 - was entirely missing before this. */
+      { key: "reportingYear", label: "Reporting Year" },
+      {
+        key: "noOfActivitiesConducted",
+        label: "No. of Activity Conducted",
+      },
+      {
+        key: "soilHealthCardsDistributed",
+        label: "Soil Health Cards Distributed",
+      },
+      { key: "noOfVip", label: "No of VIP" },
+      { key: "vipNames", label: "Name(s) of VIP(s) Involved if Any" },
+      {
+        key: "totalParticipants",
+        label: "Total No. of Participants Attended the Programme",
+      },
+    ]),
     /** Real columns confirmed live, extended 2026-08-24 with the participant breakdown from the client's own Poshan Maah reporting sheet. */
     leaf("poshan-maaha", "Poshan Maaha", [
       { key: "kvk", label: "KVK" },
@@ -1219,15 +1246,15 @@ const achievements = group("achievements", "Achievements", [
     "Production & Supply of Technological Products",
   ),
   /**
-   * Real group + structure confirmed live against atariams.org (2026-08-24,
-   * client pointers #12 and #15): "Soil and Water Testing" is its own
-   * section with 3 leaves - a soil-testing-equipment inventory (new, not
-   * previously modeled), the Soil/Water/Plant analysis table (now with the
-   * Start/End Date columns the earlier pass missed), and World Soil Day
-   * Celebration. World Soil Day genuinely lives here in the real app, not
-   * nested under Technology Week Celebration as the client's own pointer
-   * text suggested - moved out of the `special-days` group above to match
-   * what's actually live.
+   * "Soil and Water Testing" is its own section confirmed live against
+   * atariams.org (2026-08-24, client pointers #12 and #15) with 2 leaves -
+   * a soil-testing-equipment inventory and the Soil/Water/Plant analysis
+   * table. World Soil Day Celebration used to be modeled here too, but a
+   * fresh reference screenshot (2026-08-31) shows the real Special Days tab
+   * bar itself carries 4 tabs including it - moved back into the
+   * `special-days` group below (see the comment there) as the earlier
+   * "moved out to match what's actually live" conclusion no longer holds
+   * against this newer evidence.
    */
   group("soil-water", "Soil and Water Testing", [
     leaf("soil-testing-equipment", "Equipment Details", [
@@ -1250,44 +1277,22 @@ const achievements = group("achievements", "Achievements", [
       ],
       "Detail of Soil, Water and Plant Analysis",
     ),
-    leaf(
-      "world-soil-day",
-      "World Soil Day",
-      [
-        { key: "kvk", label: "KVK Name" },
-        /** Real field confirmed live 2026-08-15 - was entirely missing before this. */
-        { key: "reportingYear", label: "Reporting Year" },
-        {
-          key: "noOfActivitiesConducted",
-          label: "No. of Activity Conducted",
-        },
-        {
-          key: "soilHealthCardsDistributed",
-          label: "Soil Health Cards Distributed",
-        },
-        { key: "noOfVip", label: "No of VIP" },
-        { key: "vipNames", label: "Name(s) of VIP(s) Involved if Any" },
-        {
-          key: "totalParticipants",
-          label: "Total No. of Participants Attended the Programme",
-        },
-      ],
-      "Details of World Soil Day Celebration",
-    ),
   ]),
-  /** Re-confirmed live against atariams.org (2026-08-25): real page H1 is "Publication List", and the real table has only 5 named columns - Author Type/Naas Rating/ISBN Number were never real, removed. Publication Item and Year are filters there, not columns. */
-  leaf(
-    "publications",
-    "Publication List",
-    [
-      { key: "kvk", label: "KVK Name" },
-      { key: "itemName", label: "Item Name" },
-      { key: "title", label: "Title" },
-      { key: "authorName", label: "Author Name" },
-      { key: "journalName", label: "Journal Name" },
-    ],
-    "KVKs Publication Details",
-  ),
+  /**
+   * Real table has only 5 named columns - Author Type/Naas Rating/ISBN
+   * Number were never real, removed. Publication Item and Year are filters
+   * there, not columns. Heading changed to "KVKs Publication Details"
+   * (client direction, 2026-08-31) - overrides the earlier "Publication
+   * List" H1 reading, which only ever matched the landing-page card label,
+   * not the leaf's own list-page heading.
+   */
+  leaf("publications", "KVKs Publication Details", [
+    { key: "kvk", label: "KVK Name" },
+    { key: "itemName", label: "Item Name" },
+    { key: "title", label: "Title" },
+    { key: "authorName", label: "Author Name" },
+    { key: "journalName", label: "Journal Name" },
+  ]),
   /** 6 real columns confirmed 2026-08-22. Real H1 is hyphenated and singular; the landing card uses the longer plural form. */
   leaf(
     "hrd",

@@ -6,6 +6,7 @@ import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { EmptyDataTable } from "@/components/data-table/empty-data-table";
+import { SimpleSelect } from "@/components/ui/simple-select";
 import { useSession } from "@/lib/session";
 import { KVKS } from "@/lib/rbac";
 
@@ -109,7 +110,16 @@ export default function TargetsPage() {
 
   return (
     <div>
-      <PageHeader trail={[{ label: "Targets" }]} />
+      <PageHeader
+        trail={[{ label: "Targets" }]}
+        title="Targets"
+        icon={TargetIcon}
+        description={
+          isKvk
+            ? `Targets assigned to ${session.kvkName ?? "your KVK"} and your progress against them`
+            : "Targets assigned across all KVKs, tracked against what each KVK reports"
+        }
+      />
 
       <div className="mb-4 rounded-lg border border-border bg-card p-4">
         <p className="mb-3 text-xs font-semibold tracking-wide text-primary uppercase">
@@ -122,51 +132,36 @@ export default function TargetsPage() {
             <label className="text-xs font-medium text-muted-foreground">
               Reporting Year
             </label>
-            <select
+            <SimpleSelect
               value={reportingYear}
-              onChange={(e) => setReportingYear(e.target.value)}
-              className="mt-1 h-9 w-full rounded-md border border-border bg-card px-2.5 text-sm text-foreground outline-none focus-visible:border-ring"
-            >
-              {years.map((year) => (
-                <option key={year} value={year}>
-                  {year}
-                </option>
-              ))}
-            </select>
+              onValueChange={setReportingYear}
+              options={years.map((year) => ({ value: year, label: year }))}
+              className="mt-1"
+            />
           </div>
           {!isKvk && (
             <div>
               <label className="text-xs font-medium text-muted-foreground">
                 KVK
               </label>
-              <select
+              <SimpleSelect
                 value={kvk}
-                onChange={(e) => setKvk(e.target.value)}
-                className="mt-1 h-9 w-full rounded-md border border-border bg-card px-2.5 text-sm text-foreground outline-none focus-visible:border-ring"
-              >
-                {KVKS.map((k) => (
-                  <option key={k.name} value={k.name}>
-                    {k.name}
-                  </option>
-                ))}
-              </select>
+                onValueChange={setKvk}
+                options={KVKS.map((k) => ({ value: k.name, label: k.name }))}
+                className="mt-1"
+              />
             </div>
           )}
           <div>
             <label className="text-xs font-medium text-muted-foreground">
               Category
             </label>
-            <select
+            <SimpleSelect
               value={category}
-              onChange={(e) => setCategory(e.target.value)}
-              className="mt-1 h-9 w-full rounded-md border border-border bg-card px-2.5 text-sm text-foreground outline-none focus-visible:border-ring"
-            >
-              {CATEGORIES.map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
-              ))}
-            </select>
+              onValueChange={setCategory}
+              options={CATEGORIES.map((c) => ({ value: c, label: c }))}
+              className="mt-1"
+            />
           </div>
           <div>
             <label className="text-xs font-medium text-muted-foreground">

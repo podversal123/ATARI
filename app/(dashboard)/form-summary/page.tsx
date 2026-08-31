@@ -133,6 +133,7 @@ export default function FormSummaryPage() {
         </div>
         <FilterSelect
           label="Reporting year"
+          value={String(new Date().getFullYear())}
           options={[String(new Date().getFullYear())]}
         />
       </div>

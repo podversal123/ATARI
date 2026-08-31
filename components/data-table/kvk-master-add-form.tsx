@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { SimpleSelect } from "@/components/ui/simple-select";
 import { PageHeader, type Crumb } from "@/components/layout/page-header";
 import {
   ZONE_MASTER_ROWS,
@@ -146,19 +147,14 @@ export function KvkMasterAddForm({ trail, backHref, title = "Create KVK" }: KvkM
               <Label htmlFor="kvk-sanction-year">
                 Year of Sanction <span className="text-destructive">*</span>
               </Label>
-              <select
+              <SimpleSelect
                 id="kvk-sanction-year"
                 value={sanctionYear}
-                onChange={(e) => setSanctionYear(e.target.value)}
-                className="h-10 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none hover:border-ring/60 focus-visible:border-ring"
-              >
-                <option value="">Select year</option>
-                {SANCTION_YEARS.map((year) => (
-                  <option key={year} value={year}>
-                    {year}
-                  </option>
-                ))}
-              </select>
+                onValueChange={setSanctionYear}
+                placeholder="Select year"
+                options={SANCTION_YEARS.map((year) => ({ value: year, label: year }))}
+                className="h-10"
+              />
             </div>
           </div>
 
@@ -218,61 +214,46 @@ export function KvkMasterAddForm({ trail, backHref, title = "Create KVK" }: KvkM
               <Label htmlFor="kvk-zone">
                 Zone <span className="text-destructive">*</span>
               </Label>
-              <select
+              <SimpleSelect
                 id="kvk-zone"
                 value={zone}
-                onChange={(e) => setZone(e.target.value)}
-                className="h-10 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none hover:border-ring/60 focus-visible:border-ring"
-              >
-                <option value="">Select</option>
-                {ZONE_MASTER_ROWS.map((row) => (
-                  <option key={row.zoneName} value={row.zoneName}>
-                    {row.zoneName}
-                  </option>
-                ))}
-              </select>
+                onValueChange={setZone}
+                placeholder="Select"
+                options={ZONE_MASTER_ROWS.map((row) => ({ value: row.zoneName, label: row.zoneName }))}
+                className="h-10"
+              />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="kvk-state">
                 State <span className="text-destructive">*</span>
               </Label>
-              <select
+              <SimpleSelect
                 id="kvk-state"
                 value={state}
                 disabled={!zone}
-                onChange={(e) => {
-                  setState(e.target.value);
+                onValueChange={(v) => {
+                  setState(v);
                   setDistrict("");
                   setHost("");
                 }}
-                className="h-10 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none hover:border-ring/60 focus-visible:border-ring disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-input"
-              >
-                <option value="">Select State</option>
-                {STATES.map((s) => (
-                  <option key={s} value={s}>
-                    {s}
-                  </option>
-                ))}
-              </select>
+                placeholder="Select State"
+                options={STATES.map((s) => ({ value: s, label: s }))}
+                className="h-10"
+              />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="kvk-district">
                 District <span className="text-destructive">*</span>
               </Label>
-              <select
+              <SimpleSelect
                 id="kvk-district"
                 value={district}
                 disabled={!state}
-                onChange={(e) => setDistrict(e.target.value)}
-                className="h-10 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none hover:border-ring/60 focus-visible:border-ring disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-input"
-              >
-                <option value="">Select District</option>
-                {districtOptions.map((d) => (
-                  <option key={d} value={d}>
-                    {d}
-                  </option>
-                ))}
-              </select>
+                onValueChange={setDistrict}
+                placeholder="Select District"
+                options={districtOptions.map((d) => ({ value: d, label: d }))}
+                className="h-10"
+              />
             </div>
           </div>
 
@@ -281,38 +262,28 @@ export function KvkMasterAddForm({ trail, backHref, title = "Create KVK" }: KvkM
               <Label htmlFor="kvk-institute">
                 Institute <span className="text-destructive">*</span>
               </Label>
-              <select
+              <SimpleSelect
                 id="kvk-institute"
                 value={institute}
-                onChange={(e) => setInstitute(e.target.value)}
-                className="h-10 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none hover:border-ring/60 focus-visible:border-ring"
-              >
-                <option value="">Select Institute</option>
-                {INSTITUTE_MASTER_ROWS.map((row) => (
-                  <option key={row.instituteName} value={row.instituteName}>
-                    {row.instituteName}
-                  </option>
-                ))}
-              </select>
+                onValueChange={setInstitute}
+                placeholder="Select Institute"
+                options={INSTITUTE_MASTER_ROWS.map((row) => ({ value: row.instituteName, label: row.instituteName }))}
+                className="h-10"
+              />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="kvk-host">
                 Host <span className="text-destructive">*</span>
               </Label>
-              <select
+              <SimpleSelect
                 id="kvk-host"
                 value={host}
                 disabled={!state}
-                onChange={(e) => handleHostChange(e.target.value)}
-                className="h-10 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none hover:border-ring/60 focus-visible:border-ring disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-input"
-              >
-                <option value="">Select Host</option>
-                {hostOptions.map((h) => (
-                  <option key={h} value={h}>
-                    {h}
-                  </option>
-                ))}
-              </select>
+                onValueChange={handleHostChange}
+                placeholder="Select Host"
+                options={hostOptions.map((h) => ({ value: h, label: h }))}
+                className="h-10"
+              />
             </div>
           </div>
 

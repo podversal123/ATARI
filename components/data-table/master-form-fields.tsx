@@ -4,6 +4,7 @@ import { useEffect, useId, useState, type ReactNode } from "react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
+import { SimpleSelect } from "@/components/ui/simple-select";
 import { FileUploadField } from "./file-upload-field";
 import { DemographicBreakdown, type DemographicValues } from "./demographic-breakdown";
 import type { MasterColumn } from "@/lib/navigation";
@@ -109,22 +110,19 @@ function SourceMasterField({
   ).sort();
 
   return (
-    <select
+    <SimpleSelect
       id={fieldId}
       value={value}
       disabled={disabled}
-      onChange={(event) => onChange(event.target.value)}
-      className="h-10 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none hover:border-ring/60 focus-visible:border-ring disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-input"
-    >
-      <option value="" disabled>
-        {disabled ? `Select ${dependsOnLabel ?? "the required field"} first` : `Select ${column.formLabel ?? column.label}`}
-      </option>
-      {options.map((option) => (
-        <option key={option} value={option}>
-          {option}
-        </option>
-      ))}
-    </select>
+      onValueChange={onChange}
+      placeholder={
+        disabled
+          ? `Select ${dependsOnLabel ?? "the required field"} first`
+          : `Select ${column.formLabel ?? column.label}`
+      }
+      options={options.map((option) => ({ value: option, label: option }))}
+      className="h-10"
+    />
   );
 }
 
@@ -210,21 +208,14 @@ export function MasterFormFields({
               <FieldLabel htmlFor={fieldId} required={column.required}>
                 {column.formLabel ?? column.label}
               </FieldLabel>
-              <select
+              <SimpleSelect
                 id={fieldId}
                 value={formValues[column.key] ?? ""}
-                onChange={(event) => onChange({ ...formValues, [column.key]: event.target.value })}
-                className="h-10 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none hover:border-ring/60 focus-visible:border-ring"
-              >
-                <option value="" disabled>
-                  Select {column.label}
-                </option>
-                {column.staticOptions.map((option) => (
-                  <option key={option} value={option}>
-                    {option}
-                  </option>
-                ))}
-              </select>
+                onValueChange={(v) => onChange({ ...formValues, [column.key]: v })}
+                placeholder={`Select ${column.label}`}
+                options={column.staticOptions.map((option) => ({ value: option, label: option }))}
+                className="h-10"
+              />
             </div>
           );
         }
@@ -295,31 +286,26 @@ export function MasterFormFields({
               <FieldLabel htmlFor={fieldId} required={column.required}>
                 {column.label}
               </FieldLabel>
-              <select
+              <SimpleSelect
                 id={fieldId}
                 value={formValues[column.key] ?? ""}
                 disabled={disabled}
-                onChange={(event) =>
+                onValueChange={(v) =>
                   onChange({
                     ...formValues,
-                    [column.key]: event.target.value,
+                    [column.key]: v,
                     ...(column.key === "zoneName" ? { stateName: "", ...clearedDownstream } : {}),
                     ...(isStateField ? clearedDownstream : {}),
                   })
                 }
-                className="h-10 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none hover:border-ring/60 focus-visible:border-ring disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-input"
-              >
-                <option value="" disabled>
-                  {disabled
+                placeholder={
+                  disabled
                     ? `Select ${column.key === "stateName" ? "a zone" : "a state"} first`
-                    : `Select ${column.label}`}
-                </option>
-                {options.map((option) => (
-                  <option key={option} value={option}>
-                    {option}
-                  </option>
-                ))}
-              </select>
+                    : `Select ${column.label}`
+                }
+                options={options.map((option) => ({ value: option, label: option }))}
+                className="h-10"
+              />
             </div>
           );
         }

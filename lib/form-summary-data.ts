@@ -47,7 +47,7 @@ const LEAF_MODEL_MAP: Record<string, { model: string; extraWhere?: Record<string
   "achievements/production-supply": { model: "technologyProductProduction" },
   "achievements/soil-water/soil-testing-equipment": { model: "soilTestingEquipment" },
   "achievements/soil-water/soil-water-testing": { model: "soilWaterPlantAnalysis" },
-  "achievements/soil-water/world-soil-day": { model: "worldSoilDay" },
+  "achievements/special-days/world-soil-day": { model: "worldSoilDay" },
   "achievements/publications": { model: "publication" },
   "achievements/hrd": { model: "humanResourceDevelopment" },
   "achievements/awards/kvk": { model: "kvkAward" },

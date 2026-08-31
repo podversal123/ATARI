@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
+import { SimpleSelect } from "@/components/ui/simple-select";
 import {
   ALLOWED_IMAGE_TYPES,
   MAX_IMAGE_SIZE_MB,
@@ -204,34 +205,27 @@ function AddModuleImageForm() {
               <Label className="text-xs text-muted-foreground">
                 Category / Form <span className="text-destructive">*</span>
               </Label>
-              <select
+              <SimpleSelect
                 value={categoryPath}
-                onChange={(e) => setCategoryPath(e.target.value)}
-                className="mt-1 h-9 w-full rounded-md border border-border bg-card px-2.5 text-sm text-foreground outline-none focus-visible:border-ring"
-              >
-                <option value="">Select category / form</option>
-                {MODULE_IMAGE_CATEGORIES.map((leaf) => (
-                  <option key={leaf.path} value={leaf.path}>
-                    {leaf.groupLabel} - {leaf.label}
-                  </option>
-                ))}
-              </select>
+                onValueChange={setCategoryPath}
+                placeholder="Select category / form"
+                options={MODULE_IMAGE_CATEGORIES.map((leaf) => ({
+                  value: leaf.path,
+                  label: `${leaf.groupLabel} - ${leaf.label}`,
+                }))}
+                className="mt-1"
+              />
             </div>
             <div>
               <Label className="text-xs text-muted-foreground">
                 Reporting Year <span className="text-destructive">*</span>
               </Label>
-              <select
+              <SimpleSelect
                 value={reportingYear}
-                onChange={(e) => setReportingYear(e.target.value)}
-                className="mt-1 h-9 w-full rounded-md border border-border bg-card px-2.5 text-sm text-foreground outline-none focus-visible:border-ring"
-              >
-                {MODULE_IMAGE_REPORTING_YEARS.map((year) => (
-                  <option key={year} value={year}>
-                    {year}
-                  </option>
-                ))}
-              </select>
+                onValueChange={setReportingYear}
+                options={MODULE_IMAGE_REPORTING_YEARS.map((year) => ({ value: year, label: year }))}
+                className="mt-1"
+              />
             </div>
             <div>
               <Label className="text-xs text-muted-foreground">

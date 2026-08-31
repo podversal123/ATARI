@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { SimpleSelect } from "@/components/ui/simple-select";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
@@ -255,38 +256,36 @@ export function CfldTechnicalParameterDialog({
                 {/* Real field added 2026-08-28 (client reference, "Edit Technical Parameter" screen) - was missing entirely. */}
                 <div className="space-y-1.5">
                   <Label htmlFor="cfld-month">Month</Label>
-                  <select
+                  <SimpleSelect
                     id="cfld-month"
                     value={technical.month ?? ""}
-                    onChange={(e) =>
-                      setTechnical((p) => ({ ...p, month: e.target.value }))
+                    onValueChange={(v) =>
+                      setTechnical((p) => ({ ...p, month: v }))
                     }
-                    className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none hover:border-ring/60 focus-visible:border-ring"
-                  >
-                    <option value="">Select One</option>
-                    {[
+                    placeholder="Select One"
+                    options={[
                       "January", "February", "March", "April", "May", "June",
                       "July", "August", "September", "October", "November", "December",
-                    ].map((m) => (
-                      <option key={m} value={m}>{m}</option>
-                    ))}
-                  </select>
+                    ].map((m) => ({ value: m, label: m }))}
+                    className="h-8"
+                  />
                 </div>
                 <div className="space-y-1.5">
                   <Label htmlFor="cfld-season">Season</Label>
-                  <select
+                  <SimpleSelect
                     id="cfld-season"
                     value={technical.season ?? ""}
-                    onChange={(e) =>
-                      setTechnical((p) => ({ ...p, season: e.target.value }))
+                    onValueChange={(v) =>
+                      setTechnical((p) => ({ ...p, season: v }))
                     }
-                    className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none hover:border-ring/60 focus-visible:border-ring"
-                  >
-                    <option value="">Select One</option>
-                    <option value="Kharif">Kharif</option>
-                    <option value="Rabi">Rabi</option>
-                    <option value="Zaid">Zaid</option>
-                  </select>
+                    placeholder="Select One"
+                    options={[
+                      { value: "Kharif", label: "Kharif" },
+                      { value: "Rabi", label: "Rabi" },
+                      { value: "Zaid", label: "Zaid" },
+                    ]}
+                    className="h-8"
+                  />
                 </div>
                 <div className="space-y-1.5">
                   <Label htmlFor="cfld-crop">Crop</Label>

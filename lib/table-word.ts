@@ -40,6 +40,8 @@ export async function generateTableWord(
   );
 
   const doc = new Document({
+    title,
+    creator: "ATARI AMS",
     sections: [
       {
         properties: {},

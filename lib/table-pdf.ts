@@ -27,6 +27,12 @@ export function downloadTablePdf(
   rows: Record<string, ReactNode>[] | undefined,
 ) {
   const doc = new jsPDF({ orientation: "landscape" });
+  // Without this, Chrome's PDF viewer tab shows the blob's own random UUID
+  // instead of a real name (real bug, 2026-08-31) - this is opened via a
+  // blob URL (see doc.output("bloburl") below), not a real file download,
+  // so there's no filename for the tab to fall back to; the PDF's own
+  // /Title metadata is what the viewer actually reads.
+  doc.setProperties({ title });
   drawPageBorder(doc);
   doc.setFontSize(14);
   doc.text(title, 14, 14);

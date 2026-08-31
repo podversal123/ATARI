@@ -5,6 +5,7 @@ import { ArrowDown, ArrowUp, ArrowUpDown, Search, History } from "lucide-react";
 import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { SimpleSelect } from "@/components/ui/simple-select";
 import { cn } from "@/lib/utils";
 import { KVKS } from "@/lib/rbac";
 import { useSession } from "@/lib/session";
@@ -134,19 +135,16 @@ export default function LogHistoryPage() {
             <label className="block text-xs font-medium text-muted-foreground">
               KVKs
             </label>
-            <select
+            <SimpleSelect
               value={kvkFilter}
-              onChange={(e) => setKvkFilter(e.target.value)}
-              className="mt-1 h-9 w-56 rounded-md border border-border bg-card px-2.5 text-sm text-foreground outline-none focus-visible:border-ring"
-            >
-              <option value="all">All</option>
-              <option value="super-admin">Super Admin</option>
-              {KVKS.map((kvk) => (
-                <option key={kvk.name} value={kvk.name}>
-                  {kvk.name}
-                </option>
-              ))}
-            </select>
+              onValueChange={setKvkFilter}
+              options={[
+                { value: "all", label: "All" },
+                { value: "super-admin", label: "Super Admin" },
+                ...KVKS.map((kvk) => ({ value: kvk.name, label: kvk.name })),
+              ]}
+              className="mt-1 w-56"
+            />
           </div>
           <Button
             size="lg"

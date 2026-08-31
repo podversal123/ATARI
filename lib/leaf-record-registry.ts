@@ -1051,8 +1051,8 @@ export const LEAF_DELETE_REGISTRY: Record<string, DeleteFn> = {
   "miscellaneous/digital-information/digital-kmas": (id, ctx) => prisma.digitalKmas.deleteMany({ where: { id, ...kvkScope(ctx) } }),
   "miscellaneous/digital-information/digital-other-channels": (id, ctx) => prisma.digitalOtherChannel.deleteMany({ where: { id, ...kvkScope(ctx) } }),
 
-  "achievements/technology-week-celebration": (id, ctx) => prisma.technologyWeekCelebration.deleteMany({ where: { id, ...kvkScope(ctx) } }),
-  "achievements/world-soil-day": (id, ctx) => prisma.worldSoilDay.deleteMany({ where: { id, ...kvkScope(ctx) } }),
+  "achievements/special-days/technology-week-celebration": (id, ctx) => prisma.technologyWeekCelebration.deleteMany({ where: { id, ...kvkScope(ctx) } }),
+  "achievements/special-days/world-soil-day": (id, ctx) => prisma.worldSoilDay.deleteMany({ where: { id, ...kvkScope(ctx) } }),
 };
 
 type UpdateFn = (id: string, values: Record<string, string>, ctx: ScopedContext) => Promise<{ count: number }>;
@@ -1777,12 +1777,12 @@ export const LEAF_UPDATE_REGISTRY: Record<string, UpdateFn> = {
       },
     }),
 
-  "achievements/technology-week-celebration": (id, v, ctx) =>
+  "achievements/special-days/technology-week-celebration": (id, v, ctx) =>
     prisma.technologyWeekCelebration.updateMany({
       where: { id, ...kvkScope(ctx) },
       data: { startDate: reqDate(v.startDate), endDate: reqDate(v.endDate), typeOfActivities: reqStr(v.typeOfActivities), noOfActivities: reqInt(v.noOfActivities), relatedCropTechnology: str(v.relatedCropTechnology), numberOfParticipants: reqInt(v.numberOfParticipants) },
     }),
-  "achievements/world-soil-day": (id, v, ctx) =>
+  "achievements/special-days/world-soil-day": (id, v, ctx) =>
     prisma.worldSoilDay.updateMany({
       where: { id, ...kvkScope(ctx) },
       data: { noOfActivitiesConducted: reqInt(v.noOfActivitiesConducted), soilHealthCardsDistributed: reqInt(v.soilHealthCardsDistributed), noOfVip: reqInt(v.noOfVip), vipNames: str(v.vipNames), totalParticipants: reqInt(v.totalParticipants) },

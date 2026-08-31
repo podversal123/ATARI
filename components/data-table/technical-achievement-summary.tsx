@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { FileDown, FileSpreadsheet, FileType } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { SimpleSelect } from "@/components/ui/simple-select";
 import {
   DEMOGRAPHIC_GROUPS,
   DEMOGRAPHIC_LEAF_COUNT,
@@ -349,17 +350,12 @@ export function TechnicalAchievementSummary({
             Reporting Year
           </label>
           <div className="mt-1">
-            <select
+            <SimpleSelect
               value={reportingYear}
-              onChange={(event) => setReportingYear(event.target.value)}
-              className="h-9 w-64 rounded-md border border-border bg-card px-2.5 text-sm text-foreground outline-none focus-visible:border-ring"
-            >
-              {years.map((year) => (
-                <option key={year} value={year}>
-                  {year}
-                </option>
-              ))}
-            </select>
+              onValueChange={setReportingYear}
+              options={years.map((year) => ({ value: year, label: year }))}
+              className="w-64"
+            />
           </div>
         </div>
 

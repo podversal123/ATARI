@@ -1,4 +1,6 @@
+import { useId } from "react";
 import { cn } from "@/lib/utils";
+import { SimpleSelect } from "@/components/ui/simple-select";
 
 type FilterSelectProps = {
   label: string;
@@ -20,23 +22,19 @@ export function FilterSelect({
   value,
   onChange,
 }: FilterSelectProps) {
+  const id = useId();
   return (
-    <label className={cn("flex items-center gap-2 text-xs", className)}>
-      <span className="font-semibold tracking-wide text-muted-foreground uppercase">
+    <div className={cn("flex items-center gap-2 text-xs", className)}>
+      <label htmlFor={id} className="font-semibold tracking-wide text-muted-foreground uppercase">
         {label}
-      </span>
-      <select
-        value={value}
-        onChange={onChange ? (e) => onChange(e.target.value) : undefined}
-        className={cn(
-          "h-8 min-w-24 rounded-md border border-border bg-card px-2 text-sm text-foreground outline-none focus-visible:border-ring",
-          selectClassName,
-        )}
-      >
-        {options.map((option) => (
-          <option key={option}>{option}</option>
-        ))}
-      </select>
-    </label>
+      </label>
+      <SimpleSelect
+        id={id}
+        value={value ?? options[0] ?? ""}
+        onValueChange={onChange ?? (() => {})}
+        options={options.map((option) => ({ value: option, label: option }))}
+        className={cn("h-8 min-w-24", selectClassName)}
+      />
+    </div>
   );
 }

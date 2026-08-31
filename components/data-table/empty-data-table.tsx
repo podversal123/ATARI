@@ -9,6 +9,7 @@ import {
   FileDown,
   FileSpreadsheet,
   FileType,
+  Filter,
   Plus,
   RotateCcw,
   MoreVertical,
@@ -26,6 +27,7 @@ import { SIDEBAR_ICONS } from "@/components/layout/sidebar-icons";
 import { cn, downloadBlob } from "@/lib/utils";
 import { useSession } from "@/lib/session";
 import { Input } from "@/components/ui/input";
+import { SimpleSelect } from "@/components/ui/simple-select";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import {
@@ -681,50 +683,51 @@ export function EmptyDataTable({
               >
                 Reporting Year
               </Label>
-              <select
+              <SimpleSelect
                 id={fromDateId}
                 value={reportingYear}
-                onChange={(event) => setReportingYear(event.target.value)}
-                className="h-9 rounded-md border border-border bg-card px-2 text-sm text-foreground outline-none focus-visible:border-ring"
-              >
-                {reportingYearOptions.map((year) => (
-                  <option key={year} value={year}>
-                    {year}
-                  </option>
-                ))}
-              </select>
+                onValueChange={setReportingYear}
+                options={reportingYearOptions.map((year) => ({ value: year, label: year }))}
+                className="w-28"
+              />
             </div>
           ) : (
             <>
-              <div className="flex items-center gap-1.5">
-                <Label
-                  htmlFor={fromDateId}
-                  className="text-xs text-muted-foreground"
-                >
-                  From Date
-                </Label>
+              <div className="relative">
                 <Input
                   id={fromDateId}
                   type="date"
                   value={fromDate}
                   onChange={(event) => setFromDate(event.target.value)}
-                  className="h-9 w-40 text-muted-foreground"
+                  aria-label="From date"
+                  className={cn(
+                    "h-9 w-40",
+                    fromDate ? "text-muted-foreground" : "text-transparent",
+                  )}
                 />
+                {!fromDate && (
+                  <span className="pointer-events-none absolute inset-y-0 left-2.5 flex items-center text-sm text-muted-foreground">
+                    From date
+                  </span>
+                )}
               </div>
-              <div className="flex items-center gap-1.5">
-                <Label
-                  htmlFor={toDateId}
-                  className="text-xs text-muted-foreground"
-                >
-                  To Date
-                </Label>
+              <div className="relative">
                 <Input
                   id={toDateId}
                   type="date"
                   value={toDate}
                   onChange={(event) => setToDate(event.target.value)}
-                  className="h-9 w-40 text-muted-foreground"
+                  aria-label="To date"
+                  className={cn(
+                    "h-9 w-40",
+                    toDate ? "text-muted-foreground" : "text-transparent",
+                  )}
                 />
+                {!toDate && (
+                  <span className="pointer-events-none absolute inset-y-0 left-2.5 flex items-center text-sm text-muted-foreground">
+                    To date
+                  </span>
+                )}
               </div>
               <Button
                 variant="default"
@@ -743,7 +746,7 @@ export function EmptyDataTable({
             onClick={resetFilters}
             disabled={!hasActiveFilters}
           >
-            <RotateCcw className="size-3.5" />
+            <Filter className="size-3.5" />
             Reset filters
           </Button>
         </div>

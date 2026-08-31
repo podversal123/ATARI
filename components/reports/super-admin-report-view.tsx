@@ -6,6 +6,7 @@ import { Building2, CalendarDays, Eye, Filter, LandPlot, MapPin, RotateCcw } fro
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { SimpleSelect } from "@/components/ui/simple-select";
 import {
   ALL_FORM_PATHS,
   ALL_HOST_ORGS,
@@ -202,17 +203,12 @@ export function SuperAdminReportView() {
             <label className="text-xs font-medium text-muted-foreground">
               Zone
             </label>
-            <select
+            <SimpleSelect
               value={zone}
-              onChange={(e) => onZoneChange(e.target.value)}
-              className="mt-1 h-9 w-full rounded-md border border-border bg-card px-2.5 text-sm text-foreground outline-none focus-visible:border-ring"
-            >
-              {REPORT_ZONE_OPTIONS.map((z) => (
-                <option key={z} value={z}>
-                  {z}
-                </option>
-              ))}
-            </select>
+              onValueChange={onZoneChange}
+              options={REPORT_ZONE_OPTIONS.map((z) => ({ value: z, label: z }))}
+              className="mt-1"
+            />
           </div>
           <div>
             <label className="text-xs font-medium text-muted-foreground">
