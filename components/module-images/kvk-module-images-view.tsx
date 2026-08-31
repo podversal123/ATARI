@@ -10,24 +10,41 @@ import {
   FileSpreadsheet,
   Filter as FilterIcon,
   ImageOff,
+  MoreVertical,
   Plus,
   RotateCcw,
   Search,
 } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { SimpleSelect } from "@/components/ui/simple-select";
 import { cn } from "@/lib/utils";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { SelectCategoryDropdown } from "./select-category-dropdown";
+import { MultiFilterSelect } from "@/components/dashboard/multi-filter-select";
 import {
   ALL_CATEGORY_PATHS,
   MODULE_IMAGE_REPORTING_YEARS,
-  PUBLISH_FILTER_OPTIONS,
   type ModuleImageRecord,
-  type PublishFilter,
 } from "@/lib/module-images";
 import { useSession } from "@/lib/session";
 import { KVK_MASTER_ROWS } from "@/lib/masters";
+import type { MasterColumn } from "@/lib/navigation";
+import { downloadBlob, downloadImageFile } from "@/lib/utils";
+
+/** Text-only columns for the Excel/PDF export - Image (a raw file URL, not meaningful printed) and Action (page-only) are left out, matching every other export in the app. */
+const EXPORT_COLUMNS: MasterColumn[] = [
+  { key: "categoryLabel", label: "Category / Form" },
+  { key: "date", label: "Date" },
+  { key: "caption", label: "Caption" },
+  { key: "status", label: "Status" },
+];
+
+const STATUS_OPTIONS = ["Published", "Not Published"];
 
 /**
  * KVK Admin's own Module Images. Per the spec (section 11), a KVK uploads
@@ -58,13 +75,15 @@ export function KvkModuleImagesView() {
     loadRows();
   }, [loadRows]);
 
-  const [reportingYear, setReportingYear] = useState(
-    MODULE_IMAGE_REPORTING_YEARS[0],
+  const [selectedYears, setSelectedYears] = useState<Set<string>>(
+    new Set(MODULE_IMAGE_REPORTING_YEARS),
   );
   const [selectedCategories, setSelectedCategories] = useState<Set<string>>(
     new Set(ALL_CATEGORY_PATHS),
   );
-  const [publishFilter, setPublishFilter] = useState<PublishFilter>("all");
+  const [selectedStatuses, setSelectedStatuses] = useState<Set<string>>(
+    new Set(STATUS_OPTIONS),
+  );
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
   const [search, setSearch] = useState("");
@@ -75,6 +94,8 @@ export function KvkModuleImagesView() {
 
   const allCategoriesSelected =
     selectedCategories.size === ALL_CATEGORY_PATHS.size;
+  const allYearsSelected = selectedYears.size === MODULE_IMAGE_REPORTING_YEARS.length;
+  const allStatusesSelected = selectedStatuses.size === STATUS_OPTIONS.length;
   const dateRangeInvalid =
     fromDate !== "" && toDate !== "" && fromDate > toDate;
 
@@ -83,14 +104,25 @@ export function KvkModuleImagesView() {
     [publishOverrides],
   );
 
+  const yearLabel = allYearsSelected
+    ? "All Years"
+    : selectedYears.size === 1
+      ? Array.from(selectedYears)[0]
+      : `${selectedYears.size} Years`;
+  const statusLabel = allStatusesSelected
+    ? "All Status"
+    : selectedStatuses.size === 1
+      ? Array.from(selectedStatuses)[0]
+      : `${selectedStatuses.size} Statuses`;
+  const categoryLabel = allCategoriesSelected ? "All Categories" : `${selectedCategories.size} Categories`;
+
   const filteredRows = useMemo(() => {
     const query = search.trim().toLowerCase();
     return rows.filter((row) => {
       if (row.kvk !== currentKvkName) return false;
-      if (row.reportingYear !== reportingYear) return false;
+      if (!selectedYears.has(row.reportingYear)) return false;
       if (!selectedCategories.has(row.categoryPath)) return false;
-      if (publishFilter === "published" && !isPublished(row)) return false;
-      if (publishFilter === "unpublished" && isPublished(row)) return false;
+      if (!selectedStatuses.has(isPublished(row) ? "Published" : "Not Published")) return false;
       if (fromDate && row.date < fromDate) return false;
       if (toDate && row.date > toDate) return false;
       if (
@@ -107,24 +139,38 @@ export function KvkModuleImagesView() {
   }, [
     rows,
     currentKvkName,
-    reportingYear,
+    selectedYears,
     selectedCategories,
-    publishFilter,
+    selectedStatuses,
     isPublished,
     fromDate,
     toDate,
     search,
   ]);
 
+  const exportTitle = `Module Images - ${currentKvkName}`;
+  const exportRows = useMemo(
+    () =>
+      filteredRows.map((row) => ({
+        categoryLabel: row.categoryLabel,
+        date: row.date,
+        caption: row.caption,
+        status: isPublished(row) ? "Published" : "Not Published",
+      })),
+    [filteredRows, isPublished],
+  );
+
   const hasActiveFilters =
+    !allYearsSelected ||
     !allCategoriesSelected ||
-    publishFilter !== "all" ||
+    !allStatusesSelected ||
     fromDate !== "" ||
     toDate !== "";
 
   function resetFilters() {
+    setSelectedYears(new Set(MODULE_IMAGE_REPORTING_YEARS));
     setSelectedCategories(new Set(ALL_CATEGORY_PATHS));
-    setPublishFilter("all");
+    setSelectedStatuses(new Set(STATUS_OPTIONS));
     setFromDate("");
     setToDate("");
   }
@@ -141,6 +187,17 @@ export function KvkModuleImagesView() {
       .catch(() => {
         setPublishOverrides((prev) => ({ ...prev, [id]: current }));
       });
+  }
+
+  const [downloadError, setDownloadError] = useState<string | null>(null);
+
+  async function handleDownload(row: ModuleImageRecord) {
+    if (!row.previewUrl) return;
+    try {
+      await downloadImageFile(row.previewUrl, `${row.categoryLabel} - ${row.caption}`);
+    } catch {
+      setDownloadError("Could not download this photograph.");
+    }
   }
 
   return (
@@ -176,12 +233,17 @@ export function KvkModuleImagesView() {
             <label className="text-xs font-medium text-muted-foreground">
               Reporting Year
             </label>
-            <SimpleSelect
-              value={reportingYear}
-              onValueChange={setReportingYear}
-              options={MODULE_IMAGE_REPORTING_YEARS.map((year) => ({ value: year, label: year }))}
-              className="mt-1"
-            />
+            <div className="mt-1">
+              <MultiFilterSelect
+                label="Reporting Year"
+                hideLabel
+                options={MODULE_IMAGE_REPORTING_YEARS}
+                selected={selectedYears}
+                onChange={setSelectedYears}
+                triggerClassName="h-9 w-full"
+                className="w-full"
+              />
+            </div>
           </div>
           <div>
             <label className="text-xs font-medium text-muted-foreground">
@@ -198,12 +260,17 @@ export function KvkModuleImagesView() {
             <label className="text-xs font-medium text-muted-foreground">
               Publish Status
             </label>
-            <SimpleSelect
-              value={publishFilter}
-              onValueChange={(v) => setPublishFilter(v as PublishFilter)}
-              options={PUBLISH_FILTER_OPTIONS}
-              className="mt-1"
-            />
+            <div className="mt-1">
+              <MultiFilterSelect
+                label="Publish Status"
+                hideLabel
+                options={STATUS_OPTIONS}
+                selected={selectedStatuses}
+                onChange={setSelectedStatuses}
+                triggerClassName="h-9 w-full"
+                className="w-full"
+              />
+            </div>
           </div>
           <div>
             <label className="text-xs font-medium text-muted-foreground">
@@ -235,11 +302,22 @@ export function KvkModuleImagesView() {
         )}
       </div>
 
+      {downloadError && (
+        <p role="alert" className="text-sm font-medium text-destructive">
+          {downloadError}
+        </p>
+      )}
+
       <div className="rounded-lg border border-border bg-card">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border p-4">
-          <p className="text-sm font-semibold text-foreground">
-            Your Uploaded Images ({filteredRows.length})
-          </p>
+          <div>
+            <p className="text-sm font-semibold text-foreground">
+              Your Uploaded Images ({filteredRows.length})
+            </p>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              {categoryLabel} · {statusLabel} · {yearLabel}
+            </p>
+          </div>
           <div className="flex flex-wrap items-center gap-2">
             <div className="relative">
               <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
@@ -250,11 +328,30 @@ export function KvkModuleImagesView() {
                 className="w-56 pl-8"
               />
             </div>
-            <Button variant="outline" size="sm">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={async () => {
+                const { generateTableExcel } = await import("@/lib/table-excel");
+                const wb = await generateTableExcel(exportTitle, EXPORT_COLUMNS, exportRows);
+                const buffer = await wb.xlsx.writeBuffer();
+                downloadBlob(
+                  new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }),
+                  `${exportTitle}.xlsx`,
+                );
+              }}
+            >
               <FileSpreadsheet className="size-3.5" />
               Export Excel
             </Button>
-            <Button variant="outline" size="sm">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={async () => {
+                const { downloadTablePdf } = await import("@/lib/table-pdf");
+                downloadTablePdf(exportTitle, EXPORT_COLUMNS, exportRows);
+              }}
+            >
               <FileDown className="size-3.5" />
               Export PDF
             </Button>
@@ -353,34 +450,34 @@ export function KvkModuleImagesView() {
                       </span>
                     </td>
                     <td className="px-4 py-3 text-right align-top">
-                      <div className="flex items-center justify-end gap-1">
-                        <Button
-                          variant="ghost"
-                          size="icon-sm"
-                          onClick={() =>
-                            togglePublish(row.id, isPublished(row))
+                      <DropdownMenu>
+                        <DropdownMenuTrigger
+                          render={
+                            <Button variant="ghost" size="icon-sm">
+                              <MoreVertical className="size-4" />
+                            </Button>
                           }
-                          title={
-                            isPublished(row)
-                              ? "Unpublish this photograph"
-                              : "Publish this photograph"
-                          }
-                        >
-                          {isPublished(row) ? (
-                            <EyeOff className="size-3.5" />
-                          ) : (
-                            <Eye className="size-3.5" />
-                          )}
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon-sm"
-                          disabled={!row.previewUrl}
-                          title="Download"
-                        >
-                          <Download className="size-3.5" />
-                        </Button>
-                      </div>
+                        />
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem
+                            onClick={() => togglePublish(row.id, isPublished(row))}
+                          >
+                            {isPublished(row) ? (
+                              <EyeOff className="size-3.5" />
+                            ) : (
+                              <Eye className="size-3.5" />
+                            )}
+                            {isPublished(row) ? "Unpublish" : "Publish"}
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => handleDownload(row)}
+                            disabled={!row.previewUrl}
+                          >
+                            <Download className="size-3.5" />
+                            Download
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </td>
                   </tr>
                 ))

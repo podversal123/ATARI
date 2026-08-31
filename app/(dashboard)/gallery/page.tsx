@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type MouseEvent } from "react";
 import Link from "next/link";
 import {
   ChevronDown,
   ChevronRight,
+  Download,
   ImageIcon,
   Images,
   LayoutGrid,
@@ -16,7 +17,7 @@ import { PageHeader } from "@/components/layout/page-header";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { SimpleSelect } from "@/components/ui/simple-select";
 import { SelectKvksMultiDropdown } from "@/components/module-images/select-kvks-multi-dropdown";
-import { cn } from "@/lib/utils";
+import { cn, downloadImageFile } from "@/lib/utils";
 import { GALLERY_MODULES, type GalleryLeaf } from "@/lib/gallery-modules";
 import { MODULE_IMAGE_REPORTING_YEARS, type ModuleImageRecord } from "@/lib/module-images";
 
@@ -87,9 +88,28 @@ export default function GalleryPage() {
     ? `/module-images/add-image?category=${encodeURIComponent(activeLeaf.path)}`
     : "/module-images/add-image";
 
+  const [downloadError, setDownloadError] = useState<string | null>(null);
+
+  async function handleDownload(event: MouseEvent, row: ModuleImageRecord) {
+    event.preventDefault();
+    event.stopPropagation();
+    if (!row.previewUrl) return;
+    try {
+      await downloadImageFile(row.previewUrl, `${row.kvk} - ${row.categoryLabel} - ${row.caption}`);
+    } catch {
+      setDownloadError("Could not download this photograph.");
+    }
+  }
+
   return (
     <div>
       <PageHeader trail={[{ label: "Gallery" }]} title="Gallery" icon={Images} />
+
+      {downloadError && (
+        <p role="alert" className="mb-2 text-sm font-medium text-destructive">
+          {downloadError}
+        </p>
+      )}
 
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <div className="w-64">
@@ -255,13 +275,22 @@ export default function GalleryPage() {
                 rel="noopener noreferrer"
                 className="group overflow-hidden rounded-lg border border-border bg-card"
               >
-                <div className="aspect-video w-full overflow-hidden bg-muted">
+                <div className="relative aspect-video w-full overflow-hidden bg-muted">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={row.previewUrl}
                     alt={row.caption}
                     className="h-full w-full object-cover transition-transform group-hover:scale-105"
                   />
+                  <button
+                    type="button"
+                    onClick={(event) => handleDownload(event, row)}
+                    aria-label="Download"
+                    title="Download"
+                    className="absolute top-1.5 right-1.5 flex size-7 items-center justify-center rounded-md bg-black/60 text-white opacity-0 transition-opacity hover:bg-black/80 group-hover:opacity-100"
+                  >
+                    <Download className="size-3.5" />
+                  </button>
                 </div>
                 <div className="p-2.5">
                   <p className="line-clamp-2 text-xs font-medium text-foreground" title={row.caption}>
@@ -290,7 +319,7 @@ export default function GalleryPage() {
                   alt={row.caption}
                   className="size-14 shrink-0 rounded-md object-cover"
                 />
-                <div className="min-w-0">
+                <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium text-foreground" title={row.caption}>
                     {row.caption}
                   </p>
@@ -298,6 +327,15 @@ export default function GalleryPage() {
                     {row.kvk} · {row.categoryLabel} · {row.date}
                   </p>
                 </div>
+                <button
+                  type="button"
+                  onClick={(event) => handleDownload(event, row)}
+                  aria-label="Download"
+                  title="Download"
+                  className="flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+                >
+                  <Download className="size-4" />
+                </button>
               </a>
             ))}
           </div>
