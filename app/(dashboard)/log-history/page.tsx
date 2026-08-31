@@ -131,7 +131,7 @@ export default function LogHistoryPage() {
       {!isKvk && (
         <div className="mb-4 flex flex-wrap items-end gap-3">
           <div>
-            <label className="text-xs font-medium text-muted-foreground">
+            <label className="block text-xs font-medium text-muted-foreground">
               KVKs
             </label>
             <select
@@ -149,7 +149,7 @@ export default function LogHistoryPage() {
             </select>
           </div>
           <Button
-            size="sm"
+            size="lg"
             onClick={() => {
               setAppliedKvkFilter(kvkFilter);
               setPage(0);

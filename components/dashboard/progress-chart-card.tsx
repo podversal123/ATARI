@@ -487,7 +487,7 @@ export function ProgressChartCard({
                     `relative` stays on this full-width column (not the
                     narrow bar inside it) so `horizontalAnchorClass` above
                     has the full column to work with - anchoring it to the
-                    much narrower bar (w-1/3) instead let the tooltip's fixed
+                    much narrower bar (w-1/3 max-w-16) instead let the tooltip's fixed
                     max-w-48 overflow past the chart card's own edges near
                     either end of a wide "Show all" row, which triggered a
                     real horizontal scrollbar even though nothing was
@@ -498,9 +498,20 @@ export function ProgressChartCard({
                     this full-height column and put every tooltip at the same
                     height regardless of its own bar's size - the original
                     bug this was built to fix).
+
+                    Bar width is `w-1/3` of its own column (not the chart),
+                    and each column is an equal 1/N share of the whole chart
+                    width - fine with a full page of KVKs, but with only one
+                    or two columns (a single-KVK filter, or a KVK with no
+                    other entries to page alongside) that 1/3 share is a
+                    third of the *entire* chart, ballooning into a huge block.
+                    `max-w-16` caps the bar at the same comfortable width
+                    regardless of how many columns are showing, so a single
+                    bar looks the same size as one bar among many (client
+                    report, 2026-08-31).
                   */}
                   <div
-                    className="flex w-1/3 flex-col justify-end overflow-hidden rounded-t-sm"
+                    className="flex w-1/3 max-w-16 flex-col justify-end overflow-hidden rounded-t-sm"
                     style={{ height: `${barHeightPercent}%` }}
                   >
                     {total === 0 ? (

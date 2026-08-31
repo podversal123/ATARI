@@ -116,183 +116,207 @@ export function KvkMasterAddForm({ trail, backHref, title = "Create KVK" }: KvkM
     <div>
       <PageHeader backHref={backHref} trail={trail} title={title} />
 
-      <div className="rounded-lg border border-border bg-card p-5">
+      {/* Fade/slide-in on mount (client report, 2026-08-31) - same animate-in vocabulary the app's own dialogs/dropdowns already use. */}
+      <div className="animate-in fade-in-0 slide-in-from-bottom-2 rounded-lg border border-border bg-card p-6 duration-300">
         <p className="mb-3 text-sm font-semibold text-primary">
           KVK General Information
         </p>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          <div className="space-y-1.5">
-            <Label htmlFor="kvk-name">
-              Name of KVK <span className="text-destructive">*</span>
-            </Label>
-            <Input
-              id="kvk-name"
-              value={kvkName}
-              onChange={(e) => setKvkName(e.target.value)}
-              placeholder="Enter KVK name"
-            />
+        {/*
+          Real reference row groupings (client screenshots, 2026-08-31):
+          Name+Year, E-mail+Mobile, Fax+Landline, Zone+State+District,
+          Institute+Host, then KVK Address alone full width - each its own
+          grid rather than one big auto-flowing grid, so the pairing can't
+          drift if a field is ever added/removed.
+        */}
+        <div className="space-y-5">
+          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="kvk-name">
+                Name of KVK <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                className="h-10"
+                id="kvk-name"
+                value={kvkName}
+                onChange={(e) => setKvkName(e.target.value)}
+                placeholder="Enter KVK name"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="kvk-sanction-year">
+                Year of Sanction <span className="text-destructive">*</span>
+              </Label>
+              <select
+                id="kvk-sanction-year"
+                value={sanctionYear}
+                onChange={(e) => setSanctionYear(e.target.value)}
+                className="h-10 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none hover:border-ring/60 focus-visible:border-ring"
+              >
+                <option value="">Select year</option>
+                {SANCTION_YEARS.map((year) => (
+                  <option key={year} value={year}>
+                    {year}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="kvk-sanction-year">
-              Year of Sanction <span className="text-destructive">*</span>
-            </Label>
-            <select
-              id="kvk-sanction-year"
-              value={sanctionYear}
-              onChange={(e) => setSanctionYear(e.target.value)}
-              className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring"
-            >
-              <option value="">Select year</option>
-              {SANCTION_YEARS.map((year) => (
-                <option key={year} value={year}>
-                  {year}
-                </option>
-              ))}
-            </select>
+
+          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="kvk-email">
+                E-mail <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                className="h-10"
+                id="kvk-email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="Enter email address"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="kvk-mobile">
+                Mobile Number <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                className="h-10"
+                id="kvk-mobile"
+                value={mobile}
+                onChange={(e) => setMobile(e.target.value)}
+                placeholder="10-digit mobile"
+              />
+            </div>
           </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="kvk-email">
-              E-mail <span className="text-destructive">*</span>
-            </Label>
-            <Input
-              id="kvk-email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="Enter email address"
-            />
+
+          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="kvk-fax">Fax</Label>
+              <Input
+                className="h-10"
+                id="kvk-fax"
+                value={fax}
+                onChange={(e) => setFax(e.target.value)}
+                placeholder="Enter fax"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="kvk-landline">Landline</Label>
+              <Input
+                className="h-10"
+                id="kvk-landline"
+                value={landline}
+                onChange={(e) => setLandline(e.target.value)}
+                placeholder="Enter landline"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="kvk-zone">
+                Zone <span className="text-destructive">*</span>
+              </Label>
+              <select
+                id="kvk-zone"
+                value={zone}
+                onChange={(e) => setZone(e.target.value)}
+                className="h-10 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none hover:border-ring/60 focus-visible:border-ring"
+              >
+                <option value="">Select</option>
+                {ZONE_MASTER_ROWS.map((row) => (
+                  <option key={row.zoneName} value={row.zoneName}>
+                    {row.zoneName}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="kvk-state">
+                State <span className="text-destructive">*</span>
+              </Label>
+              <select
+                id="kvk-state"
+                value={state}
+                disabled={!zone}
+                onChange={(e) => {
+                  setState(e.target.value);
+                  setDistrict("");
+                  setHost("");
+                }}
+                className="h-10 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none hover:border-ring/60 focus-visible:border-ring disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-input"
+              >
+                <option value="">Select State</option>
+                {STATES.map((s) => (
+                  <option key={s} value={s}>
+                    {s}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="kvk-district">
+                District <span className="text-destructive">*</span>
+              </Label>
+              <select
+                id="kvk-district"
+                value={district}
+                disabled={!state}
+                onChange={(e) => setDistrict(e.target.value)}
+                className="h-10 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none hover:border-ring/60 focus-visible:border-ring disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-input"
+              >
+                <option value="">Select District</option>
+                {districtOptions.map((d) => (
+                  <option key={d} value={d}>
+                    {d}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="kvk-institute">
+                Institute <span className="text-destructive">*</span>
+              </Label>
+              <select
+                id="kvk-institute"
+                value={institute}
+                onChange={(e) => setInstitute(e.target.value)}
+                className="h-10 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none hover:border-ring/60 focus-visible:border-ring"
+              >
+                <option value="">Select Institute</option>
+                {INSTITUTE_MASTER_ROWS.map((row) => (
+                  <option key={row.instituteName} value={row.instituteName}>
+                    {row.instituteName}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="kvk-host">
+                Host <span className="text-destructive">*</span>
+              </Label>
+              <select
+                id="kvk-host"
+                value={host}
+                disabled={!state}
+                onChange={(e) => handleHostChange(e.target.value)}
+                className="h-10 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none hover:border-ring/60 focus-visible:border-ring disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-input"
+              >
+                <option value="">Select Host</option>
+                {hostOptions.map((h) => (
+                  <option key={h} value={h}>
+                    {h}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="kvk-mobile">
-              Mobile Number <span className="text-destructive">*</span>
-            </Label>
-            <Input
-              id="kvk-mobile"
-              value={mobile}
-              onChange={(e) => setMobile(e.target.value)}
-              placeholder="10-digit mobile"
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="kvk-fax">Fax</Label>
-            <Input
-              id="kvk-fax"
-              value={fax}
-              onChange={(e) => setFax(e.target.value)}
-              placeholder="Enter fax"
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="kvk-landline">Landline</Label>
-            <Input
-              id="kvk-landline"
-              value={landline}
-              onChange={(e) => setLandline(e.target.value)}
-              placeholder="Enter landline"
-            />
-          </div>
-
-          <div className="space-y-1.5">
-            <Label htmlFor="kvk-zone">
-              Zone <span className="text-destructive">*</span>
-            </Label>
-            <select
-              id="kvk-zone"
-              value={zone}
-              onChange={(e) => setZone(e.target.value)}
-              className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring"
-            >
-              <option value="">Select</option>
-              {ZONE_MASTER_ROWS.map((row) => (
-                <option key={row.zoneName} value={row.zoneName}>
-                  {row.zoneName}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="kvk-state">
-              State <span className="text-destructive">*</span>
-            </Label>
-            <select
-              id="kvk-state"
-              value={state}
-              disabled={!zone}
-              onChange={(e) => {
-                setState(e.target.value);
-                setDistrict("");
-                setHost("");
-              }}
-              className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              <option value="">Select State</option>
-              {STATES.map((s) => (
-                <option key={s} value={s}>
-                  {s}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="kvk-district">
-              District <span className="text-destructive">*</span>
-            </Label>
-            <select
-              id="kvk-district"
-              value={district}
-              disabled={!state}
-              onChange={(e) => setDistrict(e.target.value)}
-              className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              <option value="">Select District</option>
-              {districtOptions.map((d) => (
-                <option key={d} value={d}>
-                  {d}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="space-y-1.5">
-            <Label htmlFor="kvk-institute">
-              Institute <span className="text-destructive">*</span>
-            </Label>
-            <select
-              id="kvk-institute"
-              value={institute}
-              onChange={(e) => setInstitute(e.target.value)}
-              className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring"
-            >
-              <option value="">Select Institute</option>
-              {INSTITUTE_MASTER_ROWS.map((row) => (
-                <option key={row.instituteName} value={row.instituteName}>
-                  {row.instituteName}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="kvk-host">
-              Host <span className="text-destructive">*</span>
-            </Label>
-            <select
-              id="kvk-host"
-              value={host}
-              disabled={!state}
-              onChange={(e) => handleHostChange(e.target.value)}
-              className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              <option value="">Select Host</option>
-              {hostOptions.map((h) => (
-                <option key={h} value={h}>
-                  {h}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="space-y-1.5 sm:col-span-2 lg:col-span-3">
             <Label htmlFor="kvk-address">
               KVK Address <span className="text-destructive">*</span>
             </Label>
@@ -309,55 +333,71 @@ export function KvkMasterAddForm({ trail, backHref, title = "Create KVK" }: KvkM
           <p className="mb-3 text-sm font-semibold text-primary">
             Host Organization Details
           </p>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            <div className="space-y-1.5 sm:col-span-2 lg:col-span-3">
+          {/*
+            Real reference row groupings for this section too: Host
+            Organization Name alone, then Mobile+Landline+Fax three-per-row,
+            then E-mail alone, then Host Address alone (client screenshots,
+            2026-08-31).
+          */}
+          <div className="space-y-5">
+            <div className="space-y-1.5">
               <Label htmlFor="kvk-host-name">
                 Host Organization Name <span className="text-destructive">*</span>
               </Label>
               <Input
+                className="h-10"
                 id="kvk-host-name"
                 value={host}
                 disabled
                 placeholder="Populated from host (host organisation)"
               />
             </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="kvk-host-mobile">Mobile Number</Label>
-              <Input
-                id="kvk-host-mobile"
-                value={hostMobile}
-                disabled={!host}
-                placeholder="+91"
-              />
+
+            <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="kvk-host-mobile">Mobile Number</Label>
+                <Input
+                  className="h-10"
+                  id="kvk-host-mobile"
+                  value={hostMobile}
+                  disabled={!host}
+                  placeholder="+91"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="kvk-host-landline">Landline</Label>
+                <Input
+                  className="h-10"
+                  id="kvk-host-landline"
+                  value={hostLandline}
+                  disabled={!host}
+                  placeholder="Enter landline"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="kvk-host-fax">Fax</Label>
+                <Input
+                  className="h-10"
+                  id="kvk-host-fax"
+                  value={hostFax}
+                  disabled={!host}
+                  placeholder="Enter fax"
+                />
+              </div>
             </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="kvk-host-landline">Landline</Label>
-              <Input
-                id="kvk-host-landline"
-                value={hostLandline}
-                disabled={!host}
-                placeholder="Enter landline"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="kvk-host-fax">Fax</Label>
-              <Input
-                id="kvk-host-fax"
-                value={hostFax}
-                disabled={!host}
-                placeholder="Enter fax"
-              />
-            </div>
+
             <div className="space-y-1.5">
               <Label htmlFor="kvk-host-email">E-mail</Label>
               <Input
+                className="h-10"
                 id="kvk-host-email"
                 value={hostEmail}
                 disabled={!host}
                 placeholder="Enter email address"
               />
             </div>
-            <div className="space-y-1.5 sm:col-span-2 lg:col-span-2">
+
+            <div className="space-y-1.5">
               <Label htmlFor="kvk-host-address">Host Address</Label>
               <Textarea
                 id="kvk-host-address"

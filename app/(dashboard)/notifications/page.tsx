@@ -193,6 +193,10 @@ export default function NotificationsPage() {
           columns={RECEIVED_COLUMNS}
           rows={received}
           hideAddNew
+          recordPath={isKvk ? undefined : "notifications"}
+          recordKind="notification"
+          editableColumnKeys={["title", "message"]}
+          onMutated={loadRows}
         />
       </div>
 
@@ -202,6 +206,10 @@ export default function NotificationsPage() {
         columns={SENT_COLUMNS}
         rows={sent}
         hideAddNew
+        recordPath={isKvk ? undefined : "notifications"}
+        recordKind="notification"
+        editableColumnKeys={["title", "message"]}
+        onMutated={loadRows}
       />
     </div>
   );

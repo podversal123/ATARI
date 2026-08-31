@@ -55,16 +55,8 @@ export default async function MastersPage({ params }: MastersPageProps) {
 
   if (isAddPage) {
     if (node.type !== "leaf") notFound();
-    const addTrail: Crumb[] = [{ label: "All Masters", href: "/masters" }];
-    trail.forEach((item, index) => {
-      addTrail.push({
-        label: item.label,
-        href: `/masters/${trail
-          .slice(0, index + 1)
-          .map((t) => t.slug)
-          .join("/")}`,
-      });
-    });
+    /** No breadcrumb trail here (confirmed against the real "Create Zone"/"Create State"/"Create Host"/"Create KVK" reference screenshots, 2026-08-31) - every real Add/Create page under All Masters shows just "Back" + the title, not the multi-crumb chain the list pages use. */
+    const addTrail: Crumb[] = [];
     const addBackHref = `/masters/${slug.join("/")}`;
     if (node.slug === "host-master") {
       return <HostMasterAddForm trail={addTrail} backHref={addBackHref} />;
@@ -74,12 +66,19 @@ export default async function MastersPage({ params }: MastersPageProps) {
     }
     return (
       <AddLeafPage
-        title={node.label}
+        // "Create X" never carries the trailing " Master" the leaf's own
+        // list-page title/breadcrumb does (confirmed against 15+ real
+        // "Create ..." reference screenshots, 2026-08-31 - Zone/State/
+        // District/Institute/Sector/Category/Crop/Publication Items/
+        // Product Category/... all drop it, while every list page keeps
+        // it, e.g. "Publication Items Master").
+        title={node.label.replace(/ Master$/, "")}
         trail={addTrail}
         backHref={addBackHref}
         columns={node.columns}
         cascadeType={cascadeType}
         showMarkAsOther={node.showMarkAsOther}
+        formColumns={node.formColumns}
         titlePrefix="Create"
         recordPath={node.slug}
         recordKind="master"
@@ -87,16 +86,18 @@ export default async function MastersPage({ params }: MastersPageProps) {
     );
   }
 
+  /**
+   * Only the top-level section (e.g. "Other Masters", "OFT & FLD Masters")
+   * gets its own crumb, not every intermediate sub-group in between - real
+   * reference (2026-08-31, "NICRA Seed/Fodder Bank Master") shows "All
+   * Masters > Other Masters > NICRA Seed/Fodder Bank Master", skipping the
+   * "NICRA Masters" sub-group crumb entirely, since that same context is
+   * already shown by the tab row right below.
+   */
   const trailCrumbs: Crumb[] = [{ label: "All Masters", href: "/masters" }];
-  trail.slice(0, -1).forEach((item, index) => {
-    trailCrumbs.push({
-      label: item.label,
-      href: `/masters/${trail
-        .slice(0, index + 1)
-        .map((t) => t.slug)
-        .join("/")}`,
-    });
-  });
+  if (trail.length > 1) {
+    trailCrumbs.push({ label: trail[0].label, href: `/masters/${trail[0].slug}` });
+  }
   trailCrumbs.push({ label: node.label });
 
   let tabs: MasterTab[] | undefined;
@@ -180,12 +181,22 @@ export default async function MastersPage({ params }: MastersPageProps) {
       <PageHeader
         backHref={listBackHref}
         trail={trailCrumbs}
-        title={
-          node.type === "group" ? (node.pageTitle ?? node.label) : undefined
-        }
+        title={node.type === "group" ? "All Masters" : undefined}
         icon={node.type === "group" ? Database : undefined}
-        description={node.type === "group" ? node.description : undefined}
+        description={
+          node.type === "group"
+            ? "Manage all master data including zones, states, organizations, OFT, FLD, training, extension, production, and publications."
+            : undefined
+        }
       />
+      {node.type === "group" && (
+        <div className="mb-4">
+          <h2 className="text-lg font-semibold text-primary">{node.pageTitle ?? node.label}</h2>
+          {node.description && (
+            <p className="mt-1 text-sm text-muted-foreground">{node.description}</p>
+          )}
+        </div>
+      )}
       {sectionedGroups ? (
         <SectionedMasterGrid
           groups={sectionedGroups}

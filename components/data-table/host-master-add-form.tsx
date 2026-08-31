@@ -45,8 +45,8 @@ export function HostMasterAddForm({ trail, backHref }: HostMasterAddFormProps) {
 
   async function submit() {
     setError(null);
-    if (!hostName) {
-      setError("Host name is required.");
+    if (!hostName || !zone || !state || !district || !institute) {
+      setError("Please fill all required fields.");
       return;
     }
     setSubmitting(true);
@@ -74,13 +74,24 @@ export function HostMasterAddForm({ trail, backHref }: HostMasterAddFormProps) {
     <div>
       <PageHeader backHref={backHref} trail={trail} title="Create Host" />
 
-      <div className="rounded-lg border border-border bg-card p-5">
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      {/* Fade/slide-in on mount (client report, 2026-08-31) - same animate-in vocabulary the app's own dialogs/dropdowns already use. */}
+      <div className="animate-in fade-in-0 slide-in-from-bottom-2 rounded-lg border border-border bg-card p-6 duration-300">
+        {/*
+          Real reference layout (client screenshots, 2026-08-31): Host
+          Name/Zone/State/District/Institute each get their own full-width
+          row (never packed side by side), then Mobile+Landline and
+          Fax+E-mail pair up two-per-row, then Host Address spans full
+          width again. Each row group is its own grid rather than relying
+          on a single auto-flowing grid, so the pairing can't drift if a
+          field is ever added/removed.
+        */}
+        <div className="space-y-5">
           <div className="space-y-1.5">
             <Label htmlFor="host-name">
               Host Name <span className="text-destructive">*</span>
             </Label>
             <Input
+              className="h-10"
               id="host-name"
               value={hostName}
               onChange={(e) => setHostName(e.target.value)}
@@ -96,7 +107,7 @@ export function HostMasterAddForm({ trail, backHref }: HostMasterAddFormProps) {
               id="host-zone"
               value={zone}
               onChange={(e) => setZone(e.target.value)}
-              className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring"
+              className="h-10 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none hover:border-ring/60 focus-visible:border-ring"
             >
               <option value="">Select</option>
               {ZONE_MASTER_ROWS.map((row) => (
@@ -119,7 +130,7 @@ export function HostMasterAddForm({ trail, backHref }: HostMasterAddFormProps) {
                 setState(e.target.value);
                 setDistrict("");
               }}
-              className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring disabled:cursor-not-allowed disabled:opacity-50"
+              className="h-10 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none hover:border-ring/60 focus-visible:border-ring disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-input"
             >
               <option value="">{zone ? "Select State" : "Select Zone first"}</option>
               {STATES.map((s) => (
@@ -139,7 +150,7 @@ export function HostMasterAddForm({ trail, backHref }: HostMasterAddFormProps) {
               value={district}
               disabled={!state}
               onChange={(e) => setDistrict(e.target.value)}
-              className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring disabled:cursor-not-allowed disabled:opacity-50"
+              className="h-10 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none hover:border-ring/60 focus-visible:border-ring disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-input"
             >
               <option value="">{state ? "Select District" : "Select State first"}</option>
               {districtOptions.map((d) => (
@@ -158,7 +169,7 @@ export function HostMasterAddForm({ trail, backHref }: HostMasterAddFormProps) {
               id="host-institute"
               value={institute}
               onChange={(e) => setInstitute(e.target.value)}
-              className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring"
+              className="h-10 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none hover:border-ring/60 focus-visible:border-ring"
             >
               <option value="">Select Institute</option>
               {INSTITUTE_MASTER_ROWS.map((row) => (
@@ -172,6 +183,7 @@ export function HostMasterAddForm({ trail, backHref }: HostMasterAddFormProps) {
           <div className="space-y-1.5">
             <Label htmlFor="host-director-extension">Director Extension</Label>
             <Input
+              className="h-10"
               id="host-director-extension"
               value={directorExtension}
               onChange={(e) => setDirectorExtension(e.target.value)}
@@ -179,48 +191,56 @@ export function HostMasterAddForm({ trail, backHref }: HostMasterAddFormProps) {
             />
           </div>
 
-          <div className="space-y-1.5">
-            <Label htmlFor="host-mobile">Mobile Number</Label>
-            <Input
-              id="host-mobile"
-              value={mobile}
-              onChange={(e) => setMobile(e.target.value)}
-              placeholder="10-digit mobile"
-            />
+          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="host-mobile">Mobile Number</Label>
+              <Input
+                className="h-10"
+                id="host-mobile"
+                value={mobile}
+                onChange={(e) => setMobile(e.target.value)}
+                placeholder="10-digit mobile"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="host-landline">Landline</Label>
+              <Input
+                className="h-10"
+                id="host-landline"
+                value={landline}
+                onChange={(e) => setLandline(e.target.value)}
+                placeholder="Enter landline number"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="host-fax">Fax</Label>
+              <Input
+                className="h-10"
+                id="host-fax"
+                value={fax}
+                onChange={(e) => setFax(e.target.value)}
+                placeholder="Enter fax number"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="host-email">E-mail</Label>
+              <Input
+                className="h-10"
+                id="host-email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="Enter email address"
+              />
+            </div>
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="host-landline">Landline</Label>
-            <Input
-              id="host-landline"
-              value={landline}
-              onChange={(e) => setLandline(e.target.value)}
-              placeholder="Enter landline number"
-            />
-          </div>
-
-          <div className="space-y-1.5">
-            <Label htmlFor="host-fax">Fax</Label>
-            <Input
-              id="host-fax"
-              value={fax}
-              onChange={(e) => setFax(e.target.value)}
-              placeholder="Enter fax number"
-            />
-          </div>
-
-          <div className="space-y-1.5">
-            <Label htmlFor="host-email">E-mail</Label>
-            <Input
-              id="host-email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="Enter email address"
-            />
-          </div>
-
-          <div className="space-y-1.5 sm:col-span-2 lg:col-span-3">
             <Label htmlFor="host-address">Host Address</Label>
             <Textarea
               id="host-address"

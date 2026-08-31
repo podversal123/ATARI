@@ -1,11 +1,17 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { Eye, EyeOff, Save } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   Select,
   SelectContent,
@@ -13,11 +19,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { PageHeader } from "@/components/layout/page-header";
-import { BASE_ROLES, DISTRICTS, KVKS, STATES, scopeFieldFor, type ScopeKind } from "@/lib/rbac";
+import { BASE_ROLES, scopeFieldFor } from "@/lib/rbac";
 import { useSession } from "@/lib/session";
-
-const KVK_USER_ROLE = "KVK User";
+import {
+  KVK_USER_ROLE,
+  roleByName,
+  roleSlugFromName,
+  scopeBodyKey,
+  scopeOptionsFor,
+} from "@/components/user-management/user-form-shared";
 
 type UserFormState = {
   fullName: string;
@@ -29,88 +39,56 @@ type UserFormState = {
   scopeValue: string;
 };
 
-function roleByName(name: string) {
-  return BASE_ROLES.find((role) => role.name === name);
+function emptyForm(isKvk: boolean, kvkName: string | undefined): UserFormState {
+  return isKvk
+    ? {
+        fullName: "",
+        email: "",
+        phone: "",
+        password: "",
+        confirmPassword: "",
+        roleName: KVK_USER_ROLE,
+        scopeValue: kvkName ?? "",
+      }
+    : {
+        fullName: "",
+        email: "",
+        phone: "",
+        password: "",
+        confirmPassword: "",
+        roleName: "",
+        scopeValue: "",
+      };
 }
 
-/** Matches the slugs seeded for the 9 real system roles (prisma/seed-roles.ts) - every BASE_ROLES name transforms to its slug the same way. */
-function roleSlugFromName(name: string) {
-  return name.toLowerCase().replace(/\s+/g, "_");
-}
-
-/**
- * The real Create User form has no separate "Username" field (per the
- * reference) - login already works off a plain `username` column, so the
- * email doubles as it here, same as typing either one at the login screen.
- * Only ever called with a `scopeField`'s own `kind`, which is never
- * "system" (scopeFieldFor returns null for that case) - typed to accept
- * the full ScopeKind anyway since that's the real return type.
- */
-function scopeBodyKey(kind: ScopeKind) {
-  switch (kind) {
-    case "system":
-      return null;
-    case "state":
-      return "stateName";
-    case "district":
-      return "districtName";
-    case "organisation":
-      return "hostOrgName";
-    case "kvk":
-      return "kvkName";
-  }
-}
-
-function scopeOptionsFor(kind: ReturnType<typeof scopeFieldFor>) {
-  if (!kind) return null;
-  switch (kind.kind) {
-    case "state":
-      return STATES;
-    case "district":
-      return DISTRICTS;
-    case "kvk":
-      return KVKS.map((kvk) => kvk.name);
-    default:
-      return null;
-  }
-}
+type CreateUserDialogProps = {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onCreated: () => void;
+};
 
 /**
- * Create User, as a dedicated full page rather than the cramped popup it
- * used to be - same field set and validation as before (still no backend,
- * so Save just returns to the list), laid out like Form Management's Add
- * New pages for consistency across the app.
+ * Create User, as a popup dialog matching the Role Management "Add Role"
+ * popup's treatment (bigger dialog, red required-field asterisks) - client
+ * direction, 2026-08-31, replacing the earlier dedicated full page.
  */
-export function CreateUserPage() {
-  const router = useRouter();
+export function CreateUserDialog({ open, onOpenChange, onCreated }: CreateUserDialogProps) {
   const session = useSession();
   const isKvk = session.role !== "super-admin";
-  const backHref = "/user-management";
 
-  const [form, setForm] = useState<UserFormState>(
-    isKvk
-      ? {
-          fullName: "",
-          email: "",
-          phone: "",
-          password: "",
-          confirmPassword: "",
-          roleName: KVK_USER_ROLE,
-          scopeValue: session.kvkName ?? "",
-        }
-      : {
-          fullName: "",
-          email: "",
-          phone: "",
-          password: "",
-          confirmPassword: "",
-          roleName: "",
-          scopeValue: "",
-        },
-  );
+  const [form, setForm] = useState<UserFormState>(() => emptyForm(isKvk, session.kvkName));
   const [showPassword, setShowPassword] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (open) {
+      setForm(emptyForm(isKvk, session.kvkName));
+      setFormError(null);
+      setShowPassword(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   const selectedRole = roleByName(form.roleName);
   const scopeField = selectedRole ? scopeFieldFor(selectedRole.scope) : null;
@@ -163,8 +141,8 @@ export function CreateUserPage() {
         setFormError(data.error ?? "Could not create this user.");
         return;
       }
-      router.push(backHref);
-      router.refresh();
+      onOpenChange(false);
+      onCreated();
     } catch {
       setFormError("Could not reach the server. Please try again.");
     } finally {
@@ -173,23 +151,18 @@ export function CreateUserPage() {
   }
 
   return (
-    <div>
-      <PageHeader
-        backHref={backHref}
-        trail={[
-          { label: "Dashboard", href: "/dashboard" },
-          { label: "User Management", href: "/user-management" },
-          { label: "Create User" },
-        ]}
-        title="Create User"
-      />
+    <Dialog open={open} onOpenChange={(next) => !submitting && onOpenChange(next)}>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Create New User</DialogTitle>
+        </DialogHeader>
 
-      <div className="rounded-lg border border-border bg-card p-5">
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="space-y-4">
           <div className="space-y-1.5">
-            <Label htmlFor="user-name">Full Name</Label>
+            <Label htmlFor="user-name" className="text-primary">Full Name</Label>
             <Input
               id="user-name"
+              className="h-10"
               placeholder="Enter full name"
               value={form.fullName}
               onChange={(event) => updateForm("fullName", event.target.value)}
@@ -197,9 +170,10 @@ export function CreateUserPage() {
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="user-email">Email</Label>
+            <Label htmlFor="user-email" className="text-primary">Email</Label>
             <Input
               id="user-email"
+              className="h-10"
               type="email"
               placeholder="name@atariams.org"
               value={form.email}
@@ -208,9 +182,10 @@ export function CreateUserPage() {
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="user-phone">Phone Number (Optional)</Label>
+            <Label htmlFor="user-phone" className="text-primary">Phone Number (Optional)</Label>
             <Input
               id="user-phone"
+              className="h-10"
               placeholder="10-digit mobile (6–9...)"
               value={form.phone}
               onChange={(event) => updateForm("phone", event.target.value)}
@@ -218,15 +193,15 @@ export function CreateUserPage() {
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="user-password">Password</Label>
+            <Label htmlFor="user-password" className="text-primary">Password</Label>
             <div className="relative">
               <Input
                 id="user-password"
+                className="h-10 pr-9"
                 type={showPassword ? "text" : "password"}
                 autoComplete="new-password"
                 value={form.password}
                 onChange={(event) => updateForm("password", event.target.value)}
-                className="pr-9"
               />
               <button
                 type="button"
@@ -247,9 +222,10 @@ export function CreateUserPage() {
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="user-confirm-password">Confirm Password</Label>
+            <Label htmlFor="user-confirm-password" className="text-primary">Confirm Password</Label>
             <Input
               id="user-confirm-password"
+              className="h-10"
               type={showPassword ? "text" : "password"}
               autoComplete="new-password"
               placeholder="Confirm password"
@@ -261,15 +237,17 @@ export function CreateUserPage() {
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="user-role">Role *</Label>
+            <Label htmlFor="user-role" className="text-primary">
+              Role <span className="text-destructive">*</span>
+            </Label>
             {isKvk ? (
-              <Input id="user-role" value={KVK_USER_ROLE} disabled />
+              <Input id="user-role" className="h-10" value={KVK_USER_ROLE} disabled />
             ) : (
               <Select
                 value={form.roleName}
                 onValueChange={(value) => onRoleChange(value as string)}
               >
-                <SelectTrigger id="user-role" className="w-full">
+                <SelectTrigger id="user-role" className="h-10 w-full">
                   <SelectValue placeholder="Select Role" />
                 </SelectTrigger>
                 <SelectContent>
@@ -286,19 +264,23 @@ export function CreateUserPage() {
           {scopeField &&
             (isKvk ? (
               <div className="space-y-1.5">
-                <Label htmlFor="user-scope-text">{scopeField.label} *</Label>
-                <Input id="user-scope-text" value={form.scopeValue} disabled />
+                <Label htmlFor="user-scope-text" className="text-primary">
+                  {scopeField.label} <span className="text-destructive">*</span>
+                </Label>
+                <Input id="user-scope-text" className="h-10" value={form.scopeValue} disabled />
               </div>
             ) : scopeOptions ? (
               <div className="space-y-1.5">
-                <Label htmlFor="user-scope">{scopeField.label} *</Label>
+                <Label htmlFor="user-scope" className="text-primary">
+                  {scopeField.label} <span className="text-destructive">*</span>
+                </Label>
                 <Select
                   value={form.scopeValue}
                   onValueChange={(value) =>
                     updateForm("scopeValue", value as string)
                   }
                 >
-                  <SelectTrigger id="user-scope" className="w-full">
+                  <SelectTrigger id="user-scope" className="h-10 w-full">
                     <SelectValue placeholder={scopeField.placeholder} />
                   </SelectTrigger>
                   <SelectContent>
@@ -312,9 +294,12 @@ export function CreateUserPage() {
               </div>
             ) : (
               <div className="space-y-1.5">
-                <Label htmlFor="user-scope-text">{scopeField.label} *</Label>
+                <Label htmlFor="user-scope-text" className="text-primary">
+                  {scopeField.label} <span className="text-destructive">*</span>
+                </Label>
                 <Input
                   id="user-scope-text"
+                  className="h-10"
                   placeholder={scopeField.placeholder}
                   value={form.scopeValue}
                   onChange={(event) =>
@@ -325,20 +310,17 @@ export function CreateUserPage() {
             ))}
         </div>
 
-        {formError && (
-          <p className="mt-4 text-sm text-destructive">{formError}</p>
-        )}
+        {formError && <p className="text-sm text-destructive">{formError}</p>}
 
-        <div className="mt-5 flex justify-end gap-2 border-t border-border pt-4">
-          <Button variant="outline" onClick={() => router.push(backHref)} disabled={submitting}>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
             Cancel
           </Button>
           <Button onClick={submitForm} disabled={submitting}>
-            <Save className="size-3.5" />
             {submitting ? "Creating…" : "Create User"}
           </Button>
-        </div>
-      </div>
-    </div>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { PageHeader, type Crumb } from "@/components/layout/page-header";
 import { MasterFormFields } from "./master-form-fields";
 import type { MasterColumn } from "@/lib/navigation";
+import { cn } from "@/lib/utils";
 
 type AddLeafPageProps = {
   title: string;
@@ -22,6 +23,8 @@ type AddLeafPageProps = {
   recordPath?: string;
   /** Which registry/endpoint `recordPath` refers to - "form" (default, KVK-scoped Form Management leaves) or "master" (zone-scoped, Super Admin only, All Masters leaves). */
   recordKind?: "form" | "master";
+  /** Packs fields two-per-row instead of the default one-per-row - see lib/navigation.ts's NavLeaf.formColumns for when this is real vs guessed. */
+  formColumns?: 2;
 };
 
 /**
@@ -42,9 +45,13 @@ export function AddLeafPage({
   titlePrefix = "Add",
   recordPath,
   recordKind = "form",
+  formColumns,
 }: AddLeafPageProps) {
   const router = useRouter();
-  const [formValues, setFormValues] = useState<Record<string, string>>({});
+  // Pre-fill any column with a confirmed real default (e.g. Vehicle/Equipment Present Status's Hide in Next Year -> "No") instead of starting every field blank.
+  const [formValues, setFormValues] = useState<Record<string, string>>(() =>
+    Object.fromEntries(columns.filter((c) => c.defaultValue !== undefined).map((c) => [c.key, c.defaultValue!])),
+  );
   const [markAsOther, setMarkAsOther] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -52,11 +59,18 @@ export function AddLeafPage({
     showMarkAsOther ?? (columns.length === 1 && columns[0].key === "name");
 
   async function submit() {
+    setError(null);
+    const missing = columns.filter(
+      (column) => column.required && !column.readonly && !formValues[column.key]?.trim(),
+    );
+    if (missing.length > 0) {
+      setError("Please fill all required fields.");
+      return;
+    }
     if (!recordPath) {
       router.push(backHref);
       return;
     }
-    setError(null);
     setSubmitting(true);
     try {
       const response = await fetch(recordKind === "master" ? "/api/master-record" : "/api/leaf-record", {
@@ -86,8 +100,10 @@ export function AddLeafPage({
         title={`${titlePrefix} ${title}`}
       />
 
-      <div className="rounded-lg border border-border bg-card p-5">
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      {/* Fade/slide-in on mount (client report, 2026-08-31: "add new karne pe animation hai") - same animate-in vocabulary the app's own dialogs/dropdowns already use (see components/ui/dialog.tsx), so this Add page's own entrance matches the rest of the app's motion language instead of introducing a new one. */}
+      <div className="animate-in fade-in-0 slide-in-from-bottom-2 rounded-lg border border-border bg-card p-6 duration-300">
+        {/* One field per row by default (client report, 2026-08-31) - the real reference never packs these simple masters' fields side by side, confirmed against Zone (1 field)/State (2)/District (3)/Institute (4) Master's own Create screenshots, each stacked in a single column regardless of field count. `formColumns` opts a specific leaf into two-per-row when its own reference confirmed that instead (e.g. Vehicle/Equipment Present Status). */}
+        <div className={cn("grid grid-cols-1 gap-5", formColumns === 2 && "sm:grid-cols-2")}>
           <MasterFormFields
             columns={columns}
             cascadeType={cascadeType}

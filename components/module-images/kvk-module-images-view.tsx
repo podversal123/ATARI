@@ -223,7 +223,7 @@ export function KvkModuleImagesView() {
               type="date"
               value={fromDate}
               onChange={(e) => setFromDate(e.target.value)}
-              className="mt-1"
+              className="mt-1 h-9"
             />
           </div>
           <div>
@@ -232,7 +232,7 @@ export function KvkModuleImagesView() {
               type="date"
               value={toDate}
               onChange={(e) => setToDate(e.target.value)}
-              className="mt-1"
+              className="mt-1 h-9"
             />
           </div>
         </div>

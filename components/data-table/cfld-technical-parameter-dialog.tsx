@@ -261,7 +261,7 @@ export function CfldTechnicalParameterDialog({
                     onChange={(e) =>
                       setTechnical((p) => ({ ...p, month: e.target.value }))
                     }
-                    className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring"
+                    className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none hover:border-ring/60 focus-visible:border-ring"
                   >
                     <option value="">Select One</option>
                     {[
@@ -280,7 +280,7 @@ export function CfldTechnicalParameterDialog({
                     onChange={(e) =>
                       setTechnical((p) => ({ ...p, season: e.target.value }))
                     }
-                    className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring"
+                    className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none hover:border-ring/60 focus-visible:border-ring"
                   >
                     <option value="">Select One</option>
                     <option value="Kharif">Kharif</option>

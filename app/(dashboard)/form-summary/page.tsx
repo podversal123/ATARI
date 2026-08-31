@@ -354,15 +354,32 @@ export default function FormSummaryPage() {
                     <th
                       colSpan={2}
                       style={{ width: 264, minWidth: 264, maxWidth: 264, willChange: "transform" }}
-                      className="sticky left-0 z-10 border-r border-border bg-muted p-0"
+                      className="sticky left-0 z-10 bg-muted p-0"
                     >
                       <div className="flex">
                         <div className="w-14 shrink-0 border-r border-border px-4 py-3">#</div>
                         <div className="w-52 shrink-0 px-4 py-3">Form Name</div>
                       </div>
                     </th>
-                    {filteredSorted.map((kvk) => (
-                      <th key={kvk.id} className="min-w-28 border-r border-border bg-muted px-3 py-2 text-center">
+                    {/*
+                      The boundary line right after the sticky column lives
+                      on THIS (ordinary, non-sticky) cell's left edge, not as
+                      a border/shadow on the sticky cell itself - a border on
+                      a `position: sticky` cell can paint as a hairline
+                      double-stroke on some displays (its static-flow box and
+                      its "stuck" compositing layer each contribute an edge),
+                      which is exactly the persistent double-line gap
+                      reported here (client report, 2026-08-31). A border on
+                      an ordinary cell can't split like that.
+                    */}
+                    {filteredSorted.map((kvk, kvkIndex) => (
+                      <th
+                        key={kvk.id}
+                        className={cn(
+                          "min-w-28 border-r border-border bg-muted px-3 py-2 text-center",
+                          kvkIndex === 0 && "border-l",
+                        )}
+                      >
                         <div className="whitespace-nowrap normal-case">{kvk.name}</div>
                         <div className="mt-0.5 font-normal text-muted-foreground/70 normal-case">{kvk.percent}%</div>
                       </th>
@@ -375,7 +392,7 @@ export default function FormSummaryPage() {
                       <td
                         colSpan={2}
                         style={{ width: 264, minWidth: 264, maxWidth: 264, willChange: "transform" }}
-                        className="sticky left-0 z-10 border-r border-border bg-card p-0"
+                        className="sticky left-0 z-10 bg-card p-0"
                       >
                         <div className="flex">
                           <div className="w-14 shrink-0 border-r border-border px-4 py-2.5 text-muted-foreground">
@@ -384,11 +401,17 @@ export default function FormSummaryPage() {
                           <div className="w-52 shrink-0 px-4 py-2.5 text-foreground">{leafRef.label}</div>
                         </div>
                       </td>
-                      {filteredSorted.map((kvk) => {
+                      {filteredSorted.map((kvk, kvkIndex) => {
                         const count =
                           kvk.sections.flatMap((s) => s.leaves).find((l) => l.path === leafRef.path)?.count ?? 0;
                         return (
-                          <td key={kvk.id} className="border-r border-border px-3 py-2.5 text-center text-muted-foreground">
+                          <td
+                            key={kvk.id}
+                            className={cn(
+                              "border-r border-border px-3 py-2.5 text-center text-muted-foreground",
+                              kvkIndex === 0 && "border-l",
+                            )}
+                          >
                             {count > 0 ? count : "-"}
                           </td>
                         );

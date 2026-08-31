@@ -1,12 +1,26 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import { usePolling } from "@/lib/use-polling";
 import { KeyRound, MoreVertical, Pencil, Plus, Search, Trash2 } from "lucide-react";
-import { Button, buttonVariants } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { BASE_ROLES, scopeFieldFor } from "@/lib/rbac";
+import {
+  roleByName,
+  roleSlugFromName,
+  scopeBodyKey,
+  scopeOptionsFor,
+} from "@/components/user-management/user-form-shared";
+import { CreateUserDialog } from "@/components/user-management/create-user-page";
+import { useSession } from "@/lib/session";
 import { Label } from "@/components/ui/label";
 import {
   Dialog,
@@ -46,13 +60,47 @@ type UserRow = {
   email: string;
   phone: string;
   roleName: string;
+  stateName: string;
+  districtName: string;
+  hostOrgName: string;
   kvkName: string;
   createdAt: string;
   lastLogin: string | null;
 };
 
-type EditFormState = { name: string; email: string; phone: string; password: string };
-const EMPTY_EDIT_FORM: EditFormState = { name: "", email: "", phone: "", password: "" };
+type EditFormState = {
+  name: string;
+  email: string;
+  phone: string;
+  password: string;
+  roleName: string;
+  scopeValue: string;
+};
+const EMPTY_EDIT_FORM: EditFormState = {
+  name: "",
+  email: "",
+  phone: "",
+  password: "",
+  roleName: "",
+  scopeValue: "",
+};
+
+/** Picks whichever scope name the user row already carries, matching the given role's own scope kind - same convention as the create form's scopeBodyKey. */
+function currentScopeValue(user: UserRow, kind: ReturnType<typeof scopeFieldFor>) {
+  if (!kind) return "";
+  switch (kind.kind) {
+    case "state":
+      return user.stateName;
+    case "district":
+      return user.districtName;
+    case "organisation":
+      return user.hostOrgName;
+    case "kvk":
+      return user.kvkName;
+    default:
+      return "";
+  }
+}
 
 /**
  * User Management screen, wired to the real /api/users CRUD - list, create
@@ -63,10 +111,13 @@ const EMPTY_EDIT_FORM: EditFormState = { name: "", email: "", phone: "", passwor
  * from Edit User - no separate backend needed for it.
  */
 export function UserManagementView() {
+  const session = useSession();
+  const isSuperAdmin = session.role === "super-admin";
   const [search, setSearch] = useState("");
   const [users, setUsers] = useState<UserRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [listError, setListError] = useState<string | null>(null);
+  const [createOpen, setCreateOpen] = useState(false);
 
   const [editUser, setEditUser] = useState<UserRow | null>(null);
   const [editForm, setEditForm] = useState<EditFormState>(EMPTY_EDIT_FORM);
@@ -103,14 +154,35 @@ export function UserManagementView() {
 
   function openEdit(user: UserRow) {
     setEditUser(user);
-    setEditForm({ name: user.name, email: user.email, phone: user.phone, password: "" });
+    const role = roleByName(user.roleName);
+    const scopeField = role ? scopeFieldFor(role.scope) : null;
+    setEditForm({
+      name: user.name,
+      email: user.email,
+      phone: user.phone,
+      password: "",
+      roleName: user.roleName,
+      scopeValue: currentScopeValue(user, scopeField),
+    });
     setEditError(null);
+  }
+
+  const editRole = roleByName(editForm.roleName);
+  const editScopeField = editRole ? scopeFieldFor(editRole.scope) : null;
+  const editScopeOptions = scopeOptionsFor(editScopeField);
+
+  function onEditRoleChange(roleName: string) {
+    setEditForm((prev) => ({ ...prev, roleName, scopeValue: "" }));
   }
 
   async function submitEdit() {
     if (!editUser) return;
     if (!editForm.name.trim()) {
       setEditError("Name is required.");
+      return;
+    }
+    if (isSuperAdmin && editScopeField && !editForm.scopeValue) {
+      setEditError(`${editScopeField.label} is required for this role.`);
       return;
     }
     setEditError(null);
@@ -124,6 +196,10 @@ export function UserManagementView() {
           email: editForm.email.trim(),
           phone: editForm.phone.trim(),
           ...(editForm.password ? { password: editForm.password } : {}),
+          ...(isSuperAdmin ? { roleSlug: roleSlugFromName(editForm.roleName) } : {}),
+          ...(isSuperAdmin && editScopeField && scopeBodyKey(editScopeField.kind)
+            ? { [scopeBodyKey(editScopeField.kind)!]: editForm.scopeValue }
+            : {}),
         }),
       });
       const data = await response.json();
@@ -164,18 +240,18 @@ export function UserManagementView() {
     <div className="rounded-lg border border-border bg-card">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border p-4">
         <div className="relative">
-          <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             value={search}
             onChange={(event) => setSearch(event.target.value)}
             placeholder="Search by name or email..."
-            className="w-72 pl-8"
+            className="h-10 w-96 pl-9"
           />
         </div>
-        <Link href="/user-management/create" className={cn(buttonVariants({ size: "sm" }))}>
-          <Plus className="size-3.5" />
+        <Button size="lg" onClick={() => setCreateOpen(true)}>
+          <Plus className="size-4" />
           Create User
-        </Link>
+        </Button>
       </div>
 
       <Table>
@@ -269,51 +345,120 @@ export function UserManagementView() {
         </div>
       </div>
 
+      {/* Create User */}
+      <CreateUserDialog
+        open={createOpen}
+        onOpenChange={setCreateOpen}
+        onCreated={() => loadUsers()}
+      />
+
       {/* Edit User */}
       <Dialog open={editUser !== null} onOpenChange={(open) => !open && setEditUser(null)}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>Edit User</DialogTitle>
           </DialogHeader>
 
           <div className="space-y-4">
             <div className="space-y-1.5">
-              <Label htmlFor="edit-name">Full Name</Label>
+              <Label htmlFor="edit-name" className="text-primary">Full Name</Label>
               <Input
                 id="edit-name"
+                className="h-10"
                 value={editForm.name}
                 onChange={(event) => setEditForm((prev) => ({ ...prev, name: event.target.value }))}
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="edit-email">Email</Label>
+              <Label htmlFor="edit-email" className="text-primary">Email</Label>
               <Input
                 id="edit-email"
+                className="h-10"
                 type="email"
                 value={editForm.email}
                 onChange={(event) => setEditForm((prev) => ({ ...prev, email: event.target.value }))}
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="edit-phone">Phone</Label>
+              <Label htmlFor="edit-phone" className="text-primary">Phone Number (Optional)</Label>
               <Input
                 id="edit-phone"
+                className="h-10"
                 value={editForm.phone}
                 onChange={(event) => setEditForm((prev) => ({ ...prev, phone: event.target.value }))}
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="edit-password">New Password (Optional)</Label>
+              <Label htmlFor="edit-password" className="text-primary">New Password (Optional)</Label>
               <Input
                 id="edit-password"
+                className="h-10"
                 type="password"
                 autoComplete="new-password"
+                placeholder="Leave blank to keep current password"
                 value={editForm.password}
                 onChange={(event) => setEditForm((prev) => ({ ...prev, password: event.target.value }))}
               />
+              <p className="text-xs text-muted-foreground">
+                Setting a new password logs the user out everywhere.
+              </p>
             </div>
-            {editError && <p className="text-sm text-destructive">{editError}</p>}
+
+            {isSuperAdmin && (
+              <div className="space-y-1.5">
+                <Label htmlFor="edit-role" className="text-primary">
+                  Role <span className="text-destructive">*</span>
+                </Label>
+                <Select value={editForm.roleName} onValueChange={(value) => onEditRoleChange(value as string)}>
+                  <SelectTrigger id="edit-role" className="h-10 w-full">
+                    <SelectValue placeholder="Select Role" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {BASE_ROLES.map((role) => (
+                      <SelectItem key={role.name} value={role.name}>
+                        {role.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            {isSuperAdmin && editScopeField && (
+              <div className="space-y-1.5">
+                <Label htmlFor="edit-scope" className="text-primary">
+                  {editScopeField.label} <span className="text-destructive">*</span>
+                </Label>
+                {editScopeOptions ? (
+                  <Select
+                    value={editForm.scopeValue}
+                    onValueChange={(value) => setEditForm((prev) => ({ ...prev, scopeValue: value as string }))}
+                  >
+                    <SelectTrigger id="edit-scope" className="h-10 w-full">
+                      <SelectValue placeholder={editScopeField.placeholder} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {editScopeOptions.map((option) => (
+                        <SelectItem key={option} value={option}>
+                          {option}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <Input
+                    id="edit-scope"
+                    className="h-10"
+                    placeholder={editScopeField.placeholder}
+                    value={editForm.scopeValue}
+                    onChange={(event) => setEditForm((prev) => ({ ...prev, scopeValue: event.target.value }))}
+                  />
+                )}
+              </div>
+            )}
           </div>
+
+          {editError && <p className="text-sm text-destructive">{editError}</p>}
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditUser(null)} disabled={editSubmitting}>

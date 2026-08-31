@@ -173,6 +173,6 @@ export function scopeFieldFor(
         kind: "organisation",
       };
     case "kvk":
-      return { label: "KVK", placeholder: "Select KVK", kind: "kvk" };
+      return { label: "KVK", placeholder: "Search kvk...", kind: "kvk" };
   }
 }

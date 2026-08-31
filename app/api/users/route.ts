@@ -27,7 +27,7 @@ export async function GET() {
 
   const users = await prisma.user.findMany({
     where,
-    include: { kvk: true, assignedRole: true },
+    include: { kvk: true, state: true, district: true, hostOrg: true, assignedRole: true },
     orderBy: { createdAt: "desc" },
   });
 
@@ -47,6 +47,9 @@ export async function GET() {
       username: u.username,
       roleName: u.assignedRole?.name ?? u.role,
       roleSlug: u.assignedRole?.slug ?? "",
+      stateName: u.state?.name ?? "",
+      districtName: u.district?.name ?? "",
+      hostOrgName: u.hostOrg?.name ?? "",
       kvkName: u.kvk?.name ?? "",
       createdAt: u.createdAt.toISOString(),
       lastLogin: lastLoginByUserId.get(u.id)?.toISOString() ?? null,

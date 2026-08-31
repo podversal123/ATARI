@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useState } from "react";
+import { useEffect, useId, useState, type ReactNode } from "react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -58,6 +58,16 @@ function fetchSourceMasterRows(master: string): Promise<Record<string, string>[]
   return cached;
 }
 
+/** Red "*" after a field's label when `MasterColumn.required` is set - same convention as the reference's own Create forms. */
+function FieldLabel({ htmlFor, required, children }: { htmlFor: string; required?: boolean; children: ReactNode }) {
+  return (
+    <Label htmlFor={htmlFor}>
+      {children}
+      {required && <span className="text-destructive"> *</span>}
+    </Label>
+  );
+}
+
 /** A <select> populated by another master's real saved rows instead of free text - see MasterColumn.sourceMaster. */
 function SourceMasterField({
   column,
@@ -104,10 +114,10 @@ function SourceMasterField({
       value={value}
       disabled={disabled}
       onChange={(event) => onChange(event.target.value)}
-      className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring disabled:cursor-not-allowed disabled:opacity-50"
+      className="h-10 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none hover:border-ring/60 focus-visible:border-ring disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-input"
     >
       <option value="" disabled>
-        {disabled ? `Select ${dependsOnLabel ?? "the required field"} first` : `Select ${column.label}`}
+        {disabled ? `Select ${dependsOnLabel ?? "the required field"} first` : `Select ${column.formLabel ?? column.label}`}
       </option>
       {options.map((option) => (
         <option key={option} value={option}>
@@ -197,12 +207,14 @@ export function MasterFormFields({
         if (column.staticOptions) {
           return (
             <div key={column.key} className="space-y-1.5">
-              <Label htmlFor={fieldId}>{column.formLabel ?? column.label}</Label>
+              <FieldLabel htmlFor={fieldId} required={column.required}>
+                {column.formLabel ?? column.label}
+              </FieldLabel>
               <select
                 id={fieldId}
                 value={formValues[column.key] ?? ""}
                 onChange={(event) => onChange({ ...formValues, [column.key]: event.target.value })}
-                className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring"
+                className="h-10 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none hover:border-ring/60 focus-visible:border-ring"
               >
                 <option value="" disabled>
                   Select {column.label}
@@ -235,7 +247,9 @@ export function MasterFormFields({
           const disabled = Boolean(dependsOnKey) && !dependsOnValue;
           return (
             <div key={column.key} className="space-y-1.5">
-              <Label htmlFor={fieldId}>{column.formLabel ?? column.label}</Label>
+              <FieldLabel htmlFor={fieldId} required={column.required}>
+                {column.formLabel ?? column.label}
+              </FieldLabel>
               <SourceMasterField
                 column={column as MasterColumn & { sourceMaster: NonNullable<MasterColumn["sourceMaster"]> }}
                 fieldId={fieldId}
@@ -278,7 +292,9 @@ export function MasterFormFields({
 
           return (
             <div key={column.key} className="space-y-1.5">
-              <Label htmlFor={fieldId}>{column.label}</Label>
+              <FieldLabel htmlFor={fieldId} required={column.required}>
+                {column.label}
+              </FieldLabel>
               <select
                 id={fieldId}
                 value={formValues[column.key] ?? ""}
@@ -291,7 +307,7 @@ export function MasterFormFields({
                     ...(isStateField ? clearedDownstream : {}),
                   })
                 }
-                className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring disabled:cursor-not-allowed disabled:opacity-50"
+                className="h-10 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none hover:border-ring/60 focus-visible:border-ring disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-input"
               >
                 <option value="" disabled>
                   {disabled
@@ -310,11 +326,14 @@ export function MasterFormFields({
 
         return (
           <div key={column.key} className="space-y-1.5">
-            <Label htmlFor={fieldId}>{column.formLabel ?? column.label}</Label>
+            <FieldLabel htmlFor={fieldId} required={column.required}>
+              {column.formLabel ?? column.label}
+            </FieldLabel>
             <Input
               id={fieldId}
+              className="h-10"
               value={formValues[column.key] ?? ""}
-              placeholder={`Enter ${(column.formLabel ?? column.label).toLowerCase()}`}
+              placeholder={column.placeholder ?? `Enter ${(column.formLabel ?? column.label).toLowerCase()}`}
               onChange={(event) =>
                 onChange({ ...formValues, [column.key]: event.target.value })
               }
@@ -329,7 +348,8 @@ export function MasterFormFields({
             checked={markAsOther}
             onCheckedChange={(checked) => onMarkAsOtherChange(checked === true)}
           />
-          Mark as &quot;Other&quot; option
+          Mark as &quot;Other&quot; option{" "}
+          <span className="text-muted-foreground">(lets users type a custom value in forms)</span>
         </label>
       )}
     </>

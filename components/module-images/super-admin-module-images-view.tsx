@@ -15,7 +15,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import {
   DropdownMenu,
@@ -40,10 +39,11 @@ import { KVKS } from "@/lib/rbac";
  * Super Admin - Module Images → Category Wise Photographs. Matches
  * "Module Images UI.pdf" section 2-9 & 17: Reporting Year + multi-select
  * KVKs + Category/Form + date range filters, a results table with a
- * per-row Download plus a checkbox for bulk selection, and a "Download
- * Images By" menu offering Selected Records / Selected KVKs & Category /
- * All Images. Super Admin has no Upload/Edit here (spec section 1) - every
- * action is view/filter/download only.
+ * per-row Download, and a "Download Images By" menu offering Selected
+ * KVKs & Category / All Images. Super Admin has no Upload/Edit here (spec
+ * section 1) - every action is view/filter/download only. The per-row
+ * bulk-selection checkbox (and its "Selected Records" download option) was
+ * removed 2026-08-31 (client direction) along with its column.
  *
  * Real backend wired 2026-08-28 (GET /api/module-images returns every
  * image across the zone for this role) - was reading the always-empty
@@ -76,7 +76,6 @@ export function SuperAdminModuleImagesView() {
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
   const [search, setSearch] = useState("");
-  const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
   /** Super Admin's publish overrides, keyed by row id - in-memory only until the backend lands. */
   const [publishOverrides, setPublishOverrides] = useState<
     Record<string, boolean>
@@ -150,7 +149,6 @@ export function SuperAdminModuleImagesView() {
     setFromDate("");
     setToDate("");
     setSearch("");
-    setSelectedRows(new Set());
   }
 
   function togglePublish(id: string, current: boolean) {
@@ -173,25 +171,6 @@ export function SuperAdminModuleImagesView() {
     if (selectedKvks.size === 1) return Array.from(selectedKvks)[0];
     return `${selectedKvks.size} KVKs`;
   }, [selectedKvks]);
-
-  const allRowsSelected =
-    filteredRows.length > 0 &&
-    filteredRows.every((row) => selectedRows.has(row.id));
-
-  function toggleAllRows() {
-    setSelectedRows(
-      allRowsSelected ? new Set() : new Set(filteredRows.map((row) => row.id)),
-    );
-  }
-
-  function toggleRow(id: string) {
-    setSelectedRows((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  }
 
   function handleBulkDownload() {
     // No backend/storage yet - nothing to actually zip and download until Phase 2/3.
@@ -279,7 +258,7 @@ export function SuperAdminModuleImagesView() {
               type="date"
               value={fromDate}
               onChange={(e) => setFromDate(e.target.value)}
-              className="mt-1"
+              className="mt-1 h-9"
             />
           </div>
           <div>
@@ -288,7 +267,7 @@ export function SuperAdminModuleImagesView() {
               type="date"
               value={toDate}
               onChange={(e) => setToDate(e.target.value)}
-              className="mt-1"
+              className="mt-1 h-9"
             />
           </div>
         </div>
@@ -341,10 +320,6 @@ export function SuperAdminModuleImagesView() {
                   <DropdownMenuItem
                     key={option.mode}
                     onClick={handleBulkDownload}
-                    disabled={
-                      option.mode === "selected-records" &&
-                      selectedRows.size === 0
-                    }
                     className="flex-col items-start gap-0.5 py-1.5"
                   >
                     <span className="font-medium text-foreground">
@@ -364,14 +339,6 @@ export function SuperAdminModuleImagesView() {
           <table className="w-full text-sm">
             <thead>
               <tr className="divide-x divide-border border-b border-border bg-muted/50 text-left text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-                <th className="w-10 px-4 py-3">
-                  <Checkbox
-                    checked={allRowsSelected}
-                    onCheckedChange={toggleAllRows}
-                    disabled={filteredRows.length === 0}
-                    aria-label="Select all rows"
-                  />
-                </th>
                 <th className="w-14 px-4 py-3">S.No</th>
                 <th className="px-4 py-3">KVK Name</th>
                 <th className="px-4 py-3">Date</th>
@@ -385,14 +352,14 @@ export function SuperAdminModuleImagesView() {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={9} className="px-4 py-16 text-center text-sm text-muted-foreground">
+                  <td colSpan={8} className="px-4 py-16 text-center text-sm text-muted-foreground">
                     Loading…
                   </td>
                 </tr>
               ) : filteredRows.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={9}
+                    colSpan={8}
                     className="px-4 py-16 text-center text-muted-foreground"
                   >
                     <div className="flex flex-col items-center gap-2">
@@ -409,13 +376,6 @@ export function SuperAdminModuleImagesView() {
                     key={row.id}
                     className="divide-x divide-border border-b border-border last:border-0"
                   >
-                    <td className="px-4 py-3 align-top">
-                      <Checkbox
-                        checked={selectedRows.has(row.id)}
-                        onCheckedChange={() => toggleRow(row.id)}
-                        aria-label={`Select photograph from ${row.kvk}`}
-                      />
-                    </td>
                     <td className="px-4 py-3 align-top text-muted-foreground">
                       {index + 1}
                     </td>

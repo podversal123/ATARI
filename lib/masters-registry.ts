@@ -195,25 +195,41 @@ const dedicated: Record<string, MasterLeafEntry> = {
     list: async (zoneId) => {
       const rows = await prisma.institute.findMany({
         where: { zoneId },
-        include: { zone: true },
+        include: { zone: true, state: true, district: true },
         orderBy: { name: "asc" },
       });
       return rows.map((r) => ({
         id: r.id,
         instituteName: r.name,
         zoneName: r.zone.name,
+        stateName: r.state?.name ?? "",
+        districtName: r.district?.name ?? "",
       }));
     },
-    /** State/District columns removed (2026-08-27, real-reference mismatch - see lib/navigation.ts) - Institute still carries optional stateId/districtId in the schema, just not settable through this leaf's form until a confirmed reference asks for it back. */
+    /** State/District brought back (2026-08-31, real reference finally showed them - see lib/navigation.ts) - Institute already carried optional stateId/districtId in the schema for exactly this. */
     create: async (v, zoneId) => {
       const name = reqStr(v.instituteName);
+      const stateName = reqStr(v.stateName);
+      const districtName = reqStr(v.districtName);
       if (!name) throw new Error("Institute name is required.");
-      return prisma.institute.create({ data: { name, zoneId } });
+      if (!stateName || !districtName) throw new Error("State and district are required.");
+      const state = await prisma.state.findFirst({ where: { zoneId, name: stateName } });
+      if (!state) throw new Error(`Unknown state: ${stateName}`);
+      const district = await prisma.district.findFirst({ where: { zoneId, stateId: state.id, name: districtName } });
+      if (!district) throw new Error(`Unknown district: ${districtName}`);
+      return prisma.institute.create({ data: { name, zoneId, stateId: state.id, districtId: district.id } });
     },
     update: async (id, v, zoneId) => {
       const name = reqStr(v.instituteName);
+      const stateName = reqStr(v.stateName);
+      const districtName = reqStr(v.districtName);
       if (!name) throw new Error("Institute name is required.");
-      return prisma.institute.updateMany({ where: { id, zoneId }, data: { name } });
+      if (!stateName || !districtName) throw new Error("State and district are required.");
+      const state = await prisma.state.findFirst({ where: { zoneId, name: stateName } });
+      if (!state) throw new Error(`Unknown state: ${stateName}`);
+      const district = await prisma.district.findFirst({ where: { zoneId, stateId: state.id, name: districtName } });
+      if (!district) throw new Error(`Unknown district: ${districtName}`);
+      return prisma.institute.updateMany({ where: { id, zoneId }, data: { name, stateId: state.id, districtId: district.id } });
     },
     delete: (id, zoneId) => prisma.institute.deleteMany({ where: { id, zoneId } }),
   },
@@ -465,12 +481,12 @@ const dedicated: Record<string, MasterLeafEntry> = {
     },
     delete: (id, zoneId) => prisma.fldSubCategoryMaster.deleteMany({ where: { id, zoneId } }),
   },
-  /** "category" here is the parent FldCategoryMaster's name only (no sectorName column on this leaf) - resolved best-effort by name within the zone, since Crop Master's own confirmed columns don't carry a sector to disambiguate further. */
+  /** Sector brought back to this leaf's form (2026-08-31, real reference) - same role as Sub-category Master's own Sector field: narrows Category, validated server-side via sector->category lookup, not stored as its own column (Crop's category already implies a sector through its own real relation). */
   crop: {
     list: async (zoneId) => {
       const rows = await prisma.cropMaster.findMany({
         where: { zoneId },
-        include: { subCategory: { include: { category: true } } },
+        include: { subCategory: { include: { category: { include: { sector: true } } } } },
         orderBy: { name: "asc" },
       });
       return rows.map((r) => ({
@@ -478,11 +494,14 @@ const dedicated: Record<string, MasterLeafEntry> = {
         cropName: r.name,
         subCategoryName: r.subCategory.name,
         category: r.subCategory.category.name,
+        sectorName: r.subCategory.category.sector.name,
         quantityRequired: String(r.quantityRequired),
       }));
     },
     create: async (v, zoneId) => {
-      const category = await prisma.fldCategoryMaster.findFirst({ where: { zoneId, name: reqStr(v.category) } });
+      const sector = await prisma.fldSector.findFirst({ where: { zoneId, name: reqStr(v.sectorName) } });
+      if (!sector) throw new Error(`Unknown sector: ${v.sectorName}`);
+      const category = await prisma.fldCategoryMaster.findFirst({ where: { sectorId: sector.id, name: reqStr(v.category) } });
       if (!category) throw new Error(`Unknown category: ${v.category}`);
       const subCategory = await prisma.fldSubCategoryMaster.findFirst({ where: { categoryId: category.id, name: reqStr(v.subCategoryName) } });
       if (!subCategory) throw new Error(`Unknown sub category: ${v.subCategoryName}`);
@@ -498,7 +517,9 @@ const dedicated: Record<string, MasterLeafEntry> = {
       });
     },
     update: async (id, v, zoneId) => {
-      const category = await prisma.fldCategoryMaster.findFirst({ where: { zoneId, name: reqStr(v.category) } });
+      const sector = await prisma.fldSector.findFirst({ where: { zoneId, name: reqStr(v.sectorName) } });
+      if (!sector) throw new Error(`Unknown sector: ${v.sectorName}`);
+      const category = await prisma.fldCategoryMaster.findFirst({ where: { sectorId: sector.id, name: reqStr(v.category) } });
       if (!category) throw new Error(`Unknown category: ${v.category}`);
       const subCategory = await prisma.fldSubCategoryMaster.findFirst({ where: { categoryId: category.id, name: reqStr(v.subCategoryName) } });
       if (!subCategory) throw new Error(`Unknown sub category: ${v.subCategoryName}`);
@@ -698,7 +719,8 @@ const dedicated: Record<string, MasterLeafEntry> = {
   "vehicle-present-status": {
     list: async (zoneId) => {
       const rows = await prisma.presentStatusOption.findMany({ where: { zoneId, kind: "VEHICLE" }, orderBy: { statusCode: "asc" } });
-      return rows.map((r) => ({ id: r.id, statusCode: r.statusCode, statusLabel: r.statusLabel, hideInNextYear: String(r.hideInNextYear), isActive: String(r.isActive) }));
+      // "Yes"/"No" (not "true"/"false") so the Edit dialog's dropdown pre-fills against the same real option list the Create form now uses (client report, 2026-08-31).
+      return rows.map((r) => ({ id: r.id, statusCode: r.statusCode, statusLabel: r.statusLabel, hideInNextYear: r.hideInNextYear ? "Yes" : "No", isActive: r.isActive ? "Yes" : "No" }));
     },
     create: async (v, zoneId) => {
       const statusCode = reqStr(v.statusCode);
@@ -720,7 +742,8 @@ const dedicated: Record<string, MasterLeafEntry> = {
   "equipment-present-status": {
     list: async (zoneId) => {
       const rows = await prisma.presentStatusOption.findMany({ where: { zoneId, kind: "EQUIPMENT" }, orderBy: { statusCode: "asc" } });
-      return rows.map((r) => ({ id: r.id, statusCode: r.statusCode, statusLabel: r.statusLabel, hideInNextYear: String(r.hideInNextYear), isActive: String(r.isActive) }));
+      // "Yes"/"No" (not "true"/"false") so the Edit dialog's dropdown pre-fills against the same real option list the Create form now uses (client report, 2026-08-31).
+      return rows.map((r) => ({ id: r.id, statusCode: r.statusCode, statusLabel: r.statusLabel, hideInNextYear: r.hideInNextYear ? "Yes" : "No", isActive: r.isActive ? "Yes" : "No" }));
     },
     create: async (v, zoneId) => {
       const statusCode = reqStr(v.statusCode);

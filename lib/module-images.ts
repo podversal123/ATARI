@@ -69,21 +69,13 @@ export const PUBLISH_FILTER_OPTIONS: { value: PublishFilter; label: string }[] =
 /** No backend/storage yet - kept empty rather than fabricated (see file header). */
 export const MODULE_IMAGE_ROWS: ModuleImageRecord[] = [];
 
-export type BulkDownloadMode =
-  | "selected-records"
-  | "selected-kvks-category"
-  | "all-images";
+export type BulkDownloadMode = "selected-kvks-category" | "all-images";
 
 export const BULK_DOWNLOAD_OPTIONS: {
   mode: BulkDownloadMode;
   label: string;
   description: string;
 }[] = [
-  {
-    mode: "selected-records",
-    label: "Selected Records",
-    description: "Download only the photographs checked in the table below.",
-  },
   {
     mode: "selected-kvks-category",
     label: "Selected KVKs & Category",

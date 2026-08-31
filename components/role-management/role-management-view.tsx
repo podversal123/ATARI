@@ -234,17 +234,17 @@ export function RoleManagementView() {
     <div className="rounded-lg border border-border bg-card">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border p-4">
         <div className="relative">
-          <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             value={search}
             onChange={(event) => setSearch(event.target.value)}
             placeholder="Search by role name..."
-            className="w-72 pl-8"
+            className="h-10 w-96 pl-9"
           />
         </div>
         {canManage && (
-          <Button size="sm" onClick={openCreate}>
-            <Plus className="size-3.5" />
+          <Button size="lg" onClick={openCreate}>
+            <Plus className="size-4" />
             Add Role
           </Button>
         )}
@@ -354,16 +354,19 @@ export function RoleManagementView() {
 
       {/* Add / Edit Role */}
       <Dialog open={formOpen} onOpenChange={setFormOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>{editingRole ? "Edit Role" : "Add Role"}</DialogTitle>
           </DialogHeader>
 
-          <div className="space-y-4">
+          <div className="space-y-5">
             <div className="space-y-1.5">
-              <Label htmlFor="role-name">Role Name *</Label>
+              <Label htmlFor="role-name">
+                Role Name <span className="text-destructive">*</span>
+              </Label>
               <Input
                 id="role-name"
+                className="h-10"
                 placeholder="e.g. custom_admin"
                 value={form.name}
                 disabled={editingRole?.isSystemRole}
@@ -379,7 +382,9 @@ export function RoleManagementView() {
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="hierarchy-level">Hierarchy Level *</Label>
+              <Label htmlFor="hierarchy-level">
+                Hierarchy Level <span className="text-destructive">*</span>
+              </Label>
               <Select
                 value={form.hierarchyLevel}
                 onValueChange={(value) =>

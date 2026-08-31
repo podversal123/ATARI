@@ -137,7 +137,7 @@ export function OftAddForm({ trail, backHref }: OftAddFormProps) {
           id={id}
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring"
+          className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none hover:border-ring/60 focus-visible:border-ring"
         >
           <option value="">Please Select</option>
           {options.map((option) => (
@@ -177,7 +177,7 @@ export function OftAddForm({ trail, backHref }: OftAddFormProps) {
     <div>
       <PageHeader backHref={backHref} trail={trail} title="Add OFT" />
 
-      <div className="rounded-lg border border-border bg-card p-5">
+      <div className="animate-in fade-in-0 slide-in-from-bottom-2 rounded-lg border border-border bg-card p-5 duration-300">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {selectField("oft-year", "Reporting Year", reportingYear, setReportingYear, REPORTING_YEARS, true)}
           {selectField("oft-discipline", "Discipline", discipline, setDiscipline, DISCIPLINES, true)}

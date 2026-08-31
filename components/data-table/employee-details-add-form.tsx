@@ -92,7 +92,7 @@ export function EmployeeDetailsAddForm({
     <div>
       <PageHeader backHref={backHref} trail={trail} title="Add Staff" />
 
-      <div className="rounded-lg border border-border bg-card p-5">
+      <div className="animate-in fade-in-0 slide-in-from-bottom-2 rounded-lg border border-border bg-card p-5 duration-300">
         <p className="mb-3 text-sm font-semibold text-primary">
           Staff Position
         </p>
@@ -105,7 +105,7 @@ export function EmployeeDetailsAddForm({
               id="sanctioned-post"
               value={sanctionedPost}
               onChange={(e) => setSanctionedPost(e.target.value)}
-              className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring"
+              className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none hover:border-ring/60 focus-visible:border-ring"
             >
               <option value="">Please Select</option>
               {SANCTIONED_POSTS.map((post) => (
@@ -205,7 +205,7 @@ export function EmployeeDetailsAddForm({
               id="staff-job-type"
               value={jobType}
               onChange={(e) => setJobType(e.target.value)}
-              className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring"
+              className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none hover:border-ring/60 focus-visible:border-ring"
             >
               <option value="">Please Select</option>
               {JOB_TYPES.map((type) => (
@@ -231,7 +231,7 @@ export function EmployeeDetailsAddForm({
               id="staff-caste"
               value={casteCategory}
               onChange={(e) => setCasteCategory(e.target.value)}
-              className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring"
+              className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none hover:border-ring/60 focus-visible:border-ring"
             >
               <option value="">Please Select</option>
               {CASTE_CATEGORIES.map((category) => (

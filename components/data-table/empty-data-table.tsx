@@ -125,10 +125,23 @@ type EmptyDataTableProps = {
   resultKind?: "oft" | "fld";
   /** Shown as a note banner above the table - e.g. OFT/FLD's "mark your result as Completed" instruction. */
   note?: string;
-  /** Registry key in lib/leaf-record-registry.ts (Form Management) or lib/masters-registry.ts (All Masters) - enables real Edit/Delete for this leaf's rows. Omit for leaves not wired to the database yet. */
+  /** Registry key in lib/leaf-record-registry.ts (Form Management) or lib/masters-registry.ts (All Masters) - enables real Edit/Delete for this leaf's rows. Omit for leaves not wired to the database yet. For recordKind "notification" this is just a truthy sentinel (the row's own `id` drives the real /api/notifications/[id] URL, not a registry path). */
   recordPath?: string;
-  /** Which registry/endpoint `recordPath` refers to - "form" (default, KVK-scoped Form Management leaves) or "master" (zone-scoped, Super Admin only, All Masters leaves). */
-  recordKind?: "form" | "master";
+  /** Which registry/endpoint `recordPath` refers to - "form" (default, KVK-scoped Form Management leaves), "master" (zone-scoped, Super Admin only, All Masters leaves), or "notification" (Notifications page's Sent/Received tables, /api/notifications/[id]). */
+  recordKind?: "form" | "master" | "notification";
+  /** Restricts the Edit dialog to only these column keys (Notifications: title/message only - recipient/from/sentOn are derived/read-only, not real editable fields). Omit to edit every column, the default for every other leaf. */
+  editableColumnKeys?: string[];
+  /**
+   * Called after a successful Edit or Delete, in addition to the usual
+   * `router.refresh()`. Most callers get their `rows` from a Server
+   * Component (Masters/Form Management), where `router.refresh()` alone
+   * re-fetches everything - but a page like Notifications loads its rows
+   * itself via a client-side `useEffect` + `fetch`, which `router.refresh()`
+   * never re-runs, so the deleted/edited row silently stayed on screen
+   * until a real page reload. Pass the page's own re-fetch function here to
+   * fix that for any client-fetched caller.
+   */
+  onMutated?: () => void;
 };
 
 const STATUS_BADGE_STYLES: Record<string, string> = {
@@ -174,6 +187,8 @@ export function EmptyDataTable({
   note,
   recordPath,
   recordKind = "form",
+  editableColumnKeys,
+  onMutated,
 }: EmptyDataTableProps) {
   const session = useSession();
   const router = useRouter();
@@ -259,11 +274,14 @@ export function EmptyDataTable({
     setDeleteError(null);
     setDeleting(true);
     try {
-      const response = await fetch(recordKind === "master" ? "/api/master-record/delete" : "/api/leaf-record/delete", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ path: recordPath, id }),
-      });
+      const response =
+        recordKind === "notification"
+          ? await fetch(`/api/notifications/${id}`, { method: "DELETE" })
+          : await fetch(recordKind === "master" ? "/api/master-record/delete" : "/api/leaf-record/delete", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ path: recordPath, id }),
+            });
       const data = await response.json();
       if (!response.ok) {
         setDeleteError(data.error ?? "Something went wrong. Please try again.");
@@ -271,6 +289,7 @@ export function EmptyDataTable({
       }
       setDeleteRow(null);
       router.refresh();
+      onMutated?.();
     } catch {
       setDeleteError("Could not reach the server. Please try again.");
     } finally {
@@ -358,9 +377,13 @@ export function EmptyDataTable({
     setFormOpen(true);
   }
 
+  const editColumns = editableColumnKeys
+    ? columns.filter((c) => editableColumnKeys.includes(c.key))
+    : columns;
+
   function openEdit(row: Record<string, ReactNode>, tab?: CfldTabName) {
     const values: Record<string, string> = {};
-    for (const column of columns) {
+    for (const column of editColumns) {
       if (column.fieldKind === "demographic-breakdown") {
         // Represents 8 real row fields (prefix + DEMOGRAPHIC_KEYS), not row[column.key] itself.
         const prefix = column.demographicPrefix ?? "";
@@ -397,11 +420,18 @@ export function EmptyDataTable({
     setFormError(null);
     setFormSubmitting(true);
     try {
-      const response = await fetch(recordKind === "master" ? "/api/master-record/update" : "/api/leaf-record/update", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ path: recordPath, id, values: formValues }),
-      });
+      const response =
+        recordKind === "notification"
+          ? await fetch(`/api/notifications/${id}`, {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ title: formValues.title, message: formValues.message }),
+            })
+          : await fetch(recordKind === "master" ? "/api/master-record/update" : "/api/leaf-record/update", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ path: recordPath, id, values: formValues }),
+            });
       const data = await response.json();
       if (!response.ok) {
         setFormError(data.error ?? "Something went wrong. Please try again.");
@@ -409,6 +439,7 @@ export function EmptyDataTable({
       }
       setFormOpen(false);
       router.refresh();
+      onMutated?.();
     } catch {
       setFormError("Could not reach the server. Please try again.");
     } finally {
@@ -758,9 +789,11 @@ export function EmptyDataTable({
                       setDragOverColumnKey(null);
                     }}
                   >
-                    <span className="inline-flex cursor-move items-center gap-1 whitespace-nowrap">
-                      <GripVertical className="size-3 shrink-0 text-muted-foreground/50" />
-                      {column.label}
+                    <span className="flex w-full cursor-move items-center justify-between gap-2 whitespace-nowrap">
+                      <span className="inline-flex items-center gap-1">
+                        <GripVertical className="size-3 shrink-0 text-muted-foreground/50" />
+                        {column.label}
+                      </span>
                       <ColumnFilterMenu
                         columnLabel={column.label}
                         values={columnValues(column.key)}
@@ -801,7 +834,7 @@ export function EmptyDataTable({
                     key={index}
                     className="divide-x divide-border border-b border-border last:border-0"
                   >
-                    <td className="px-4 py-3 align-top text-muted-foreground">
+                    <td className="px-4 py-3.5 align-top text-muted-foreground">
                       {(currentPage - 1) * PAGE_SIZE + index + 1}
                     </td>
                     {orderedColumns.map((column) => {
@@ -812,7 +845,7 @@ export function EmptyDataTable({
                       ) {
                         const label = typeof value === "string" ? value : "";
                         return (
-                          <td key={column.key} className="px-4 py-3 align-top">
+                          <td key={column.key} className="px-4 py-3.5 align-top">
                             <span
                               className={cn(
                                 "inline-block rounded-md border px-2 py-0.5 text-xs font-semibold",
@@ -828,7 +861,7 @@ export function EmptyDataTable({
                       if (column.fileKind) {
                         const url = typeof value === "string" ? value : "";
                         return (
-                          <td key={column.key} className="px-4 py-3 align-top">
+                          <td key={column.key} className="px-4 py-3.5 align-top">
                             {url ? (
                               column.fileKind === "image" ? (
                                 <a
@@ -869,7 +902,7 @@ export function EmptyDataTable({
                       return (
                         <td
                           key={column.key}
-                          className="px-4 py-3 align-top text-foreground"
+                          className="px-4 py-3.5 align-top text-foreground"
                         >
                           {typeof value === "string" ? (
                             <span
@@ -885,7 +918,7 @@ export function EmptyDataTable({
                       );
                     })}
                     {showActionColumn && (
-                    <td className="px-4 py-3 text-right align-top">
+                    <td className="px-4 py-3.5 text-right align-top">
                         <DropdownMenu>
                           <DropdownMenuTrigger
                             render={
@@ -1038,7 +1071,7 @@ export function EmptyDataTable({
 
             <div className="max-h-[60vh] space-y-4 overflow-y-auto">
               <MasterFormFields
-                columns={columns}
+                columns={editColumns}
                 cascadeType={cascadeType}
                 formValues={formValues}
                 onChange={setFormValues}
