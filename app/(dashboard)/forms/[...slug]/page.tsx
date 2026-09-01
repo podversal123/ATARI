@@ -14,6 +14,7 @@ import {
   type MasterTab,
 } from "@/components/data-table/empty-data-table";
 import { AddLeafPage } from "@/components/data-table/add-leaf-page";
+import { EditLeafPage } from "@/components/data-table/edit-leaf-page";
 import { KvkMasterAddForm } from "@/components/data-table/kvk-master-add-form";
 import { EmployeeDetailsAddForm } from "@/components/data-table/employee-details-add-form";
 import { OftAddForm } from "@/components/data-table/oft-add-form";
@@ -70,12 +71,51 @@ export default async function FormsPage({ params }: FormsPageProps) {
    * segment folder), a trailing "add" slug segment is handled right here.
    */
   const isAddPage = rawSlug[rawSlug.length - 1] === "add";
-  const slug = isAddPage ? rawSlug.slice(0, -1) : rawSlug;
+  /**
+   * "Edit" opens this same kind of dedicated page instead of the popup
+   * EmptyDataTable's dialog otherwise uses (client direction, 2026-09-01 -
+   * same reasoning and same trailing-segment technique as "Add New" above).
+   * The record id is the final segment, "edit" the one before it.
+   */
+  const isEditPage = rawSlug[rawSlug.length - 2] === "edit";
+  const editId = isEditPage ? rawSlug[rawSlug.length - 1] : undefined;
+  const slug = isAddPage ? rawSlug.slice(0, -1) : isEditPage ? rawSlug.slice(0, -2) : rawSlug;
 
   const resolved = resolveNavPath(FORM_MANAGEMENT, slug);
   if (!resolved) notFound();
 
   const { node, trail } = resolved;
+
+  if (isEditPage) {
+    if (node.type !== "leaf" || CUSTOM_FORM_SLUGS.has(node.slug) || !editId) notFound();
+    const editTrail: Crumb[] = [{ label: "Form Management", href: "/forms" }];
+    trail.forEach((item, index) => {
+      if (
+        trail[0]?.slug === "about-kvk" &&
+        item.type === "group" &&
+        ABOUT_KVK_CARD_ONLY_GROUP_SLUGS.has(item.slug)
+      ) {
+        return;
+      }
+      editTrail.push({
+        label: item.label,
+        href: `/forms/${trail
+          .slice(0, index + 1)
+          .map((t) => t.slug)
+          .join("/")}`,
+      });
+    });
+    return (
+      <EditLeafPage
+        title={node.pageTitle ?? node.label}
+        trail={editTrail}
+        backHref={`/forms/${slug.join("/")}`}
+        columns={node.columns}
+        recordPath={slug.join("/")}
+        id={editId}
+      />
+    );
+  }
 
   if (isAddPage) {
     if (node.type !== "leaf" || CUSTOM_FORM_SLUGS.has(node.slug)) notFound();
@@ -2305,11 +2345,27 @@ export default async function FormsPage({ params }: FormsPageProps) {
         backHref={listBackHref}
         trail={trailCrumbs}
         title={
-          node.type === "group" ? (node.pageTitle ?? node.label) : undefined
+          node.type === "group"
+            ? "Form Management"
+            : node.type === "leaf" && node.slug === "technical-achievement"
+              ? node.label
+              : undefined
         }
         icon={node.type === "group" ? FileText : undefined}
-        description={node.type === "group" ? node.description : undefined}
+        description={
+          node.type === "group"
+            ? "Manage KVK forms, achievements, performance indicators, and miscellaneous data"
+            : undefined
+        }
       />
+      {node.type === "group" && (
+        <div className="mb-4">
+          <h2 className="text-lg font-semibold text-primary">{node.pageTitle ?? node.label}</h2>
+          {node.description && (
+            <p className="mt-1 text-sm text-muted-foreground">{node.description}</p>
+          )}
+        </div>
+      )}
       {sectionedGroups ? (
         <SectionedMasterGrid
           groups={sectionedGroups}
@@ -2332,6 +2388,9 @@ export default async function FormsPage({ params }: FormsPageProps) {
             CUSTOM_FORM_SLUGS.has(node.slug)
               ? undefined
               : `/forms/${slug.join("/")}/add`
+          }
+          editHrefBase={
+            CUSTOM_FORM_SLUGS.has(node.slug) ? undefined : `/forms/${slug.join("/")}`
           }
           customForm={
             node.slug === "technical-parameter"

@@ -303,7 +303,7 @@ export function RoleManagementView() {
                           </Button>
                         }
                       />
-                      <DropdownMenuContent align="end">
+                      <DropdownMenuContent align="end" className="w-max min-w-40 whitespace-nowrap">
                         <DropdownMenuItem onClick={() => openEdit(role)}>
                           <Pencil className="size-3.5" />
                           Edit Role

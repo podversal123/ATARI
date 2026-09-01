@@ -22,6 +22,7 @@ import {
   AlertTriangle,
   GripVertical,
   History,
+  CheckCircle2,
 } from "lucide-react";
 import type { SidebarIconName } from "@/lib/navigation";
 import { SIDEBAR_ICONS } from "@/components/layout/sidebar-icons";
@@ -111,6 +112,17 @@ type EmptyDataTableProps = {
    * part of that request).
    */
   addNewHref?: string;
+  /**
+   * When set, "Edit" navigates to `${editHrefBase}/edit/{id}` (a dedicated
+   * page, matching addNewHref's own "Add New" page) instead of opening the
+   * dialog - Form Management only (client direction, 2026-09-01). Masters/
+   * Targets/Notifications never pass this, so their Edit stays the popup
+   * dialog exactly as before. Leaves with a bespoke Edit UI of their own
+   * (CFLD Technical Parameter's tabbed dialog, the event-demographic ones -
+   * i.e. whenever `customForm` is set) keep the dialog too, even when this
+   * is passed, since their real edit shape isn't a flat field list.
+   */
+  editHrefBase?: string;
   /** Targets/Notifications already have their own dedicated inline "Assign"/"Send" panel above the table - the generic Add New button would just duplicate that with unrelated fields, so it's hidden there instead of getting a pointless page of its own. */
   hideAddNew?: boolean;
   /**
@@ -186,6 +198,7 @@ export function EmptyDataTable({
   customForm,
   eventSlug,
   addNewHref,
+  editHrefBase,
   hideAddNew,
   oftFldStatus,
   resultKind,
@@ -336,6 +349,43 @@ export function EmptyDataTable({
       setTransferring(false);
     }
   }
+
+  /** OFT only (real reference action, 2026-09-01) - a direct "Ongoing" -> "Completed" flip with no form, separate from Edit Result (which still opens the placeholder Add/Edit Result dialog pending OFT's own dynamic-table result feature). */
+  const [markCompletedRow, setMarkCompletedRow] = useState<Record<
+    string,
+    ReactNode
+  > | null>(null);
+  const [markCompletedError, setMarkCompletedError] = useState<string | null>(null);
+  const [markCompleting, setMarkCompleting] = useState(false);
+
+  async function confirmMarkCompleted() {
+    const id = markCompletedRow?.id;
+    if (!recordPath || typeof id !== "string") {
+      setMarkCompletedRow(null);
+      return;
+    }
+    setMarkCompletedError(null);
+    setMarkCompleting(true);
+    try {
+      const response = await fetch("/api/leaf-record/mark-completed", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ path: recordPath, id }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        setMarkCompletedError(data.error ?? "Something went wrong. Please try again.");
+        return;
+      }
+      setMarkCompletedRow(null);
+      router.refresh();
+    } catch {
+      setMarkCompletedError("Could not reach the server. Please try again.");
+    } finally {
+      setMarkCompleting(false);
+    }
+  }
+
   /** CFLD Technical Parameter only - which tab to land on when the dialog opens from a direct Action-dropdown shortcut (Edit/Economic/Socio-Economic/Farmers Perception). */
   const [cfldInitialTab, setCfldInitialTab] = useState<CfldTabName>();
   const isCfldTechnicalParameter = customForm === "cfld-technical-parameter";
@@ -951,8 +1001,21 @@ export function EmptyDataTable({
                               </Button>
                             }
                           />
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => openEdit(row)}>
+                          <DropdownMenuContent
+                            align="end"
+                            className="w-max min-w-40 whitespace-nowrap"
+                          >
+                            <DropdownMenuItem
+                              onClick={() => {
+                                const id = row.id;
+                                if (editHrefBase && !customForm && typeof id === "string") {
+                                  sessionStorage.setItem(`edit-record:${id}`, JSON.stringify(row));
+                                  router.push(`${editHrefBase}/edit/${id}`);
+                                  return;
+                                }
+                                openEdit(row);
+                              }}
+                            >
                               <Pencil className="size-3.5" />
                               Edit
                             </DropdownMenuItem>
@@ -964,6 +1027,22 @@ export function EmptyDataTable({
                             )}
                             {oftFldStatus && !isSuperAdmin && (
                               <>
+                                {/* Real reference order confirmed 2026-09-01 (On Farm Trials): Edit, Edit Result, Mark Completed, Transfer, Delete - "Add Result" renamed to "Edit Result" and colored purple to match; Mark Completed is a new direct action (OFT only - real "Ongoing"->"Completed" flip, no form) since OFT's own Add/Edit Result stays the placeholder pending its dynamic-table feature. FLD already marks Completed for real inside FldResultDialog, so it keeps just Edit Result + Transfer here, not this shortcut too. */}
+                                <DropdownMenuItem
+                                  className="text-[#7c3aed] focus:text-[#7c3aed]"
+                                  onClick={() => setResultRow(row)}
+                                >
+                                  <ClipboardCheck className="size-3.5" />
+                                  Edit Result
+                                </DropdownMenuItem>
+                                {resultKind !== "fld" && row.status === "Ongoing" && (
+                                  <DropdownMenuItem
+                                    onClick={() => setMarkCompletedRow(row)}
+                                  >
+                                    <CheckCircle2 className="size-3.5" />
+                                    Mark Completed
+                                  </DropdownMenuItem>
+                                )}
                                 {row.status === "Ongoing" && (
                                   <DropdownMenuItem
                                     onClick={() => setTransferRow(row)}
@@ -972,33 +1051,13 @@ export function EmptyDataTable({
                                     Transfer
                                   </DropdownMenuItem>
                                 )}
-                                <DropdownMenuItem
-                                  onClick={() => setResultRow(row)}
-                                >
-                                  <ClipboardCheck className="size-3.5" />
-                                  Add Result
-                                </DropdownMenuItem>
                               </>
                             )}
                             {isCfldTechnicalParameter && (
                               <>
-                                {row.status === "Ongoing" && (
-                                  <DropdownMenuItem
-                                    onClick={() => setTransferRow(row)}
-                                  >
-                                    <ArrowRightCircle className="size-3.5" />
-                                    Transfer
-                                  </DropdownMenuItem>
-                                )}
-                                {/* Delete sits here (not trailing) to match the real reference's exact dropdown order: Edit, Transfer, Delete, Economic parameters, Socio-economic impact parameters, Farmer's perception. */}
+                                {/* Real reference order confirmed 2026-09-01: Edit, Economic Parameters, Update Socio Economic Parameters, Farmers Perception Parameters, Transfer, Delete (Delete trailing, not 2nd - supersedes the earlier "Edit, Transfer, Delete, ..." reading). The three parameter items and Transfer render in the primary green, matching the reference; only Delete stays destructive red. */}
                                 <DropdownMenuItem
-                                  variant="destructive"
-                                  onClick={() => setDeleteRow(row)}
-                                >
-                                  <Trash2 className="size-3.5" />
-                                  Delete
-                                </DropdownMenuItem>
-                                <DropdownMenuItem
+                                  className="text-primary focus:text-primary"
                                   onClick={() =>
                                     openEdit(row, "Economic Parameters")
                                   }
@@ -1007,6 +1066,7 @@ export function EmptyDataTable({
                                   Economic Parameters
                                 </DropdownMenuItem>
                                 <DropdownMenuItem
+                                  className="text-primary focus:text-primary"
                                   onClick={() =>
                                     openEdit(
                                       row,
@@ -1015,15 +1075,30 @@ export function EmptyDataTable({
                                   }
                                 >
                                   <ClipboardCheck className="size-3.5" />
-                                  Socio-economic Impact Parameters
+                                  Update Socio Economic Parameters
                                 </DropdownMenuItem>
                                 <DropdownMenuItem
+                                  className="text-primary focus:text-primary"
                                   onClick={() =>
                                     openEdit(row, "Farmers Perception")
                                   }
                                 >
                                   <ClipboardCheck className="size-3.5" />
-                                  Farmer&rsquo;s Perception
+                                  Farmers Perception Parameters
+                                </DropdownMenuItem>
+                                {/* Not green, unlike the 3 parameter items above - the reference (screenshot, 2026-09-01) renders Transfer in the same plain/default tone as Edit, not the vivid green of Economic/Socio Economic/Farmers Perception Parameters. Always shown regardless of status (client direction, 2026-09-01) - CFLD Technical Parameter's Transfer is not restricted to Ongoing-only the way OFT/FLD's own Transfer still is above. */}
+                                <DropdownMenuItem
+                                  onClick={() => setTransferRow(row)}
+                                >
+                                  <ArrowRightCircle className="size-3.5" />
+                                  Transfer
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  variant="destructive"
+                                  onClick={() => setDeleteRow(row)}
+                                >
+                                  <Trash2 className="size-3.5" />
+                                  Delete
                                 </DropdownMenuItem>
                               </>
                             )}
@@ -1212,13 +1287,53 @@ export function EmptyDataTable({
         </AlertDialog>
       )}
 
+      {/* Mark Completed - OFT only (real reference action, 2026-09-01). */}
+      {oftFldStatus && resultKind !== "fld" && (
+        <AlertDialog
+          open={markCompletedRow !== null}
+          onOpenChange={(open) => {
+            if (!open) {
+              setMarkCompletedRow(null);
+              setMarkCompletedError(null);
+            }
+          }}
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Mark this trial as Completed?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This sets the record&rsquo;s status to &ldquo;Completed&rdquo;.
+                It stops appearing as Ongoing and can no longer be transferred.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            {markCompletedError && (
+              <p role="alert" className="text-sm font-medium text-destructive">
+                {markCompletedError}
+              </p>
+            )}
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={markCompleting}>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={(event) => {
+                  event.preventDefault();
+                  confirmMarkCompleted();
+                }}
+                disabled={markCompleting}
+              >
+                {markCompleting ? "Saving…" : "Mark Completed"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
+
       {/* View Transfer History - Staff Transferred only. */}
       {staffTransferHistory && (
         <Dialog
           open={historyStaffName !== null}
           onOpenChange={(open) => !open && setHistoryStaffName(null)}
         >
-          <DialogContent className="sm:max-w-md">
+          <DialogContent className="sm:max-w-xl">
             <DialogHeader>
               <DialogTitle>Transfer History{historyStaffName ? ` - ${historyStaffName}` : ""}</DialogTitle>
             </DialogHeader>

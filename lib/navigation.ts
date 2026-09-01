@@ -1349,7 +1349,12 @@ const achievements = group("achievements", "Achievements", [
       { key: "conferringAuthority", label: "Conferring Authority" },
     ]),
   ]),
-]);
+  ],
+  {
+    description:
+      "Manage technical achievements, OFT, FLD, trainings, extension activities, projects, and awards",
+  },
+);
 
 /**
  * Form Management -> Projects.

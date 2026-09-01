@@ -63,8 +63,8 @@ export function SidebarTopLink({
 
   return (
     <div>
-      <button
-        type="button"
+      <Link
+        href={href}
         onClick={onToggle}
         className={cn(
           "flex w-full items-center justify-between rounded-md px-3 py-2 text-sm transition-colors",
@@ -81,7 +81,7 @@ export function SidebarTopLink({
             open && "rotate-180",
           )}
         />
-      </button>
+      </Link>
       {open && children}
     </div>
   );

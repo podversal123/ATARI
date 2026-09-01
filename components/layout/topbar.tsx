@@ -98,7 +98,7 @@ export function Topbar() {
               </button>
             }
           />
-          <DropdownMenuContent align="end">
+          <DropdownMenuContent align="end" className="w-max min-w-40 whitespace-nowrap">
             <DropdownMenuItem onClick={() => setChangePasswordOpen(true)}>
               <KeyRound className="size-3.5" />
               Change Password

@@ -458,7 +458,7 @@ export function KvkModuleImagesView() {
                             </Button>
                           }
                         />
-                        <DropdownMenuContent align="end">
+                        <DropdownMenuContent align="end" className="w-max min-w-40 whitespace-nowrap">
                           <DropdownMenuItem
                             onClick={() => togglePublish(row.id, isPublished(row))}
                           >
