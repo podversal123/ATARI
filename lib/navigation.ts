@@ -2282,7 +2282,7 @@ const meetings = group("meetings", "Meetings", [
  * distinct real forms (Training Programme + Farmer Details), not one -
  * corrected from the earlier single-leaf guess.
  */
-const miscellaneous = group("miscellaneous", "Miscellaneous Information", [
+const miscellaneous = group("miscellaneous", "Miscellaneous", [
   leaf("prevalent-diseases-crops", "Prevalent Diseases in Crops", [
     { key: "kvk", label: "KVK Name" },
     { key: "diseaseName", label: "Name of the Disease" },
