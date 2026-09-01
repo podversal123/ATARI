@@ -21,6 +21,7 @@ import {
   FileText,
   AlertTriangle,
   GripVertical,
+  History,
 } from "lucide-react";
 import type { SidebarIconName } from "@/lib/navigation";
 import { SIDEBAR_ICONS } from "@/components/layout/sidebar-icons";
@@ -127,6 +128,8 @@ type EmptyDataTableProps = {
   resultKind?: "oft" | "fld";
   /** Shown as a note banner above the table - e.g. OFT/FLD's "mark your result as Completed" instruction. */
   note?: string;
+  /** Staff Transferred only (real reference action, confirmed 2026-09-01): adds a "View Transfer History" item between Edit and Delete, reading each row's `historyJson` field (a JSON-stringified array of { fromKvk, toKvk, date }) built server-side from every StaffTransfer record for that staff member. */
+  staffTransferHistory?: boolean;
   /** Registry key in lib/leaf-record-registry.ts (Form Management) or lib/masters-registry.ts (All Masters) - enables real Edit/Delete for this leaf's rows. Omit for leaves not wired to the database yet. For recordKind "notification" this is just a truthy sentinel (the row's own `id` drives the real /api/notifications/[id] URL, not a registry path). */
   recordPath?: string;
   /** Which registry/endpoint `recordPath` refers to - "form" (default, KVK-scoped Form Management leaves), "master" (zone-scoped, Super Admin only, All Masters leaves), or "notification" (Notifications page's Sent/Received tables, /api/notifications/[id]). */
@@ -191,6 +194,7 @@ export function EmptyDataTable({
   recordKind = "form",
   editableColumnKeys,
   onMutated,
+  staffTransferHistory,
 }: EmptyDataTableProps) {
   const session = useSession();
   const router = useRouter();
@@ -338,6 +342,21 @@ export function EmptyDataTable({
   const [resultRow, setResultRow] = useState<Record<string, ReactNode> | null>(
     null,
   );
+
+  const [historyStaffName, setHistoryStaffName] = useState<string | null>(null);
+  const [historyEntries, setHistoryEntries] = useState<
+    { fromKvk: string; toKvk: string; transferredBy: string; date: string }[]
+  >([]);
+  function openTransferHistory(row: Record<string, ReactNode>) {
+    let entries: { fromKvk: string; toKvk: string; transferredBy: string; date: string }[] = [];
+    try {
+      entries = JSON.parse(String(row.historyJson ?? "[]"));
+    } catch {
+      entries = [];
+    }
+    setHistoryEntries(entries);
+    setHistoryStaffName(typeof row.staffName === "string" ? row.staffName : "this staff member");
+  }
 
   /** Real confirmed pattern for every "simple" single-Name master (Subject, Funding Source, Asset Funding Source, NARI Nutrition Garden Type, Pay Scale, TSP/SCSP Activity, and every other single-column master sharing this exact shape): the real Create form is one Name field plus a "Mark as 'Other' option" checkbox. */
   const isSimpleMaster =
@@ -937,6 +956,12 @@ export function EmptyDataTable({
                               <Pencil className="size-3.5" />
                               Edit
                             </DropdownMenuItem>
+                            {staffTransferHistory && (
+                              <DropdownMenuItem onClick={() => openTransferHistory(row)}>
+                                <History className="size-3.5" />
+                                View Transfer History
+                              </DropdownMenuItem>
+                            )}
                             {oftFldStatus && !isSuperAdmin && (
                               <>
                                 {row.status === "Ongoing" && (
@@ -1185,6 +1210,58 @@ export function EmptyDataTable({
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+      )}
+
+      {/* View Transfer History - Staff Transferred only. */}
+      {staffTransferHistory && (
+        <Dialog
+          open={historyStaffName !== null}
+          onOpenChange={(open) => !open && setHistoryStaffName(null)}
+        >
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Transfer History{historyStaffName ? ` - ${historyStaffName}` : ""}</DialogTitle>
+            </DialogHeader>
+            <div className="max-h-[60vh] space-y-3 overflow-y-auto">
+              {historyEntries.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No transfer history found.</p>
+              ) : (
+                historyEntries.map((entry, index) => (
+                  <div key={index} className="rounded-lg border border-border bg-muted/30 p-3">
+                    <div className="mb-3 flex items-center gap-2">
+                      <span className="inline-flex items-center rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary">
+                        Transfer
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        Transfer Date: {entry.date}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <div className="flex-1">
+                        <p className="text-xs text-muted-foreground">From KVK</p>
+                        <p className="text-sm font-medium text-foreground">{entry.fromKvk}</p>
+                      </div>
+                      <span className="text-muted-foreground">&rarr;</span>
+                      <div className="flex-1">
+                        <p className="text-xs text-muted-foreground">To KVK</p>
+                        <p className="text-sm font-medium text-foreground">{entry.toKvk}</p>
+                      </div>
+                    </div>
+                    <div className="mt-3">
+                      <p className="text-xs text-muted-foreground">Transferred By</p>
+                      <p className="text-sm font-medium text-foreground">{entry.transferredBy}</p>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setHistoryStaffName(null)}>
+                Close
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       )}
 
       {/* Add Result - OFT/FLD only; saving a result is how a record moves from Ongoing to Completed. FLD's is real (FldResultDialog, wired to /api/fld-result); OFT's stays this placeholder until its own real dynamic-table result feature lands. */}

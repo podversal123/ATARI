@@ -275,12 +275,45 @@ export default async function FormsPage({ params }: FormsPageProps) {
       include: { staff: true, fromKvk: true, toKvk: true },
       orderBy: { transferDate: "desc" },
     });
+    /**
+     * "View Transfer History" (real reference action, 2026-09-01) shows every
+     * hop a staff member has ever made, not just the one row's own from/to -
+     * a staff member can be transferred more than once (StaffTransfer.staffId
+     * is a real one-to-many). Queried once for every distinct staff in this
+     * page rather than per-row to avoid an N+1, then attached to each row as
+     * a JSON string (EmptyDataTable's `rows` are typed Record<string,
+     * ReactNode> - a plain string is the simplest way to carry structured
+     * data through that shape without widening the type for one leaf).
+     */
+    const staffIds = Array.from(new Set(rows.map((r) => r.staffId)));
+    const history = await prisma.staffTransfer.findMany({
+      where: { staffId: { in: staffIds } },
+      include: { fromKvk: true, toKvk: true },
+      orderBy: { transferDate: "asc" },
+    });
+    const historyByStaffId = new Map<
+      string,
+      { fromKvk: string; toKvk: string; transferredBy: string; date: string }[]
+    >();
+    for (const h of history) {
+      const entry = {
+        fromKvk: h.fromKvk.name,
+        toKvk: h.toKvk.name,
+        // No separate "who performed this transfer" field on StaffTransfer - the real reference's own example
+        // shows "Transferred By" always equal to the source KVK (KVK Bhojpur -> KVK Araria, Transferred By: KVK
+        // Bhojpur), matching a transfer always being initiated by the KVK the staff member is leaving.
+        transferredBy: h.fromKvk.name,
+        date: h.transferDate.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }),
+      };
+      historyByStaffId.set(h.staffId, [...(historyByStaffId.get(h.staffId) ?? []), entry]);
+    }
     formData = {
       rows: rows.map((r) => ({
         id: r.id,
         staffName: r.staff.name,
         kvkNameBeforeTransfer: r.fromKvk.name,
         latestKvkName: r.toKvk.name,
+        historyJson: JSON.stringify(historyByStaffId.get(r.staffId) ?? []),
       })),
       totalCount: rows.length,
     };
@@ -2310,6 +2343,7 @@ export default async function FormsPage({ params }: FormsPageProps) {
           eventSlug={node.slug}
           oftFldStatus={OFT_FLD_STATUS_SLUGS.has(node.slug)}
           resultKind={node.slug === "view-fld" ? "fld" : node.slug === "oft" ? "oft" : undefined}
+          staffTransferHistory={node.slug === "staff-transferred"}
           /** Exact wording from the client's "changes required 1.0.pdf" (2026-08-25, item 4) - each leaf's own note only, no cross-reference to the other leaf. */
           note={
             node.slug === "oft"
