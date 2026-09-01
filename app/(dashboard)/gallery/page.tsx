@@ -20,6 +20,8 @@ import { SelectKvksMultiDropdown } from "@/components/module-images/select-kvks-
 import { cn, downloadImageFile } from "@/lib/utils";
 import { GALLERY_MODULES, type GalleryLeaf } from "@/lib/gallery-modules";
 import { MODULE_IMAGE_REPORTING_YEARS, type ModuleImageRecord } from "@/lib/module-images";
+import { KVKS } from "@/lib/rbac";
+import { useSession } from "@/lib/session";
 
 type ViewMode = "grid" | "list";
 
@@ -40,6 +42,9 @@ type ViewMode = "grid" | "list";
  * real reportingYear the rest of the app (and this table) actually stores.
  */
 export default function GalleryPage() {
+  const session = useSession();
+  /** Upload is KVK-only on the backend (POST /api/module-images rejects Super Admin - "Super Admin only ever browses/downloads across every KVK, never uploads", spec section 1), matching Module Images' own Super Admin view, which already has no Upload button. Gallery's button used to render unconditionally, so a Super Admin could fill out the whole Add Image form and only get blocked at the very last "Save & Submit" step with a real "Not authorized" error (real bug, 2026-08-31). */
+  const canUpload = session.role !== "super-admin";
   const [rows, setRows] = useState<ModuleImageRecord[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -51,7 +56,9 @@ export default function GalleryPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  const [selectedKvks, setSelectedKvks] = useState<Set<string>>(new Set());
+  const [selectedKvks, setSelectedKvks] = useState<Set<string>>(
+    new Set(KVKS.map((k) => k.name)),
+  );
   const [year, setYear] = useState("All");
   const [view, setView] = useState<ViewMode>("grid");
   /** Accordion, same as the main Sidebar's own top-level groups (client request, 2026-08-24): opening one module auto-closes whichever other one was open, rather than letting several stay expanded at once. */
@@ -66,7 +73,7 @@ export default function GalleryPage() {
 
   function clearAll() {
     setActiveLeaf(null);
-    setSelectedKvks(new Set());
+    setSelectedKvks(new Set(KVKS.map((k) => k.name)));
     setYear("All");
   }
 
@@ -259,10 +266,12 @@ export default function GalleryPage() {
               <Button variant="outline" size="sm" onClick={clearAll}>
                 Clear all filters
               </Button>
-              <Link href={uploadHref} className={cn(buttonVariants({ size: "sm" }))}>
-                <Upload className="size-3.5" />
-                Upload {activeLeaf ? `to ${activeLeaf.label}` : "Photos"}
-              </Link>
+              {canUpload && (
+                <Link href={uploadHref} className={cn(buttonVariants({ size: "sm" }))}>
+                  <Upload className="size-3.5" />
+                  Upload {activeLeaf ? `to ${activeLeaf.label}` : "Photos"}
+                </Link>
+              )}
             </div>
           </div>
         ) : view === "grid" ? (

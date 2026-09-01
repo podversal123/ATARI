@@ -80,7 +80,9 @@ export function SuperAdminModuleImagesView() {
   const [selectedYears, setSelectedYears] = useState<Set<string>>(
     new Set(MODULE_IMAGE_REPORTING_YEARS),
   );
-  const [selectedKvks, setSelectedKvks] = useState<Set<string>>(new Set());
+  const [selectedKvks, setSelectedKvks] = useState<Set<string>>(
+    new Set(KVKS.map((k) => k.name)),
+  );
   const [selectedCategories, setSelectedCategories] = useState<Set<string>>(
     new Set(ALL_CATEGORY_PATHS),
   );
@@ -175,7 +177,7 @@ export function SuperAdminModuleImagesView() {
 
   const hasActiveFilters =
     !allYearsSelected ||
-    selectedKvks.size > 0 ||
+    selectedKvks.size !== KVKS.length ||
     !allCategoriesSelected ||
     !allStatusesSelected ||
     fromDate !== "" ||
@@ -184,7 +186,7 @@ export function SuperAdminModuleImagesView() {
 
   function resetFilters() {
     setSelectedYears(new Set(MODULE_IMAGE_REPORTING_YEARS));
-    setSelectedKvks(new Set());
+    setSelectedKvks(new Set(KVKS.map((k) => k.name)));
     setSelectedCategories(new Set(ALL_CATEGORY_PATHS));
     setSelectedStatuses(new Set(STATUS_OPTIONS));
     setFromDate("");

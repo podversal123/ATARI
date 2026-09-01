@@ -179,6 +179,47 @@ function AddModuleImageForm() {
     (c) => c.path === categoryPath,
   )?.label;
 
+  /**
+   * Uploading is KVK-only on the backend (POST /api/module-images rejects
+   * Super Admin - "Super Admin only ever browses/downloads across every
+   * KVK, never uploads", spec section 1). Nothing used to stop a Super
+   * Admin from reaching this page directly (a bookmark, browser back
+   * button, or Gallery's Upload button before that got its own role check)
+   * and filling out the entire form, only to hit a real "Not authorized"
+   * error at the very last Save & Submit step (real bug, 2026-08-31).
+   */
+  if (!isKvk) {
+    return (
+      <div>
+        <PageHeader
+          backHref="/module-images"
+          trail={[
+            { label: "Module Images", href: "/module-images" },
+            { label: "Add Image" },
+          ]}
+          title="Add Image"
+          icon={ImagePlus}
+        />
+        <div className="rounded-lg border border-border bg-card p-8 text-center">
+          <p className="text-sm font-semibold text-foreground">
+            Uploading is only available to a KVK Admin.
+          </p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Super Admin can browse and download every KVK&rsquo;s uploaded
+            photographs from Module Images, but a photograph is always
+            uploaded by the KVK it belongs to.
+          </p>
+          <Link
+            href="/module-images"
+            className="mt-4 inline-flex items-center justify-center rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+          >
+            Back to Module Images
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div>
       <PageHeader

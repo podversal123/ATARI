@@ -762,7 +762,7 @@ export function EmptyDataTable({
           <table className="w-full text-sm">
             <thead>
               <tr className="divide-x divide-border border-b border-border bg-muted/50 text-left text-xs font-semibold tracking-wide whitespace-nowrap text-muted-foreground uppercase">
-                <th className="w-14 px-4 py-3">S.No</th>
+                <th className="px-4 py-3">S.No</th>
                 {orderedColumns.map((column) => (
                   <th
                     key={column.key}
@@ -817,7 +817,9 @@ export function EmptyDataTable({
                   </th>
                 ))}
                 {showActionColumn && (
-                  <th className="w-20 px-4 py-3 text-right">Action</th>
+                  <th className="sticky right-0 z-10 border-l border-border bg-muted px-4 py-3 text-left">
+                    Action
+                  </th>
                 )}
               </tr>
             </thead>
@@ -921,7 +923,7 @@ export function EmptyDataTable({
                       );
                     })}
                     {showActionColumn && (
-                    <td className="px-4 py-3.5 text-right align-top">
+                    <td className="sticky right-0 z-10 border-l border-border bg-card px-4 py-3.5 text-left align-top">
                         <DropdownMenu>
                           <DropdownMenuTrigger
                             render={
