@@ -5,26 +5,16 @@ import {
   ChevronDown,
   ChevronRight,
   Download,
-  Eye,
-  EyeOff,
   FileDown,
   FileSpreadsheet,
   Filter as FilterIcon,
   ImageOff,
-  MoreVertical,
   RotateCcw,
   Search,
-  Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -36,6 +26,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { SelectCategoryDropdown } from "./select-category-dropdown";
+import { ModuleImageCard } from "./module-image-card";
 import { MultiFilterSelect } from "@/components/dashboard/multi-filter-select";
 import {
   ALL_CATEGORY_PATHS,
@@ -506,132 +497,32 @@ export function KvkModuleImagesView() {
           </div>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="divide-x divide-border border-b border-border bg-muted/50 text-left text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-                <th className="w-14 px-4 py-3">S.No</th>
-                <th className="px-4 py-3">Category / Form</th>
-                <th className="px-4 py-3">Date</th>
-                <th className="px-4 py-3">Caption</th>
-                <th className="px-4 py-3">Image</th>
-                <th className="px-4 py-3">Status</th>
-                <th className="w-28 px-4 py-3 text-right">Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                <tr>
-                  <td colSpan={7} className="px-4 py-16 text-center text-sm text-muted-foreground">
-                    Loading…
-                  </td>
-                </tr>
-              ) : filteredRows.length === 0 ? (
-                <tr>
-                  <td
-                    colSpan={7}
-                    className="px-4 py-16 text-center text-muted-foreground"
-                  >
-                    <div className="flex flex-col items-center gap-2">
-                      <ImageOff className="size-8 text-muted-foreground/40" />
-                      <span>No photographs uploaded yet.</span>
-                      <span className="text-xs">
-                        Add photos from the Photographs section at the end of a form (OFT, FLD, Training, Extension Activities).
-                      </span>
-                    </div>
-                  </td>
-                </tr>
-              ) : (
-                filteredRows.map((row, index) => (
-                  <tr
-                    key={row.id}
-                    className="divide-x divide-border border-b border-border last:border-0"
-                  >
-                    <td className="px-4 py-3 align-top text-muted-foreground">
-                      {index + 1}
-                    </td>
-                    <td className="px-4 py-3 align-top text-foreground">
-                      {row.categoryLabel}
-                    </td>
-                    <td className="px-4 py-3 align-top text-muted-foreground">
-                      {row.date}
-                    </td>
-                    <td className="px-4 py-3 align-top text-foreground">
-                      <span
-                        className="line-clamp-2 max-w-xs"
-                        title={row.caption}
-                      >
-                        {row.caption}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 align-top">
-                      {row.previewUrl ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={row.previewUrl}
-                          alt={row.caption}
-                          className="size-10 rounded-md object-cover"
-                        />
-                      ) : (
-                        <div className="flex size-10 items-center justify-center rounded-md bg-muted">
-                          <ImageOff className="size-4 text-muted-foreground/50" />
-                        </div>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 align-top">
-                      <span
-                        className={cn(
-                          "inline-flex rounded-full px-2 py-0.5 text-xs font-medium",
-                          isPublished(row)
-                            ? "bg-primary/10 text-primary"
-                            : "bg-muted text-muted-foreground",
-                        )}
-                      >
-                        {isPublished(row) ? "Published" : "Not Published"}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-right align-top">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger
-                          render={
-                            <Button variant="ghost" size="icon-sm">
-                              <MoreVertical className="size-4" />
-                            </Button>
-                          }
-                        />
-                        <DropdownMenuContent align="end" className="w-max min-w-40 whitespace-nowrap">
-                          <DropdownMenuItem
-                            onClick={() => togglePublish(row.id, isPublished(row))}
-                          >
-                            {isPublished(row) ? (
-                              <EyeOff className="size-3.5" />
-                            ) : (
-                              <Eye className="size-3.5" />
-                            )}
-                            {isPublished(row) ? "Unpublish" : "Publish"}
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() => handleDownload(row)}
-                            disabled={!row.previewUrl}
-                          >
-                            <Download className="size-3.5" />
-                            Download
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() => setDeleteRow(row)}
-                            className="text-destructive focus:text-destructive"
-                          >
-                            <Trash2 className="size-3.5" />
-                            Delete
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+        <div className="p-4">
+          {loading ? (
+            <p className="py-16 text-center text-sm text-muted-foreground">Loading…</p>
+          ) : filteredRows.length === 0 ? (
+            <div className="flex flex-col items-center gap-2 py-16 text-muted-foreground">
+              <ImageOff className="size-8 text-muted-foreground/40" />
+              <span>No photographs uploaded yet.</span>
+              <span className="text-xs">
+                Add photos from the Photographs section at the end of a form (OFT, FLD, Training, Extension Activities).
+              </span>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {filteredRows.map((row) => (
+                <ModuleImageCard
+                  key={row.id}
+                  row={row}
+                  showKvk={false}
+                  published={isPublished(row)}
+                  onTogglePublish={() => togglePublish(row.id, isPublished(row))}
+                  onDownload={() => handleDownload(row)}
+                  onDelete={() => setDeleteRow(row)}
+                />
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="flex items-center justify-between border-t border-border px-4 py-3 text-sm text-muted-foreground">
