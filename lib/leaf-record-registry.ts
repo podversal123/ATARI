@@ -43,6 +43,12 @@ function parsePhotoUrls(raw: string | undefined): string[] {
   }
 }
 
+/** World Soil Day's own "No of VIP" - server-computed from the comma-separated Name(s) of VIP(s) list, since the real Edit form has no separate count input for it (audit finding, 2026-09-02). */
+function countVips(vipNames: string | undefined): number {
+  if (!vipNames?.trim()) return 0;
+  return vipNames.split(",").map((v) => v.trim()).filter(Boolean).length;
+}
+
 /** FormPhotosField's own value shape (one JSON-stringified array field, same convention as parsePhotoUrls above) - each photo carries its own caption, unlike a bare URL list. */
 function parseFormPhotos(raw: string | undefined): { url: string; caption: string }[] {
   if (!raw) return [];
@@ -346,7 +352,9 @@ export const LEAF_RECORD_REGISTRY: Record<string, CreateFn> = {
     const training = await prisma.training.create({
       data: {
         ...ctx,
-        reportingYear: reqInt(v.reportingYear), startDate: date(v.startDate), endDate: date(v.endDate),
+        /** Server-computed, never trusted from the client - the real Edit form has no Reporting Year input at all (audit finding, 2026-09-02). */
+        reportingYear: (date(v.startDate) ?? new Date()).getFullYear(),
+        startDate: date(v.startDate), endDate: date(v.endDate),
         program: reqStr(v.program), title: reqStr(v.title), venue: str(v.venue),
         trainingDiscipline: str(v.trainingDiscipline), thematicArea: str(v.thematicArea), clientele: str(v.clientele),
         trainingType: str(v.trainingType), trainingArea: str(v.trainingArea), onCampusOffCampus: str(v.onCampusOffCampus),
@@ -394,7 +402,9 @@ export const LEAF_RECORD_REGISTRY: Record<string, CreateFn> = {
     prisma.otherExtensionActivity.create({
       data: {
         ...ctx,
-        reportingYear: reqInt(v.reportingYear), natureOfExtensionActivity: reqStr(v.natureOfExtensionActivity), noOfActivities: reqInt(v.noOfActivities),
+        /** Server-computed, never trusted from the client - the real Edit form has no Reporting Year input at all (audit finding, 2026-09-02). */
+        reportingYear: (date(v.startDate) ?? new Date()).getFullYear(),
+        natureOfExtensionActivity: reqStr(v.natureOfExtensionActivity), noOfActivities: reqInt(v.noOfActivities),
         staff: str(v.staff), startDate: date(v.startDate), endDate: date(v.endDate),
       },
     }),
@@ -428,7 +438,7 @@ export const LEAF_RECORD_REGISTRY: Record<string, CreateFn> = {
         reportingYear: int(v.reportingYear),
         noOfActivitiesConducted: reqInt(v.noOfActivitiesConducted),
         soilHealthCardsDistributed: reqInt(v.soilHealthCardsDistributed),
-        noOfVip: reqInt(v.noOfVip),
+        noOfVip: countVips(v.vipNames),
         vipNames: str(v.vipNames),
         totalParticipants: reqInt(v.totalParticipants),
         ...demographicColumns(v),
@@ -453,8 +463,16 @@ export const LEAF_RECORD_REGISTRY: Record<string, CreateFn> = {
         otherTotalExpenditure: dec(v.otherTotalExpenditure),
       },
     }),
-  "achievements/special-days/poshan-maaha": (v, ctx) =>
-    prisma.poshanMaaha.create({
+  "achievements/special-days/poshan-maaha": (v, ctx) => {
+    const participants = {
+      participantsGirls: reqInt(v.participantsGirls),
+      participantsPublicRepresentatives: reqInt(v.participantsPublicRepresentatives),
+      participantsFarmWoman: reqInt(v.participantsFarmWoman),
+      participantsFarmers: reqInt(v.participantsFarmers),
+      participantsAganwadiWorkers: reqInt(v.participantsAganwadiWorkers),
+      participantsGovtOfficials: reqInt(v.participantsGovtOfficials),
+    };
+    return prisma.poshanMaaha.create({
       data: {
         ...ctx,
         activityDate: reqDate(v.activityDate),
@@ -462,15 +480,12 @@ export const LEAF_RECORD_REGISTRY: Record<string, CreateFn> = {
         eventName: reqStr(v.eventName),
         saplingsPlanted: reqInt(v.saplingsPlanted),
         vegetableKits: reqInt(v.vegetableKits),
-        participantsGirls: reqInt(v.participantsGirls),
-        participantsPublicRepresentatives: reqInt(v.participantsPublicRepresentatives),
-        participantsFarmWoman: reqInt(v.participantsFarmWoman),
-        participantsFarmers: reqInt(v.participantsFarmers),
-        participantsAganwadiWorkers: reqInt(v.participantsAganwadiWorkers),
-        participantsGovtOfficials: reqInt(v.participantsGovtOfficials),
-        totalParticipants: reqInt(v.totalParticipants),
+        ...participants,
+        /** Real field is a disabled, auto-calculated readout, never a real user input - see the matching navigation.ts comment. */
+        totalParticipants: Object.values(participants).reduce((sum, n) => sum + n, 0),
       },
-    }),
+    });
+  },
   "achievements/production-supply": (v, ctx) =>
     prisma.technologyProductProduction.create({
       data: {
@@ -1497,7 +1512,8 @@ export const LEAF_UPDATE_REGISTRY: Record<string, UpdateFn> = {
     const result = await prisma.training.updateMany({
       where: { id, ...kvkScope(ctx) },
       data: {
-        reportingYear: reqInt(v.reportingYear), startDate: date(v.startDate), endDate: date(v.endDate),
+        reportingYear: (date(v.startDate) ?? new Date()).getFullYear(),
+        startDate: date(v.startDate), endDate: date(v.endDate),
         program: reqStr(v.program), title: reqStr(v.title), venue: str(v.venue),
         trainingDiscipline: str(v.trainingDiscipline), thematicArea: str(v.thematicArea), clientele: str(v.clientele),
         trainingType: str(v.trainingType), trainingArea: str(v.trainingArea), onCampusOffCampus: str(v.onCampusOffCampus),
@@ -1557,7 +1573,8 @@ export const LEAF_UPDATE_REGISTRY: Record<string, UpdateFn> = {
     prisma.otherExtensionActivity.updateMany({
       where: { id, ...kvkScope(ctx) },
       data: {
-        reportingYear: reqInt(v.reportingYear), natureOfExtensionActivity: reqStr(v.natureOfExtensionActivity), noOfActivities: reqInt(v.noOfActivities),
+        reportingYear: (date(v.startDate) ?? new Date()).getFullYear(),
+        natureOfExtensionActivity: reqStr(v.natureOfExtensionActivity), noOfActivities: reqInt(v.noOfActivities),
         staff: str(v.staff), startDate: date(v.startDate), endDate: date(v.endDate),
       },
     }),
@@ -1591,7 +1608,7 @@ export const LEAF_UPDATE_REGISTRY: Record<string, UpdateFn> = {
         reportingYear: int(v.reportingYear),
         noOfActivitiesConducted: reqInt(v.noOfActivitiesConducted),
         soilHealthCardsDistributed: reqInt(v.soilHealthCardsDistributed),
-        noOfVip: reqInt(v.noOfVip),
+        noOfVip: countVips(v.vipNames),
         vipNames: str(v.vipNames),
         totalParticipants: reqInt(v.totalParticipants),
         ...demographicColumns(v),
@@ -1618,8 +1635,16 @@ export const LEAF_UPDATE_REGISTRY: Record<string, UpdateFn> = {
         otherTotalExpenditure: dec(v.otherTotalExpenditure),
       },
     }),
-  "achievements/special-days/poshan-maaha": (id, v, ctx) =>
-    prisma.poshanMaaha.updateMany({
+  "achievements/special-days/poshan-maaha": (id, v, ctx) => {
+    const participants = {
+      participantsGirls: reqInt(v.participantsGirls),
+      participantsPublicRepresentatives: reqInt(v.participantsPublicRepresentatives),
+      participantsFarmWoman: reqInt(v.participantsFarmWoman),
+      participantsFarmers: reqInt(v.participantsFarmers),
+      participantsAganwadiWorkers: reqInt(v.participantsAganwadiWorkers),
+      participantsGovtOfficials: reqInt(v.participantsGovtOfficials),
+    };
+    return prisma.poshanMaaha.updateMany({
       where: { id, ...kvkScope(ctx) },
       data: {
         activityDate: reqDate(v.activityDate),
@@ -1627,15 +1652,11 @@ export const LEAF_UPDATE_REGISTRY: Record<string, UpdateFn> = {
         eventName: reqStr(v.eventName),
         saplingsPlanted: reqInt(v.saplingsPlanted),
         vegetableKits: reqInt(v.vegetableKits),
-        participantsGirls: reqInt(v.participantsGirls),
-        participantsPublicRepresentatives: reqInt(v.participantsPublicRepresentatives),
-        participantsFarmWoman: reqInt(v.participantsFarmWoman),
-        participantsFarmers: reqInt(v.participantsFarmers),
-        participantsAganwadiWorkers: reqInt(v.participantsAganwadiWorkers),
-        participantsGovtOfficials: reqInt(v.participantsGovtOfficials),
-        totalParticipants: reqInt(v.totalParticipants),
+        ...participants,
+        totalParticipants: Object.values(participants).reduce((sum, n) => sum + n, 0),
       },
-    }),
+    });
+  },
   "achievements/production-supply": (id, v, ctx) =>
     prisma.technologyProductProduction.updateMany({
       where: { id, ...kvkScope(ctx) },

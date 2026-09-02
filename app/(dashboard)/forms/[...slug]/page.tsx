@@ -287,7 +287,7 @@ export default async function FormsPage({ params, searchParams }: FormsPageProps
           item.type === "leaf",
         )
         .map((item) => ({
-          label: item.label,
+          label: item.tabLabel ?? item.label,
           href: `${basePath}/${item.slug}`,
           active: item.slug === node.slug,
         }));

@@ -222,7 +222,7 @@ export function CfldTechnicalParameterPage({
     type: "text" | "number" = "text",
   ) {
     return (
-      <div className="space-y-1.5">
+      <div key={idAttr} className="space-y-1.5">
         <Label htmlFor={idAttr}>
           {label} <span className="text-destructive">*</span>
         </Label>

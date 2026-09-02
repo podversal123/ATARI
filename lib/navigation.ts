@@ -19,6 +19,10 @@ export type MasterColumn = {
   label: string;
   /** Overrides `label` on the Add/Edit form field only, for confirmed real cases where the form's field text is more specific than its own table's column header (e.g. table "Name" vs form "Training Clientele Name"). Table header keeps using `label`. */
   formLabel?: string;
+  /** Overrides this field's position on the Add/Edit form only (lower sorts first; fields without one keep their relative array order, sorted after every numbered field) - the list table always uses raw array order regardless. Needed because a leaf's one `columns` array drives both the list's real column order and the form's real field order, and a real leaf's two real sequences don't always match (audit finding, 2026-09-02 client handover screenshots) - reordering the array itself to fix the form would have silently reordered the already-confirmed-real list columns too. */
+  formOrder?: number;
+  /** Renders this field and the very next one (after form-order sorting) side by side inside one shared grid cell, instead of each taking its own full cell - for a real, confirmed case where two short related fields (e.g. Unit + Quantity) sit paired together next to a third, unrelated full-width field on the same row, rather than each pairing with its neighbor the normal way. */
+  pairWithNext?: boolean;
   /** Server-computed display column (e.g. a child-row count) - shown in the list table, but never rendered as an input on the Add/Edit form since there's nothing for a user to type into it. */
   readonly?: boolean;
   /** Renders a real file-upload control instead of a text input, and a thumbnail/"View" link instead of raw text in the list table. The stored value is the uploaded file's Vercel Blob URL. */
@@ -84,6 +88,8 @@ export type NavLeaf = {
   cardLinkLabel?: string;
   /** Overrides `label` on the leaf's own detail page (H1 + breadcrumb) only - mirrors NavGroup.pageTitle, for the confirmed real case where the landing-card link text differs from the page's own title (card link "OFT" vs page "On Farm Trials (OFT)", confirmed live 2026-08-15 reference screenshot). */
   pageTitle?: string;
+  /** Overrides `label` on this leaf's own sibling-tab pill only (the row of tabs shown when several leaves share one parent group) - for the rare real case where the full label is too long to fit that pill bar on one line everywhere else in the app renders on (client direction, 2026-09-02: cut it down rather than let it wrap to a second line). Breadcrumb/page title keep using the full real `label`. */
+  tabLabel?: string;
   /**
    * Whether the Add/Create form shows the "Mark as 'Other' option" checkbox.
    * The real reference shows this on almost every simple master's create
@@ -156,8 +162,9 @@ function leaf(
   showMarkAsOther?: boolean,
   pageTitle?: string,
   cardLinkLabel?: string,
+  tabLabel?: string,
 ): NavLeaf {
-  return { type: "leaf", slug, label, columns, cardLabel, showMarkAsOther, pageTitle, cardLinkLabel };
+  return { type: "leaf", slug, label, columns, cardLabel, showMarkAsOther, pageTitle, cardLinkLabel, tabLabel };
 }
 
 /**
@@ -1036,14 +1043,17 @@ const achievements = group("achievements", "Achievements", [
     "trainings",
     "Trainings",
     [
-      { key: "reportingYear", label: "Reporting Year" },
+      /** Real Edit form has no manual Reporting Year input at all (audit finding, 2026-09-02 client handover zip) - server-computed from Start Date's own year (falling back to the current year when Start Date is blank, same convention OFT/FLD's own Reporting Year already defaults by), see the matching leaf-record-registry.ts entry. */
+      { key: "reportingYear", label: "Reporting Year", readonly: true },
       { key: "kvk", label: "KVK Name", readonly: true },
-      { key: "startDate", label: "Start Date" },
-      { key: "endDate", label: "End Date" },
-      { key: "program", label: "Training Program" },
-      { key: "title", label: "Training Title" },
-      { key: "venue", label: "Venue" },
-      { key: "trainingDiscipline", label: "Training Discipline" },
+      { key: "startDate", label: "Start Date", fieldKind: "date", formOrder: 7 },
+      { key: "endDate", label: "End Date", fieldKind: "date", formOrder: 8 },
+      /** Real, always-populated field (5 of 5 seed rows non-empty) not present in the reference capture below - kept visible (hiding a required, populated field risks silent data loss on save) but placed after every confirmed field since its own real position isn't confirmed. */
+      { key: "program", label: "Training Program", formOrder: 13 },
+      { key: "title", label: "Training Title", formLabel: "Title of Training", formOrder: 6 },
+      { key: "venue", label: "Venue", formOrder: 10 },
+      /** Real field, but never populated (0 of 5 seed rows) - hidden from the Edit form to match the real reference (audit finding, 2026-09-02), list column untouched. */
+      { key: "trainingDiscipline", label: "Training Discipline", readonly: true },
       /**
        * Real 3-level master chain confirmed live 2026-08-15 ("project over"
        * reference): Training Type -> Training Area -> Training Thematic
@@ -1052,17 +1062,24 @@ const achievements = group("achievements", "Achievements", [
        * instead of free text; `trainingType`/`trainingArea` are new. All
        * three are `formOnly` since the real LIST table (re-confirmed live
        * 2026-08-24, comment above) does NOT show them, only the Edit form does.
+       *
+       * Edit form field order re-confirmed against the reference (atari-client.vercel.app,
+       * 2026-09-02 client handover zip): Clientele, Training Type, Training Area,
+       * Training Thematic Area, On Campus/Off Campus, Title of Training, Start Date,
+       * End Date, Course Co-ordinator, Venue, Funding Source, Funding Agency Name -
+       * the array's own order (which the list table also reads) doesn't match this,
+       * so `formOrder` carries the real form sequence instead of reordering the array.
        */
-      { key: "trainingType", label: "Training Type", sourceMaster: { master: "training-type", optionKey: "trainingType" }, formOnly: true },
-      { key: "trainingArea", label: "Training Area", sourceMaster: { master: "training-area", optionKey: "trainingAreaName", dependsOnKey: "trainingType", filterKey: "trainingType" }, formOnly: true },
-      { key: "thematicArea", label: "Thematic Area", sourceMaster: { master: "training-thematic-area", optionKey: "thematicArea", dependsOnKey: "trainingArea", filterKey: "trainingAreaName" } },
+      { key: "trainingType", label: "Training Type", sourceMaster: { master: "training-type", optionKey: "trainingType" }, formOnly: true, formOrder: 2 },
+      { key: "trainingArea", label: "Training Area", sourceMaster: { master: "training-area", optionKey: "trainingAreaName", dependsOnKey: "trainingType", filterKey: "trainingType" }, formOnly: true, formOrder: 3 },
+      { key: "thematicArea", label: "Thematic Area", formLabel: "Training Thematic Area", sourceMaster: { master: "training-thematic-area", optionKey: "thematicArea", dependsOnKey: "trainingArea", filterKey: "trainingAreaName" }, formOrder: 4 },
       /** Real dropdown added 2026-08-28 (client request) - sourced from the real Training Clientele Master, same sourceMaster pattern as every other cross-master dropdown. Venue has no equivalent master anywhere in the reference (only ever appears as a free-text field), so it stays plain text rather than guessing option values. */
-      { key: "clientele", label: "Clientele", sourceMaster: { master: "training-clientele", optionKey: "clientele" } },
-      { key: "onCampusOffCampus", label: "On Campus/Off Campus", staticOptions: ["On Campus", "Off Campus"], formOnly: true },
+      { key: "clientele", label: "Clientele", sourceMaster: { master: "training-clientele", optionKey: "clientele" }, formOrder: 1 },
+      { key: "onCampusOffCampus", label: "On Campus/Off Campus", staticOptions: ["On Campus", "Off Campus"], formOnly: true, formOrder: 5 },
       /** Real staff dropdown (audit finding, 2026-09-02) - the reference shows this as a real "--Please Select Staff--" dropdown of the KVK's own employees, matching OFT/FLD's own Staff field, not free text. */
-      { key: "courseCoordinator", label: "Course Co-ordinator", sourceMaster: { master: "__staff__", optionKey: "name" }, formOnly: true },
-      { key: "fundingSource", label: "Funding Source", sourceMaster: { master: "funding-source", optionKey: "fundingSource" }, formOnly: true },
-      { key: "fundingAgencyName", label: "Funding Agency Name", formOnly: true },
+      { key: "courseCoordinator", label: "Course Co-ordinator", sourceMaster: { master: "__staff__", optionKey: "name" }, formOnly: true, formOrder: 9 },
+      { key: "fundingSource", label: "Funding Source", sourceMaster: { master: "funding-source", optionKey: "fundingSource" }, formOnly: true, formOrder: 11 },
+      { key: "fundingAgencyName", label: "Funding Agency Name", formOnly: true, formOrder: 12 },
       { key: "farmersDetails", label: "Farmers Details", fieldKind: "demographic-breakdown", demographicVariant: "grid", formOnly: true },
       /** Real end-of-form Upload Photograph(s)+Caption section (client PDF, "Module Image workflow", 2026-09-02) - feeds Module Images automatically, pilot leaf. */
       { key: "moduleImages", label: "Photographs", fieldKind: "photos", formOnly: true },
@@ -1075,35 +1092,38 @@ const achievements = group("achievements", "Achievements", [
       /** Real Edit form (audit finding, 2026-09-02) has no manual Reporting Year or No. of Participants input at all - both are server-computed (Reporting Year from Start Date's own year, No. of Participants from the Farmers+Officials totals below, same real precedent as Technology Week Celebration's own numberOfParticipants) - see the matching leaf-record-registry.ts entry. */
       { key: "reportingYear", label: "Reporting Year", readonly: true },
       { key: "kvk", label: "KVK", readonly: true },
-      { key: "startDate", label: "Start Date", fieldKind: "date" },
-      { key: "endDate", label: "End Date", fieldKind: "date" },
+      { key: "startDate", label: "Start Date", fieldKind: "date", formOrder: 4 },
+      { key: "endDate", label: "End Date", fieldKind: "date", formOrder: 5 },
       /** Real dropdown (client request, 2026-08-28) - sourced from the real Extension Activity Master, same sourceMaster pattern as every other cross-master dropdown. List column header reads "Name of Extension Activities" but the real Edit form's own field label is "Nature of Extension Activity" (audit finding, 2026-09-02 - two different real labels for the same field, same list/form split as `formLabel` handles elsewhere). */
       {
         key: "natureOfExtensionActivity",
         label: "Name of Extension Activities",
         formLabel: "Nature of Extension Activity",
         sourceMaster: { master: "extension-activity", optionKey: "activityName" },
+        formOrder: 2,
       },
-      { key: "noOfActivities", label: "No. of Activities" },
+      { key: "noOfActivities", label: "No. of Activities", formOrder: 3 },
       { key: "noOfParticipants", label: "No. of Participants", readonly: true },
-      /** Real Edit form fields confirmed live 2026-08-15 ("project over" reference, "Edit Extension Activities") - two independent demographic blocks (Farmers + Extension Officials), both previously entirely missing. `staff` is a real KVK-staff dropdown (audit finding, 2026-09-02 - matches OFT/FLD's own Staff field, was plain text before), not free text. Both blocks use the real flat grid+badges layout (demographicVariant: "grid", re-confirmed live 2026-09-02 against the reference recording - was wrongly rendering as the General/OBC/SC/ST table before, same bug as Training/FLD's own Farmers Details). */
-      { key: "staff", label: "Name of SMS/KVK Head", sourceMaster: { master: "__staff__", optionKey: "name" }, formOnly: true },
+      /** Real Edit form fields confirmed live 2026-08-15 ("project over" reference, "Edit Extension Activities") - two independent demographic blocks (Farmers + Extension Officials), both previously entirely missing. `staff` is a real KVK-staff dropdown (audit finding, 2026-09-02 - matches OFT/FLD's own Staff field, was plain text before), not free text. Both blocks use the real flat grid+badges layout (demographicVariant: "grid", re-confirmed live 2026-09-02 against the reference recording - was wrongly rendering as the General/OBC/SC/ST table before, same bug as Training/FLD's own Farmers Details). Real Edit form field order re-confirmed against the reference (atari-client.vercel.app, 2026-09-02 client handover zip): Name of SMS/KVK Head, Nature of Extension Activity | No. of activities (alone) | Start Date, End Date - `formOrder` carries this since the array's own order (which the list table also reads) doesn't match it. */
+      { key: "staff", label: "Name of SMS/KVK Head", sourceMaster: { master: "__staff__", optionKey: "name" }, formOnly: true, formOrder: 1 },
       { key: "farmersDetails", label: "Farmers", fieldKind: "demographic-breakdown", demographicPrefix: "farmers", demographicVariant: "grid", formOnly: true },
       { key: "extensionOfficials", label: "Extension Officials", fieldKind: "demographic-breakdown", demographicPrefix: "officials", demographicVariant: "grid", formOnly: true },
       /** Real end-of-form Upload Photograph(s)+Caption section (client PDF, "Module Image workflow", 2026-09-02) - feeds Module Images automatically, pilot leaf. */
       { key: "moduleImages", label: "Photographs", fieldKind: "photos", formOnly: true },
     ]),
     leaf("other-extension-activities", "Other Extension Activities", [
-      { key: "reportingYear", label: "Reporting Year" },
+      /** Real Edit form has no manual Reporting Year input at all (audit finding, 2026-09-02 client handover zip) - server-computed from Start Date's own year (falling back to the current year when Start Date is blank), see the matching leaf-record-registry.ts entry. */
+      { key: "reportingYear", label: "Reporting Year", readonly: true },
       { key: "kvk", label: "KVK Name", readonly: true },
       {
         key: "natureOfExtensionActivity",
         label: "Nature of Extension Activity",
         sourceMaster: { master: "other-extension-activity", optionKey: "activityName" },
+        formOrder: 2,
       },
-      { key: "noOfActivities", label: "No. of Activities" },
-      /** Real Edit form fields confirmed live 2026-08-15 ("Edit Other Extension Activities") - were entirely missing before this. `staff` is a real KVK-staff dropdown (audit finding, 2026-09-02), not free text. */
-      { key: "staff", label: "Name of SMS/KVK Head", sourceMaster: { master: "__staff__", optionKey: "name" }, formOnly: true },
+      { key: "noOfActivities", label: "No. of Activities", formOrder: 3 },
+      /** Real Edit form fields confirmed live 2026-08-15 ("Edit Other Extension Activities") - were entirely missing before this. `staff` is a real KVK-staff dropdown (audit finding, 2026-09-02), not free text. Real Edit form field order re-confirmed against the reference (atari-client.vercel.app, 2026-09-02 client handover zip): Name of SMS/KVK Head, Nature of Extension Activity | No. of activities (alone) | Start Date, End Date. */
+      { key: "staff", label: "Name of SMS/KVK Head", sourceMaster: { master: "__staff__", optionKey: "name" }, formOnly: true, formOrder: 1 },
       { key: "startDate", label: "Start Date", formOnly: true, fieldKind: "date" },
       { key: "endDate", label: "End Date", formOnly: true, fieldKind: "date" },
     ]),
@@ -1127,9 +1147,9 @@ const achievements = group("achievements", "Achievements", [
     /** Real sidebar label confirmed live: "Celebration of important days", not "Celebration Days". */
     leaf("celebration-days", "Celebration of important days", [
       { key: "kvk", label: "KVK", readonly: true },
-      { key: "importantDay", label: "Important Days", sourceMaster: { master: "important-day", optionKey: "name" } },
-      { key: "eventDate", label: "Event Date", fieldKind: "date" },
-      { key: "noOfActivities", label: "No of Activities" },
+      { key: "importantDay", label: "Important Days", sourceMaster: { master: "important-day", optionKey: "name" }, formOrder: 2 },
+      { key: "eventDate", label: "Event Date", fieldKind: "date", formOrder: 1 },
+      { key: "noOfActivities", label: "No of Activities", formOrder: 3 },
       /** Real Edit form fields confirmed live 2026-08-15 ("Edit Celebration Days") - same two-block shape as Extension Activities above, were entirely missing before this. Both blocks use the real flat grid+badges layout (demographicVariant: "grid", re-confirmed live 2026-09-02). */
       { key: "farmersDetails", label: "Farmers", fieldKind: "demographic-breakdown", demographicPrefix: "farmers", demographicVariant: "grid", formOnly: true },
       { key: "extensionOfficials", label: "Extension Officials", fieldKind: "demographic-breakdown", demographicPrefix: "officials", demographicVariant: "grid", formOnly: true },
@@ -1145,47 +1165,70 @@ const achievements = group("achievements", "Achievements", [
     leaf("world-soil-day", "Details of World Soil Day Celebration", [
       { key: "kvk", label: "KVK Name", readonly: true },
       /** Real field confirmed live 2026-08-15 - was entirely missing before this. Renders as a real date picker in the reference despite the "Year" name (audit finding, 2026-09-02). */
-      { key: "reportingYear", label: "Reporting Year", fieldKind: "date" },
+      { key: "reportingYear", label: "Reporting Year", fieldKind: "date", formOrder: 1 },
       {
         key: "noOfActivitiesConducted",
         label: "No. of Activity Conducted",
+        formOrder: 2,
       },
       {
         key: "soilHealthCardsDistributed",
         label: "Soil Health Cards Distributed",
+        formOrder: 3,
       },
-      { key: "noOfVip", label: "No of VIP" },
-      { key: "vipNames", label: "Name(s) of VIP(s) Involved if Any" },
+      /** Real Edit form has no separate "No of VIP" input at all (audit finding, 2026-09-02 client handover zip - only Name(s) of VIP(s) Involved if Any is real) - server-computed from the comma-separated count in vipNames instead, see the matching leaf-record-registry.ts entry. */
+      { key: "noOfVip", label: "No of VIP", readonly: true },
+      { key: "vipNames", label: "Name(s) of VIP(s) Involved if Any", formOrder: 4 },
       {
         key: "totalParticipants",
         label: "Total No. of Participants Attended the Programme",
+        formOrder: 5,
       },
       { key: "farmersDetails", label: "Farmers Details", fieldKind: "demographic-breakdown", demographicVariant: "grid", formOnly: true },
     ]),
     /** Real columns confirmed live, extended 2026-08-24 with the participant breakdown from the client's own Poshan Maah reporting sheet. */
+    /**
+     * Field labels, order, and eventName's real field type re-confirmed
+     * against the reference (atari-client.vercel.app, 2026-09-02 client
+     * handover zip): Datewise activity (date), Name of Event/Programme |
+     * No. of activities conducted, No. of saplings planted | No. of
+     * vegetable kits distributed (alone) | [No. of participants] Girls,
+     * Farm Woman, Farmers, Anganwadi Workers, Govt Officials, Public
+     * Representatives | Total Participants (auto-calculated, disabled).
+     * eventName renders as a real free-text field there (typed test value
+     * visible), not a master dropdown - no confirmed real master backs it,
+     * so it's plain text now rather than a guessed option list.
+     */
     leaf("poshan-maaha", "Poshan Maaha", [
       { key: "kvk", label: "KVK", readonly: true },
-      { key: "activityDate", label: "Activity Date", fieldKind: "date" },
-      { key: "activitiesConducted", label: "Activities Conducted" },
-      { key: "eventName", label: "Event Name", sourceMaster: { master: "events-master", optionKey: "eventName" } },
-      { key: "saplingsPlanted", label: "Saplings Planted" },
-      { key: "vegetableKits", label: "Vegetable Kits" },
-      { key: "participantsGirls", label: "Participants - Girls" },
-      {
-        key: "participantsPublicRepresentatives",
-        label: "Participants - Public Representatives",
-      },
-      { key: "participantsFarmWoman", label: "Participants - Farm Woman" },
-      { key: "participantsFarmers", label: "Participants - Farmers" },
+      { key: "activityDate", label: "Activity Date", formLabel: "Datewise activity (date)", fieldKind: "date", formOrder: 1 },
+      { key: "activitiesConducted", label: "Activities Conducted", formLabel: "No. of activities conducted", formOrder: 3 },
+      { key: "eventName", label: "Event Name", formLabel: "Name of Event/Programme", formOrder: 2 },
+      { key: "saplingsPlanted", label: "Saplings Planted", formLabel: "No. of saplings planted", formOrder: 4 },
+      { key: "vegetableKits", label: "Vegetable Kits", formLabel: "No. of vegetable kits distributed", formOrder: 5 },
+      { key: "participantsGirls", label: "Participants - Girls", formLabel: "Girls", formOrder: 6 },
+      { key: "participantsFarmWoman", label: "Participants - Farm Woman", formLabel: "Farm Woman", formOrder: 7 },
+      { key: "participantsFarmers", label: "Participants - Farmers", formLabel: "Farmers", formOrder: 8 },
       {
         key: "participantsAganwadiWorkers",
         label: "Participants - Aganwadi Workers",
+        formLabel: "Anganwadi Workers",
+        formOrder: 9,
       },
       {
         key: "participantsGovtOfficials",
         label: "Participants - Govt Officials",
+        formLabel: "Govt Officials",
+        formOrder: 10,
       },
-      { key: "totalParticipants", label: "Total Participants" },
+      {
+        key: "participantsPublicRepresentatives",
+        label: "Participants - Public Representatives",
+        formLabel: "Public Representatives",
+        formOrder: 11,
+      },
+      /** Real field is a disabled, auto-calculated readout ("Auto-calculated: sum of all participant categories"), never a real user input - server-computed the same way, see the matching leaf-record-registry.ts entry. */
+      { key: "totalParticipants", label: "Total Participants", readonly: true },
     ]),
   ]),
   /**
@@ -1280,15 +1323,17 @@ const achievements = group("achievements", "Achievements", [
     "Production and supply of Technological products",
     [
       { key: "kvk", label: "KVK", readonly: true },
-      { key: "reportingDate", label: "Reporting Date", formOnly: true, fieldKind: "date" },
-      { key: "productCategory", label: "Product Category", sourceMaster: { master: "product-category", optionKey: "name" }, formOnly: true },
-      { key: "productType", label: "Product Type", sourceMaster: { master: "product-type", optionKey: "productCategoryType", dependsOnKey: "productCategory", filterKey: "productCategoryName" }, formOnly: true },
-      { key: "product", label: "Product", sourceMaster: { master: "products", optionKey: "productName", dependsOnKey: "productType", filterKey: "productCategoryType" }, formOnly: true },
-      { key: "category", label: "Category" },
-      { key: "variety", label: "Variety", formLabel: "Species/Breed/Variety" },
-      { key: "unit", label: "Unit", formOnly: true },
-      { key: "quantity", label: "Quantity" },
-      { key: "value", label: "Value (Rs)", formOnly: true },
+      { key: "reportingDate", label: "Reporting Date", formOnly: true, fieldKind: "date", formOrder: 1 },
+      { key: "productCategory", label: "Product Category", sourceMaster: { master: "product-category", optionKey: "name" }, formOnly: true, formOrder: 2 },
+      { key: "productType", label: "Product Type", sourceMaster: { master: "product-type", optionKey: "productCategoryType", dependsOnKey: "productCategory", filterKey: "productCategoryName" }, formOnly: true, formOrder: 3 },
+      { key: "product", label: "Product", sourceMaster: { master: "products", optionKey: "productName", dependsOnKey: "productType", filterKey: "productCategoryType" }, formOnly: true, formOrder: 4 },
+      /** Real, populated field (real seed data - "Dairy Animals", "Fisheries", etc.) not present in the reference capture below (productCategory/productType/product show as real but genuinely empty there too - a real, matching empty state, not a bug) - kept visible (hiding a populated field risks silent data loss) but placed after every confirmed field since its own real position isn't confirmed. */
+      { key: "category", label: "Category", formOrder: 9 },
+      /** Field order re-confirmed against the reference (atari-client.vercel.app, 2026-09-02 client handover zip): Reporting Date, Product Category | Product Type, Product | Species/Breed/Variety alone, with Unit + Quantity paired together in the next cell (not each pairing with an unrelated neighbour) | Value(Rs) alone. */
+      { key: "variety", label: "Variety", formLabel: "Species/Breed/Variety", formOrder: 5 },
+      { key: "unit", label: "Unit", formOnly: true, formOrder: 6, pairWithNext: true },
+      { key: "quantity", label: "Quantity", formOrder: 7 },
+      { key: "value", label: "Value (Rs)", formOnly: true, formOrder: 8 },
       { key: "farmersDetails", label: "Farmers Details", fieldKind: "demographic-breakdown", demographicVariant: "grid", formOnly: true },
     ],
     "Production & Supply of Technological Products",
@@ -1316,8 +1361,8 @@ const achievements = group("achievements", "Achievements", [
       "Soil, Water and Plant analysis",
       [
         { key: "kvk", label: "KVK Name", readonly: true },
-        { key: "startDate", label: "Start Date" },
-        { key: "endDate", label: "End Date" },
+        { key: "startDate", label: "Start Date", fieldKind: "date" },
+        { key: "endDate", label: "End Date", fieldKind: "date" },
         { key: "analysis", label: "Analysis", sourceMaster: { master: "soil-water", optionKey: "name" } },
         /** Real field confirmed against the reference (atari-client.vercel.app, 2026-08-15 screenshots) - "Samples analyzed Through" (e.g. "Mini soil testing kit") - no matching master anywhere in the app, stays plain text rather than guessing option values. */
         { key: "samplesAnalyzedThrough", label: "Samples analyzed Through", formOnly: true },
@@ -1398,16 +1443,17 @@ const achievements = group("achievements", "Achievements", [
       { key: "achievement", label: "Achievement" },
       { key: "conferringAuthority", label: "Conferring Authority" },
     ]),
+    /** Edit form field order re-confirmed against the reference (atari-client.vercel.app, 2026-09-02 client handover zip): Reporting Date, Name of the Award | Name of the Farmer, Address | Contact No., Amount | Achievement, Conferring Authority. */
     leaf("farmer", "Farmer", [
       { key: "kvk", label: "KVK Name", readonly: true },
-      { key: "reportingDate", label: "Reporting Date", formOnly: true, fieldKind: "date" },
-      { key: "farmerName", label: "Farmer Name", formLabel: "Name of the Farmer" },
-      { key: "address", label: "Address" },
-      { key: "contactNumber", label: "Contact No." },
-      { key: "award", label: "Award", formLabel: "Name of the Award" },
-      { key: "amount", label: "Amount" },
-      { key: "achievement", label: "Achievement" },
-      { key: "conferringAuthority", label: "Conferring Authority" },
+      { key: "reportingDate", label: "Reporting Date", formOnly: true, fieldKind: "date", formOrder: 1 },
+      { key: "farmerName", label: "Farmer Name", formLabel: "Name of the Farmer", formOrder: 3 },
+      { key: "address", label: "Address", formOrder: 4 },
+      { key: "contactNumber", label: "Contact No.", formOrder: 5 },
+      { key: "award", label: "Award", formLabel: "Name of the Award", formOrder: 2 },
+      { key: "amount", label: "Amount", formOrder: 6 },
+      { key: "achievement", label: "Achievement", formOrder: 7 },
+      { key: "conferringAuthority", label: "Conferring Authority", formOrder: 8 },
       /** Real field, confirmed missing entirely before (atari-client.vercel.app, 2026-09-02) - a real multi-file upload ("Hold Ctrl/Cmd in the file picker to select multiple"), not single. */
       { key: "photo", label: "Photographs", fieldKind: "multi-image", uploadKind: "farmer-award-photo", formOnly: true },
     ]),
@@ -2482,6 +2528,12 @@ const miscellaneous = group("miscellaneous", "Miscellaneous", [
         },
         { key: "messagesAnyOther", label: "Type of Messages - Any Other" },
       ],
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      /** Full label is too long to fit this page's own sibling-tab bar on one line (client direction, 2026-09-02) - shortened tab text only, breadcrumb/page title keep the real full name above. */
+      "Kisan Mobile Advisory Services (KMAS)",
     ),
     leaf(
       "digital-other-channels",

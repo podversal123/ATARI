@@ -161,10 +161,30 @@ export function MasterFormFields({
   onMarkAsOtherChange,
 }: MasterFormFieldsProps) {
   const instanceId = useId();
+  /** Form-field render order only - list columns elsewhere always read the raw `columns` prop untouched. Stable sort (index tiebreak, not relying on Array.sort's own stability) so fields without a formOrder keep their original relative position, just pushed after every numbered field. */
+  const orderedColumns = columns
+    .map((column, index) => ({ column, index }))
+    .sort((a, b) => {
+      const orderA = a.column.formOrder ?? Infinity;
+      const orderB = b.column.formOrder ?? Infinity;
+      return orderA !== orderB ? orderA - orderB : a.index - b.index;
+    })
+    .map(({ column }) => column);
 
-  return (
-    <>
-      {columns.map((column) => {
+  /** Groups adjacent `pairWithNext` fields (e.g. Unit + Quantity) into one shared grid cell, everything else stays one field per cell - see MasterColumn's own `pairWithNext` comment for why. */
+  const renderUnits: (MasterColumn | [MasterColumn, MasterColumn])[] = [];
+  for (let i = 0; i < orderedColumns.length; i++) {
+    const column = orderedColumns[i];
+    const next = orderedColumns[i + 1];
+    if (column.pairWithNext && next) {
+      renderUnits.push([column, next]);
+      i++;
+    } else {
+      renderUnits.push(column);
+    }
+  }
+
+  function renderColumn(column: MasterColumn) {
         if (column.readonly) return null;
         const fieldId = `${instanceId}-${column.key}`;
         const isCascading = Boolean(cascadeType && CASCADE_FIELDS[cascadeType]?.has(column.key));
@@ -381,7 +401,20 @@ export function MasterFormFields({
             />
           </div>
         );
-      })}
+  }
+
+  return (
+    <>
+      {renderUnits.map((unit) =>
+        Array.isArray(unit) ? (
+          <div key={`${unit[0].key}-${unit[1].key}`} className="grid grid-cols-2 gap-3">
+            {renderColumn(unit[0])}
+            {renderColumn(unit[1])}
+          </div>
+        ) : (
+          renderColumn(unit)
+        ),
+      )}
 
       {isSimpleMaster && (
         <label className="flex items-center gap-2 text-sm text-foreground">

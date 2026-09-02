@@ -310,7 +310,13 @@ export function OftForm({ trail, backHref, id, initialView }: OftFormProps) {
 
   return (
     <div>
-      {/* "Edit/Add OFT / Edit Result" tab pill - shown on both Add and Edit (client direction, 2026-09-02: "add new pe bhi same flow hona chahiye jo action mein hai"). Edit Result stays disabled until the record actually exists - a result belongs to a saved trial, there's no oftId to attach it to yet on a blank Add page. Switches views in place, same pattern CFLD Technical Parameter's own tab pill already uses, rather than a separate route. */}
+      <PageHeader
+        backHref={backHref}
+        trail={trail}
+        title={activeView === "result" ? "Edit OFT Result" : id ? "Edit OFT" : "Add OFT"}
+      />
+
+      {/* "Edit/Add OFT / Edit Result" tab pill - shown on both Add and Edit (client direction, 2026-09-02: "add new pe bhi same flow hona chahiye jo action mein hai"). Edit Result stays disabled until the record actually exists - a result belongs to a saved trial, there's no oftId to attach it to yet on a blank Add page. Switches views in place, same pattern CFLD Technical Parameter's own tab pill already uses, rather than a separate route. Sits below the Back/breadcrumb header (audit finding, 2026-09-02 - was built above it, backwards from CFLD's own established real order). */}
       <div className="mb-4 flex w-fit overflow-hidden rounded-full bg-primary p-1">
         <button
           type="button"
@@ -335,12 +341,6 @@ export function OftForm({ trail, backHref, id, initialView }: OftFormProps) {
           Edit Result
         </button>
       </div>
-
-      <PageHeader
-        backHref={backHref}
-        trail={trail}
-        title={activeView === "result" ? "Edit OFT Result" : id ? "Edit OFT" : "Add OFT"}
-      />
 
       {activeView === "result" && id ? (
         <div className="animate-in fade-in-0 slide-in-from-bottom-2 rounded-lg border border-border bg-card p-5 duration-300">

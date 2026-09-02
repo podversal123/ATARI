@@ -272,7 +272,20 @@ export function FldForm({ trail, backHref, id, initialView }: FldFormProps) {
 
   return (
     <div>
-      {/* "Edit/Add FLD / Add Result" tab pill - shown on both Add and Edit (client direction, 2026-09-02: "add new pe bhi same flow hona chahiye jo action mein hai"), same pattern as OftForm's own toggle. Add Result switches this same page in place (client direction, 2026-09-02: keep it consistent with OFT's own full-page Edit Result instead of a popup) and stays disabled until the record actually exists - a result belongs to a saved trial, there's no fldId to attach it to yet on a blank Add page. */}
+      {/* Full page heading (as opposed to the short "Edit FLD"/"Add FLD" tab-pill label below) - real reference (2026-09-02) spells it out as "Edit Front Line Demonstrations (FLD)". */}
+      <PageHeader
+        backHref={backHref}
+        trail={trail}
+        title={
+          activeView === "result"
+            ? "Add FLD Result"
+            : id
+              ? "Edit Front Line Demonstrations (FLD)"
+              : "Add Front Line Demonstrations (FLD)"
+        }
+      />
+
+      {/* "Edit/Add FLD / Add Result" tab pill - shown on both Add and Edit (client direction, 2026-09-02: "add new pe bhi same flow hona chahiye jo action mein hai"), same pattern as OftForm's own toggle. Add Result switches this same page in place (client direction, 2026-09-02: keep it consistent with OFT's own full-page Edit Result instead of a popup) and stays disabled until the record actually exists - a result belongs to a saved trial, there's no fldId to attach it to yet on a blank Add page. Sits below the Back/breadcrumb header (audit finding, 2026-09-02 - was built above it, backwards from CFLD's own established real order). */}
       <div className="mb-4 flex w-fit overflow-hidden rounded-full bg-primary p-1">
         <button
           type="button"
@@ -297,19 +310,6 @@ export function FldForm({ trail, backHref, id, initialView }: FldFormProps) {
           Add Result
         </button>
       </div>
-
-      {/* Full page heading (as opposed to the short "Edit FLD"/"Add FLD" tab-pill label above) - real reference (2026-09-02) spells it out as "Edit Front Line Demonstrations (FLD)". */}
-      <PageHeader
-        backHref={backHref}
-        trail={trail}
-        title={
-          activeView === "result"
-            ? "Add FLD Result"
-            : id
-              ? "Edit Front Line Demonstrations (FLD)"
-              : "Add Front Line Demonstrations (FLD)"
-        }
-      />
 
       {activeView === "result" && id ? (
         <div className="animate-in fade-in-0 slide-in-from-bottom-2 rounded-lg border border-border bg-card p-5 duration-300">
