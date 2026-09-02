@@ -6,7 +6,9 @@ import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { SimpleSelect } from "@/components/ui/simple-select";
 import { FileUploadField } from "./file-upload-field";
-import { DemographicBreakdown, type DemographicValues } from "./demographic-breakdown";
+import { MultiImageUploadField } from "./multi-image-upload-field";
+import { FormPhotosField, type FormPhoto } from "./form-photos-field";
+import { DemographicBreakdown, DemographicGrid, type DemographicValues } from "./demographic-breakdown";
 import type { MasterColumn } from "@/lib/navigation";
 
 export const DEMOGRAPHIC_KEYS = [
@@ -47,10 +49,14 @@ const CASCADE_FIELDS: Record<string, Set<string>> = {
  */
 const sourceMasterCache = new Map<string, Promise<Record<string, string>[]>>();
 
+/** Sentinel `sourceMaster.master` value meaning "this KVK's own Staff list" (/api/staff-options) rather than a real zone-wide master slug (/api/master-options) - Staff belongs to one KVK, unlike every other cross-master dropdown, so it needs its own endpoint, not a real "staff" master row. */
+const STAFF_SOURCE = "__staff__";
+
 function fetchSourceMasterRows(master: string): Promise<Record<string, string>[]> {
   let cached = sourceMasterCache.get(master);
   if (!cached) {
-    cached = fetch(`/api/master-options?slug=${encodeURIComponent(master)}`)
+    const url = master === STAFF_SOURCE ? "/api/staff-options" : `/api/master-options?slug=${encodeURIComponent(master)}`;
+    cached = fetch(url)
       .then((res) => (res.ok ? res.json() : { rows: [] }))
       .then((data) => (data.rows ?? []) as Record<string, string>[])
       .catch(() => []);
@@ -174,14 +180,58 @@ export function MasterFormFields({
           for (const suffix of DEMOGRAPHIC_KEYS) {
             demoValues[suffix] = formValues[prefixedDemographicKey(prefix, suffix)] ?? "";
           }
+          const demoOnChange = (key: string, value: string) =>
+            onChange({ ...formValues, [prefixedDemographicKey(prefix, key)]: value });
           return (
             <div key={column.key} className="space-y-2 sm:col-span-2 lg:col-span-3">
               <p className="text-sm font-semibold text-primary">{column.label}</p>
-              <DemographicBreakdown
-                values={demoValues}
-                onChange={(key, value) =>
-                  onChange({ ...formValues, [prefixedDemographicKey(prefix, key)]: value })
-                }
+              {column.demographicVariant === "grid" ? (
+                <DemographicGrid values={demoValues} onChange={demoOnChange} />
+              ) : (
+                <DemographicBreakdown values={demoValues} onChange={demoOnChange} />
+              )}
+            </div>
+          );
+        }
+
+        if (column.fieldKind === "multi-image" && column.uploadKind) {
+          let value: string[] = [];
+          try {
+            const parsed = JSON.parse(formValues[column.key] || "[]");
+            if (Array.isArray(parsed)) value = parsed.filter((v): v is string => typeof v === "string");
+          } catch {
+            // Leave value empty on malformed JSON rather than throwing.
+          }
+          return (
+            <div key={column.key} className="sm:col-span-2 lg:col-span-3">
+              <MultiImageUploadField
+                label={column.formLabel ?? column.label}
+                uploadKind={column.uploadKind}
+                value={value}
+                onChange={(urls) => onChange({ ...formValues, [column.key]: JSON.stringify(urls) })}
+              />
+            </div>
+          );
+        }
+
+        if (column.fieldKind === "photos") {
+          let photos: FormPhoto[] = [];
+          try {
+            const parsed = JSON.parse(formValues[column.key] || "[]");
+            if (Array.isArray(parsed)) {
+              photos = parsed
+                .filter((p): p is FormPhoto => typeof p?.url === "string")
+                .map((p) => ({ url: p.url, caption: typeof p.caption === "string" ? p.caption : "" }));
+            }
+          } catch {
+            // Leave photos empty on malformed JSON rather than throwing.
+          }
+          return (
+            <div key={column.key} className="sm:col-span-2 lg:col-span-3">
+              <FormPhotosField
+                label={column.formLabel ?? column.label}
+                value={photos}
+                onChange={(next) => onChange({ ...formValues, [column.key]: JSON.stringify(next) })}
               />
             </div>
           );
@@ -317,9 +367,14 @@ export function MasterFormFields({
             </FieldLabel>
             <Input
               id={fieldId}
+              type={column.fieldKind === "date" ? "date" : undefined}
               className="h-10"
               value={formValues[column.key] ?? ""}
-              placeholder={column.placeholder ?? `Enter ${(column.formLabel ?? column.label).toLowerCase()}`}
+              placeholder={
+                column.fieldKind === "date"
+                  ? undefined
+                  : (column.placeholder ?? `Enter ${(column.formLabel ?? column.label).toLowerCase()}`)
+              }
               onChange={(event) =>
                 onChange({ ...formValues, [column.key]: event.target.value })
               }

@@ -12,7 +12,22 @@ export default defineConfig({
   migrations: {
     path: "prisma/migrations",
   },
+  // This `datasource.url` is only ever read by the Prisma CLI (migrate,
+  // studio, db pull/push) - the app's own runtime PrismaClient (lib/prisma.ts)
+  // builds its connection directly from process.env.DATABASE_URL via its own
+  // adapter, entirely independent of this file, so pointing the CLI
+  // elsewhere here has zero effect on the running app.
+  //
+  // Migrations need a real session-level connection to hold Postgres
+  // advisory locks (https://pris.ly/d/migrate-advisory-locking) -
+  // DATABASE_URL goes through Neon's pooler, which doesn't guarantee one
+  // connection stays pinned to one session, so `migrate dev` was
+  // intermittently failing to acquire its lock under concurrent load (real
+  // bug hit repeatedly running several migrations back to back tonight).
+  // Prisma 7's config `Datasource` type only has `url`/`shadowDatabaseUrl`,
+  // not the old schema-level `directUrl` - DATABASE_URL_UNPOOLED (already in
+  // .env.local) goes here instead, since this url is CLI-only anyway.
   datasource: {
-    url: process.env["DATABASE_URL"],
+    url: process.env["DATABASE_URL_UNPOOLED"],
   },
 });

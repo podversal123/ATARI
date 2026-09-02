@@ -9,8 +9,10 @@ const reqInt = (v: string | undefined) => parseInt(v ?? "0", 10) || 0;
 const dec = (v: string | undefined) => (v?.trim() ? Number(v) : undefined);
 const reqDec = (v: string | undefined) => Number(v) || 0;
 const numStr = (v: unknown) => (v === null || v === undefined ? "" : String(v));
+/** `<input type="date">` needs "YYYY-MM-DD" - Date#toISOString()'s own leading slice, not a real formatting library, matching every other real date-input field already in this codebase. */
+const dateStr = (v: Date | null | undefined) => (v ? v.toISOString().slice(0, 10) : "");
 
-/** Loads one CFLD Technical Parameter record (+ its Economic/Perception children) shaped exactly like CfldTechnicalParameterDialog's own state, for the Edit flow. */
+/** Loads one CFLD Technical Parameter record (+ its Economic/Perception children) shaped exactly like CfldTechnicalParameterPage's own state, for the Edit flow. */
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
@@ -35,10 +37,12 @@ export async function GET(
   return NextResponse.json({
     technical: {
       reportingYear: numStr(record.reportingYear),
+      reportingDate: dateStr(record.reportingDate),
       month: record.month ?? "",
       season: record.season,
+      cropType: record.cropType ?? "",
       crop: record.crop,
-      variety: "",
+      variety: record.variety ?? "",
       areaHa: numStr(record.areaHa),
       technologyDemonstrated: record.detailOfTechnologyDemonstrated,
       existingFarmerPractice: record.existingFarmerPractice ?? "",
@@ -50,6 +54,8 @@ export async function GET(
       stateYield: numStr(record.stateYield),
       potentialYield: numStr(record.potentialYield),
       numberOfFarmers: numStr(record.numberOfFarmers),
+      trainingPhotoUrls: record.trainingPhotoUrls,
+      actionPhotoUrls: record.actionPhotoUrls,
     },
     economic: economic
       ? {
@@ -61,6 +67,7 @@ export async function GET(
           netReturnFarmer: numStr(economic.farmerNetReturn),
           bcRatioDemo: numStr(economic.demoBcRatio),
           bcRatioFarmer: numStr(economic.farmerBcRatio),
+          additionalIncome: numStr(economic.additionalIncome),
         }
       : {},
     demographics,
@@ -123,15 +130,26 @@ export async function PUT(
   const districtYield = dec(technical.districtYield);
   const stateYield = dec(technical.stateYield);
   const potentialYield = dec(technical.potentialYield);
+  const reportingDate = str(technical.reportingDate) ? new Date(technical.reportingDate) : undefined;
+
+  const trainingPhotoUrls = Array.isArray(technical.trainingPhotoUrls)
+    ? technical.trainingPhotoUrls.filter((v: unknown): v is string => typeof v === "string")
+    : undefined;
+  const actionPhotoUrls = Array.isArray(technical.actionPhotoUrls)
+    ? technical.actionPhotoUrls.filter((v: unknown): v is string => typeof v === "string")
+    : undefined;
 
   await prisma.cfldTechnicalParameter.update({
     where: { id },
     data: {
-      reportingYear: reqInt(technical.reportingYear),
+      reportingYear: reportingDate ? reportingDate.getFullYear() : reqInt(technical.reportingYear),
+      reportingDate,
       month: str(technical.month),
       season: reqStr(technical.season),
+      cropType: str(technical.cropType),
       crop: reqStr(technical.crop),
       cropDemonstrated: reqStr(technical.crop),
+      variety: str(technical.variety),
       areaHa: reqDec(technical.areaHa),
       numberOfFarmers: reqInt(technical.numberOfFarmers),
       farmersByCategory: demographics,
@@ -148,6 +166,8 @@ export async function PUT(
       yieldGapMinimizedPercentDistrict: yieldGapMinimizedPercent(districtYield, demoYieldAvg),
       yieldGapMinimizedPercentState: yieldGapMinimizedPercent(stateYield, demoYieldAvg),
       yieldGapMinimizedPercentPotential: yieldGapMinimizedPercent(potentialYield, demoYieldAvg),
+      ...(trainingPhotoUrls ? { trainingPhotoUrls } : {}),
+      ...(actionPhotoUrls ? { actionPhotoUrls } : {}),
       status,
     },
   });
@@ -155,19 +175,40 @@ export async function PUT(
   await prisma.cfldEconomicParameter.deleteMany({ where: { cfldTechnicalParameterId: id } });
   const hasEconomic = Object.values(economic).some((v) => v !== "" && v != null);
   if (hasEconomic) {
+    const farmerGrossCost = dec(economic.costFarmer);
+    const farmerGrossReturn = dec(economic.grossReturnFarmer);
+    const demoGrossCost = dec(economic.costDemo);
+    const demoGrossReturn = dec(economic.grossReturnDemo);
     await prisma.cfldEconomicParameter.create({
       data: {
         cfldTechnicalParameterId: id,
         zoneId: auth.session.zoneId,
         detailOfTechnology: reqStr(technical.technologyDemonstrated),
-        farmerGrossCost: dec(economic.costFarmer),
-        demoGrossCost: dec(economic.costDemo),
-        farmerGrossReturn: dec(economic.grossReturnFarmer),
-        demoGrossReturn: dec(economic.grossReturnDemo),
-        farmerNetReturn: dec(economic.netReturnFarmer),
-        demoNetReturn: dec(economic.netReturnDemo),
-        farmerBcRatio: dec(economic.bcRatioFarmer),
-        demoBcRatio: dec(economic.bcRatioDemo),
+        farmerGrossCost,
+        demoGrossCost,
+        farmerGrossReturn,
+        demoGrossReturn,
+        // Real reference (atari-client.vercel.app, 2026-09-01): Net Return and
+        // B:C ratio are shown as "Auto-calculated" (Gross Return - Gross
+        // Cost, Gross Return / Gross Cost), not independently entered - the
+        // old dialog let them be typed in directly, which no longer matches.
+        farmerNetReturn:
+          farmerGrossReturn !== undefined && farmerGrossCost !== undefined
+            ? farmerGrossReturn - farmerGrossCost
+            : undefined,
+        demoNetReturn:
+          demoGrossReturn !== undefined && demoGrossCost !== undefined
+            ? demoGrossReturn - demoGrossCost
+            : undefined,
+        farmerBcRatio:
+          farmerGrossReturn !== undefined && farmerGrossCost
+            ? farmerGrossReturn / farmerGrossCost
+            : undefined,
+        demoBcRatio:
+          demoGrossReturn !== undefined && demoGrossCost
+            ? demoGrossReturn / demoGrossCost
+            : undefined,
+        additionalIncome: dec(economic.additionalIncome),
       },
     });
   }

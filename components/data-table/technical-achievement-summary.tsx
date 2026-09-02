@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { FileDown, FileSpreadsheet, FileType } from "lucide-react";
+import { FileDown, FileSpreadsheet, FileType, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SimpleSelect } from "@/components/ui/simple-select";
 import {
@@ -9,11 +9,14 @@ import {
   DEMOGRAPHIC_LEAF_COUNT,
   PUBLICATIONS_BLOCK,
   TECHNICAL_ACHIEVEMENT_CARDS,
+  buildRowValues,
   sectionWidth,
+  type SectionValues,
   type SummaryCard,
   type SummarySection,
 } from "@/lib/technical-achievement-summary";
 import { KVKS } from "@/lib/rbac";
+import { downloadBlob } from "@/lib/utils";
 import { KvkCheckboxFilter } from "./kvk-checkbox-filter";
 
 const HEAD_CELL =
@@ -42,21 +45,6 @@ const PUBLICATIONS_ACCENT = { bar: "bg-rose-500", head: "bg-rose-50" };
 /** Leaf columns of one section, flattened in render order - used to lay out the value row. */
 function leafCount(section: SummarySection): number {
   return sectionWidth(section);
-}
-
-type SectionValues = { metrics: number[]; leadColumn: number; matrix: number[] };
-
-/** Flattens one section's real values into the same leaf order sectionWidth() counts - metric columns, then the lead column (if any), then the demographic matrix (if any). */
-function buildRowValues(section: SummarySection, values: SectionValues | undefined): number[] {
-  const metrics = values?.metrics ?? section.metricGroup.columns.map(() => 0);
-  const row = [...metrics];
-  if (section.participantGroup?.leadColumn) {
-    row.push(values?.leadColumn ?? 0);
-  }
-  if (section.participantGroup) {
-    row.push(...(values?.matrix ?? Array(DEMOGRAPHIC_LEAF_COUNT).fill(0)));
-  }
-  return row;
 }
 
 function SectionMetricHeads({
@@ -332,6 +320,19 @@ export function TechnicalAchievementSummary({
   const [appliedYear, setAppliedYear] = useState(reportingYear);
   const [appliedKvk, setAppliedKvk] = useState(kvkFilter);
   const [sectionValues, setSectionValues] = useState<Record<string, SectionValues>>();
+  const [exportLoading, setExportLoading] = useState<"pdf" | "excel" | "word" | null>(null);
+
+  // A Super Admin's export reflects whatever KVKs are actually applied right
+  // now, not the fixed `scopeNote` prop (which only ever says "aggregated
+  // across all KVKs" regardless of the filter) - a KVK Admin has no filter,
+  // so their own scopeNote is already accurate as-is.
+  const exportScopeNote = showKvkFilter
+    ? appliedKvk.length === 0
+      ? "Figures aggregated across all KVKs"
+      : appliedKvk.length === 1
+        ? `Figures for ${appliedKvk[0]}`
+        : `Figures for ${appliedKvk.length} KVKs: ${appliedKvk.join(", ")}`
+    : scopeNote;
 
   useEffect(() => {
     const params = new URLSearchParams({ year: appliedYear });
@@ -368,7 +369,7 @@ export function TechnicalAchievementSummary({
         )}
 
         <Button
-          size="sm"
+          size="lg"
           onClick={() => {
             setAppliedYear(reportingYear);
             setAppliedKvk(kvkFilter);
@@ -382,16 +383,61 @@ export function TechnicalAchievementSummary({
       )}
 
       <div className="mb-4 flex flex-wrap items-center gap-2">
-        <Button variant="outline" size="sm">
-          <FileDown className="size-3.5" />
+        <Button
+          variant="outline"
+          size="sm"
+          disabled={exportLoading !== null}
+          onClick={async () => {
+            setExportLoading("pdf");
+            try {
+              const { downloadTechnicalAchievementPdf } = await import("@/lib/technical-achievement-export");
+              await downloadTechnicalAchievementPdf({ reportingYear: appliedYear, scopeNote: exportScopeNote }, sectionValues);
+            } finally {
+              setExportLoading(null);
+            }
+          }}
+        >
+          {exportLoading === "pdf" ? <Loader2 className="size-3.5 animate-spin" /> : <FileDown className="size-3.5" />}
           PDF
         </Button>
-        <Button variant="outline" size="sm">
-          <FileSpreadsheet className="size-3.5" />
+        <Button
+          variant="outline"
+          size="sm"
+          disabled={exportLoading !== null}
+          onClick={async () => {
+            setExportLoading("excel");
+            try {
+              const { generateTechnicalAchievementExcel } = await import("@/lib/technical-achievement-export");
+              const wb = await generateTechnicalAchievementExcel({ reportingYear: appliedYear, scopeNote: exportScopeNote }, sectionValues);
+              const buffer = await wb.xlsx.writeBuffer();
+              downloadBlob(
+                new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }),
+                `Technical Achievement Summary - ${appliedYear}.xlsx`,
+              );
+            } finally {
+              setExportLoading(null);
+            }
+          }}
+        >
+          {exportLoading === "excel" ? <Loader2 className="size-3.5 animate-spin" /> : <FileSpreadsheet className="size-3.5" />}
           Excel
         </Button>
-        <Button variant="outline" size="sm">
-          <FileType className="size-3.5" />
+        <Button
+          variant="outline"
+          size="sm"
+          disabled={exportLoading !== null}
+          onClick={async () => {
+            setExportLoading("word");
+            try {
+              const { generateTechnicalAchievementWord } = await import("@/lib/technical-achievement-export");
+              const blob = await generateTechnicalAchievementWord({ reportingYear: appliedYear, scopeNote: exportScopeNote }, sectionValues);
+              downloadBlob(blob, `Technical Achievement Summary - ${appliedYear}.docx`);
+            } finally {
+              setExportLoading(null);
+            }
+          }}
+        >
+          {exportLoading === "word" ? <Loader2 className="size-3.5 animate-spin" /> : <FileType className="size-3.5" />}
           Word
         </Button>
       </div>

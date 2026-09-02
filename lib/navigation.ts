@@ -24,7 +24,7 @@ export type MasterColumn = {
   /** Renders a real file-upload control instead of a text input, and a thumbnail/"View" link instead of raw text in the list table. The stored value is the uploaded file's Vercel Blob URL. */
   fileKind?: "image" | "document";
   /** Which /api/upload validation rule (size/mime-type) and storage folder applies - required whenever fileKind is set. Mirrors lib/blob.ts's UploadKind (kept as a separate literal type, not imported, since that file is server-only and this one is loaded client-side too). */
-  uploadKind?: "staff-photo" | "staff-resume" | "cfld-crop-image";
+  uploadKind?: "staff-photo" | "staff-resume" | "cfld-crop-image" | "farmer-award-photo";
   /**
    * Renders as a <select> populated by another All Masters leaf's real
    * saved rows (fetched from /api/master-options) instead of free text a
@@ -53,9 +53,13 @@ export type MasterColumn = {
    * single value, not a whole block) and spans both grid columns on the
    * Add/Edit form.
    */
-  fieldKind?: "checkbox" | "demographic-breakdown";
+  /** "date" renders a real native date-picker input (`<input type="date">`) instead of a plain text box - audit finding, 2026-09-02: every date-valued field across the generic Achievement forms (Extension Activities' Start/End Date, Celebration Days' Event Date, World Soil Day's Reporting Year, Poshan Maaha's Datewise activity, Production & Supply's Reporting Date, Soil/Water/Plant Analysis' Start/End Date, Publications' Year, Awards' Reporting Date, HRD's Start/End Date, Swachhta Sewa/Pakhwada's Date/Duration of Observation, Budget Expenditure's Reporting Year, Technology Week Celebration's Start/End Date) is confirmed live as a real date picker in the reference, but the generic form's default branch had no date-type rendering at all - every one silently fell back to a plain text input. */
+  /** "photos" renders FormPhotosField (the real end-of-form Upload Photograph(s)+Caption section, client PDF "Module Image workflow", 2026-09-02) - feeds Module Images automatically on save, no separate upload flow. */
+  fieldKind?: "checkbox" | "demographic-breakdown" | "multi-image" | "date" | "photos";
   /** demographic-breakdown only - prepended to DemographicBreakdown's own key convention (e.g. "farmers" -> "farmersGeneralMale") so one form can hold two independent blocks (Farmers + Extension Officials). Omit for a single block. */
   demographicPrefix?: string;
+  /** demographic-breakdown only - "grid" renders the flat General/OBC/SC/ST x M/F input grid + total badges (DemographicGrid, confirmed live for Training and FLD's own Farmers Details, 2026-09-02) instead of the default General/OBC/SC/ST table (DemographicBreakdown, confirmed for CFLD/OFT/Technology Week/World Soil Day). Omit for the table. */
+  demographicVariant?: "table" | "grid";
   /** True for a column that only makes sense on the Add/Edit form (currently just demographic-breakdown, which represents 8 real DB columns, not one) - excluded from the list table's header/rows entirely, the opposite of `readonly` (which excludes a column from the form, not the table). */
   formOnly?: boolean;
   /** Renders as a <select> from a fixed, known-real option list (not another master's saved rows, not free text) - e.g. Institute Name's real 4-option set. */
@@ -76,6 +80,8 @@ export type NavLeaf = {
   columns: MasterColumn[];
   /** Overrides `label` on the landing-page card only, for the confirmed real cases where a bare leaf's card title differs from its own page title (e.g. card "Technical Achievement" vs page "Technical Achievement Summary"). */
   cardLabel?: string;
+  /** Overrides the inner clickable link text of a single-item landing card, while the card's own bold heading still shows `cardLabel` above it - the one confirmed real case where those two need to differ (Achievements' "Technical Achievement" heading with a "Technical Achievement Summary" link beneath it, matching that leaf's own page title). Leave unset everywhere else so the inner link keeps matching the heading. */
+  cardLinkLabel?: string;
   /** Overrides `label` on the leaf's own detail page (H1 + breadcrumb) only - mirrors NavGroup.pageTitle, for the confirmed real case where the landing-card link text differs from the page's own title (card link "OFT" vs page "On Farm Trials (OFT)", confirmed live 2026-08-15 reference screenshot). */
   pageTitle?: string;
   /**
@@ -123,7 +129,6 @@ export type SidebarIconName =
   | "user-management"
   | "form-management"
   | "module-images"
-  | "gallery"
   | "targets"
   | "log-history"
   | "notifications"
@@ -150,8 +155,9 @@ function leaf(
   cardLabel?: string,
   showMarkAsOther?: boolean,
   pageTitle?: string,
+  cardLinkLabel?: string,
 ): NavLeaf {
-  return { type: "leaf", slug, label, columns, cardLabel, showMarkAsOther, pageTitle };
+  return { type: "leaf", slug, label, columns, cardLabel, showMarkAsOther, pageTitle, cardLinkLabel };
 }
 
 /**
@@ -802,11 +808,11 @@ const aboutKvk = group(
       ]),
       leaf("bank-account-details", "Bank Account Details", [
         { key: "kvk", label: "KVK" },
-        { key: "accountType", label: "Account Type" },
+        { key: "accountType", label: "Account Type", required: true, sourceMaster: { master: "bank-account-type", optionKey: "name" } },
         { key: "accountName", label: "Account Name" },
         { key: "bankName", label: "Bank Name" },
         { key: "location", label: "Location" },
-        { key: "accountNumber", label: "Account" },
+        { key: "accountNumber", label: "Account Number" },
       ]),
     ]),
     group("employee", "Employee Information", [
@@ -834,13 +840,13 @@ const aboutKvk = group(
         { key: "staffName", label: "Staff Name" },
         { key: "position", label: "Position" },
         { key: "email", label: "Email" },
-        { key: "sanctionedPost", label: "Sanctioned Post" },
+        { key: "sanctionedPost", label: "Sanctioned Post", sourceMaster: { master: "sanctioned-post", optionKey: "name" } },
         { key: "mobile", label: "Mobile" },
-        { key: "payScale", label: "Pay Scale" },
+        { key: "payScale", label: "Pay Scale", sourceMaster: { master: "pay-scale", optionKey: "name" } },
         { key: "dateOfJoining", label: "Date of Joining" },
-        { key: "jobType", label: "Job Type" },
+        { key: "jobType", label: "Job Type", sourceMaster: { master: "job-type", optionKey: "name" } },
         { key: "allowances", label: "Details of Allowances" },
-        { key: "category", label: "Category" },
+        { key: "category", label: "Category", sourceMaster: { master: "staff-category", optionKey: "name" } },
         { key: "transferStatus", label: "Transfer Status" },
       ]),
       leaf(
@@ -922,7 +928,7 @@ const aboutKvk = group(
         { key: "kvk", label: "KVK" },
         { key: "equipmentName", label: "Equipment Name" },
         { key: "companyBrandModel", label: "Company / Brand / Model" },
-        { key: "sourceOfFund", label: "Source of Fund" },
+        { key: "sourceOfFund", label: "Source of Funding" },
       ]),
     ]),
   ],
@@ -949,6 +955,9 @@ const achievements = group("achievements", "Achievements", [
     "Technical Achievement Summary",
     GENERIC_MASTER_COLUMNS,
     "Technical Achievement",
+    undefined,
+    undefined,
+    "Technical Achievement Summary",
   ),
   /** Columns re-confirmed live against atariams.org's own "View OFT Details" table (2026-08-25): Reporting Year IS a real column here, right after S.No - the earlier AMS User Manual read had wrongly called it filter-only. */
   leaf(
@@ -956,7 +965,7 @@ const achievements = group("achievements", "Achievements", [
     "OFT",
     [
       { key: "reportingYear", label: "Reporting Year" },
-      { key: "kvk", label: "KVK Name" },
+      { key: "kvk", label: "KVK Name", readonly: true },
       { key: "staff", label: "Staff" },
       { key: "trialOnForm", label: "Title of On Farm Trial (OFT)" },
       { key: "problemDiagnosed", label: "Problem Diagnosed" },
@@ -985,11 +994,11 @@ const achievements = group("achievements", "Achievements", [
       "Front Line Demonstrations (FLD)",
       [
         { key: "reportingYear", label: "Reporting Year" },
-        { key: "startDate", label: "Start Date" },
-        { key: "endDate", label: "End Date" },
-        { key: "kvk", label: "KVK Name" },
-        { key: "category", label: "Crop Category" },
-        { key: "subCategory", label: "Crop Name" },
+        { key: "startDate", label: "Start Date", formOnly: true },
+        { key: "endDate", label: "End Date", formOnly: true },
+        { key: "kvk", label: "KVK", readonly: true },
+        { key: "category", label: "Category" },
+        { key: "subCategory", label: "Sub Category" },
         {
           key: "technologyDemonstrated",
           label: "Name of Technology Demonstrated",
@@ -1028,7 +1037,7 @@ const achievements = group("achievements", "Achievements", [
     "Trainings",
     [
       { key: "reportingYear", label: "Reporting Year" },
-      { key: "kvk", label: "KVK Name" },
+      { key: "kvk", label: "KVK Name", readonly: true },
       { key: "startDate", label: "Start Date" },
       { key: "endDate", label: "End Date" },
       { key: "program", label: "Training Program" },
@@ -1050,71 +1059,80 @@ const achievements = group("achievements", "Achievements", [
       /** Real dropdown added 2026-08-28 (client request) - sourced from the real Training Clientele Master, same sourceMaster pattern as every other cross-master dropdown. Venue has no equivalent master anywhere in the reference (only ever appears as a free-text field), so it stays plain text rather than guessing option values. */
       { key: "clientele", label: "Clientele", sourceMaster: { master: "training-clientele", optionKey: "clientele" } },
       { key: "onCampusOffCampus", label: "On Campus/Off Campus", staticOptions: ["On Campus", "Off Campus"], formOnly: true },
-      { key: "courseCoordinator", label: "Course Co-ordinator", formOnly: true },
-      { key: "fundingSource", label: "Funding Source", formOnly: true },
+      /** Real staff dropdown (audit finding, 2026-09-02) - the reference shows this as a real "--Please Select Staff--" dropdown of the KVK's own employees, matching OFT/FLD's own Staff field, not free text. */
+      { key: "courseCoordinator", label: "Course Co-ordinator", sourceMaster: { master: "__staff__", optionKey: "name" }, formOnly: true },
+      { key: "fundingSource", label: "Funding Source", sourceMaster: { master: "funding-source", optionKey: "fundingSource" }, formOnly: true },
       { key: "fundingAgencyName", label: "Funding Agency Name", formOnly: true },
-      { key: "farmersDetails", label: "Farmers Details", fieldKind: "demographic-breakdown", formOnly: true },
+      { key: "farmersDetails", label: "Farmers Details", fieldKind: "demographic-breakdown", demographicVariant: "grid", formOnly: true },
+      /** Real end-of-form Upload Photograph(s)+Caption section (client PDF, "Module Image workflow", 2026-09-02) - feeds Module Images automatically, pilot leaf. */
+      { key: "moduleImages", label: "Photographs", fieldKind: "photos", formOnly: true },
     ],
     "Training",
   ),
   /** Columns re-confirmed live against atariams.org's own "Extension programmes" / "Other Extension Activity" screenshots (2026-08-24, client pointer #10) - both real tables lead with Reporting Year, and Extension Activities also carries Start/End Date; the earlier AMS User Manual pass had missed all three. */
   group("extension", "Extension", [
     leaf("extension-activities", "Extension Activities", [
-      { key: "reportingYear", label: "Reporting Year" },
-      { key: "kvk", label: "KVK Name" },
-      { key: "startDate", label: "Start Date" },
-      { key: "endDate", label: "End Date" },
-      /** Real dropdown (client request, 2026-08-28) - sourced from the real Extension Activity Master, same sourceMaster pattern as every other cross-master dropdown. */
+      /** Real Edit form (audit finding, 2026-09-02) has no manual Reporting Year or No. of Participants input at all - both are server-computed (Reporting Year from Start Date's own year, No. of Participants from the Farmers+Officials totals below, same real precedent as Technology Week Celebration's own numberOfParticipants) - see the matching leaf-record-registry.ts entry. */
+      { key: "reportingYear", label: "Reporting Year", readonly: true },
+      { key: "kvk", label: "KVK", readonly: true },
+      { key: "startDate", label: "Start Date", fieldKind: "date" },
+      { key: "endDate", label: "End Date", fieldKind: "date" },
+      /** Real dropdown (client request, 2026-08-28) - sourced from the real Extension Activity Master, same sourceMaster pattern as every other cross-master dropdown. List column header reads "Name of Extension Activities" but the real Edit form's own field label is "Nature of Extension Activity" (audit finding, 2026-09-02 - two different real labels for the same field, same list/form split as `formLabel` handles elsewhere). */
       {
         key: "natureOfExtensionActivity",
-        label: "Nature of Extension Activity",
+        label: "Name of Extension Activities",
+        formLabel: "Nature of Extension Activity",
         sourceMaster: { master: "extension-activity", optionKey: "activityName" },
       },
       { key: "noOfActivities", label: "No. of Activities" },
-      { key: "noOfParticipants", label: "No. of Participants" },
-      /** Real Edit form fields confirmed live 2026-08-15 ("project over" reference, "Edit Extension Activities") - `staff` plain text (same convention as Oft.staff); two independent demographic blocks (Farmers + Extension Officials), both previously entirely missing. */
-      { key: "staff", label: "Name of SMS/KVK Head", formOnly: true },
-      { key: "farmersDetails", label: "Farmers", fieldKind: "demographic-breakdown", demographicPrefix: "farmers", formOnly: true },
-      { key: "extensionOfficials", label: "Extension Officials", fieldKind: "demographic-breakdown", demographicPrefix: "officials", formOnly: true },
+      { key: "noOfParticipants", label: "No. of Participants", readonly: true },
+      /** Real Edit form fields confirmed live 2026-08-15 ("project over" reference, "Edit Extension Activities") - two independent demographic blocks (Farmers + Extension Officials), both previously entirely missing. `staff` is a real KVK-staff dropdown (audit finding, 2026-09-02 - matches OFT/FLD's own Staff field, was plain text before), not free text. Both blocks use the real flat grid+badges layout (demographicVariant: "grid", re-confirmed live 2026-09-02 against the reference recording - was wrongly rendering as the General/OBC/SC/ST table before, same bug as Training/FLD's own Farmers Details). */
+      { key: "staff", label: "Name of SMS/KVK Head", sourceMaster: { master: "__staff__", optionKey: "name" }, formOnly: true },
+      { key: "farmersDetails", label: "Farmers", fieldKind: "demographic-breakdown", demographicPrefix: "farmers", demographicVariant: "grid", formOnly: true },
+      { key: "extensionOfficials", label: "Extension Officials", fieldKind: "demographic-breakdown", demographicPrefix: "officials", demographicVariant: "grid", formOnly: true },
+      /** Real end-of-form Upload Photograph(s)+Caption section (client PDF, "Module Image workflow", 2026-09-02) - feeds Module Images automatically, pilot leaf. */
+      { key: "moduleImages", label: "Photographs", fieldKind: "photos", formOnly: true },
     ]),
     leaf("other-extension-activities", "Other Extension Activities", [
       { key: "reportingYear", label: "Reporting Year" },
-      { key: "kvk", label: "KVK Name" },
+      { key: "kvk", label: "KVK Name", readonly: true },
       {
         key: "natureOfExtensionActivity",
         label: "Nature of Extension Activity",
         sourceMaster: { master: "other-extension-activity", optionKey: "activityName" },
       },
       { key: "noOfActivities", label: "No. of Activities" },
-      /** Real Edit form fields confirmed live 2026-08-15 ("Edit Other Extension Activities") - were entirely missing before this. */
-      { key: "staff", label: "Name of SMS/KVK Head", formOnly: true },
-      { key: "startDate", label: "Start Date", formOnly: true },
-      { key: "endDate", label: "End Date", formOnly: true },
+      /** Real Edit form fields confirmed live 2026-08-15 ("Edit Other Extension Activities") - were entirely missing before this. `staff` is a real KVK-staff dropdown (audit finding, 2026-09-02), not free text. */
+      { key: "staff", label: "Name of SMS/KVK Head", sourceMaster: { master: "__staff__", optionKey: "name" }, formOnly: true },
+      { key: "startDate", label: "Start Date", formOnly: true, fieldKind: "date" },
+      { key: "endDate", label: "End Date", formOnly: true, fieldKind: "date" },
     ]),
   ]),
   group("special-days", "Special Days", [
     /** Columns re-confirmed live against atariams.org's own "View Technology Week Celebration" screenshot (2026-08-24, client pointer #11): the real table DOES carry Start Date and End Date after all - the earlier AMS User Manual read missed them. */
     leaf("technology-week-celebration", "Technology Week Celebration", [
-      { key: "startDate", label: "Start Date" },
-      { key: "endDate", label: "End Date" },
-      { key: "kvk", label: "KVK" },
+      { key: "startDate", label: "Start Date", fieldKind: "date" },
+      { key: "endDate", label: "End Date", fieldKind: "date" },
+      { key: "kvk", label: "KVK", readonly: true },
       { key: "typeOfActivities", label: "Type of Activities" },
       { key: "noOfActivities", label: "No. of Activities" },
       {
         key: "relatedCropTechnology",
         label: "Related Crop/Livestock Technology",
       },
-      { key: "numberOfParticipants", label: "Number of Participants" },
+      /** Server-computed from the Farmers Details breakdown below, never a real form input - the real Edit form has no separate "Number of Participants" field. */
+      { key: "numberOfParticipants", label: "Number of Participants", readonly: true },
+      { key: "farmersDetails", label: "Farmers Details", fieldKind: "demographic-breakdown", demographicVariant: "grid", formOnly: true },
     ]),
     /** Real sidebar label confirmed live: "Celebration of important days", not "Celebration Days". */
     leaf("celebration-days", "Celebration of important days", [
-      { key: "kvk", label: "KVK" },
-      { key: "importantDay", label: "Important Days" },
-      { key: "eventDate", label: "Event Date" },
+      { key: "kvk", label: "KVK", readonly: true },
+      { key: "importantDay", label: "Important Days", sourceMaster: { master: "important-day", optionKey: "name" } },
+      { key: "eventDate", label: "Event Date", fieldKind: "date" },
       { key: "noOfActivities", label: "No of Activities" },
-      /** Real Edit form fields confirmed live 2026-08-15 ("Edit Celebration Days") - same two-block shape as Extension Activities above, were entirely missing before this. */
-      { key: "farmersDetails", label: "Farmers", fieldKind: "demographic-breakdown", demographicPrefix: "farmers", formOnly: true },
-      { key: "extensionOfficials", label: "Extension Officials", fieldKind: "demographic-breakdown", demographicPrefix: "officials", formOnly: true },
+      /** Real Edit form fields confirmed live 2026-08-15 ("Edit Celebration Days") - same two-block shape as Extension Activities above, were entirely missing before this. Both blocks use the real flat grid+badges layout (demographicVariant: "grid", re-confirmed live 2026-09-02). */
+      { key: "farmersDetails", label: "Farmers", fieldKind: "demographic-breakdown", demographicPrefix: "farmers", demographicVariant: "grid", formOnly: true },
+      { key: "extensionOfficials", label: "Extension Officials", fieldKind: "demographic-breakdown", demographicPrefix: "officials", demographicVariant: "grid", formOnly: true },
     ]),
     /**
      * Moved back in here from the separate "Soil and Water Testing" group
@@ -1125,9 +1143,9 @@ const achievements = group("achievements", "Achievements", [
      * shorter "World Soil Day" it used to carry.
      */
     leaf("world-soil-day", "Details of World Soil Day Celebration", [
-      { key: "kvk", label: "KVK Name" },
-      /** Real field confirmed live 2026-08-15 - was entirely missing before this. */
-      { key: "reportingYear", label: "Reporting Year" },
+      { key: "kvk", label: "KVK Name", readonly: true },
+      /** Real field confirmed live 2026-08-15 - was entirely missing before this. Renders as a real date picker in the reference despite the "Year" name (audit finding, 2026-09-02). */
+      { key: "reportingYear", label: "Reporting Year", fieldKind: "date" },
       {
         key: "noOfActivitiesConducted",
         label: "No. of Activity Conducted",
@@ -1142,13 +1160,14 @@ const achievements = group("achievements", "Achievements", [
         key: "totalParticipants",
         label: "Total No. of Participants Attended the Programme",
       },
+      { key: "farmersDetails", label: "Farmers Details", fieldKind: "demographic-breakdown", demographicVariant: "grid", formOnly: true },
     ]),
     /** Real columns confirmed live, extended 2026-08-24 with the participant breakdown from the client's own Poshan Maah reporting sheet. */
     leaf("poshan-maaha", "Poshan Maaha", [
-      { key: "kvk", label: "KVK" },
-      { key: "activityDate", label: "Activity Date" },
+      { key: "kvk", label: "KVK", readonly: true },
+      { key: "activityDate", label: "Activity Date", fieldKind: "date" },
       { key: "activitiesConducted", label: "Activities Conducted" },
-      { key: "eventName", label: "Event Name" },
+      { key: "eventName", label: "Event Name", sourceMaster: { master: "events-master", optionKey: "eventName" } },
       { key: "saplingsPlanted", label: "Saplings Planted" },
       { key: "vegetableKits", label: "Vegetable Kits" },
       { key: "participantsGirls", label: "Participants - Girls" },
@@ -1181,10 +1200,11 @@ const achievements = group("achievements", "Achievements", [
       "sewa",
       "Swachhta hi Sewa",
       [
-        { key: "kvk", label: "KVK" },
+        { key: "kvk", label: "KVK", readonly: true },
         {
           key: "dateDurationOfObservation",
           label: "Date Duration of Observation",
+          fieldKind: "date",
         },
         {
           key: "totalNoOfActivitiesUndertaken",
@@ -1192,6 +1212,8 @@ const achievements = group("achievements", "Achievements", [
         },
         { key: "noOfStaffs", label: "No of Staffs" },
         { key: "noOfFarmers", label: "No of Farmers" },
+        /** Real field confirmed against the reference (atari-client.vercel.app, 2026-09-02) - "No. of Participants" has a third Others field alongside Staffs/Farmers, missing entirely before. */
+        { key: "noOfOthers", label: "No of Others", formOnly: true },
       ],
       "Observation of Swachhta hi Sewa SBA",
     ),
@@ -1200,10 +1222,11 @@ const achievements = group("achievements", "Achievements", [
       "pakhwada",
       "Swachta Pakhwada",
       [
-        { key: "kvk", label: "KVK" },
+        { key: "kvk", label: "KVK", readonly: true },
         {
           key: "dateDurationOfObservation",
           label: "Date Duration of Observation",
+          fieldKind: "date",
         },
         {
           key: "totalNoOfActivitiesUndertaken",
@@ -1211,16 +1234,24 @@ const achievements = group("achievements", "Achievements", [
         },
         { key: "noOfStaffs", label: "No of Staffs" },
         { key: "noOfFarmers", label: "No of Farmers" },
+        /** Real field confirmed against the reference (atari-client.vercel.app, 2026-09-02) - same "Others" gap as Sewa. */
+        { key: "noOfOthers", label: "No of Others", formOnly: true },
       ],
       "Observation of Swachta Pakhwada",
     ),
-    /** 4 confirmed columns; more vermicomposting-style pairs follow off-screen and stay undeclared. */
+    /**
+     * Real full shape confirmed against the reference (atari-client.vercel.app,
+     * 2026-09-02) - a second "Other than vermicomposting activities under
+     * Swachata" section (its own No of Village Covered/Total Expenditure
+     * pair) was missing entirely before; the earlier comment here ("more
+     * vermicomposting-style pairs follow off-screen") is now resolved.
+     */
     leaf(
       "budget-expenditure",
       "Budget expenditure",
       [
-        { key: "kvk", label: "KVK" },
-        { key: "reportingYear", label: "Reporting Year" },
+        { key: "kvk", label: "KVK", readonly: true },
+        { key: "reportingYear", label: "Reporting Year", fieldKind: "date" },
         {
           key: "vermicompostingVillagesCovered",
           label: "Vermicomposting No of Village Covered",
@@ -1229,19 +1260,36 @@ const achievements = group("achievements", "Achievements", [
           key: "vermicompostingTotalExpenditure",
           label: "Vermicomposting Total Expenditure",
         },
+        {
+          key: "otherVillagesCovered",
+          label: "Other than Vermicomposting No of Village Covered",
+          formOnly: true,
+        },
+        {
+          key: "otherTotalExpenditure",
+          label: "Other than Vermicomposting Total Expenditure",
+          formOnly: true,
+        },
       ],
       "Details of quarterly budget expenditure on Swachh activities including SAP",
     ),
   ]),
-  /** Re-confirmed live 2026-08-24 against atariams.org: Reporting Year is a filter there, not a column - the earlier version wrongly included it as one. */
+  /** Re-confirmed live 2026-08-24 against atariams.org: Reporting Year is a filter there, not a column - the earlier version wrongly included it as one. Edit form fields extended 2026-09-01 against the reference (atari-client.vercel.app, 2026-08-15 screenshots) - Reporting Date, the real Product Category -> Product Type -> Product cascade, Unit, Value, and Farmers Details were missing entirely (real schema gaps, now added). */
   leaf(
     "production-supply",
     "Production and supply of Technological products",
     [
-      { key: "kvk", label: "KVK" },
+      { key: "kvk", label: "KVK", readonly: true },
+      { key: "reportingDate", label: "Reporting Date", formOnly: true, fieldKind: "date" },
+      { key: "productCategory", label: "Product Category", sourceMaster: { master: "product-category", optionKey: "name" }, formOnly: true },
+      { key: "productType", label: "Product Type", sourceMaster: { master: "product-type", optionKey: "productCategoryType", dependsOnKey: "productCategory", filterKey: "productCategoryName" }, formOnly: true },
+      { key: "product", label: "Product", sourceMaster: { master: "products", optionKey: "productName", dependsOnKey: "productType", filterKey: "productCategoryType" }, formOnly: true },
       { key: "category", label: "Category" },
-      { key: "variety", label: "Variety" },
+      { key: "variety", label: "Variety", formLabel: "Species/Breed/Variety" },
+      { key: "unit", label: "Unit", formOnly: true },
       { key: "quantity", label: "Quantity" },
+      { key: "value", label: "Value (Rs)", formOnly: true },
+      { key: "farmersDetails", label: "Farmers Details", fieldKind: "demographic-breakdown", demographicVariant: "grid", formOnly: true },
     ],
     "Production & Supply of Technological Products",
   ),
@@ -1258,8 +1306,8 @@ const achievements = group("achievements", "Achievements", [
    */
   group("soil-water", "Soil and Water Testing", [
     leaf("soil-testing-equipment", "Equipment Details", [
-      { key: "kvk", label: "KVK Name" },
-      { key: "analysis", label: "Analysis" },
+      { key: "kvk", label: "KVK Name", readonly: true },
+      { key: "analysis", label: "Analysis", sourceMaster: { master: "soil-water", optionKey: "name" } },
       { key: "equipmentName", label: "Equipment Name" },
       { key: "quantity", label: "Quantity" },
     ]),
@@ -1267,13 +1315,17 @@ const achievements = group("achievements", "Achievements", [
       "soil-water-testing",
       "Soil, Water and Plant analysis",
       [
-        { key: "kvk", label: "KVK Name" },
+        { key: "kvk", label: "KVK Name", readonly: true },
         { key: "startDate", label: "Start Date" },
         { key: "endDate", label: "End Date" },
-        { key: "analysis", label: "Analysis" },
+        { key: "analysis", label: "Analysis", sourceMaster: { master: "soil-water", optionKey: "name" } },
+        /** Real field confirmed against the reference (atari-client.vercel.app, 2026-08-15 screenshots) - "Samples analyzed Through" (e.g. "Mini soil testing kit") - no matching master anywhere in the app, stays plain text rather than guessing option values. */
+        { key: "samplesAnalyzedThrough", label: "Samples analyzed Through", formOnly: true },
         { key: "noOfSamplesAnalyzed", label: "No. of Samples Analyzed" },
-        { key: "noOfVillagesCovered", label: "No. of Villages Covered" },
+        /** Real form label is just "No. of Villages" (audit finding, 2026-09-02), not "No. of Villages Covered". */
+        { key: "noOfVillagesCovered", label: "No. of Villages" },
         { key: "amountRealized", label: "Amount Realized (Rs.)" },
+        { key: "farmersDetails", label: "Farmers Details", fieldKind: "demographic-breakdown", demographicVariant: "grid", formOnly: true },
       ],
       "Detail of Soil, Water and Plant Analysis",
     ),
@@ -1287,24 +1339,29 @@ const achievements = group("achievements", "Achievements", [
    * not the leaf's own list-page heading.
    */
   leaf("publications", "KVKs Publication Details", [
-    { key: "kvk", label: "KVK Name" },
-    { key: "itemName", label: "Item Name" },
+    { key: "kvk", label: "KVK Name", readonly: true },
+    { key: "reportingDate", label: "Year", formOnly: true, fieldKind: "date" },
+    /** Form label is "Publication" on the real Add/Edit form (audit finding, 2026-09-02), distinct from the list column's own "Item Name" heading. */
+    { key: "itemName", label: "Item Name", formLabel: "Publication", sourceMaster: { master: "publication-items", optionKey: "itemName" } },
     { key: "title", label: "Title" },
     { key: "authorName", label: "Author Name" },
-    { key: "journalName", label: "Journal Name" },
+    /** Real form label is "Name Of Publisher" (audit finding, 2026-09-02), not "Journal Name" - same underlying field, corrected label only. */
+    { key: "journalName", label: "Name Of Publisher" },
   ]),
   /** 6 real columns confirmed 2026-08-22. Real H1 is hyphenated and singular; the landing card uses the longer plural form. */
   leaf(
     "hrd",
     "Human-Resource Development",
     [
-      { key: "kvk", label: "KVK" },
-      { key: "staff", label: "Staff" },
-      { key: "course", label: "Course" },
-      { key: "startDate", label: "Start Date" },
-      { key: "endDate", label: "End Date" },
-      { key: "venue", label: "Venue" },
+      { key: "kvk", label: "KVK", readonly: true },
+      /** Real staff dropdown (audit finding, 2026-09-02) - the reference shows a real "--Please Select Staff--" dropdown of the KVK's own staff, not free text - same gap as Training/Extension Activities/Scientist Award. */
+      { key: "staff", label: "Staff", formLabel: "Name of Staff", sourceMaster: { master: "__staff__", optionKey: "name" } },
+      /** Real form label is "Course Name" (audit finding, 2026-09-02), not "Course". */
+      { key: "course", label: "Course Name" },
+      { key: "startDate", label: "Start Date", fieldKind: "date" },
+      { key: "endDate", label: "End Date", fieldKind: "date" },
       { key: "organizer", label: "Organizer" },
+      { key: "venue", label: "Venue" },
     ],
     "Human Resources Development",
   ),
@@ -1322,8 +1379,9 @@ const achievements = group("achievements", "Achievements", [
       "kvk",
       "Awards (KVK)",
       [
-        { key: "kvk", label: "KVK Name" },
-        { key: "award", label: "Award" },
+        { key: "kvk", label: "KVK Name", readonly: true },
+        { key: "reportingDate", label: "Reporting Date", formOnly: true, fieldKind: "date" },
+        { key: "award", label: "Award", formLabel: "Name of the Award" },
         { key: "amount", label: "Amount" },
         { key: "achievement", label: "Achievement" },
         { key: "conferringAuthority", label: "Conferring Authority" },
@@ -1331,22 +1389,27 @@ const achievements = group("achievements", "Achievements", [
       "KVK",
     ),
     leaf("scientist", "Scientist", [
-      { key: "kvk", label: "KVK Name" },
-      { key: "headScientist", label: "Scientist" },
-      { key: "award", label: "Award" },
+      { key: "kvk", label: "KVK Name", readonly: true },
+      { key: "reportingDate", label: "Reporting Date", formOnly: true, fieldKind: "date" },
+      /** Real staff dropdown (audit finding, 2026-09-02) - the reference shows a real "--Please Select Scientist--" dropdown of the KVK's own staff, not free text. */
+      { key: "headScientist", label: "Scientist", formLabel: "Head/Scientist", sourceMaster: { master: "__staff__", optionKey: "name" } },
+      { key: "award", label: "Award", formLabel: "Name of the Award" },
       { key: "amount", label: "Amount" },
       { key: "achievement", label: "Achievement" },
       { key: "conferringAuthority", label: "Conferring Authority" },
     ]),
     leaf("farmer", "Farmer", [
-      { key: "kvk", label: "KVK Name" },
-      { key: "farmerName", label: "Farmer Name" },
+      { key: "kvk", label: "KVK Name", readonly: true },
+      { key: "reportingDate", label: "Reporting Date", formOnly: true, fieldKind: "date" },
+      { key: "farmerName", label: "Farmer Name", formLabel: "Name of the Farmer" },
       { key: "address", label: "Address" },
       { key: "contactNumber", label: "Contact No." },
-      { key: "award", label: "Award" },
+      { key: "award", label: "Award", formLabel: "Name of the Award" },
       { key: "amount", label: "Amount" },
       { key: "achievement", label: "Achievement" },
       { key: "conferringAuthority", label: "Conferring Authority" },
+      /** Real field, confirmed missing entirely before (atari-client.vercel.app, 2026-09-02) - a real multi-file upload ("Hold Ctrl/Cmd in the file picker to select multiple"), not single. */
+      { key: "photo", label: "Photographs", fieldKind: "multi-image", uploadKind: "farmer-award-photo", formOnly: true },
     ]),
   ]),
   ],
@@ -1474,7 +1537,7 @@ const projects = group(
           { key: "kvk", label: "KVK Name" },
           { key: "startDate", label: "Start Date" },
           { key: "endDate", label: "End Date" },
-          { key: "seedBankFodderBank", label: "Seed Bank/Fodder Bank" },
+          { key: "seedBankFodderBank", label: "Seed Bank/Fodder Bank", sourceMaster: { master: "nicra-seed-fodder-bank", optionKey: "name" } },
           { key: "crop", label: "Crop" },
           { key: "variety", label: "Variety" },
           { key: "quantity", label: "Quantity in (q)" },
@@ -1557,7 +1620,7 @@ const projects = group(
           "Dignitaries visited NICRA Villages",
           [
             { key: "kvk", label: "KVK" },
-            { key: "vipExperts", label: "VIP/Experts" },
+            { key: "vipExperts", label: "VIP/Experts", sourceMaster: { master: "nicra-dignitary-type", optionKey: "name" } },
             { key: "name", label: "Name" },
             { key: "dateOfVisit", label: "Date of visited" },
           ],
@@ -1566,7 +1629,7 @@ const projects = group(
           { key: "startDate", label: "Start Date" },
           { key: "endDate", label: "End Date" },
           { key: "kvk", label: "KVK" },
-          { key: "piCoPi", label: "PI/CO PI" },
+          { key: "piCoPi", label: "PI/CO PI", sourceMaster: { master: "nicra-pi-co-pi-type", optionKey: "name" } },
           { key: "name", label: "Name" },
         ]),
       ]),
@@ -1575,7 +1638,7 @@ const projects = group(
     group("arya-safal", "Attracting and Retaining Youth in Agriculture(ARYA)", [
       leaf("arya-safal-current-year", "Current Year Details", [
         { key: "kvk", label: "KVK Name" },
-        { key: "enterprise", label: "Enterprise" },
+        { key: "enterprise", label: "Enterprise", sourceMaster: { master: "arya-enterprise", optionKey: "name" } },
         { key: "viableUnits", label: "Viable units" },
         { key: "closedUnits", label: "Closed units" },
         { key: "startDate", label: "Start Date" },
@@ -1585,7 +1648,7 @@ const projects = group(
       ]),
       leaf("arya-safal-previous-year", "Previous Year Evaluation", [
         { key: "kvk", label: "KVK Name" },
-        { key: "enterprise", label: "Enterprise" },
+        { key: "enterprise", label: "Enterprise", sourceMaster: { master: "arya-enterprise", optionKey: "name" } },
         { key: "totalClosed", label: "Total Closed" },
         { key: "closingDate", label: "Closing Date" },
         { key: "totalRestarted", label: "Total Restarted" },
@@ -1695,8 +1758,8 @@ const projects = group(
     group("tsp-scsp", "TSP/SCSP", [
       leaf("view-sub-plan-activity", "View Sub Plan Activity", [
         { key: "kvk", label: "KVK Name" },
-        { key: "type", label: "Type" },
-        { key: "activities", label: "Activities" },
+        { key: "type", label: "Type", sourceMaster: { master: "tsp-scsp-type", optionKey: "name" } },
+        { key: "activities", label: "Activities", sourceMaster: { master: "tsp-scsp-activity", optionKey: "name" } },
         { key: "noOfTraining", label: "No of Training" },
         { key: "beneficiaries", label: "No. of beneficiaries" },
       ]),
@@ -1717,6 +1780,7 @@ const projects = group(
           {
             key: "typeOfNutritionalGarden",
             label: "Type of Nutritional Garden",
+            sourceMaster: { master: "nari-nutrition-garden-type", optionKey: "name" },
           },
           { key: "numbers", label: "Numbers" },
           { key: "areaSqm", label: "Area (sqm)" },
@@ -1733,7 +1797,7 @@ const projects = group(
           { key: "nutriSmartVillage", label: "Name of Nutri-Smart Village" },
           { key: "season", label: "Season" },
           { key: "activity", label: "Activity", sourceMaster: { master: "nari-activity", optionKey: "name" } },
-          { key: "categoryOfCrop", label: "Category of crop" },
+          { key: "categoryOfCrop", label: "Category of crop", sourceMaster: { master: "nari-crop-category", optionKey: "name" } },
           { key: "numberOfCrops", label: "No. of Crops" },
           { key: "male", label: "Male" },
           { key: "female", label: "Female" },
@@ -1904,10 +1968,10 @@ const projects = group(
         { key: "kvk", label: "KVK Name" },
         { key: "season", label: "Season" },
         { key: "technologyDemonstrated", label: "Technology Demonstrated" },
-        { key: "croppingSystem", label: "Cropping System" },
+        { key: "croppingSystem", label: "Cropping System", sourceMaster: { master: "cropping-system", optionKey: "cropName" } },
         { key: "areaHa", label: "Area (ha)" },
         { key: "noOfFarmer", label: "No. of Farmer" },
-        { key: "farmingSystem", label: "Farming System" },
+        { key: "farmingSystem", label: "Farming System", sourceMaster: { master: "farming-system", optionKey: "farmingSystemName" } },
         { key: "crop", label: "Crop Under Demonstration" },
         { key: "cropYieldQha", label: "Crop Yield (q/ha)" },
         { key: "systemProductivityQha", label: "System Productivity (q/ha)" },
@@ -1998,7 +2062,7 @@ const performanceIndicators = group(
     group("impact", "Impact", [
       leaf("impact-of-kvk-activities", "Impact of KVK Activities", [
         { key: "kvk", label: "KVK Name" },
-        { key: "specificArea", label: "Name of Specific Area" },
+        { key: "specificArea", label: "Name of Specific Area", sourceMaster: { master: "impact-specific-area", optionKey: "name" } },
         { key: "briefDetails", label: "Brief Details of the Area" },
         { key: "farmersBenefitted", label: "No. of Farmers Benefitted" },
         { key: "horizontalSpread", label: "Horizontal Spread (in area/no.)" },
@@ -2010,7 +2074,7 @@ const performanceIndicators = group(
           key: "entrepreneurOrEnterprise",
           label: "Name of the Entrepreneur/Name of the Enterprise/Firm",
         },
-        { key: "enterpriseType", label: "Type of Enterprise" },
+        { key: "enterpriseType", label: "Type of Enterprise", sourceMaster: { master: "type-of-enterprise", optionKey: "name" } },
         { key: "membersAssociated", label: "No of Members Associated" },
         {
           key: "annualIncome",
@@ -2209,7 +2273,7 @@ const performanceIndicators = group(
         { key: "kvk", label: "KVK" },
         { key: "programmeName", label: "Name of the Programme" },
         { key: "purpose", label: "Purpose of the Programme" },
-        { key: "sourcesOfFund", label: "Sources of Fund" },
+        { key: "sourcesOfFund", label: "Sources of Fund", sourceMaster: { master: "asset-funding-source", optionKey: "name" } },
         { key: "amountLakhs", label: "Amount (Rs. Lakhs)" },
         { key: "infrastructureCreated", label: "Infrastructure Created" },
       ]),
@@ -2222,7 +2286,7 @@ const performanceIndicators = group(
       ]),
       leaf("special-programmes", "Special Programmes", [
         { key: "kvk", label: "KVK Name" },
-        { key: "programmeType", label: "Programme Type" },
+        { key: "programmeType", label: "Programme Type", sourceMaster: { master: "programme-type", optionKey: "name" } },
         { key: "programmeName", label: "Name of the Programme/Scheme" },
         { key: "initiationDate", label: "Date/Month of Initiation" },
       ]),
@@ -2326,7 +2390,7 @@ const miscellaneous = group("miscellaneous", "Miscellaneous", [
         { key: "kvk", label: "KVK Name" },
         { key: "date", label: "Date" },
         { key: "title", label: "Title" },
-        { key: "type", label: "Type" },
+        { key: "type", label: "Type", sourceMaster: { master: "ppv-fra-training-type", optionKey: "name" } },
         { key: "venue", label: "Venue" },
         { key: "resourcePerson", label: "Resource Person" },
         { key: "participants", label: "No. of Participants" },
@@ -2358,7 +2422,7 @@ const miscellaneous = group("miscellaneous", "Miscellaneous", [
   leaf("vip-visitors", "List of VIP Visitors", [
     { key: "kvk", label: "KVK" },
     { key: "visitDate", label: "Date of Visit" },
-    { key: "dignitaryType", label: "Type of Dignitaries" },
+    { key: "dignitaryType", label: "Type of Dignitaries", sourceMaster: { master: "vip-dignitary", optionKey: "name" } },
     { key: "ministerName", label: "Name of Hon'ble Minister" },
     { key: "observations", label: "Salient Points in His/Her Observation" },
   ]),
@@ -2522,7 +2586,6 @@ export const SIDEBAR: SidebarSection[] = [
     href: "/module-images",
     icon: "module-images",
   },
-  { slug: "gallery", label: "Gallery", href: "/gallery", icon: "gallery" },
   { slug: "targets", label: "Targets", href: "/targets", icon: "targets" },
   {
     slug: "log-history",

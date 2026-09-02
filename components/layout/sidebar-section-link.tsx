@@ -13,7 +13,7 @@ type SidebarSectionLinkProps = {
   collapsed?: boolean;
 };
 
-/** A standalone top-level sidebar link (Dashboard, Gallery, ...) with an active-page pill. */
+/** A standalone top-level sidebar link (Dashboard, Module Images, ...) with an active-page pill. */
 export function SidebarSectionLink({ href, label, iconName, collapsed }: SidebarSectionLinkProps) {
   const pathname = usePathname();
   const isActive = pathname === href;

@@ -87,7 +87,7 @@ export function KvkCheckboxFilter({
             render={
               <button
                 type="button"
-                className="flex h-9 w-64 items-center justify-between rounded-md border border-border bg-card px-2.5 text-sm text-foreground outline-none focus-visible:border-ring"
+                className="flex h-9 w-64 items-center justify-between rounded-lg border border-input bg-transparent px-2.5 text-sm text-foreground outline-none focus-visible:border-ring"
               >
                 <span className="truncate">{summary}</span>
                 <ChevronDown className="size-4 shrink-0 text-muted-foreground" />

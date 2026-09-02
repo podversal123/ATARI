@@ -1,8 +1,19 @@
 import { NextResponse } from "next/server";
 import { requireSession } from "@/lib/api-auth";
 import { uploadPrivateFile, type UploadKind } from "@/lib/blob";
+import { safeErrorMessage } from "@/lib/safe-error-message";
 
-const VALID_KINDS: UploadKind[] = ["staff-photo", "staff-resume", "cfld-crop-image", "module-image"];
+const VALID_KINDS: UploadKind[] = [
+  "staff-photo",
+  "staff-resume",
+  "cfld-crop-image",
+  "module-image",
+  "cfld-training-photo",
+  "cfld-action-photo",
+  "oft-photograph",
+  "oft-supplementary-datasheet",
+  "farmer-award-photo",
+];
 
 export async function POST(request: Request) {
   const auth = await requireSession();
@@ -20,7 +31,7 @@ export async function POST(request: Request) {
     const blob = await uploadPrivateFile(kind as UploadKind, file);
     return NextResponse.json({ url: blob.url, pathname: blob.pathname });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Upload failed.";
+    const message = safeErrorMessage(error, "Upload failed.");
     return NextResponse.json({ error: message }, { status: 400 });
   }
 }

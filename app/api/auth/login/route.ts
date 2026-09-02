@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { verifyPassword, createSessionCookie } from "@/lib/auth";
 import { getClientIp } from "@/lib/api-auth";
+import { isLoginRateLimited, recordFailedLogin, clearLoginAttempts } from "@/lib/login-rate-limit";
 
 /** Maps the DB's Role enum to the client session's role string - lib/session.ts's Session shape is kept as-is so no consumer needs to change. */
 function toClientRole(role: string) {
@@ -22,6 +23,15 @@ export async function POST(request: Request) {
     );
   }
 
+  const ip = getClientIp(request);
+
+  if (isLoginRateLimited(username, ip)) {
+    return NextResponse.json(
+      { error: "Too many attempts. Please try again in a few minutes." },
+      { status: 429 },
+    );
+  }
+
   const user = await prisma.user.findUnique({
     where: { username },
     include: { kvk: true, assignedRole: true },
@@ -29,13 +39,17 @@ export async function POST(request: Request) {
 
   // Same generic error whether the username doesn't exist or the password is
   // wrong - never leak which one it was.
-  const invalid = () =>
-    NextResponse.json({ error: "Invalid username or password." }, { status: 401 });
+  const invalid = () => {
+    recordFailedLogin(username, ip);
+    return NextResponse.json({ error: "Invalid username or password." }, { status: 401 });
+  };
 
   if (!user) return invalid();
 
   const ok = await verifyPassword(password, user.passwordHash);
   if (!ok) return invalid();
+
+  clearLoginAttempts(username, ip);
 
   await createSessionCookie({
     sub: user.id,

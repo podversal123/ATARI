@@ -57,12 +57,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { ColumnFilterMenu, type ColumnFilterState } from "./column-filter-menu";
 import type { MasterColumn } from "@/lib/navigation";
-import {
-  CfldTechnicalParameterDialog,
-  type TabName as CfldTabName,
-} from "./cfld-technical-parameter-dialog";
 import { EventDemographicDialog } from "./event-demographic-dialog";
-import { FldResultDialog } from "./fld-result-dialog";
 import { MasterFormFields, DEMOGRAPHIC_KEYS, prefixedDemographicKey } from "./master-form-fields";
 
 export type MasterTab = { label: string; href: string; active: boolean };
@@ -99,9 +94,9 @@ type EmptyDataTableProps = {
   cascadeType?: "district" | "kvk" | "institute";
   /** Overrides the Edit dialog's "Mark as Other" checkbox visibility when confirmed against the real reference (lib/navigation.ts's NavLeaf.showMarkAsOther) - falls back to the single-"name"-column heuristic below when unset. Edit reuses the same field set as the real Create screen for a given master. */
   showMarkAsOther?: boolean;
-  /** When set, Add New/Edit open a bespoke dialog instead of the generic per-column form - for the handful of leaves whose real Add/Edit shape genuinely isn't a flat field list (CFLD's 4-tab wizard, and the event forms carrying the recurring demographic-breakdown block). */
-  customForm?: "cfld-technical-parameter" | "event-demographic";
-  /** Leaf slug for the "event-demographic" customForm, so it can render the right leaf-specific fields (e.g. Technology Week Celebration's confirmed Start/End Date + activity fields vs the generic fallback). */
+  /** When set, Add New/Edit open a bespoke dialog instead of the generic per-column form - for the event leaves carrying the recurring demographic-breakdown block that the generic per-column form can't render (CFLD Technical Parameter's own 4-tab shape moved to a full page instead, 2026-09-01 - see the `technical-parameter` checks below, keyed off `eventSlug` rather than this prop now). */
+  customForm?: "event-demographic";
+  /** Leaf slug, always passed regardless of `customForm` - drives the "event-demographic" custom fields above, and (for "technical-parameter") the CFLD-specific extra Action-dropdown items below. */
   eventSlug?: string;
   /**
    * When set, "Add New" navigates here instead of opening the dialog - per
@@ -117,10 +112,9 @@ type EmptyDataTableProps = {
    * page, matching addNewHref's own "Add New" page) instead of opening the
    * dialog - Form Management only (client direction, 2026-09-01). Masters/
    * Targets/Notifications never pass this, so their Edit stays the popup
-   * dialog exactly as before. Leaves with a bespoke Edit UI of their own
-   * (CFLD Technical Parameter's tabbed dialog, the event-demographic ones -
-   * i.e. whenever `customForm` is set) keep the dialog too, even when this
-   * is passed, since their real edit shape isn't a flat field list.
+   * dialog exactly as before. The event-demographic leaves (`customForm`
+   * set) keep their dialog too, even when this is passed, since their real
+   * edit shape isn't a flat field list.
    */
   editHrefBase?: string;
   /** Targets/Notifications already have their own dedicated inline "Assign"/"Send" panel above the table - the generic Add New button would just duplicate that with unrelated fields, so it's hidden there instead of getting a pointless page of its own. */
@@ -131,13 +125,24 @@ type EmptyDataTableProps = {
    * rendered as a colored badge instead of plain text, and the row Action
    * dropdown gains Transfer (only while Ongoing - the client's spec: once
    * Completed or already Transferred, Transfer stops appearing so a record
-   * can't be transferred twice) and Add Result alongside Edit/Delete. Per
-   * the same spec ("only valid for KVKs not superadmin"), a Super Admin
-   * gets a read-only Action column instead - no dropdown.
+   * can't be transferred twice) and Edit Result/Mark Completed alongside
+   * Edit/Delete - shown to Super Admin too (client correction, 2026-09-01,
+   * superseding an earlier "Super Admin gets Edit/Delete only" reading).
    */
   oftFldStatus?: boolean;
-  /** Which real "Add/Edit Result" dialog Add Result opens - "fld" (real, wired to /api/fld-result) or "oft" (still the placeholder textarea pending its own real dynamic-table result feature). Only meaningful when oftFldStatus is true. */
+  /** Both "fld" and "oft" navigate to the real full-page result view (FldResultFields / OftResultFields, via ?tab=result on the Edit page) - only the Action-menu label differs ("Add Result" for fld, "Edit Result" for oft). Only meaningful when oftFldStatus is true. */
   resultKind?: "oft" | "fld";
+  /**
+   * Real reference confirmed 2026-09-02 - OFT's own list toolbar has a
+   * "Reporting Year" filter (client-confirmed default-to-current-year
+   * direction), but FLD's list toolbar does NOT have one at all (only
+   * Search/From date/To date/Reset), even though both leaves share
+   * `oftFldStatus` for their Action-menu behavior. Defaulting this filter
+   * on for FLD too silently hid real FLD data from any year other than the
+   * current one, with no visible control explaining why - split out from
+   * `oftFldStatus` so each leaf's toolbar can match its own real reference.
+   */
+  reportingYearFilter?: boolean;
   /** Shown as a note banner above the table - e.g. OFT/FLD's "mark your result as Completed" instruction. */
   note?: string;
   /** Staff Transferred only (real reference action, confirmed 2026-09-01): adds a "View Transfer History" item between Edit and Delete, reading each row's `historyJson` field (a JSON-stringified array of { fromKvk, toKvk, date }) built server-side from every StaffTransfer record for that staff member. */
@@ -201,6 +206,7 @@ export function EmptyDataTable({
   editHrefBase,
   hideAddNew,
   oftFldStatus,
+  reportingYearFilter,
   resultKind,
   note,
   recordPath,
@@ -386,12 +392,8 @@ export function EmptyDataTable({
     }
   }
 
-  /** CFLD Technical Parameter only - which tab to land on when the dialog opens from a direct Action-dropdown shortcut (Edit/Economic/Socio-Economic/Farmers Perception). */
-  const [cfldInitialTab, setCfldInitialTab] = useState<CfldTabName>();
-  const isCfldTechnicalParameter = customForm === "cfld-technical-parameter";
-  const [resultRow, setResultRow] = useState<Record<string, ReactNode> | null>(
-    null,
-  );
+  /** CFLD Technical Parameter's Add/Edit (all 4 tabs) moved to its own dedicated pages (2026-09-01, same rollout as every other Form Management leaf) - this flag still drives its other row-level specifics below (the status badge, and the always-visible Transfer action), just no longer the dialog. */
+  const isCfldTechnicalParameter = eventSlug === "technical-parameter";
 
   const [historyStaffName, setHistoryStaffName] = useState<string | null>(null);
   const [historyEntries, setHistoryEntries] = useState<
@@ -443,7 +445,6 @@ export function EmptyDataTable({
     setEditingRow(null);
     setFormValues({});
     setMarkAsOther(false);
-    setCfldInitialTab(undefined);
     setFormError(null);
     setFormOpen(true);
   }
@@ -452,7 +453,7 @@ export function EmptyDataTable({
     ? columns.filter((c) => editableColumnKeys.includes(c.key))
     : columns;
 
-  function openEdit(row: Record<string, ReactNode>, tab?: CfldTabName) {
+  function openEdit(row: Record<string, ReactNode>) {
     const values: Record<string, string> = {};
     for (const column of editColumns) {
       if (column.fieldKind === "demographic-breakdown") {
@@ -474,7 +475,6 @@ export function EmptyDataTable({
     setEditingRow(row);
     setFormValues(values);
     setMarkAsOther(false);
-    setCfldInitialTab(tab);
     setFormError(null);
     setFormOpen(true);
   }
@@ -552,9 +552,8 @@ export function EmptyDataTable({
         );
         if (!matches) return false;
       }
-      if (oftFldStatus) {
-        if (String(row.reportingYear ?? "") !== reportingYear) return false;
-      } else if (hasActiveDates) {
+      if (reportingYearFilter && String(row.reportingYear ?? "") !== reportingYear) return false;
+      if (hasActiveDates) {
         const inRange = dateColumnKeys.some((key) => {
           const raw = String(row[key] ?? "");
           if (!raw) return false;
@@ -581,7 +580,7 @@ export function EmptyDataTable({
       });
     }
     return next;
-  }, [rows, columnFilters, search, columns, oftFldStatus, reportingYear, hasActiveDates, dateColumnKeys, fromDate, toDate]);
+  }, [rows, columnFilters, search, columns, reportingYearFilter, reportingYear, hasActiveDates, dateColumnKeys, fromDate, toDate]);
 
   /**
    * 10 rows per page, matching the reference's own "Showing 1-10 of N"
@@ -608,13 +607,13 @@ export function EmptyDataTable({
             { selected: state.selected ? Array.from(state.selected).sort() : null, sort: state.sort },
           ]),
         ),
-        oftFldStatus,
+        reportingYearFilter,
         reportingYear,
         hasActiveDates,
         fromDate,
         toDate,
       }),
-    [search, columnFilters, oftFldStatus, reportingYear, hasActiveDates, fromDate, toDate],
+    [search, columnFilters, reportingYearFilter, reportingYear, hasActiveDates, fromDate, toDate],
   );
   const PAGE_SIZE = 10;
   const [page, setPage] = useState(1);
@@ -744,71 +743,64 @@ export function EmptyDataTable({
               className="h-9 w-56 pl-8"
             />
           </div>
-          {oftFldStatus ? (
+          {reportingYearFilter && (
             <div className="flex items-center gap-1.5">
-              <Label
-                htmlFor={fromDateId}
-                className="text-xs text-muted-foreground"
-              >
+              <Label className="text-xs text-muted-foreground">
                 Reporting Year
               </Label>
               <SimpleSelect
-                id={fromDateId}
                 value={reportingYear}
                 onValueChange={setReportingYear}
                 options={reportingYearOptions.map((year) => ({ value: year, label: year }))}
                 className="w-28"
               />
             </div>
-          ) : (
-            <>
-              <div className="relative">
-                <Input
-                  id={fromDateId}
-                  type="date"
-                  value={fromDate}
-                  onChange={(event) => setFromDate(event.target.value)}
-                  aria-label="From date"
-                  className={cn(
-                    "h-9 w-40",
-                    fromDate ? "text-muted-foreground" : "text-transparent",
-                  )}
-                />
-                {!fromDate && (
-                  <span className="pointer-events-none absolute inset-y-0 left-2.5 flex items-center text-sm text-muted-foreground">
-                    From date
-                  </span>
-                )}
-              </div>
-              <div className="relative">
-                <Input
-                  id={toDateId}
-                  type="date"
-                  value={toDate}
-                  onChange={(event) => setToDate(event.target.value)}
-                  aria-label="To date"
-                  className={cn(
-                    "h-9 w-40",
-                    toDate ? "text-muted-foreground" : "text-transparent",
-                  )}
-                />
-                {!toDate && (
-                  <span className="pointer-events-none absolute inset-y-0 left-2.5 flex items-center text-sm text-muted-foreground">
-                    To date
-                  </span>
-                )}
-              </div>
-              <Button
-                variant="default"
-                size="lg"
-                onClick={resetDates}
-                disabled={!hasActiveDates}
-              >
-                <RotateCcw className="size-3.5" />
-                Reset dates
-              </Button>
-            </>
           )}
+          <div className="relative">
+            <Input
+              id={fromDateId}
+              type="date"
+              value={fromDate}
+              onChange={(event) => setFromDate(event.target.value)}
+              aria-label="From date"
+              className={cn(
+                "h-9 w-40",
+                fromDate ? "text-muted-foreground" : "text-transparent",
+              )}
+            />
+            {!fromDate && (
+              <span className="pointer-events-none absolute inset-y-0 left-2.5 flex items-center text-sm text-muted-foreground">
+                From date
+              </span>
+            )}
+          </div>
+          <div className="relative">
+            <Input
+              id={toDateId}
+              type="date"
+              value={toDate}
+              onChange={(event) => setToDate(event.target.value)}
+              aria-label="To date"
+              className={cn(
+                "h-9 w-40",
+                toDate ? "text-muted-foreground" : "text-transparent",
+              )}
+            />
+            {!toDate && (
+              <span className="pointer-events-none absolute inset-y-0 left-2.5 flex items-center text-sm text-muted-foreground">
+                To date
+              </span>
+            )}
+          </div>
+          <Button
+            variant="default"
+            size="lg"
+            onClick={resetDates}
+            disabled={!hasActiveDates}
+          >
+            <RotateCcw className="size-3.5" />
+            Reset dates
+          </Button>
           <Button
             variant="outline-primary"
             size="lg"
@@ -1025,15 +1017,19 @@ export function EmptyDataTable({
                                 View Transfer History
                               </DropdownMenuItem>
                             )}
-                            {oftFldStatus && !isSuperAdmin && (
+                            {oftFldStatus && (
                               <>
-                                {/* Real reference order confirmed 2026-09-01 (On Farm Trials): Edit, Edit Result, Mark Completed, Transfer, Delete - "Add Result" renamed to "Edit Result" and colored purple to match; Mark Completed is a new direct action (OFT only - real "Ongoing"->"Completed" flip, no form) since OFT's own Add/Edit Result stays the placeholder pending its dynamic-table feature. FLD already marks Completed for real inside FldResultDialog, so it keeps just Edit Result + Transfer here, not this shortcut too. */}
+                                {/* Real reference order confirmed 2026-09-01 (On Farm Trials): Edit, Edit Result, Mark Completed, Transfer, Delete - "Add Result" renamed to "Edit Result" and colored purple to match; Mark Completed is a new direct action (OFT only - real "Ongoing"->"Completed" flip, no form). Both OFT's Edit Result and FLD's Add Result now jump to the real page (OftResultFields / FldResultFields, via ?tab=result - same query-param convention CFLD's own tab jumps use), not a dialog (client direction, 2026-09-02: keep FLD consistent with OFT's own full-page pattern instead of the standalone reference recording's popup). Shown to Super Admin too (client correction, 2026-09-01 annotated screenshot: "Action of this page will be changed" - supersedes the earlier "Super Admin gets a restricted Edit/Delete-only Action column" reading). */}
                                 <DropdownMenuItem
                                   className="text-[#7c3aed] focus:text-[#7c3aed]"
-                                  onClick={() => setResultRow(row)}
+                                  onClick={() =>
+                                    typeof row.id === "string" &&
+                                    editHrefBase &&
+                                    router.push(`${editHrefBase}/edit/${row.id}?tab=result`)
+                                  }
                                 >
                                   <ClipboardCheck className="size-3.5" />
-                                  Edit Result
+                                  {resultKind === "fld" ? "Add Result" : "Edit Result"}
                                 </DropdownMenuItem>
                                 {resultKind !== "fld" && row.status === "Ongoing" && (
                                   <DropdownMenuItem
@@ -1055,11 +1051,13 @@ export function EmptyDataTable({
                             )}
                             {isCfldTechnicalParameter && (
                               <>
-                                {/* Real reference order confirmed 2026-09-01: Edit, Economic Parameters, Update Socio Economic Parameters, Farmers Perception Parameters, Transfer, Delete (Delete trailing, not 2nd - supersedes the earlier "Edit, Transfer, Delete, ..." reading). The three parameter items and Transfer render in the primary green, matching the reference; only Delete stays destructive red. */}
+                                {/* Real reference order confirmed 2026-09-01: Edit, Economic Parameters, Update Socio Economic Parameters, Farmers Perception Parameters, Transfer, Delete (Delete trailing, not 2nd - supersedes the earlier "Edit, Transfer, Delete, ..." reading). The three parameter items and Transfer render in the primary green, matching the reference; only Delete stays destructive red. Each jumps straight to its own tab on the same dedicated Edit page (?tab=...), same shortcut the old dialog's initialTab gave, now via a query param since Edit is a real page (2026-09-01). */}
                                 <DropdownMenuItem
                                   className="text-primary focus:text-primary"
                                   onClick={() =>
-                                    openEdit(row, "Economic Parameters")
+                                    typeof row.id === "string" &&
+                                    editHrefBase &&
+                                    router.push(`${editHrefBase}/edit/${row.id}?tab=economic`)
                                   }
                                 >
                                   <ClipboardCheck className="size-3.5" />
@@ -1068,10 +1066,9 @@ export function EmptyDataTable({
                                 <DropdownMenuItem
                                   className="text-primary focus:text-primary"
                                   onClick={() =>
-                                    openEdit(
-                                      row,
-                                      "Socio Economic Parameters",
-                                    )
+                                    typeof row.id === "string" &&
+                                    editHrefBase &&
+                                    router.push(`${editHrefBase}/edit/${row.id}?tab=socio-economic`)
                                   }
                                 >
                                   <ClipboardCheck className="size-3.5" />
@@ -1080,7 +1077,9 @@ export function EmptyDataTable({
                                 <DropdownMenuItem
                                   className="text-primary focus:text-primary"
                                   onClick={() =>
-                                    openEdit(row, "Farmers Perception")
+                                    typeof row.id === "string" &&
+                                    editHrefBase &&
+                                    router.push(`${editHrefBase}/edit/${row.id}?tab=perception`)
                                   }
                                 >
                                   <ClipboardCheck className="size-3.5" />
@@ -1150,14 +1149,7 @@ export function EmptyDataTable({
       </div>
 
       {/* Add / Edit */}
-      {customForm === "cfld-technical-parameter" ? (
-        <CfldTechnicalParameterDialog
-          open={formOpen}
-          onOpenChange={setFormOpen}
-          editingRow={editingRow}
-          initialTab={cfldInitialTab}
-        />
-      ) : customForm === "event-demographic" ? (
+      {customForm === "event-demographic" ? (
         <EventDemographicDialog
           title={title}
           slug={eventSlug}
@@ -1379,43 +1371,6 @@ export function EmptyDataTable({
         </Dialog>
       )}
 
-      {/* Add Result - OFT/FLD only; saving a result is how a record moves from Ongoing to Completed. FLD's is real (FldResultDialog, wired to /api/fld-result); OFT's stays this placeholder until its own real dynamic-table result feature lands. */}
-      {oftFldStatus && resultKind === "fld" && (
-        <FldResultDialog
-          fldId={typeof resultRow?.id === "string" ? resultRow.id : null}
-          open={resultRow !== null}
-          onOpenChange={(open) => !open && setResultRow(null)}
-        />
-      )}
-      {oftFldStatus && resultKind !== "fld" && (
-        <Dialog
-          open={resultRow !== null}
-          onOpenChange={(open) => !open && setResultRow(null)}
-        >
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle>Add Result</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-1.5">
-              <Label htmlFor="result-notes">Result / Outcome</Label>
-              <textarea
-                id="result-notes"
-                rows={4}
-                placeholder="Describe the outcome of this trial/demonstration"
-                className="w-full rounded-lg border border-input bg-transparent px-2.5 py-2 text-sm outline-none focus-visible:border-ring"
-              />
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setResultRow(null)}>
-                Cancel
-              </Button>
-              <Button onClick={() => setResultRow(null)}>
-                Mark as Completed
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      )}
     </div>
   );
 }

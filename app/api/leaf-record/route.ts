@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireSession } from "@/lib/api-auth";
 import { LEAF_RECORD_REGISTRY } from "@/lib/leaf-record-registry";
+import { safeErrorMessage } from "@/lib/safe-error-message";
 
 export async function POST(request: Request) {
   const auth = await requireSession();
@@ -37,7 +38,7 @@ export async function POST(request: Request) {
     await create(values, { kvkId, zoneId: auth.session.zoneId });
     return NextResponse.json({ ok: true }, { status: 201 });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Could not save this record.";
+    const message = safeErrorMessage(error, "Could not save this record.");
     return NextResponse.json({ error: message }, { status: 400 });
   }
 }

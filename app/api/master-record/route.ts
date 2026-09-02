@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireSession } from "@/lib/api-auth";
 import { MASTER_CREATE_REGISTRY } from "@/lib/masters-registry";
+import { safeErrorMessage } from "@/lib/safe-error-message";
 
 /** Generic create endpoint for All Masters leaves - Super Admin only, zone-scoped (masters have no KVK owner). */
 export async function POST(request: Request) {
@@ -23,7 +24,7 @@ export async function POST(request: Request) {
     await create(values, auth.session.zoneId);
     return NextResponse.json({ ok: true }, { status: 201 });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Could not save this record.";
+    const message = safeErrorMessage(error, "Could not save this record.");
     return NextResponse.json({ error: message }, { status: 400 });
   }
 }

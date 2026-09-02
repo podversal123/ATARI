@@ -7,9 +7,14 @@ import { SuperAdminModuleImagesView } from "@/components/module-images/super-adm
 import { KvkModuleImagesView } from "@/components/module-images/kvk-module-images-view";
 
 /**
- * Per "Module Images UI.pdf": Super Admin gets a cross-KVK, filter-and-download-only
- * screen ("Category Wise Photographs"); a KVK gets its own upload/list screen. Which
- * one renders is decided by the session role, same split as Reports and Log History.
+ * Per the client's "Module Image workflow" PDF (2026-09-02): there is no
+ * separate upload here anymore for either role - photographs come from the
+ * Photographs section at the end of a form (OFT/FLD/Training/Extension
+ * Activities to start) and land here automatically. Super Admin gets a
+ * cross-KVK, filter-and-download screen ("Category Wise Photographs"); a KVK
+ * gets the same browse/filter/download screen scoped to its own uploads.
+ * Which one renders is decided by the session role, same split as Reports
+ * and Log History.
  */
 export default function ModuleImagesPage() {
   const session = useSession();
@@ -25,7 +30,7 @@ export default function ModuleImagesPage() {
         icon={ImageIcon}
         description={
           isKvk
-            ? `Upload and manage photographs for ${session.kvkName ?? "your KVK"}, organised by Form Management category.`
+            ? `Photographs for ${session.kvkName ?? "your KVK"}, organised by Form Management category - add photos from the Photographs section at the end of a form.`
             : "Find and download KVK-submitted photographs by reporting year, KVK, and Form Management category."
         }
       />

@@ -45,15 +45,25 @@ export async function POST(request: Request) {
   const districtYield = dec(technical.districtYield);
   const stateYield = dec(technical.stateYield);
   const potentialYield = dec(technical.potentialYield);
+  const reportingDate = str(technical.reportingDate) ? new Date(technical.reportingDate) : undefined;
+  const trainingPhotoUrls = Array.isArray(technical.trainingPhotoUrls)
+    ? technical.trainingPhotoUrls.filter((v: unknown): v is string => typeof v === "string")
+    : [];
+  const actionPhotoUrls = Array.isArray(technical.actionPhotoUrls)
+    ? technical.actionPhotoUrls.filter((v: unknown): v is string => typeof v === "string")
+    : [];
 
   const record = await prisma.cfldTechnicalParameter.create({
     data: {
       ...ctx,
-      reportingYear: reqInt(technical.reportingYear),
+      reportingYear: reportingDate ? reportingDate.getFullYear() : reqInt(technical.reportingYear),
+      reportingDate,
       month: str(technical.month),
       season: reqStr(technical.season),
+      cropType: str(technical.cropType),
       crop: reqStr(technical.crop),
       cropDemonstrated: reqStr(technical.crop),
+      variety: str(technical.variety),
       areaHa: reqDec(technical.areaHa),
       numberOfFarmers: reqInt(technical.numberOfFarmers),
       farmersByCategory: demographics,
@@ -70,25 +80,44 @@ export async function POST(request: Request) {
       yieldGapMinimizedPercentDistrict: yieldGapMinimizedPercent(districtYield, demoYieldAvg),
       yieldGapMinimizedPercentState: yieldGapMinimizedPercent(stateYield, demoYieldAvg),
       yieldGapMinimizedPercentPotential: yieldGapMinimizedPercent(potentialYield, demoYieldAvg),
+      trainingPhotoUrls,
+      actionPhotoUrls,
       status,
     },
   });
 
   const hasEconomic = Object.values(economic).some((v) => v !== "" && v != null);
   if (hasEconomic) {
+    const farmerGrossCost = dec(economic.costFarmer);
+    const farmerGrossReturn = dec(economic.grossReturnFarmer);
+    const demoGrossCost = dec(economic.costDemo);
+    const demoGrossReturn = dec(economic.grossReturnDemo);
     await prisma.cfldEconomicParameter.create({
       data: {
         cfldTechnicalParameterId: record.id,
         zoneId: auth.session.zoneId,
         detailOfTechnology: reqStr(technical.technologyDemonstrated),
-        farmerGrossCost: dec(economic.costFarmer),
-        demoGrossCost: dec(economic.costDemo),
-        farmerGrossReturn: dec(economic.grossReturnFarmer),
-        demoGrossReturn: dec(economic.grossReturnDemo),
-        farmerNetReturn: dec(economic.netReturnFarmer),
-        demoNetReturn: dec(economic.netReturnDemo),
-        farmerBcRatio: dec(economic.bcRatioFarmer),
-        demoBcRatio: dec(economic.bcRatioDemo),
+        farmerGrossCost,
+        demoGrossCost,
+        farmerGrossReturn,
+        demoGrossReturn,
+        farmerNetReturn:
+          farmerGrossReturn !== undefined && farmerGrossCost !== undefined
+            ? farmerGrossReturn - farmerGrossCost
+            : undefined,
+        demoNetReturn:
+          demoGrossReturn !== undefined && demoGrossCost !== undefined
+            ? demoGrossReturn - demoGrossCost
+            : undefined,
+        farmerBcRatio:
+          farmerGrossReturn !== undefined && farmerGrossCost
+            ? farmerGrossReturn / farmerGrossCost
+            : undefined,
+        demoBcRatio:
+          demoGrossReturn !== undefined && demoGrossCost
+            ? demoGrossReturn / demoGrossCost
+            : undefined,
+        additionalIncome: dec(economic.additionalIncome),
       },
     });
   }

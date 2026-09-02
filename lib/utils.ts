@@ -23,7 +23,7 @@ const IMAGE_EXTENSION_BY_MIME: Record<string, string> = {
 
 /**
  * Real per-row "Download" for an already-uploaded photo (Module Images,
- * Gallery) - the previewUrl is `/api/files/view?...`, a same-origin,
+ * etc.) - the previewUrl is `/api/files/view?...`, a same-origin,
  * session-authenticated proxy in front of the private Blob store, so a
  * plain fetch + `downloadBlob` forces a real save instead of just opening
  * the image (which `<a href target="_blank">` alone only ever did). The

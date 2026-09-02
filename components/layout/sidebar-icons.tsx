@@ -6,7 +6,6 @@ import {
   Users,
   FileText,
   Image,
-  Images,
   Target,
   History,
   Bell,
@@ -18,7 +17,7 @@ import type { SidebarIconName } from "@/lib/navigation";
 /**
  * Mapped by zooming into the real reference sidebar the reference icon-by-icon
  * (not guessed) - Role Management is a gear (not a shield), Module Images is
- * a single photo frame, Gallery is the "stack of photos" icon.
+ * a single photo frame.
  */
 export const SIDEBAR_ICONS: Record<SidebarIconName, LucideIcon> = {
   dashboard: LayoutDashboard,
@@ -28,7 +27,6 @@ export const SIDEBAR_ICONS: Record<SidebarIconName, LucideIcon> = {
   "user-management": Users,
   "form-management": FileText,
   "module-images": Image,
-  gallery: Images,
   targets: Target,
   "log-history": History,
   notifications: Bell,

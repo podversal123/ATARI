@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
+  ChevronDown,
+  ChevronRight,
   Download,
   Eye,
   EyeOff,
@@ -12,8 +14,10 @@ import {
   MoreVertical,
   RotateCcw,
   Search,
+  Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import {
@@ -22,6 +26,16 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { SelectKvksMultiDropdown } from "./select-kvks-multi-dropdown";
 import { SelectCategoryDropdown } from "./select-category-dropdown";
 import { MultiFilterSelect } from "@/components/dashboard/multi-filter-select";
@@ -35,6 +49,7 @@ import {
 import { KVKS } from "@/lib/rbac";
 import type { MasterColumn } from "@/lib/navigation";
 import { downloadBlob, downloadImageFile } from "@/lib/utils";
+import { MODULE_TREE } from "@/lib/module-tree";
 
 /** Text-only columns for the Excel/PDF export - Image (a raw file URL, not meaningful printed) and Action (page-only) are left out, matching every other export in the app. */
 const EXPORT_COLUMNS: MasterColumn[] = [
@@ -60,6 +75,11 @@ const STATUS_OPTIONS = ["Published", "Not Published"];
  * Real backend wired 2026-08-28 (GET /api/module-images returns every
  * image across the zone for this role) - was reading the always-empty
  * MODULE_IMAGE_ROWS constant before.
+ *
+ * Per-row checkboxes + "Selected Records" download restored (client's
+ * updated spec wants selective bulk download back), and "Download Images
+ * By" now produces a real ZIP (lib/module-images-zip.ts) instead of the
+ * no-op stub it used to be.
  */
 export function SuperAdminModuleImagesView() {
   const [rows, setRows] = useState<ModuleImageRecord[]>([]);
@@ -143,7 +163,9 @@ export function SuperAdminModuleImagesView() {
         query &&
         !(
           row.kvk.toLowerCase().includes(query) ||
-          row.caption.toLowerCase().includes(query)
+          row.categoryLabel.toLowerCase().includes(query) ||
+          row.caption.toLowerCase().includes(query) ||
+          row.reportingYear.includes(query)
         )
       ) {
         return false;
@@ -161,6 +183,53 @@ export function SuperAdminModuleImagesView() {
     toDate,
     search,
   ]);
+
+  const [selectedRowIds, setSelectedRowIds] = useState<Set<string>>(new Set());
+  const allFilteredSelected =
+    filteredRows.length > 0 && filteredRows.every((row) => selectedRowIds.has(row.id));
+  const someFilteredSelected = filteredRows.some((row) => selectedRowIds.has(row.id));
+
+  function toggleSelectAll() {
+    setSelectedRowIds((prev) => {
+      if (allFilteredSelected) {
+        const next = new Set(prev);
+        filteredRows.forEach((row) => next.delete(row.id));
+        return next;
+      }
+      const next = new Set(prev);
+      filteredRows.forEach((row) => next.add(row.id));
+      return next;
+    });
+  }
+
+  function toggleRowSelected(id: string) {
+    setSelectedRowIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  /** Left "Modules" panel (ported from the removed /gallery page, 2026-09-02) - a quicker single-leaf drill-down with live counts, sitting alongside the Category/Form checklist for multi-select power filtering. */
+  const [openModule, setOpenModule] = useState<string | null>(MODULE_TREE[0]?.slug ?? null);
+  const activeLeafPath =
+    selectedCategories.size === 1 ? Array.from(selectedCategories)[0] : null;
+
+  function countForLeaf(path: string) {
+    return rows.filter((row) => {
+      if (row.categoryPath !== path) return false;
+      if (!selectedYears.has(row.reportingYear)) return false;
+      if (selectedKvks.size > 0 && !selectedKvks.has(row.kvk)) return false;
+      if (!selectedStatuses.has(isPublished(row) ? "Published" : "Not Published")) return false;
+      if (fromDate && row.date < fromDate) return false;
+      if (toDate && row.date > toDate) return false;
+      return true;
+    }).length;
+  }
+  function countForModule(leaves: { path: string }[]) {
+    return leaves.reduce((sum, leaf) => sum + countForLeaf(leaf.path), 0);
+  }
 
   const exportTitle = "Module Images - Category Wise Photographs";
   const exportRows = useMemo(
@@ -208,6 +277,34 @@ export function SuperAdminModuleImagesView() {
       });
   }
 
+  const [deleteRow, setDeleteRow] = useState<ModuleImageRecord | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  async function confirmDelete() {
+    if (!deleteRow) return;
+    setDeleting(true);
+    setDeleteError(null);
+    try {
+      const res = await fetch(`/api/module-images/${deleteRow.id}`, { method: "DELETE" });
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        throw new Error(data?.error ?? "Could not delete this photograph.");
+      }
+      setSelectedRowIds((prev) => {
+        const next = new Set(prev);
+        next.delete(deleteRow.id);
+        return next;
+      });
+      setDeleteRow(null);
+      loadRows();
+    } catch (error) {
+      setDeleteError(error instanceof Error ? error.message : "Could not delete this photograph.");
+    } finally {
+      setDeleting(false);
+    }
+  }
+
   const [downloadError, setDownloadError] = useState<string | null>(null);
 
   async function handleDownload(row: ModuleImageRecord) {
@@ -226,8 +323,43 @@ export function SuperAdminModuleImagesView() {
     return `${selectedKvks.size} KVKs`;
   }, [selectedKvks]);
 
-  function handleBulkDownload() {
-    // No backend/storage yet - nothing to actually zip and download until Phase 2/3.
+  const [downloading, setDownloading] = useState(false);
+
+  async function handleBulkDownload(mode: (typeof BULK_DOWNLOAD_OPTIONS)[number]["mode"]) {
+    let targetRows: ModuleImageRecord[];
+    if (mode === "selected-records") {
+      targetRows = filteredRows.filter((row) => selectedRowIds.has(row.id));
+    } else if (mode === "all-images") {
+      targetRows = rows.filter((row) => {
+        if (!selectedYears.has(row.reportingYear)) return false;
+        if (selectedKvks.size > 0 && !selectedKvks.has(row.kvk)) return false;
+        if (!selectedStatuses.has(isPublished(row) ? "Published" : "Not Published")) return false;
+        if (fromDate && row.date < fromDate) return false;
+        if (toDate && row.date > toDate) return false;
+        return true;
+      });
+    } else {
+      targetRows = filteredRows;
+    }
+
+    if (targetRows.length === 0) {
+      setDownloadError("No photographs match this download option.");
+      return;
+    }
+
+    setDownloadError(null);
+    setDownloading(true);
+    try {
+      const { downloadModuleImagesZip } = await import("@/lib/module-images-zip");
+      const { included } = await downloadModuleImagesZip(targetRows, exportTitle);
+      if (included === 0) {
+        setDownloadError("Could not download any of the selected photographs.");
+      }
+    } catch {
+      setDownloadError("Could not build the ZIP download.");
+    } finally {
+      setDownloading(false);
+    }
   }
 
   return (
@@ -340,7 +472,77 @@ export function SuperAdminModuleImagesView() {
         </p>
       )}
 
-      <div className="rounded-lg border border-border bg-card">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[240px_1fr]">
+        <div className="rounded-lg border border-border bg-card p-3 lg:self-start">
+          <p className="mb-2 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+            Modules
+          </p>
+          <button
+            type="button"
+            onClick={() => setSelectedCategories(new Set(ALL_CATEGORY_PATHS))}
+            className={cn(
+              "flex w-full items-center justify-between rounded-md px-2 py-1.5 text-sm transition-colors",
+              allCategoriesSelected
+                ? "bg-accent font-medium text-accent-foreground"
+                : "text-foreground hover:bg-muted",
+            )}
+          >
+            All modules
+            <span className="text-xs text-muted-foreground">
+              {countForModule(MODULE_IMAGE_CATEGORIES)}
+            </span>
+          </button>
+          <div className="mt-1 space-y-0.5">
+            {MODULE_TREE.map((module) => {
+              const isOpen = openModule === module.slug;
+              return (
+                <div key={module.slug}>
+                  <button
+                    type="button"
+                    onClick={() => setOpenModule((prev) => (prev === module.slug ? null : module.slug))}
+                    title={module.label}
+                    className="flex w-full items-center justify-between gap-2 rounded-md px-2 py-1.5 text-left text-xs font-semibold tracking-wide text-muted-foreground uppercase hover:bg-muted"
+                  >
+                    <span className="flex min-w-0 items-center gap-1">
+                      {isOpen ? (
+                        <ChevronDown className="size-3.5 shrink-0" />
+                      ) : (
+                        <ChevronRight className="size-3.5 shrink-0" />
+                      )}
+                      <span className="min-w-0 truncate">{module.label}</span>
+                    </span>
+                    <span className="shrink-0">{countForModule(module.leaves)}</span>
+                  </button>
+                  {isOpen && (
+                    <div className="ml-4 space-y-0.5 border-l border-border pl-2">
+                      {module.leaves.map((leaf) => (
+                        <button
+                          key={leaf.path}
+                          type="button"
+                          onClick={() => setSelectedCategories(new Set([leaf.path]))}
+                          title={leaf.label}
+                          className={cn(
+                            "flex w-full items-center justify-between gap-2 rounded-md px-2 py-1.5 text-sm transition-colors",
+                            activeLeafPath === leaf.path
+                              ? "bg-accent font-medium text-accent-foreground"
+                              : "text-foreground hover:bg-muted",
+                          )}
+                        >
+                          <span className="min-w-0 truncate">{leaf.label}</span>
+                          <span className="shrink-0 text-xs text-muted-foreground">
+                            {countForLeaf(leaf.path)}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="rounded-lg border border-border bg-card">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border p-4">
           <div>
             <p className="text-sm font-semibold text-foreground">
@@ -356,7 +558,7 @@ export function SuperAdminModuleImagesView() {
               <Input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search by KVK, Caption..."
+                placeholder="Search by KVK, Category, Caption, Year..."
                 className="w-56 pl-8"
               />
             </div>
@@ -390,9 +592,9 @@ export function SuperAdminModuleImagesView() {
             <DropdownMenu>
               <DropdownMenuTrigger
                 render={
-                  <Button size="sm" disabled={filteredRows.length === 0}>
+                  <Button size="sm" disabled={filteredRows.length === 0 || downloading}>
                     <Download className="size-3.5" />
-                    Download Images By
+                    {downloading ? "Preparing ZIP…" : "Download Images By"}
                   </Button>
                 }
               />
@@ -400,11 +602,15 @@ export function SuperAdminModuleImagesView() {
                 {BULK_DOWNLOAD_OPTIONS.map((option) => (
                   <DropdownMenuItem
                     key={option.mode}
-                    onClick={handleBulkDownload}
+                    onClick={() => handleBulkDownload(option.mode)}
+                    disabled={option.mode === "selected-records" && selectedRowIds.size === 0}
                     className="flex-col items-start gap-0.5 py-1.5"
                   >
                     <span className="font-medium text-foreground">
                       {option.label}
+                      {option.mode === "selected-records" && selectedRowIds.size > 0
+                        ? ` (${selectedRowIds.size})`
+                        : ""}
                     </span>
                     <span className="text-xs text-muted-foreground">
                       {option.description}
@@ -420,6 +626,15 @@ export function SuperAdminModuleImagesView() {
           <table className="w-full text-sm">
             <thead>
               <tr className="divide-x divide-border border-b border-border bg-muted/50 text-left text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+                <th className="w-10 px-4 py-3">
+                  <Checkbox
+                    checked={allFilteredSelected}
+                    indeterminate={!allFilteredSelected && someFilteredSelected}
+                    onCheckedChange={toggleSelectAll}
+                    disabled={filteredRows.length === 0}
+                    aria-label="Select all rows"
+                  />
+                </th>
                 <th className="w-14 px-4 py-3">S.No</th>
                 <th className="px-4 py-3">KVK Name</th>
                 <th className="px-4 py-3">Date</th>
@@ -433,14 +648,14 @@ export function SuperAdminModuleImagesView() {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={8} className="px-4 py-16 text-center text-sm text-muted-foreground">
+                  <td colSpan={9} className="px-4 py-16 text-center text-sm text-muted-foreground">
                     Loading…
                   </td>
                 </tr>
               ) : filteredRows.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={8}
+                    colSpan={9}
                     className="px-4 py-16 text-center text-muted-foreground"
                   >
                     <div className="flex flex-col items-center gap-2">
@@ -457,6 +672,13 @@ export function SuperAdminModuleImagesView() {
                     key={row.id}
                     className="divide-x divide-border border-b border-border last:border-0"
                   >
+                    <td className="px-4 py-3 align-top">
+                      <Checkbox
+                        checked={selectedRowIds.has(row.id)}
+                        onCheckedChange={() => toggleRowSelected(row.id)}
+                        aria-label={`Select ${row.caption}`}
+                      />
+                    </td>
                     <td className="px-4 py-3 align-top text-muted-foreground">
                       {index + 1}
                     </td>
@@ -530,6 +752,13 @@ export function SuperAdminModuleImagesView() {
                             <Download className="size-3.5" />
                             Download
                           </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => setDeleteRow(row)}
+                            className="text-destructive focus:text-destructive"
+                          >
+                            <Trash2 className="size-3.5" />
+                            Delete
+                          </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </td>
@@ -555,7 +784,45 @@ export function SuperAdminModuleImagesView() {
             </Button>
           </div>
         </div>
+        </div>
       </div>
+
+      <AlertDialog
+        open={deleteRow !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setDeleteRow(null);
+            setDeleteError(null);
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this photograph?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {deleteRow ? `${deleteRow.kvk} - ${deleteRow.categoryLabel} - ${deleteRow.caption}` : ""}
+              . This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          {deleteError && (
+            <p role="alert" className="text-sm font-medium text-destructive">
+              {deleteError}
+            </p>
+          )}
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(event) => {
+                event.preventDefault();
+                confirmDelete();
+              }}
+              disabled={deleting}
+            >
+              {deleting ? "Deleting…" : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

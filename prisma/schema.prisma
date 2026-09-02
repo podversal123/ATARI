@@ -824,6 +824,12 @@ model Oft {
   zoneId        String
   reportingYear Int
 
+  /// Real fields confirmed against the reference (atari-client.vercel.app, 2026-08-15 screenshots) - "Season", "OFT Subject" (distinct from Discipline), and "Source of Funding" were missing entirely; `fundingAgency` stays as-is (a separate real field on the same form, "Funding Agency Name").
+  season          String?
+  oftSubject      String?
+  sourceOfFunding String?
+  /// Real field confirmed against the reference - "No. of location".
+  noOfLocation    Int?
   /// Report groups each OFT under a discipline heading, e.g. "OFT
   /// (Agronomy)", "OFT (Animal Science)", "OFT (Fisheries)", "OFT (Home
   /// Science)", "OFT (Agricultural Extension)".
@@ -838,6 +844,8 @@ model Oft {
   finalRecommendation         String?
   constraintsIdentified       String?
   farmersParticipationProcess String?
+  /// "Remark" on the real Edit OFT Result page (atari-client.vercel.app, 2026-09-02) - separate from `resultSummary` ("Result"), which sits right above it on the same page.
+  remark                      String?
   quantity                    Decimal?    @db.Decimal(10, 2)
   unit                        String?
   noOfTrialReplicationFarmer  Int?
@@ -847,6 +855,11 @@ model Oft {
   costOfOft                   Decimal?    @db.Decimal(12, 2)
   fundingAgency               String?
   resultSummary               String?
+  /// Real reference (atari-client.vercel.app, 2026-09-02): "Photographs" (images only) and "Supplementary Datasheets" (PDF/Image/Excel/Word) upload fields on the Edit OFT Result page, each multi-file - same upload-on-select convention as CFLD's own multi-photo fields.
+  photographUrls              String[] @default([])
+  supplementaryDatasheetUrls  String[] @default([])
+  /// "Dynamic Result Tables" on the same page - a user-defined set of tables, each with its own editable column names and rows (not a fixed schema, confirmed against the real reference: "Add Table"/"Add Column"/"Add Row" all freely add to this structure). Stored as JSON since the table shape itself is user-defined, not a fixed set of columns - see lib/oft-result-tables.ts for the parsed shape.
+  resultTablesJson            String?
   status                      TrialStatus
 
   /// "Farmers Details" block on the real Add OFT form (General_M/F, OBC_M/F,
@@ -861,7 +874,6 @@ model Oft {
   stFemale      Int @default(0)
 
   technologyOptions OftTechnologyOption[]
-  resultRows        OftResultRow[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -875,24 +887,10 @@ model Oft {
 model OftTechnologyOption {
   id          String @id @default(cuid())
   oftId       String
-  oft         Oft    @relation(fields: [oftId], references: [id])
+  oft         Oft    @relation(fields: [oftId], references: [id], onDelete: Cascade)
   zoneId      String
   label       String // "Farmer Practice", "TO1", "TO2", ...
   description String
-
-  @@index([zoneId])
-  @@index([oftId])
-}
-
-/// "B. Results with Table" - proposed vs actual per technology option.
-model OftResultRow {
-  id               String  @id @default(cuid())
-  oftId            String
-  oft              Oft     @relation(fields: [oftId], references: [id])
-  zoneId           String
-  technologyOption String
-  proposed         String?
-  actual           String?
 
   @@index([zoneId])
   @@index([oftId])
@@ -906,9 +904,28 @@ model Fld {
   reportingYear          Int
   startDate              DateTime?
   endDate                DateTime?
+  /// Real fields confirmed against the reference (atari-client.vercel.app, 2026-08-15 screenshots) - "Name of SMS/KVK Head" (a real staff dropdown), "Season", "Sector" (parent of Category, matches the real FLD Sector Master already used by All Masters' own Sector/Category/Sub-category/Crop cascade), and "Thematic Area" (sourced from the real fld-thematic-area master, cascading off Sector like FLD Thematic Area Master already does) were missing entirely.
+  staff                  String?
+  season                 String?
+  sector                 String?
+  thematicArea           String?
   category               String
   subCategory            String
+  /// "Crop/Animal/Enterprise" - the real fourth cascade level (All Masters' own Crop Master, sourced from CropMaster rows under the selected Sub Category), distinct from `technologyDemonstrated` ("Name of Technology Demonstrated (FLD Name)").
+  cropAnimalEnterprise   String?
   technologyDemonstrated String
+  /// Real fields confirmed against the reference - "No of demonstration", "Unit", "Quantity", and the Farmers Details demographic breakdown (same General/OBC/SC/ST x Male/Female shape as Oft's own).
+  noOfDemonstration Int?
+  unit              String?
+  quantity          Decimal?    @db.Decimal(10, 2)
+  generalMale       Int         @default(0)
+  generalFemale     Int         @default(0)
+  obcMale           Int         @default(0)
+  obcFemale         Int         @default(0)
+  scMale            Int         @default(0)
+  scFemale          Int         @default(0)
+  stMale            Int         @default(0)
+  stFemale          Int         @default(0)
   status                 TrialStatus
 
   /// Real "Add Result" / "Edit FLD" tab confirmed live 2026-08-15 ("project
@@ -1219,6 +1236,8 @@ model SwachhtaObservance {
   totalNoOfActivitiesUndertaken Int
   noOfStaffs                    Int
   noOfFarmers                   Int
+  /// Real field confirmed against the reference (atari-client.vercel.app, 2026-09-02) - "No. of Participants" has a third Others count alongside Staffs/Farmers, missing entirely before.
+  noOfOthers                    Int                    @default(0)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1227,9 +1246,12 @@ model SwachhtaObservance {
   @@index([kvkId, kind])
 }
 
-/// The real form has further vermicomposting-style metric pairs beyond a
-/// horizontal scrollbar that were never confirmed live - captured in
-/// `additionalLineItems` rather than guessed as fixed columns.
+/// Real full shape confirmed against the reference (atari-client.vercel.app,
+/// 2026-09-02) - a second "Other than vermicomposting activities under
+/// Swachata" section (its own No of Village Covered/Total Expenditure pair)
+/// was the only thing beyond the horizontal scrollbar; the earlier
+/// speculative `additionalLineItems` JSON catch-all is now resolved into
+/// real typed columns.
 model SwachhtaBudgetExpenditure {
   id                              String  @id @default(cuid())
   kvkId                           String
@@ -1238,7 +1260,8 @@ model SwachhtaBudgetExpenditure {
   reportingYear                   Int
   vermicompostingVillagesCovered  Int
   vermicompostingTotalExpenditure Decimal @db.Decimal(14, 2)
-  additionalLineItems             Json?
+  otherVillagesCovered            Int?
+  otherTotalExpenditure           Decimal? @db.Decimal(14, 2)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1252,9 +1275,24 @@ model TechnologyProductProduction {
   kvkId    String
   kvk      Kvk     @relation(fields: [kvkId], references: [id])
   zoneId   String
+  /// Real fields confirmed against the reference (atari-client.vercel.app, 2026-08-15 screenshots) - "Reporting Date", the real Product Category -> Product Type -> Product cascade (same masters All Masters' own Product Type/Product pages already manage), Unit, Value, and Farmers Details were missing entirely.
+  reportingDate DateTime?
+  productCategory String?
+  productType     String?
+  product         String?
   category String
   variety  String
+  unit     String?
   quantity Decimal @db.Decimal(14, 2)
+  value    Decimal? @db.Decimal(14, 2)
+  generalMale   Int @default(0)
+  generalFemale Int @default(0)
+  obcMale       Int @default(0)
+  obcFemale     Int @default(0)
+  scMale        Int @default(0)
+  scFemale      Int @default(0)
+  stMale        Int @default(0)
+  stFemale      Int @default(0)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1287,9 +1325,20 @@ model SoilWaterPlantAnalysis {
   startDate           DateTime
   endDate             DateTime
   analysis            String
+  /// Real field confirmed against the reference (2026-08-15 screenshots) - "Samples analyzed Through" (e.g. "Mini soil testing kit"), was missing entirely.
+  samplesAnalyzedThrough String?
   noOfSamplesAnalyzed Int
   noOfVillagesCovered Int
   amountRealized      Decimal  @db.Decimal(14, 2)
+  /// Real "Farmers Details" block confirmed against the reference - was missing entirely.
+  generalMale   Int @default(0)
+  generalFemale Int @default(0)
+  obcMale       Int @default(0)
+  obcFemale     Int @default(0)
+  scMale        Int @default(0)
+  scFemale      Int @default(0)
+  stMale        Int @default(0)
+  stFemale      Int @default(0)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1333,6 +1382,8 @@ model Publication {
   kvkId       String
   kvk         Kvk     @relation(fields: [kvkId], references: [id])
   zoneId      String
+  /// Real field confirmed against the reference (atari-client.vercel.app, 2026-08-15 "Add Publication" screenshot) - "Year", was missing entirely.
+  reportingDate DateTime?
   itemName    String
   title       String
   authorName  String
@@ -1369,6 +1420,8 @@ model KvkAward {
   kvkId               String
   kvk                 Kvk     @relation(fields: [kvkId], references: [id])
   zoneId              String
+  /// Real field confirmed against the reference (2026-08-15 screenshots) - "Reporting Date", was missing entirely.
+  reportingDate       DateTime?
   award               String
   amount              Decimal @db.Decimal(14, 2)
   achievement         String?
@@ -1386,6 +1439,8 @@ model ScientistAward {
   kvkId               String
   kvk                 Kvk     @relation(fields: [kvkId], references: [id])
   zoneId              String
+  /// Real field confirmed against the reference (2026-08-15 screenshots) - "Reporting Date", was missing entirely.
+  reportingDate       DateTime?
   headScientist       String
   award               String
   amount              Decimal @db.Decimal(14, 2)
@@ -1404,6 +1459,8 @@ model FarmerAward {
   kvkId               String
   kvk                 Kvk     @relation(fields: [kvkId], references: [id])
   zoneId              String
+  /// Real field confirmed against the reference (2026-08-15 screenshots) - "Reporting Date", was missing entirely.
+  reportingDate       DateTime?
   farmerName          String
   address             String?
   contactNumber       String?
@@ -1411,6 +1468,8 @@ model FarmerAward {
   amount              Decimal @db.Decimal(14, 2)
   achievement         String?
   conferringAuthority String?
+  /// Real "Photographs" upload field (atari-client.vercel.app, confirmed 2026-09-02) - a real multi-file upload ("Hold Ctrl/Cmd... to select multiple"), not single - was missing entirely before.
+  photoUrls           String[] @default([])
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1438,11 +1497,17 @@ model CfldTechnicalParameter {
   kvk                               Kvk                @relation(fields: [kvkId], references: [id])
   zoneId                            String
   reportingYear                     Int
+  /// Real field confirmed against the reference (atari-client.vercel.app, 2026-09-01) - "Reporting Year" is a real date picker there ("01-04-2026"), not a bare year number; `reportingYear` above stays a derived int (still needed by list columns/reports/filters elsewhere), this holds the actual picked date.
+  reportingDate                     DateTime?
   /// Real field added 2026-08-28 (client reference, "Edit Technical Parameter" screen) - was missing entirely.
   month                             String?
   season                            String
+  /// Real field confirmed against the reference (atari-client.vercel.app, 2026-09-01) - "CFLD Crop Type", the CfldCropMaster row's own `type` (e.g. "pulses"), distinct from `crop` itself (the crop name).
+  cropType                          String?
   crop                              String
   cropDemonstrated                  String
+  /// Real field confirmed against the reference (2026-09-01) - "Name of Variety" was shown filled-in on a real record, but had no backing column at all before this (the old dialog's Variety input silently never saved).
+  variety                           String?
   areaHa                            Decimal            @db.Decimal(10, 2)
   numberOfFarmers                   Int
   /// General/OBC/SC/ST x Male/Female breakdown - kept flexible rather than
@@ -1464,6 +1529,9 @@ model CfldTechnicalParameter {
   districtYield                     Decimal?           @db.Decimal(10, 2)
   stateYield                        Decimal?           @db.Decimal(10, 2)
   potentialYield                    Decimal?           @db.Decimal(10, 2)
+  /// Real fields confirmed against the reference (2026-09-01) - "Farmers' Training Photographs" and "Quality Action Photographs (field visits / technology demos)", each a real multi-file upload (private Vercel Blob URLs), on the Technical Parameter tab itself (not Socio-Economic, where the old dialog's own demographic breakdown was wrongly placed too).
+  trainingPhotoUrls                 String[]           @default([])
+  actionPhotoUrls                   String[]           @default([])
   status                            ProjectTrialStatus
 
   economicParameters   CfldEconomicParameter[]
@@ -3549,10 +3617,13 @@ model ModuleImage {
   published     Boolean  @default(false)
   uploadedById  String?
   uploadedBy    User?    @relation(fields: [uploadedById], references: [id])
+  /// Real source, 2026-09-02: images now attach at the end of the owning form itself (OFT/FLD/Training/Extension Activities to start) rather than only through the standalone Add Images page - this ties a row back to that specific form record so an edit/delete there can reconcile its own images without touching another record's. Null for the older standalone-upload rows, which have no owning record.
+  formRecordId  String?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
   @@index([zoneId])
   @@index([kvkId, reportingYear])
   @@index([categoryPath])
+  @@index([formRecordId])
 }

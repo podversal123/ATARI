@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireSession } from "@/lib/api-auth";
 import { LEAF_DELETE_REGISTRY } from "@/lib/leaf-record-registry";
+import { safeErrorMessage } from "@/lib/safe-error-message";
 
 export async function POST(request: Request) {
   const auth = await requireSession(["KVK_ADMIN", "SUPER_ADMIN"]);
@@ -31,7 +32,7 @@ export async function POST(request: Request) {
     }
     return NextResponse.json({ ok: true });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Could not delete this record.";
+    const message = safeErrorMessage(error, "Could not delete this record.");
     return NextResponse.json({ error: message }, { status: 400 });
   }
 }

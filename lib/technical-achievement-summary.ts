@@ -170,3 +170,34 @@ export function sectionWidth(section: SummarySection): number {
     : 0;
   return section.metricGroup.columns.length + participantWidth;
 }
+
+export type SectionValues = { metrics: number[]; leadColumn: number; matrix: number[] };
+
+/** Flattens one section's real values into the same leaf order sectionWidth() counts - metric columns, then the lead column (if any), then the demographic matrix (if any). Shared by the on-screen table and the PDF/Excel/Word exports so both read the same real numbers the same way. */
+export function buildRowValues(section: SummarySection, values: SectionValues | undefined): number[] {
+  const metrics = values?.metrics ?? section.metricGroup.columns.map(() => 0);
+  const row = [...metrics];
+  if (section.participantGroup?.leadColumn) {
+    row.push(values?.leadColumn ?? 0);
+  }
+  if (section.participantGroup) {
+    row.push(...(values?.matrix ?? Array(DEMOGRAPHIC_LEAF_COUNT).fill(0)));
+  }
+  return row;
+}
+
+/** One flat, exportable column label per leaf value buildRowValues() produces, in the same order - "OFT: Target", "OFT: General M", etc. - since the PDF/Excel/Word exports render each card as a plain flat table rather than replicating the on-screen nested/merged header grid. */
+export function sectionFlatColumns(section: SummarySection): string[] {
+  const columns = section.metricGroup.columns.map((column) => `${section.heading}: ${column}`);
+  if (section.participantGroup?.leadColumn) {
+    columns.push(`${section.heading}: ${section.participantGroup.leadColumn}`);
+  }
+  if (section.participantGroup) {
+    for (const group of DEMOGRAPHIC_GROUPS) {
+      for (const split of group.splits) {
+        columns.push(`${section.heading}: ${group.label} ${split}`);
+      }
+    }
+  }
+  return columns;
+}

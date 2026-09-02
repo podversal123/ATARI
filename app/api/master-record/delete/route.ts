@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireSession } from "@/lib/api-auth";
 import { MASTER_DELETE_REGISTRY } from "@/lib/masters-registry";
+import { safeErrorMessage } from "@/lib/safe-error-message";
 
 export async function POST(request: Request) {
   const auth = await requireSession(["SUPER_ADMIN"]);
@@ -33,9 +34,7 @@ export async function POST(request: Request) {
       typeof error === "object" && error !== null && "code" in error && error.code === "P2003";
     const message = isForeignKeyError
       ? "Can't delete - other master records still reference this one."
-      : error instanceof Error
-        ? error.message
-        : "Could not delete this record.";
+      : safeErrorMessage(error, "Could not delete this record.");
     return NextResponse.json({ error: message }, { status: 400 });
   }
 }

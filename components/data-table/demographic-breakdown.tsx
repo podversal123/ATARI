@@ -1,6 +1,7 @@
 "use client";
 
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 const CATEGORIES = ["General", "OBC", "SC", "ST"] as const;
 
@@ -97,6 +98,74 @@ export function DemographicBreakdown({
           </tr>
         </tbody>
       </table>
+    </div>
+  );
+}
+
+const GRID_FIELDS = [
+  { key: "generalMale", label: "General M" },
+  { key: "generalFemale", label: "General F" },
+  { key: "obcMale", label: "OBC M" },
+  { key: "obcFemale", label: "OBC F" },
+  { key: "scMale", label: "SC M" },
+  { key: "scFemale", label: "SC F" },
+  { key: "stMale", label: "ST M" },
+  { key: "stFemale", label: "ST F" },
+] as const;
+
+/**
+ * Flat General/OBC/SC/ST x Male/Female input grid + three total badges
+ * (Total Male/Total Female/Overall Total) below - the real reference shape
+ * for Training and FLD's own Farmers Details (confirmed live, 2026-09-02),
+ * distinct from the table DemographicBreakdown above renders for CFLD/OFT/
+ * Technology Week/World Soil Day. Kept as its own component rather than a
+ * variant flag on the table, since the two layouts share no markup.
+ */
+export function DemographicGrid({
+  values,
+  onChange,
+}: {
+  values: DemographicValues;
+  onChange: (key: string, value: string) => void;
+}) {
+  const maleTotal = ["generalMale", "obcMale", "scMale", "stMale"].reduce(
+    (sum, key) => sum + n(values, key),
+    0,
+  );
+  const femaleTotal = ["generalFemale", "obcFemale", "scFemale", "stFemale"].reduce(
+    (sum, key) => sum + n(values, key),
+    0,
+  );
+
+  return (
+    <div className="space-y-3">
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+        {GRID_FIELDS.map(({ key, label }) => (
+          <div key={key} className="space-y-1.5">
+            <Label htmlFor={`demo-grid-${key}`}>
+              {label} <span className="text-destructive">*</span>
+            </Label>
+            <Input
+              id={`demo-grid-${key}`}
+              type="number"
+              min="0"
+              value={values[key] ?? ""}
+              onChange={(e) => onChange(key, e.target.value)}
+            />
+          </div>
+        ))}
+      </div>
+      <div className="flex flex-wrap gap-3 pt-1">
+        <span className="rounded-md bg-green-100 px-3 py-1.5 text-xs font-semibold text-green-700">
+          TOTAL MALE {maleTotal}
+        </span>
+        <span className="rounded-md bg-pink-100 px-3 py-1.5 text-xs font-semibold text-pink-700">
+          TOTAL FEMALE {femaleTotal}
+        </span>
+        <span className="rounded-md bg-blue-100 px-3 py-1.5 text-xs font-semibold text-blue-700">
+          OVERALL TOTAL {maleTotal + femaleTotal}
+        </span>
+      </div>
     </div>
   );
 }

@@ -16,23 +16,22 @@ import {
 import { AddLeafPage } from "@/components/data-table/add-leaf-page";
 import { EditLeafPage } from "@/components/data-table/edit-leaf-page";
 import { KvkMasterAddForm } from "@/components/data-table/kvk-master-add-form";
+import { KvkMasterEditForm } from "@/components/data-table/kvk-master-edit-form";
 import { EmployeeDetailsAddForm } from "@/components/data-table/employee-details-add-form";
-import { OftAddForm } from "@/components/data-table/oft-add-form";
+import { OftForm } from "@/components/data-table/oft-form";
+import { FldForm } from "@/components/data-table/fld-form";
+import { CfldTechnicalParameterPage } from "@/components/data-table/cfld-technical-parameter-page";
+import { cfldTabFromQuery } from "@/lib/cfld-technical-parameter-tabs";
 import { TechnicalAchievementSummaryPanel } from "@/components/data-table/technical-achievement-summary-panel";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 
-const EVENT_DEMOGRAPHIC_SLUGS = new Set([
-  "technology-week-celebration",
-  "world-soil-day",
-]);
+/** Technology Week Celebration and World Soil Day moved off the popup EventDemographicDialog onto the generic full-page Add/Edit flow (client direction, 2026-09-02 - see the matching leaf-record-registry.ts comment). Kept as an empty set (rather than deleted outright) since `customForm="event-demographic"` below still exists as a real EmptyDataTable prop, just never triggered now. */
+const EVENT_DEMOGRAPHIC_SLUGS = new Set<string>([]);
 /** View OFT / View FLD only - see EmptyDataTable's `oftFldStatus` prop for the full spec (client pointer, 2026-08-24). */
 const OFT_FLD_STATUS_SLUGS = new Set(["oft", "view-fld"]);
-/** Leaves whose real Add/Edit shape isn't a flat field list - these keep opening their existing bespoke dialog instead of the new full-page Add flow. */
-const CUSTOM_FORM_SLUGS = new Set([
-  "technical-parameter",
-  ...EVENT_DEMOGRAPHIC_SLUGS,
-]);
+/** Leaves whose real Add/Edit shape isn't a flat field list - these keep opening their existing bespoke dialog instead of the new full-page Add flow. CFLD Technical Parameter used to be one of these too, but its own 4-tab shape moved to a dedicated page (CfldTechnicalParameterPage) same as every other leaf, 2026-09-01 - it's handled by its own `node.slug === "technical-parameter"` branches below instead. */
+const CUSTOM_FORM_SLUGS = new Set([...EVENT_DEMOGRAPHIC_SLUGS]);
 
 /**
  * About KVK's 5 sub-groups (Basic Information, Employee Information, Land &
@@ -59,10 +58,30 @@ const ABOUT_KVK_CARD_ONLY_GROUP_SLUGS = new Set([
 
 type FormsPageProps = {
   params: Promise<{ slug: string[] }>;
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 };
 
-export default async function FormsPage({ params }: FormsPageProps) {
+/** One batched query instead of N+1 - groups a pilot leaf's own ModuleImage rows (client PDF, "Module Image workflow", 2026-09-02) by their owning formRecordId so each list row's own Edit page can preload its Photographs section via FormPhotosField's own {url, caption}[] shape. */
+async function moduleImagesByRecord(recordIds: string[]): Promise<Map<string, { url: string; caption: string }[]>> {
+  if (recordIds.length === 0) return new Map();
+  const images = await prisma.moduleImage.findMany({
+    where: { formRecordId: { in: recordIds } },
+    orderBy: { createdAt: "asc" },
+  });
+  const byRecord = new Map<string, { url: string; caption: string }[]>();
+  for (const image of images) {
+    if (!image.formRecordId) continue;
+    const list = byRecord.get(image.formRecordId) ?? [];
+    list.push({ url: image.imageUrl, caption: image.caption });
+    byRecord.set(image.formRecordId, list);
+  }
+  return byRecord;
+}
+
+export default async function FormsPage({ params, searchParams }: FormsPageProps) {
   const { slug: rawSlug } = await params;
+  const { tab: rawTab } = await searchParams;
+  const tab = typeof rawTab === "string" ? rawTab : undefined;
 
   /**
    * "Add New" for Form Management opens a dedicated page instead of the
@@ -105,11 +124,52 @@ export default async function FormsPage({ params }: FormsPageProps) {
           .join("/")}`,
       });
     });
+    const editBackHref = `/forms/${slug.join("/")}`;
+    if (node.slug === "view-kvks") {
+      return (
+        <KvkMasterEditForm
+          trail={editTrail}
+          backHref={editBackHref}
+          id={editId}
+          title="Edit View KVKs"
+        />
+      );
+    }
+    if (node.slug === "technical-parameter") {
+      return (
+        <CfldTechnicalParameterPage
+          trail={editTrail}
+          backHref={editBackHref}
+          id={editId}
+          initialTab={cfldTabFromQuery(tab)}
+        />
+      );
+    }
+    if (node.slug === "oft") {
+      return (
+        <OftForm
+          trail={editTrail}
+          backHref={editBackHref}
+          id={editId}
+          initialView={tab === "result" ? "result" : "oft"}
+        />
+      );
+    }
+    if (node.slug === "view-fld") {
+      return (
+        <FldForm
+          trail={editTrail}
+          backHref={editBackHref}
+          id={editId}
+          initialView={tab === "result" ? "result" : "fld"}
+        />
+      );
+    }
     return (
       <EditLeafPage
         title={node.pageTitle ?? node.label}
         trail={editTrail}
-        backHref={`/forms/${slug.join("/")}`}
+        backHref={editBackHref}
         columns={node.columns}
         recordPath={slug.join("/")}
         id={editId}
@@ -144,7 +204,13 @@ export default async function FormsPage({ params }: FormsPageProps) {
       return <EmployeeDetailsAddForm trail={addTrail} backHref={backHref} />;
     }
     if (node.slug === "oft") {
-      return <OftAddForm trail={addTrail} backHref={backHref} />;
+      return <OftForm trail={addTrail} backHref={backHref} />;
+    }
+    if (node.slug === "view-fld") {
+      return <FldForm trail={addTrail} backHref={backHref} />;
+    }
+    if (node.slug === "technical-parameter") {
+      return <CfldTechnicalParameterPage trail={addTrail} backHref={backHref} />;
     }
     return (
       <AddLeafPage
@@ -247,7 +313,7 @@ export default async function FormsPage({ params }: FormsPageProps) {
         user.role === "KVK_ADMIN" && user.kvkId
           ? { id: user.kvkId }
           : { zoneId: user.zoneId },
-      include: { state: true, district: true, hostOrg: true, zone: true },
+      include: { state: true, district: true, hostOrg: true, zone: true, institute: true },
       orderBy: { name: "asc" },
     });
     formData = {
@@ -259,9 +325,11 @@ export default async function FormsPage({ params }: FormsPageProps) {
         districtName: kvk.district.name,
         kvk: kvk.name,
         mobile: kvk.officePhone ?? "-",
+        fax: kvk.fax ?? "",
         email: kvk.email ?? "",
         address: kvk.address ?? "",
         sanctionYear: kvk.sanctionYear ? String(kvk.sanctionYear) : "",
+        instituteName: kvk.institute?.name ?? "",
       })),
       totalCount: kvks.length,
     };
@@ -557,9 +625,11 @@ export default async function FormsPage({ params }: FormsPageProps) {
       include: { kvk: true },
       orderBy: { createdAt: "desc" },
     });
+    const imagesByRecord = await moduleImagesByRecord(rows.map((r) => r.id));
     formData = {
       rows: rows.map((r) => ({
         id: r.id,
+        moduleImages: JSON.stringify(imagesByRecord.get(r.id) ?? []),
         reportingYear: String(r.reportingYear),
         kvk: r.kvk.name,
         startDate: r.startDate ? r.startDate.toISOString().slice(0, 10) : "",
@@ -593,9 +663,11 @@ export default async function FormsPage({ params }: FormsPageProps) {
       include: { kvk: true },
       orderBy: { createdAt: "desc" },
     });
+    const imagesByRecord = await moduleImagesByRecord(rows.map((r) => r.id));
     formData = {
       rows: rows.map((r) => ({
         id: r.id,
+        moduleImages: JSON.stringify(imagesByRecord.get(r.id) ?? []),
         reportingYear: String(r.reportingYear),
         kvk: r.kvk.name,
         startDate: r.startDate ? r.startDate.toISOString().slice(0, 10) : "",
@@ -658,6 +730,10 @@ export default async function FormsPage({ params }: FormsPageProps) {
         noOfActivities: String(r.noOfActivities),
         relatedCropTechnology: r.relatedCropTechnology ?? "",
         numberOfParticipants: String(r.numberOfParticipants),
+        generalMale: String(r.generalMale), generalFemale: String(r.generalFemale),
+        obcMale: String(r.obcMale), obcFemale: String(r.obcFemale),
+        scMale: String(r.scMale), scFemale: String(r.scFemale),
+        stMale: String(r.stMale), stFemale: String(r.stFemale),
       })),
       totalCount: rows.length,
     };
@@ -750,7 +826,8 @@ export default async function FormsPage({ params }: FormsPageProps) {
       rows: rows.map((r) => ({
         id: r.id,
         kvk: r.kvk.name,
-        reportingYear: String(r.reportingYear),
+        /** Stored as a bare year (Int) but rendered as a real date picker (fieldKind: "date") - see World Soil Day's own identical comment above. */
+        reportingYear: `${r.reportingYear}-01-01`,
         vermicompostingVillagesCovered: String(r.vermicompostingVillagesCovered),
         vermicompostingTotalExpenditure: String(r.vermicompostingTotalExpenditure),
       })),
@@ -817,12 +894,17 @@ export default async function FormsPage({ params }: FormsPageProps) {
       rows: rows.map((r) => ({
         id: r.id,
         kvk: r.kvk.name,
-        reportingYear: r.reportingYear !== null ? String(r.reportingYear) : "",
+        /** Stored as a bare year (Int?) but rendered as a real date picker (fieldKind: "date") - "yyyy-01-01" is a valid value for that input, and parseInt on save reads the year back out regardless of month/day. */
+        reportingYear: r.reportingYear !== null ? `${r.reportingYear}-01-01` : "",
         noOfActivitiesConducted: String(r.noOfActivitiesConducted),
         soilHealthCardsDistributed: String(r.soilHealthCardsDistributed),
         noOfVip: String(r.noOfVip),
         vipNames: r.vipNames ?? "",
         totalParticipants: String(r.totalParticipants),
+        generalMale: String(r.generalMale), generalFemale: String(r.generalFemale),
+        obcMale: String(r.obcMale), obcFemale: String(r.obcFemale),
+        scMale: String(r.scMale), scFemale: String(r.scFemale),
+        stMale: String(r.stMale), stFemale: String(r.stFemale),
       })),
       totalCount: rows.length,
     };
@@ -929,6 +1011,8 @@ export default async function FormsPage({ params }: FormsPageProps) {
         amount: String(r.amount),
         achievement: r.achievement ?? "",
         conferringAuthority: r.conferringAuthority ?? "",
+        // formOnly field - Edit needs the existing photos preloaded, same JSON-array-in-a-string convention as OFT's technologyOptions.
+        photo: JSON.stringify(r.photoUrls),
       })),
       totalCount: rows.length,
     };
@@ -2392,24 +2476,22 @@ export default async function FormsPage({ params }: FormsPageProps) {
           editHrefBase={
             CUSTOM_FORM_SLUGS.has(node.slug) ? undefined : `/forms/${slug.join("/")}`
           }
-          customForm={
-            node.slug === "technical-parameter"
-              ? "cfld-technical-parameter"
-              : EVENT_DEMOGRAPHIC_SLUGS.has(node.slug)
-                ? "event-demographic"
-                : undefined
-          }
+          customForm={EVENT_DEMOGRAPHIC_SLUGS.has(node.slug) ? "event-demographic" : undefined}
           eventSlug={node.slug}
           oftFldStatus={OFT_FLD_STATUS_SLUGS.has(node.slug)}
+          /** OFT's list toolbar has a real "Reporting Year" filter (client-confirmed default-to-current-year); FLD's own reference toolbar does not have one at all (audit finding, 2026-09-02 - was silently hiding real non-current-year FLD data with no visible control explaining why). */
+          reportingYearFilter={node.slug === "oft"}
           resultKind={node.slug === "view-fld" ? "fld" : node.slug === "oft" ? "oft" : undefined}
           staffTransferHistory={node.slug === "staff-transferred"}
-          /** Exact wording from the client's "changes required 1.0.pdf" (2026-08-25, item 4) - each leaf's own note only, no cross-reference to the other leaf. */
+          /** Exact wording from the client's "changes required 1.0.pdf" (2026-08-25, item 4) - each leaf's own note only, no cross-reference to the other leaf. CFLD Technical Parameter's own note is exact text confirmed against the real reference (atari-client.vercel.app, 2026-09-02). */
           note={
             node.slug === "oft"
               ? "Note- Please mark your result as Completed after adding the OFT details."
               : node.slug === "view-fld"
                 ? "Note- Please mark your result as Completed after adding the FLD details."
-                : undefined
+                : node.slug === "technical-parameter"
+                  ? "Note: Please mark your record as completed only after adding Technical + Economic + Socio-Economic + Farmers Perception details."
+                  : undefined
           }
         />
       ) : null}

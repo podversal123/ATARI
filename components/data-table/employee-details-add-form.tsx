@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -8,28 +8,34 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SimpleSelect } from "@/components/ui/simple-select";
 import { PageHeader, type Crumb } from "@/components/layout/page-header";
+import { FileUploadField } from "@/components/data-table/file-upload-field";
+import type { MasterColumn } from "@/lib/navigation";
+
+const PHOTO_COLUMN: MasterColumn = { key: "photo", label: "Photo", fileKind: "image", uploadKind: "staff-photo" };
+const RESUME_COLUMN: MasterColumn = { key: "resume", label: "Resume", fileKind: "document", uploadKind: "staff-resume" };
 
 type EmployeeDetailsAddFormProps = {
   trail: Crumb[];
   backHref: string;
 };
 
-/** Real Sanctioned Post options, confirmed from the client's own "Add Staff" dropdown and staff table (AMS User Manual p.6) plus the live AAMS staff export. */
-const SANCTIONED_POSTS = [
-  "Senior Scientist & Head",
-  "SMS (Subject Matter Speacilist)",
-  "PA (Programme Assistance)",
-  "CP (Computer Programmer)",
-  "Farm Manager",
-  "Assistant",
-  "Stenographer",
-  "Driver",
-];
-
-/** Confirmed from the same taxonomy used everywhere else in this app for demographic reporting (Technical Achievement Summary). */
-const CASTE_CATEGORIES = ["General", "OBC", "SC", "ST"];
-
-const JOB_TYPES = ["Permanent", "Temporary"];
+/** One real All Masters list per dropdown here - fetched live rather than hardcoded, so these track the real Sanctioned Post/Pay Scale/Job Type/Staff Category master lists instead of drifting out of sync with them (client direction, 2026-09-01). Staff Category's real rows are General/OBC/SC/ST - the same reservation-category taxonomy this form's "Caste Category" field already used, confirmed by reading its actual live data rather than assumed from the master's name alone. */
+function useMasterOptions(slug: string) {
+  const [options, setOptions] = useState<string[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+    fetch(`/api/master-options?slug=${slug}`)
+      .then((res) => (res.ok ? res.json() : { rows: [] }))
+      .then((data) => {
+        if (!cancelled) setOptions((data.rows ?? []).map((r: Record<string, string>) => r.name));
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [slug]);
+  return options;
+}
 
 /**
  * Real field set - confirmed against the client's own "Add Staff" screenshot
@@ -44,6 +50,10 @@ export function EmployeeDetailsAddForm({
   backHref,
 }: EmployeeDetailsAddFormProps) {
   const router = useRouter();
+  const sanctionedPosts = useMasterOptions("sanctioned-post");
+  const payScales = useMasterOptions("pay-scale");
+  const jobTypes = useMasterOptions("job-type");
+  const casteCategories = useMasterOptions("staff-category");
   const [sanctionedPost, setSanctionedPost] = useState("");
   const [name, setName] = useState("");
   const [mobile, setMobile] = useState("");
@@ -56,6 +66,8 @@ export function EmployeeDetailsAddForm({
   const [jobType, setJobType] = useState("");
   const [allowances, setAllowances] = useState("");
   const [casteCategory, setCasteCategory] = useState("");
+  const [photo, setPhoto] = useState("");
+  const [resume, setResume] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -72,7 +84,7 @@ export function EmployeeDetailsAddForm({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           path: "about-kvk/employee/employee-details",
-          values: { sanctionedPost, name, mobile, email, payScale, discipline, dateOfBirth, dateOfJoining, jobType, allowances, casteCategory },
+          values: { sanctionedPost, name, mobile, email, payScale, discipline, dateOfBirth, dateOfJoining, jobType, allowances, casteCategory, photo, resume },
         }),
       });
       const data = await response.json();
@@ -107,7 +119,7 @@ export function EmployeeDetailsAddForm({
               value={sanctionedPost}
               onValueChange={setSanctionedPost}
               placeholder="Please Select"
-              options={SANCTIONED_POSTS.map((post) => ({ value: post, label: post }))}
+              options={sanctionedPosts.map((post) => ({ value: post, label: post }))}
               className="h-8"
             />
           </div>
@@ -154,10 +166,13 @@ export function EmployeeDetailsAddForm({
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="staff-pay-scale">Pay Scale</Label>
-            <Input
+            <SimpleSelect
               id="staff-pay-scale"
               value={payScale}
-              onChange={(e) => setPayScale(e.target.value)}
+              onValueChange={setPayScale}
+              placeholder="Please Select"
+              options={payScales.map((scale) => ({ value: scale, label: scale }))}
+              className="h-8"
             />
           </div>
 
@@ -202,7 +217,7 @@ export function EmployeeDetailsAddForm({
               value={jobType}
               onValueChange={setJobType}
               placeholder="Please Select"
-              options={JOB_TYPES.map((type) => ({ value: type, label: type }))}
+              options={jobTypes.map((type) => ({ value: type, label: type }))}
               className="h-8"
             />
           </div>
@@ -223,31 +238,23 @@ export function EmployeeDetailsAddForm({
               value={casteCategory}
               onValueChange={setCasteCategory}
               placeholder="Please Select"
-              options={CASTE_CATEGORIES.map((category) => ({ value: category, label: category }))}
+              options={casteCategories.map((category) => ({ value: category, label: category }))}
               className="h-8"
             />
           </div>
 
-          <div className="space-y-1.5">
-            <Label htmlFor="staff-photo">
-              Photo <span className="text-destructive">*</span>
-            </Label>
-            <input
-              id="staff-photo"
-              type="file"
-              accept="image/*"
-              className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none file:mr-2 file:h-full file:rounded-md file:border-0 file:bg-muted file:px-2 file:text-xs"
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="staff-resume">Resume</Label>
-            <input
-              id="staff-resume"
-              type="file"
-              accept=".pdf,.doc,.docx"
-              className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none file:mr-2 file:h-full file:rounded-md file:border-0 file:bg-muted file:px-2 file:text-xs"
-            />
-          </div>
+          <FileUploadField
+            column={PHOTO_COLUMN}
+            fieldId="staff-photo"
+            value={photo}
+            onChange={setPhoto}
+          />
+          <FileUploadField
+            column={RESUME_COLUMN}
+            fieldId="staff-resume"
+            value={resume}
+            onChange={setResume}
+          />
         </div>
 
         {error && (

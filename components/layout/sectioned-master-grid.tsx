@@ -178,10 +178,12 @@ export function SectionedMasterGrid({
                   : `${basePath}/${group.slug}/${child.slug}`;
                 // Where a leaf's card text differs from its own page title (e.g. card
                 // "Infrastructure Master" vs page "Infrastructure"), the card must show
-                // the card text - that's what `cardLabel` records.
+                // the card text - that's what `cardLabel` records. `cardLinkLabel` is the
+                // rarer case where even the inner link text needs to differ from the
+                // heading above it (see NavLeaf.cardLinkLabel).
                 const cardText =
                   child.type === "leaf"
-                    ? (child.cardLabel ?? child.label)
+                    ? (child.cardLinkLabel ?? child.cardLabel ?? child.label)
                     : child.label;
                 return (
                   <li key={child.slug}>

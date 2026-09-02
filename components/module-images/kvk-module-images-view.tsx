@@ -1,8 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import Link from "next/link";
 import {
+  ChevronDown,
+  ChevronRight,
   Download,
   Eye,
   EyeOff,
@@ -11,11 +12,11 @@ import {
   Filter as FilterIcon,
   ImageOff,
   MoreVertical,
-  Plus,
   RotateCcw,
   Search,
+  Trash2,
 } from "lucide-react";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import {
@@ -24,10 +25,21 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { SelectCategoryDropdown } from "./select-category-dropdown";
 import { MultiFilterSelect } from "@/components/dashboard/multi-filter-select";
 import {
   ALL_CATEGORY_PATHS,
+  MODULE_IMAGE_CATEGORIES,
   MODULE_IMAGE_REPORTING_YEARS,
   type ModuleImageRecord,
 } from "@/lib/module-images";
@@ -35,6 +47,7 @@ import { useSession } from "@/lib/session";
 import { KVK_MASTER_ROWS } from "@/lib/masters";
 import type { MasterColumn } from "@/lib/navigation";
 import { downloadBlob, downloadImageFile } from "@/lib/utils";
+import { MODULE_TREE } from "@/lib/module-tree";
 
 /** Text-only columns for the Excel/PDF export - Image (a raw file URL, not meaningful printed) and Action (page-only) are left out, matching every other export in the app. */
 const EXPORT_COLUMNS: MasterColumn[] = [
@@ -55,6 +68,10 @@ const STATUS_OPTIONS = ["Published", "Not Published"];
  * the caller's own KVK (GET /api/module-images), so there's no client-side
  * KVK filter to apply on top - real backend wired 2026-08-28, replacing
  * the always-empty MODULE_IMAGE_ROWS this used to read from.
+ *
+ * "Bulk Download" now actually zips and downloads the currently filtered
+ * rows (lib/module-images-zip.ts) - it used to be a disabled-looking button
+ * with no onClick at all.
  */
 export function KvkModuleImagesView() {
   const session = useSession();
@@ -148,6 +165,26 @@ export function KvkModuleImagesView() {
     search,
   ]);
 
+  /** Left "Modules" panel (ported from the removed /gallery page, 2026-09-02) - a quicker single-leaf drill-down with live counts, sitting alongside the Category/Form checklist for multi-select power filtering. */
+  const [openModule, setOpenModule] = useState<string | null>(MODULE_TREE[0]?.slug ?? null);
+  const activeLeafPath =
+    selectedCategories.size === 1 ? Array.from(selectedCategories)[0] : null;
+
+  function countForLeaf(path: string) {
+    return rows.filter((row) => {
+      if (row.kvk !== currentKvkName) return false;
+      if (row.categoryPath !== path) return false;
+      if (!selectedYears.has(row.reportingYear)) return false;
+      if (!selectedStatuses.has(isPublished(row) ? "Published" : "Not Published")) return false;
+      if (fromDate && row.date < fromDate) return false;
+      if (toDate && row.date > toDate) return false;
+      return true;
+    }).length;
+  }
+  function countForModule(leaves: { path: string }[]) {
+    return leaves.reduce((sum, leaf) => sum + countForLeaf(leaf.path), 0);
+  }
+
   const exportTitle = `Module Images - ${currentKvkName}`;
   const exportRows = useMemo(
     () =>
@@ -189,6 +226,29 @@ export function KvkModuleImagesView() {
       });
   }
 
+  const [deleteRow, setDeleteRow] = useState<ModuleImageRecord | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  async function confirmDelete() {
+    if (!deleteRow) return;
+    setDeleting(true);
+    setDeleteError(null);
+    try {
+      const res = await fetch(`/api/module-images/${deleteRow.id}`, { method: "DELETE" });
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        throw new Error(data?.error ?? "Could not delete this photograph.");
+      }
+      setDeleteRow(null);
+      loadRows();
+    } catch (error) {
+      setDeleteError(error instanceof Error ? error.message : "Could not delete this photograph.");
+    } finally {
+      setDeleting(false);
+    }
+  }
+
   const [downloadError, setDownloadError] = useState<string | null>(null);
 
   async function handleDownload(row: ModuleImageRecord) {
@@ -200,6 +260,25 @@ export function KvkModuleImagesView() {
     }
   }
 
+  const [bulkDownloading, setBulkDownloading] = useState(false);
+
+  async function handleBulkDownload() {
+    if (filteredRows.length === 0) return;
+    setDownloadError(null);
+    setBulkDownloading(true);
+    try {
+      const { downloadModuleImagesZip } = await import("@/lib/module-images-zip");
+      const { included } = await downloadModuleImagesZip(filteredRows, exportTitle);
+      if (included === 0) {
+        setDownloadError("Could not download any of the selected photographs.");
+      }
+    } catch {
+      setDownloadError("Could not build the ZIP download.");
+    } finally {
+      setBulkDownloading(false);
+    }
+  }
+
   return (
     <div className="space-y-4">
       <div className="rounded-lg border border-border bg-card p-4">
@@ -208,24 +287,15 @@ export function KvkModuleImagesView() {
             <FilterIcon className="size-3.5" />
             Filter Images
           </div>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline-primary"
-              size="sm"
-              onClick={resetFilters}
-              disabled={!hasActiveFilters}
-            >
-              <RotateCcw className="size-3.5" />
-              Reset
-            </Button>
-            <Link
-              href="/module-images/add-image"
-              className={cn(buttonVariants({ size: "sm" }))}
-            >
-              <Plus className="size-3.5" />
-              Add Images
-            </Link>
-          </div>
+          <Button
+            variant="outline-primary"
+            size="sm"
+            onClick={resetFilters}
+            disabled={!hasActiveFilters}
+          >
+            <RotateCcw className="size-3.5" />
+            Reset
+          </Button>
         </div>
 
         <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
@@ -308,7 +378,77 @@ export function KvkModuleImagesView() {
         </p>
       )}
 
-      <div className="rounded-lg border border-border bg-card">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[240px_1fr]">
+        <div className="rounded-lg border border-border bg-card p-3 lg:self-start">
+          <p className="mb-2 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+            Modules
+          </p>
+          <button
+            type="button"
+            onClick={() => setSelectedCategories(new Set(ALL_CATEGORY_PATHS))}
+            className={cn(
+              "flex w-full items-center justify-between rounded-md px-2 py-1.5 text-sm transition-colors",
+              allCategoriesSelected
+                ? "bg-accent font-medium text-accent-foreground"
+                : "text-foreground hover:bg-muted",
+            )}
+          >
+            All modules
+            <span className="text-xs text-muted-foreground">
+              {countForModule(MODULE_IMAGE_CATEGORIES)}
+            </span>
+          </button>
+          <div className="mt-1 space-y-0.5">
+            {MODULE_TREE.map((module) => {
+              const isOpen = openModule === module.slug;
+              return (
+                <div key={module.slug}>
+                  <button
+                    type="button"
+                    onClick={() => setOpenModule((prev) => (prev === module.slug ? null : module.slug))}
+                    title={module.label}
+                    className="flex w-full items-center justify-between gap-2 rounded-md px-2 py-1.5 text-left text-xs font-semibold tracking-wide text-muted-foreground uppercase hover:bg-muted"
+                  >
+                    <span className="flex min-w-0 items-center gap-1">
+                      {isOpen ? (
+                        <ChevronDown className="size-3.5 shrink-0" />
+                      ) : (
+                        <ChevronRight className="size-3.5 shrink-0" />
+                      )}
+                      <span className="min-w-0 truncate">{module.label}</span>
+                    </span>
+                    <span className="shrink-0">{countForModule(module.leaves)}</span>
+                  </button>
+                  {isOpen && (
+                    <div className="ml-4 space-y-0.5 border-l border-border pl-2">
+                      {module.leaves.map((leaf) => (
+                        <button
+                          key={leaf.path}
+                          type="button"
+                          onClick={() => setSelectedCategories(new Set([leaf.path]))}
+                          title={leaf.label}
+                          className={cn(
+                            "flex w-full items-center justify-between gap-2 rounded-md px-2 py-1.5 text-sm transition-colors",
+                            activeLeafPath === leaf.path
+                              ? "bg-accent font-medium text-accent-foreground"
+                              : "text-foreground hover:bg-muted",
+                          )}
+                        >
+                          <span className="min-w-0 truncate">{leaf.label}</span>
+                          <span className="shrink-0 text-xs text-muted-foreground">
+                            {countForLeaf(leaf.path)}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="rounded-lg border border-border bg-card">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border p-4">
           <div>
             <p className="text-sm font-semibold text-foreground">
@@ -355,9 +495,13 @@ export function KvkModuleImagesView() {
               <FileDown className="size-3.5" />
               Export PDF
             </Button>
-            <Button size="sm" disabled={filteredRows.length === 0}>
+            <Button
+              size="sm"
+              disabled={filteredRows.length === 0 || bulkDownloading}
+              onClick={handleBulkDownload}
+            >
               <Download className="size-3.5" />
-              Bulk Download
+              {bulkDownloading ? "Preparing ZIP…" : "Bulk Download"}
             </Button>
           </div>
         </div>
@@ -391,12 +535,9 @@ export function KvkModuleImagesView() {
                     <div className="flex flex-col items-center gap-2">
                       <ImageOff className="size-8 text-muted-foreground/40" />
                       <span>No photographs uploaded yet.</span>
-                      <Link
-                        href="/module-images/add-image"
-                        className="text-xs font-medium text-primary hover:underline"
-                      >
-                        Add your first image
-                      </Link>
+                      <span className="text-xs">
+                        Add photos from the Photographs section at the end of a form (OFT, FLD, Training, Extension Activities).
+                      </span>
                     </div>
                   </td>
                 </tr>
@@ -476,6 +617,13 @@ export function KvkModuleImagesView() {
                             <Download className="size-3.5" />
                             Download
                           </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => setDeleteRow(row)}
+                            className="text-destructive focus:text-destructive"
+                          >
+                            <Trash2 className="size-3.5" />
+                            Delete
+                          </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </td>
@@ -501,7 +649,45 @@ export function KvkModuleImagesView() {
             </Button>
           </div>
         </div>
+        </div>
       </div>
+
+      <AlertDialog
+        open={deleteRow !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setDeleteRow(null);
+            setDeleteError(null);
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this photograph?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {deleteRow ? `${deleteRow.categoryLabel} - ${deleteRow.caption}` : ""}. This cannot
+              be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          {deleteError && (
+            <p role="alert" className="text-sm font-medium text-destructive">
+              {deleteError}
+            </p>
+          )}
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(event) => {
+                event.preventDefault();
+                confirmDelete();
+              }}
+              disabled={deleting}
+            >
+              {deleting ? "Deleting…" : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

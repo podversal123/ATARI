@@ -32,6 +32,88 @@ const date = (v: string | undefined) => (v?.trim() ? new Date(v) : undefined);
 const reqDate = (v: string | undefined) => new Date(v ?? Date.now());
 const bool = (v: string | undefined) => v?.trim().toLowerCase() === "yes" || v?.trim().toLowerCase() === "true";
 
+/** Any `fieldKind: "multi-image"` field (e.g. Farmer Award's Photographs) arrives as one JSON-stringified array of URLs (same convention as OFT's technologyOptions below), since this registry's values are otherwise flat strings. */
+function parsePhotoUrls(raw: string | undefined): string[] {
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed.filter((v): v is string => typeof v === "string" && v.trim().length > 0) : [];
+  } catch {
+    return [];
+  }
+}
+
+/** FormPhotosField's own value shape (one JSON-stringified array field, same convention as parsePhotoUrls above) - each photo carries its own caption, unlike a bare URL list. */
+function parseFormPhotos(raw: string | undefined): { url: string; caption: string }[] {
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter((p): p is { url: string; caption: string } => typeof p?.url === "string" && p.url.trim().length > 0)
+      .map((p) => ({ url: p.url, caption: typeof p.caption === "string" ? p.caption : "" }));
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Real source for Module Images (client PDF, "Module Image workflow",
+ * 2026-09-02): a form's own end-of-form Photographs section, not the
+ * separate standalone Add Images page. Called from a pilot leaf's own
+ * create/update function right after the record itself is saved -
+ * `formRecordId` ties each ModuleImage row back to that specific record so
+ * a later edit can reconcile without touching another record's photos.
+ * Update is a delete-then-recreate (simplest correct reconciliation given
+ * the client always submits the full current photo list, not a diff).
+ */
+async function syncModuleImages(
+  raw: string | undefined,
+  opts: {
+    kvkId: string;
+    zoneId: string;
+    categoryPath: string;
+    categoryLabel: string;
+    reportingYear: number;
+    activityDate: Date;
+    formRecordId: string;
+    uploadedById?: string;
+  },
+) {
+  const photos = parseFormPhotos(raw);
+  await prisma.moduleImage.deleteMany({ where: { formRecordId: opts.formRecordId } });
+  if (photos.length === 0) return;
+  await prisma.moduleImage.createMany({
+    data: photos.map((p) => ({
+      kvkId: opts.kvkId,
+      zoneId: opts.zoneId,
+      categoryPath: opts.categoryPath,
+      categoryLabel: opts.categoryLabel,
+      reportingYear: opts.reportingYear,
+      activityDate: opts.activityDate,
+      caption: p.caption,
+      imageUrl: p.url,
+      published: true,
+      uploadedById: opts.uploadedById,
+      formRecordId: opts.formRecordId,
+    })),
+  });
+}
+
+/** OFT's "Details of technologies selected for assessment/refinement" rows arrive as one JSON-stringified array field (same convention as StaffTransfer's own historyJson) since this registry's values are otherwise flat strings. */
+function parseTechnologyOptions(raw: string | undefined): { label: string; description: string }[] {
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter((t): t is { label: string; description: string } => typeof t?.label === "string" && typeof t?.description === "string")
+      .filter((t) => t.label.trim() && t.description.trim());
+  } catch {
+    return [];
+  }
+}
+
 /** Assembles the General/OBC/SC/ST x Male/Female breakdown from the 8 flat AddLeafPage fields into the farmersByCategory JSON shape (same convention as CfldTechnicalParameter) - undefined when every value is blank, so a record with no demographic data entered doesn't store an empty object. */
 const demographicKeys = ["generalMale", "generalFemale", "obcMale", "obcFemale", "scMale", "scFemale", "stMale", "stFemale"] as const;
 function farmersByCategory(v: Record<string, string>) {
@@ -152,17 +234,20 @@ export const LEAF_RECORD_REGISTRY: Record<string, CreateFn> = {
     }),
 
   // --- Achievements ---
-  "achievements/oft": (v, ctx) =>
-    prisma.oft.create({
+  "achievements/oft": async (v, ctx) => {
+    const oft = await prisma.oft.create({
       data: {
         ...ctx,
         reportingYear: reqInt(v.reportingYear),
+        season: str(v.season),
+        oftSubject: str(v.oftSubject),
         discipline: reqStr(v.discipline),
         staff: reqStr(v.staff),
         thematicArea: reqStr(v.thematicArea),
         trialOnForm: reqStr(v.trialOnForm),
         problemDiagnosed: str(v.problemDiagnosed),
         sourceOfTechnology: str(v.sourceOfTechnology),
+        sourceOfFunding: str(v.sourceOfFunding),
         productionSystem: str(v.productionSystem),
         performanceIndicators: str(v.performanceIndicators),
         finalRecommendation: str(v.finalRecommendation),
@@ -170,6 +255,7 @@ export const LEAF_RECORD_REGISTRY: Record<string, CreateFn> = {
         farmersParticipationProcess: str(v.farmersParticipationProcess),
         quantity: dec(v.quantity),
         unit: str(v.unit),
+        noOfLocation: int(v.noOfLocation),
         noOfTrialReplicationFarmer: int(v.noOfTrialReplicationFarmer),
         startMonth: date(v.startMonth),
         endMonth: date(v.endMonth),
@@ -186,20 +272,62 @@ export const LEAF_RECORD_REGISTRY: Record<string, CreateFn> = {
         stMale: int(v.stMale) ?? 0,
         stFemale: int(v.stFemale) ?? 0,
       },
-    }),
-  "achievements/front-line-demonstration/view-fld": (v, ctx) =>
-    prisma.fld.create({
+    });
+    const technologyOptions = parseTechnologyOptions(v.technologyOptions);
+    if (technologyOptions.length > 0) {
+      await prisma.oftTechnologyOption.createMany({
+        data: technologyOptions.map((t) => ({ oftId: oft.id, zoneId: ctx.zoneId, label: t.label, description: t.description })),
+      });
+    }
+    await syncModuleImages(v.moduleImages, {
+      ...ctx,
+      categoryPath: "achievements/oft",
+      categoryLabel: "Achievements - OFT",
+      reportingYear: oft.reportingYear,
+      activityDate: oft.startMonth ?? new Date(),
+      formRecordId: oft.id,
+    });
+    return oft;
+  },
+  "achievements/front-line-demonstration/view-fld": async (v, ctx) => {
+    const fld = await prisma.fld.create({
       data: {
         ...ctx,
         reportingYear: reqInt(v.reportingYear),
         startDate: date(v.startDate),
         endDate: date(v.endDate),
+        staff: str(v.staff),
+        season: str(v.season),
+        sector: str(v.sector),
+        thematicArea: str(v.thematicArea),
         category: reqStr(v.category),
         subCategory: reqStr(v.subCategory),
+        cropAnimalEnterprise: str(v.cropAnimalEnterprise),
         technologyDemonstrated: reqStr(v.technologyDemonstrated),
+        noOfDemonstration: int(v.noOfDemonstration),
+        unit: str(v.unit),
+        quantity: dec(v.quantity),
+        generalMale: int(v.generalMale) ?? 0,
+        generalFemale: int(v.generalFemale) ?? 0,
+        obcMale: int(v.obcMale) ?? 0,
+        obcFemale: int(v.obcFemale) ?? 0,
+        scMale: int(v.scMale) ?? 0,
+        scFemale: int(v.scFemale) ?? 0,
+        stMale: int(v.stMale) ?? 0,
+        stFemale: int(v.stFemale) ?? 0,
         status: v.status?.toLowerCase().includes("complet") ? "COMPLETED" : "ONGOING",
       },
-    }),
+    });
+    await syncModuleImages(v.moduleImages, {
+      ...ctx,
+      categoryPath: "achievements/front-line-demonstration/view-fld",
+      categoryLabel: "Achievements - Front Line Demonstrations (FLD)",
+      reportingYear: fld.reportingYear,
+      activityDate: fld.startDate ?? new Date(),
+      formRecordId: fld.id,
+    });
+    return fld;
+  },
   "achievements/front-line-demonstration/fld-extension-training": async (v, ctx) => {
     const fld = await prisma.fld.findFirst({ where: { kvkId: ctx.kvkId, technologyDemonstrated: reqStr(v.fldName) } });
     if (!fld) throw new Error("FLD not found");
@@ -214,8 +342,8 @@ export const LEAF_RECORD_REGISTRY: Record<string, CreateFn> = {
       data: { fldId: fld.id, zoneId: ctx.zoneId, crop: reqStr(v.crop), feedback: reqStr(v.feedback) },
     });
   },
-  "achievements/trainings": (v, ctx) =>
-    prisma.training.create({
+  "achievements/trainings": async (v, ctx) => {
+    const training = await prisma.training.create({
       data: {
         ...ctx,
         reportingYear: reqInt(v.reportingYear), startDate: date(v.startDate), endDate: date(v.endDate),
@@ -225,18 +353,43 @@ export const LEAF_RECORD_REGISTRY: Record<string, CreateFn> = {
         courseCoordinator: str(v.courseCoordinator), fundingSource: str(v.fundingSource), fundingAgencyName: str(v.fundingAgencyName),
         ...demographicColumns(v),
       },
-    }),
-  "achievements/extension/extension-activities": (v, ctx) =>
-    prisma.extensionActivity.create({
+    });
+    await syncModuleImages(v.moduleImages, {
+      ...ctx,
+      categoryPath: "achievements/trainings",
+      categoryLabel: "Achievements - Trainings",
+      reportingYear: training.reportingYear,
+      activityDate: training.startDate ?? new Date(),
+      formRecordId: training.id,
+    });
+    return training;
+  },
+  "achievements/extension/extension-activities": async (v, ctx) => {
+    const farmers = demographicColumns(v, "farmers");
+    const officials = demographicColumns(v, "officials");
+    const activity = await prisma.extensionActivity.create({
       data: {
         ...ctx,
-        reportingYear: reqInt(v.reportingYear), startDate: date(v.startDate), endDate: date(v.endDate),
-        natureOfExtensionActivity: reqStr(v.natureOfExtensionActivity), noOfActivities: reqInt(v.noOfActivities), noOfParticipants: reqInt(v.noOfParticipants),
+        /** Server-computed, never trusted from the client - the real Edit form has no Reporting Year/No. of Participants input at all (audit finding, 2026-09-02). Reporting Year comes from Start Date's own year; No. of Participants from the Farmers+Officials totals below. */
+        reportingYear: (date(v.startDate) ?? new Date()).getFullYear(),
+        startDate: date(v.startDate), endDate: date(v.endDate),
+        natureOfExtensionActivity: reqStr(v.natureOfExtensionActivity), noOfActivities: reqInt(v.noOfActivities),
+        noOfParticipants: Object.values({ ...farmers, ...officials }).reduce((sum, n) => sum + n, 0),
         staff: str(v.staff),
-        ...demographicColumns(v, "farmers"),
-        ...demographicColumns(v, "officials"),
+        ...farmers,
+        ...officials,
       },
-    }),
+    });
+    await syncModuleImages(v.moduleImages, {
+      ...ctx,
+      categoryPath: "achievements/extension/extension-activities",
+      categoryLabel: "Achievements - Extension Activities",
+      reportingYear: activity.reportingYear,
+      activityDate: activity.startDate ?? new Date(),
+      formRecordId: activity.id,
+    });
+    return activity;
+  },
   "achievements/extension/other-extension-activities": (v, ctx) =>
     prisma.otherExtensionActivity.create({
       data: {
@@ -254,17 +407,51 @@ export const LEAF_RECORD_REGISTRY: Record<string, CreateFn> = {
         ...demographicColumns(v, "officials"),
       },
     }),
+  /** Moved from the standalone EventDemographicDialog popup to the generic full-page Add/Edit flow (client direction, 2026-09-02: keep it consistent with every other leaf's real full-page pattern, matching the reference). Mirrors app/api/event-demographic/route.ts's own former POST logic - numberOfParticipants stays server-computed from the real breakdown, never trusted from the client. */
+  "achievements/special-days/technology-week-celebration": (v, ctx) => {
+    const demographics = demographicColumns(v);
+    return prisma.technologyWeekCelebration.create({
+      data: {
+        ...ctx,
+        startDate: reqDate(v.startDate), endDate: reqDate(v.endDate),
+        typeOfActivities: reqStr(v.typeOfActivities), noOfActivities: reqInt(v.noOfActivities),
+        relatedCropTechnology: str(v.relatedCropTechnology),
+        numberOfParticipants: Object.values(demographics).reduce((sum, n) => sum + n, 0),
+        ...demographics,
+      },
+    });
+  },
+  "achievements/special-days/world-soil-day": (v, ctx) =>
+    prisma.worldSoilDay.create({
+      data: {
+        ...ctx,
+        reportingYear: int(v.reportingYear),
+        noOfActivitiesConducted: reqInt(v.noOfActivitiesConducted),
+        soilHealthCardsDistributed: reqInt(v.soilHealthCardsDistributed),
+        noOfVip: reqInt(v.noOfVip),
+        vipNames: str(v.vipNames),
+        totalParticipants: reqInt(v.totalParticipants),
+        ...demographicColumns(v),
+      },
+    }),
   "achievements/swachhta-bharat-abhiyaan/sewa": (v, ctx) =>
     prisma.swachhtaObservance.create({
-      data: { ...ctx, kind: "SEWA", dateDurationOfObservation: reqStr(v.dateDurationOfObservation), totalNoOfActivitiesUndertaken: reqInt(v.totalNoOfActivitiesUndertaken), noOfStaffs: reqInt(v.noOfStaffs), noOfFarmers: reqInt(v.noOfFarmers) },
+      data: { ...ctx, kind: "SEWA", dateDurationOfObservation: reqStr(v.dateDurationOfObservation), totalNoOfActivitiesUndertaken: reqInt(v.totalNoOfActivitiesUndertaken), noOfStaffs: reqInt(v.noOfStaffs), noOfFarmers: reqInt(v.noOfFarmers), noOfOthers: reqInt(v.noOfOthers) },
     }),
   "achievements/swachhta-bharat-abhiyaan/pakhwada": (v, ctx) =>
     prisma.swachhtaObservance.create({
-      data: { ...ctx, kind: "PAKHWADA", dateDurationOfObservation: reqStr(v.dateDurationOfObservation), totalNoOfActivitiesUndertaken: reqInt(v.totalNoOfActivitiesUndertaken), noOfStaffs: reqInt(v.noOfStaffs), noOfFarmers: reqInt(v.noOfFarmers) },
+      data: { ...ctx, kind: "PAKHWADA", dateDurationOfObservation: reqStr(v.dateDurationOfObservation), totalNoOfActivitiesUndertaken: reqInt(v.totalNoOfActivitiesUndertaken), noOfStaffs: reqInt(v.noOfStaffs), noOfFarmers: reqInt(v.noOfFarmers), noOfOthers: reqInt(v.noOfOthers) },
     }),
   "achievements/swachhta-bharat-abhiyaan/budget-expenditure": (v, ctx) =>
     prisma.swachhtaBudgetExpenditure.create({
-      data: { ...ctx, reportingYear: reqInt(v.reportingYear), vermicompostingVillagesCovered: reqInt(v.vermicompostingVillagesCovered), vermicompostingTotalExpenditure: reqDec(v.vermicompostingTotalExpenditure) },
+      data: {
+        ...ctx,
+        reportingYear: reqInt(v.reportingYear),
+        vermicompostingVillagesCovered: reqInt(v.vermicompostingVillagesCovered),
+        vermicompostingTotalExpenditure: reqDec(v.vermicompostingTotalExpenditure),
+        otherVillagesCovered: int(v.otherVillagesCovered),
+        otherTotalExpenditure: dec(v.otherTotalExpenditure),
+      },
     }),
   "achievements/special-days/poshan-maaha": (v, ctx) =>
     prisma.poshanMaaha.create({
@@ -286,7 +473,26 @@ export const LEAF_RECORD_REGISTRY: Record<string, CreateFn> = {
     }),
   "achievements/production-supply": (v, ctx) =>
     prisma.technologyProductProduction.create({
-      data: { ...ctx, category: reqStr(v.category), variety: reqStr(v.variety), quantity: reqDec(v.quantity) },
+      data: {
+        ...ctx,
+        reportingDate: date(v.reportingDate),
+        productCategory: str(v.productCategory),
+        productType: str(v.productType),
+        product: str(v.product),
+        category: reqStr(v.category),
+        variety: reqStr(v.variety),
+        unit: str(v.unit),
+        quantity: reqDec(v.quantity),
+        value: dec(v.value),
+        generalMale: int(v.generalMale) ?? 0,
+        generalFemale: int(v.generalFemale) ?? 0,
+        obcMale: int(v.obcMale) ?? 0,
+        obcFemale: int(v.obcFemale) ?? 0,
+        scMale: int(v.scMale) ?? 0,
+        scFemale: int(v.scFemale) ?? 0,
+        stMale: int(v.stMale) ?? 0,
+        stFemale: int(v.stFemale) ?? 0,
+      },
     }),
   "achievements/soil-water/soil-testing-equipment": (v, ctx) =>
     prisma.soilTestingEquipment.create({
@@ -294,11 +500,28 @@ export const LEAF_RECORD_REGISTRY: Record<string, CreateFn> = {
     }),
   "achievements/soil-water/soil-water-testing": (v, ctx) =>
     prisma.soilWaterPlantAnalysis.create({
-      data: { ...ctx, startDate: reqDate(v.startDate), endDate: reqDate(v.endDate), analysis: reqStr(v.analysis), noOfSamplesAnalyzed: reqInt(v.noOfSamplesAnalyzed), noOfVillagesCovered: reqInt(v.noOfVillagesCovered), amountRealized: reqDec(v.amountRealized) },
+      data: {
+        ...ctx,
+        startDate: reqDate(v.startDate),
+        endDate: reqDate(v.endDate),
+        analysis: reqStr(v.analysis),
+        samplesAnalyzedThrough: str(v.samplesAnalyzedThrough),
+        noOfSamplesAnalyzed: reqInt(v.noOfSamplesAnalyzed),
+        noOfVillagesCovered: reqInt(v.noOfVillagesCovered),
+        amountRealized: reqDec(v.amountRealized),
+        generalMale: int(v.generalMale) ?? 0,
+        generalFemale: int(v.generalFemale) ?? 0,
+        obcMale: int(v.obcMale) ?? 0,
+        obcFemale: int(v.obcFemale) ?? 0,
+        scMale: int(v.scMale) ?? 0,
+        scFemale: int(v.scFemale) ?? 0,
+        stMale: int(v.stMale) ?? 0,
+        stFemale: int(v.stFemale) ?? 0,
+      },
     }),
   "achievements/publications": (v, ctx) =>
     prisma.publication.create({
-      data: { ...ctx, itemName: reqStr(v.itemName), title: reqStr(v.title), authorName: reqStr(v.authorName), journalName: str(v.journalName) },
+      data: { ...ctx, reportingDate: date(v.reportingDate), itemName: reqStr(v.itemName), title: reqStr(v.title), authorName: reqStr(v.authorName), journalName: str(v.journalName) },
     }),
   "achievements/hrd": (v, ctx) =>
     prisma.humanResourceDevelopment.create({
@@ -306,15 +529,15 @@ export const LEAF_RECORD_REGISTRY: Record<string, CreateFn> = {
     }),
   "achievements/awards/kvk": (v, ctx) =>
     prisma.kvkAward.create({
-      data: { ...ctx, award: reqStr(v.award), amount: reqDec(v.amount), achievement: str(v.achievement), conferringAuthority: str(v.conferringAuthority) },
+      data: { ...ctx, reportingDate: date(v.reportingDate), award: reqStr(v.award), amount: reqDec(v.amount), achievement: str(v.achievement), conferringAuthority: str(v.conferringAuthority) },
     }),
   "achievements/awards/scientist": (v, ctx) =>
     prisma.scientistAward.create({
-      data: { ...ctx, headScientist: reqStr(v.headScientist), award: reqStr(v.award), amount: reqDec(v.amount), achievement: str(v.achievement), conferringAuthority: str(v.conferringAuthority) },
+      data: { ...ctx, reportingDate: date(v.reportingDate), headScientist: reqStr(v.headScientist), award: reqStr(v.award), amount: reqDec(v.amount), achievement: str(v.achievement), conferringAuthority: str(v.conferringAuthority) },
     }),
   "achievements/awards/farmer": (v, ctx) =>
     prisma.farmerAward.create({
-      data: { ...ctx, farmerName: reqStr(v.farmerName), address: str(v.address), contactNumber: str(v.contactNumber), award: reqStr(v.award), amount: reqDec(v.amount), achievement: str(v.achievement), conferringAuthority: str(v.conferringAuthority) },
+      data: { ...ctx, reportingDate: date(v.reportingDate), farmerName: reqStr(v.farmerName), address: str(v.address), contactNumber: str(v.contactNumber), award: reqStr(v.award), amount: reqDec(v.amount), achievement: str(v.achievement), conferringAuthority: str(v.conferringAuthority), photoUrls: parsePhotoUrls(v.photo) },
     }),
 
   // --- Projects ---
@@ -936,12 +1159,25 @@ export const LEAF_DELETE_REGISTRY: Record<string, DeleteFn> = {
   "about-kvk/equipments/equipment-details": (id, ctx) => prisma.equipmentStatus.deleteMany({ where: { id, equipment: { ...kvkScope(ctx) } } }),
   "about-kvk/employee/employee-details": (id, ctx) => prisma.staff.deleteMany({ where: { id, ...kvkScope(ctx) } }),
 
-  "achievements/oft": (id, ctx) => prisma.oft.deleteMany({ where: { id, ...kvkScope(ctx) } }),
-  "achievements/front-line-demonstration/view-fld": (id, ctx) => prisma.fld.deleteMany({ where: { id, ...kvkScope(ctx) } }),
+  /** Also clears this record's own Module Images (formRecordId) - otherwise deleting the record would leave orphaned photos behind, contradicting the real "images added/removed should reflect automatically" rule. */
+  "achievements/oft": async (id, ctx) => {
+    await prisma.moduleImage.deleteMany({ where: { formRecordId: id } });
+    return prisma.oft.deleteMany({ where: { id, ...kvkScope(ctx) } });
+  },
+  "achievements/front-line-demonstration/view-fld": async (id, ctx) => {
+    await prisma.moduleImage.deleteMany({ where: { formRecordId: id } });
+    return prisma.fld.deleteMany({ where: { id, ...kvkScope(ctx) } });
+  },
   "achievements/front-line-demonstration/fld-extension-training": (id, ctx) => prisma.fldExtensionTraining.deleteMany({ where: { id, fld: { ...kvkScope(ctx) } } }),
   "achievements/front-line-demonstration/fld-technical-feedback": (id, ctx) => prisma.fldTechnicalFeedback.deleteMany({ where: { id, fld: { ...kvkScope(ctx) } } }),
-  "achievements/trainings": (id, ctx) => prisma.training.deleteMany({ where: { id, ...kvkScope(ctx) } }),
-  "achievements/extension/extension-activities": (id, ctx) => prisma.extensionActivity.deleteMany({ where: { id, ...kvkScope(ctx) } }),
+  "achievements/trainings": async (id, ctx) => {
+    await prisma.moduleImage.deleteMany({ where: { formRecordId: id } });
+    return prisma.training.deleteMany({ where: { id, ...kvkScope(ctx) } });
+  },
+  "achievements/extension/extension-activities": async (id, ctx) => {
+    await prisma.moduleImage.deleteMany({ where: { formRecordId: id } });
+    return prisma.extensionActivity.deleteMany({ where: { id, ...kvkScope(ctx) } });
+  },
   "achievements/extension/other-extension-activities": (id, ctx) => prisma.otherExtensionActivity.deleteMany({ where: { id, ...kvkScope(ctx) } }),
   "achievements/special-days/celebration-days": (id, ctx) => prisma.celebrationDay.deleteMany({ where: { id, ...kvkScope(ctx) } }),
   "achievements/swachhta-bharat-abhiyaan/sewa": (id, ctx) => prisma.swachhtaObservance.deleteMany({ where: { id, ...kvkScope(ctx), kind: "SEWA" } }),
@@ -1140,17 +1376,20 @@ export const LEAF_UPDATE_REGISTRY: Record<string, UpdateFn> = {
       data: { transferDate: reqDate(v.transferDate) },
     }),
 
-  "achievements/oft": (id, v, ctx) =>
-    prisma.oft.updateMany({
+  "achievements/oft": async (id, v, ctx) => {
+    const result = await prisma.oft.updateMany({
       where: { id, ...kvkScope(ctx) },
       data: {
         reportingYear: reqInt(v.reportingYear),
+        season: str(v.season),
+        oftSubject: str(v.oftSubject),
         discipline: reqStr(v.discipline),
         staff: reqStr(v.staff),
         thematicArea: reqStr(v.thematicArea),
         trialOnForm: reqStr(v.trialOnForm),
         problemDiagnosed: str(v.problemDiagnosed),
         sourceOfTechnology: str(v.sourceOfTechnology),
+        sourceOfFunding: str(v.sourceOfFunding),
         productionSystem: str(v.productionSystem),
         performanceIndicators: str(v.performanceIndicators),
         finalRecommendation: str(v.finalRecommendation),
@@ -1158,6 +1397,7 @@ export const LEAF_UPDATE_REGISTRY: Record<string, UpdateFn> = {
         farmersParticipationProcess: str(v.farmersParticipationProcess),
         quantity: dec(v.quantity),
         unit: str(v.unit),
+        noOfLocation: int(v.noOfLocation),
         noOfTrialReplicationFarmer: int(v.noOfTrialReplicationFarmer),
         startMonth: date(v.startMonth),
         endMonth: date(v.endMonth),
@@ -1174,20 +1414,75 @@ export const LEAF_UPDATE_REGISTRY: Record<string, UpdateFn> = {
         stMale: int(v.stMale) ?? 0,
         stFemale: int(v.stFemale) ?? 0,
       },
-    }),
-  "achievements/front-line-demonstration/view-fld": (id, v, ctx) =>
-    prisma.fld.updateMany({
+    });
+    if (result.count > 0) {
+      const technologyOptions = parseTechnologyOptions(v.technologyOptions);
+      await prisma.oftTechnologyOption.deleteMany({ where: { oftId: id } });
+      if (technologyOptions.length > 0) {
+        await prisma.oftTechnologyOption.createMany({
+          data: technologyOptions.map((t) => ({ oftId: id, zoneId: ctx.zoneId, label: t.label, description: t.description })),
+        });
+      }
+      const owner = await prisma.oft.findUnique({ where: { id }, select: { kvkId: true } });
+      if (owner) {
+        await syncModuleImages(v.moduleImages, {
+          kvkId: owner.kvkId,
+          zoneId: ctx.zoneId,
+          categoryPath: "achievements/oft",
+          categoryLabel: "Achievements - OFT",
+          reportingYear: reqInt(v.reportingYear),
+          activityDate: date(v.startMonth) ?? new Date(),
+          formRecordId: id,
+        });
+      }
+    }
+    return result;
+  },
+  "achievements/front-line-demonstration/view-fld": async (id, v, ctx) => {
+    const result = await prisma.fld.updateMany({
       where: { id, ...kvkScope(ctx) },
       data: {
         reportingYear: reqInt(v.reportingYear),
         startDate: date(v.startDate),
         endDate: date(v.endDate),
+        staff: str(v.staff),
+        season: str(v.season),
+        sector: str(v.sector),
+        thematicArea: str(v.thematicArea),
         category: reqStr(v.category),
         subCategory: reqStr(v.subCategory),
+        cropAnimalEnterprise: str(v.cropAnimalEnterprise),
         technologyDemonstrated: reqStr(v.technologyDemonstrated),
+        noOfDemonstration: int(v.noOfDemonstration),
+        unit: str(v.unit),
+        quantity: dec(v.quantity),
+        generalMale: int(v.generalMale) ?? 0,
+        generalFemale: int(v.generalFemale) ?? 0,
+        obcMale: int(v.obcMale) ?? 0,
+        obcFemale: int(v.obcFemale) ?? 0,
+        scMale: int(v.scMale) ?? 0,
+        scFemale: int(v.scFemale) ?? 0,
+        stMale: int(v.stMale) ?? 0,
+        stFemale: int(v.stFemale) ?? 0,
         status: v.status?.toLowerCase().includes("complet") ? "COMPLETED" : "ONGOING",
       },
-    }),
+    });
+    if (result.count > 0) {
+      const owner = await prisma.fld.findUnique({ where: { id }, select: { kvkId: true } });
+      if (owner) {
+        await syncModuleImages(v.moduleImages, {
+          kvkId: owner.kvkId,
+          zoneId: ctx.zoneId,
+          categoryPath: "achievements/front-line-demonstration/view-fld",
+          categoryLabel: "Achievements - Front Line Demonstrations (FLD)",
+          reportingYear: reqInt(v.reportingYear),
+          activityDate: date(v.startDate) ?? new Date(),
+          formRecordId: id,
+        });
+      }
+    }
+    return result;
+  },
   "achievements/front-line-demonstration/fld-extension-training": (id, v, ctx) =>
     prisma.fldExtensionTraining.updateMany({
       where: { id, fld: { ...kvkScope(ctx) } },
@@ -1198,8 +1493,8 @@ export const LEAF_UPDATE_REGISTRY: Record<string, UpdateFn> = {
       where: { id, fld: { ...kvkScope(ctx) } },
       data: { crop: reqStr(v.crop), feedback: reqStr(v.feedback) },
     }),
-  "achievements/trainings": (id, v, ctx) =>
-    prisma.training.updateMany({
+  "achievements/trainings": async (id, v, ctx) => {
+    const result = await prisma.training.updateMany({
       where: { id, ...kvkScope(ctx) },
       data: {
         reportingYear: reqInt(v.reportingYear), startDate: date(v.startDate), endDate: date(v.endDate),
@@ -1209,18 +1504,55 @@ export const LEAF_UPDATE_REGISTRY: Record<string, UpdateFn> = {
         courseCoordinator: str(v.courseCoordinator), fundingSource: str(v.fundingSource), fundingAgencyName: str(v.fundingAgencyName),
         ...demographicColumns(v),
       },
-    }),
-  "achievements/extension/extension-activities": (id, v, ctx) =>
-    prisma.extensionActivity.updateMany({
+    });
+    if (result.count > 0) {
+      const owner = await prisma.training.findUnique({ where: { id }, select: { kvkId: true } });
+      if (owner) {
+        await syncModuleImages(v.moduleImages, {
+          kvkId: owner.kvkId,
+          zoneId: ctx.zoneId,
+          categoryPath: "achievements/trainings",
+          categoryLabel: "Achievements - Trainings",
+          reportingYear: reqInt(v.reportingYear),
+          activityDate: date(v.startDate) ?? new Date(),
+          formRecordId: id,
+        });
+      }
+    }
+    return result;
+  },
+  "achievements/extension/extension-activities": async (id, v, ctx) => {
+    const farmers = demographicColumns(v, "farmers");
+    const officials = demographicColumns(v, "officials");
+    const reportingYear = (date(v.startDate) ?? new Date()).getFullYear();
+    const result = await prisma.extensionActivity.updateMany({
       where: { id, ...kvkScope(ctx) },
       data: {
-        reportingYear: reqInt(v.reportingYear), startDate: date(v.startDate), endDate: date(v.endDate),
-        natureOfExtensionActivity: reqStr(v.natureOfExtensionActivity), noOfActivities: reqInt(v.noOfActivities), noOfParticipants: reqInt(v.noOfParticipants),
+        reportingYear,
+        startDate: date(v.startDate), endDate: date(v.endDate),
+        natureOfExtensionActivity: reqStr(v.natureOfExtensionActivity), noOfActivities: reqInt(v.noOfActivities),
+        noOfParticipants: Object.values({ ...farmers, ...officials }).reduce((sum, n) => sum + n, 0),
         staff: str(v.staff),
-        ...demographicColumns(v, "farmers"),
-        ...demographicColumns(v, "officials"),
+        ...farmers,
+        ...officials,
       },
-    }),
+    });
+    if (result.count > 0) {
+      const owner = await prisma.extensionActivity.findUnique({ where: { id }, select: { kvkId: true } });
+      if (owner) {
+        await syncModuleImages(v.moduleImages, {
+          kvkId: owner.kvkId,
+          zoneId: ctx.zoneId,
+          categoryPath: "achievements/extension/extension-activities",
+          categoryLabel: "Achievements - Extension Activities",
+          reportingYear,
+          activityDate: date(v.startDate) ?? new Date(),
+          formRecordId: id,
+        });
+      }
+    }
+    return result;
+  },
   "achievements/extension/other-extension-activities": (id, v, ctx) =>
     prisma.otherExtensionActivity.updateMany({
       where: { id, ...kvkScope(ctx) },
@@ -1238,20 +1570,53 @@ export const LEAF_UPDATE_REGISTRY: Record<string, UpdateFn> = {
         ...demographicColumns(v, "officials"),
       },
     }),
+  /** Mirrors app/api/event-demographic/[id]/route.ts's own former PUT logic - see the matching create-side comment above. */
+  "achievements/special-days/technology-week-celebration": (id, v, ctx) => {
+    const demographics = demographicColumns(v);
+    return prisma.technologyWeekCelebration.updateMany({
+      where: { id, ...kvkScope(ctx) },
+      data: {
+        startDate: reqDate(v.startDate), endDate: reqDate(v.endDate),
+        typeOfActivities: reqStr(v.typeOfActivities), noOfActivities: reqInt(v.noOfActivities),
+        relatedCropTechnology: str(v.relatedCropTechnology),
+        numberOfParticipants: Object.values(demographics).reduce((sum, n) => sum + n, 0),
+        ...demographics,
+      },
+    });
+  },
+  "achievements/special-days/world-soil-day": (id, v, ctx) =>
+    prisma.worldSoilDay.updateMany({
+      where: { id, ...kvkScope(ctx) },
+      data: {
+        reportingYear: int(v.reportingYear),
+        noOfActivitiesConducted: reqInt(v.noOfActivitiesConducted),
+        soilHealthCardsDistributed: reqInt(v.soilHealthCardsDistributed),
+        noOfVip: reqInt(v.noOfVip),
+        vipNames: str(v.vipNames),
+        totalParticipants: reqInt(v.totalParticipants),
+        ...demographicColumns(v),
+      },
+    }),
   "achievements/swachhta-bharat-abhiyaan/sewa": (id, v, ctx) =>
     prisma.swachhtaObservance.updateMany({
       where: { id, ...kvkScope(ctx), kind: "SEWA" },
-      data: { dateDurationOfObservation: reqStr(v.dateDurationOfObservation), totalNoOfActivitiesUndertaken: reqInt(v.totalNoOfActivitiesUndertaken), noOfStaffs: reqInt(v.noOfStaffs), noOfFarmers: reqInt(v.noOfFarmers) },
+      data: { dateDurationOfObservation: reqStr(v.dateDurationOfObservation), totalNoOfActivitiesUndertaken: reqInt(v.totalNoOfActivitiesUndertaken), noOfStaffs: reqInt(v.noOfStaffs), noOfFarmers: reqInt(v.noOfFarmers), noOfOthers: reqInt(v.noOfOthers) },
     }),
   "achievements/swachhta-bharat-abhiyaan/pakhwada": (id, v, ctx) =>
     prisma.swachhtaObservance.updateMany({
       where: { id, ...kvkScope(ctx), kind: "PAKHWADA" },
-      data: { dateDurationOfObservation: reqStr(v.dateDurationOfObservation), totalNoOfActivitiesUndertaken: reqInt(v.totalNoOfActivitiesUndertaken), noOfStaffs: reqInt(v.noOfStaffs), noOfFarmers: reqInt(v.noOfFarmers) },
+      data: { dateDurationOfObservation: reqStr(v.dateDurationOfObservation), totalNoOfActivitiesUndertaken: reqInt(v.totalNoOfActivitiesUndertaken), noOfStaffs: reqInt(v.noOfStaffs), noOfFarmers: reqInt(v.noOfFarmers), noOfOthers: reqInt(v.noOfOthers) },
     }),
   "achievements/swachhta-bharat-abhiyaan/budget-expenditure": (id, v, ctx) =>
     prisma.swachhtaBudgetExpenditure.updateMany({
       where: { id, ...kvkScope(ctx) },
-      data: { reportingYear: reqInt(v.reportingYear), vermicompostingVillagesCovered: reqInt(v.vermicompostingVillagesCovered), vermicompostingTotalExpenditure: reqDec(v.vermicompostingTotalExpenditure) },
+      data: {
+        reportingYear: reqInt(v.reportingYear),
+        vermicompostingVillagesCovered: reqInt(v.vermicompostingVillagesCovered),
+        vermicompostingTotalExpenditure: reqDec(v.vermicompostingTotalExpenditure),
+        otherVillagesCovered: int(v.otherVillagesCovered),
+        otherTotalExpenditure: dec(v.otherTotalExpenditure),
+      },
     }),
   "achievements/special-days/poshan-maaha": (id, v, ctx) =>
     prisma.poshanMaaha.updateMany({
@@ -1272,27 +1637,64 @@ export const LEAF_UPDATE_REGISTRY: Record<string, UpdateFn> = {
       },
     }),
   "achievements/production-supply": (id, v, ctx) =>
-    prisma.technologyProductProduction.updateMany({ where: { id, ...kvkScope(ctx) }, data: { category: reqStr(v.category), variety: reqStr(v.variety), quantity: reqDec(v.quantity) } }),
+    prisma.technologyProductProduction.updateMany({
+      where: { id, ...kvkScope(ctx) },
+      data: {
+        reportingDate: date(v.reportingDate),
+        productCategory: str(v.productCategory),
+        productType: str(v.productType),
+        product: str(v.product),
+        category: reqStr(v.category),
+        variety: reqStr(v.variety),
+        unit: str(v.unit),
+        quantity: reqDec(v.quantity),
+        value: dec(v.value),
+        generalMale: int(v.generalMale) ?? 0,
+        generalFemale: int(v.generalFemale) ?? 0,
+        obcMale: int(v.obcMale) ?? 0,
+        obcFemale: int(v.obcFemale) ?? 0,
+        scMale: int(v.scMale) ?? 0,
+        scFemale: int(v.scFemale) ?? 0,
+        stMale: int(v.stMale) ?? 0,
+        stFemale: int(v.stFemale) ?? 0,
+      },
+    }),
   "achievements/soil-water/soil-testing-equipment": (id, v, ctx) =>
     prisma.soilTestingEquipment.updateMany({ where: { id, ...kvkScope(ctx) }, data: { analysis: reqStr(v.analysis), equipmentName: reqStr(v.equipmentName), quantity: reqInt(v.quantity) } }),
   "achievements/soil-water/soil-water-testing": (id, v, ctx) =>
     prisma.soilWaterPlantAnalysis.updateMany({
       where: { id, ...kvkScope(ctx) },
-      data: { startDate: reqDate(v.startDate), endDate: reqDate(v.endDate), analysis: reqStr(v.analysis), noOfSamplesAnalyzed: reqInt(v.noOfSamplesAnalyzed), noOfVillagesCovered: reqInt(v.noOfVillagesCovered), amountRealized: reqDec(v.amountRealized) },
+      data: {
+        startDate: reqDate(v.startDate),
+        endDate: reqDate(v.endDate),
+        analysis: reqStr(v.analysis),
+        samplesAnalyzedThrough: str(v.samplesAnalyzedThrough),
+        noOfSamplesAnalyzed: reqInt(v.noOfSamplesAnalyzed),
+        noOfVillagesCovered: reqInt(v.noOfVillagesCovered),
+        amountRealized: reqDec(v.amountRealized),
+        generalMale: int(v.generalMale) ?? 0,
+        generalFemale: int(v.generalFemale) ?? 0,
+        obcMale: int(v.obcMale) ?? 0,
+        obcFemale: int(v.obcFemale) ?? 0,
+        scMale: int(v.scMale) ?? 0,
+        scFemale: int(v.scFemale) ?? 0,
+        stMale: int(v.stMale) ?? 0,
+        stFemale: int(v.stFemale) ?? 0,
+      },
     }),
   "achievements/publications": (id, v, ctx) =>
-    prisma.publication.updateMany({ where: { id, ...kvkScope(ctx) }, data: { itemName: reqStr(v.itemName), title: reqStr(v.title), authorName: reqStr(v.authorName), journalName: str(v.journalName) } }),
+    prisma.publication.updateMany({ where: { id, ...kvkScope(ctx) }, data: { reportingDate: date(v.reportingDate), itemName: reqStr(v.itemName), title: reqStr(v.title), authorName: reqStr(v.authorName), journalName: str(v.journalName) } }),
   "achievements/hrd": (id, v, ctx) =>
     prisma.humanResourceDevelopment.updateMany({
       where: { id, ...kvkScope(ctx) },
       data: { staff: reqStr(v.staff), course: reqStr(v.course), startDate: date(v.startDate), endDate: date(v.endDate), venue: str(v.venue), organizer: str(v.organizer) },
     }),
   "achievements/awards/kvk": (id, v, ctx) =>
-    prisma.kvkAward.updateMany({ where: { id, ...kvkScope(ctx) }, data: { award: reqStr(v.award), amount: reqDec(v.amount), achievement: str(v.achievement), conferringAuthority: str(v.conferringAuthority) } }),
+    prisma.kvkAward.updateMany({ where: { id, ...kvkScope(ctx) }, data: { reportingDate: date(v.reportingDate), award: reqStr(v.award), amount: reqDec(v.amount), achievement: str(v.achievement), conferringAuthority: str(v.conferringAuthority) } }),
   "achievements/awards/scientist": (id, v, ctx) =>
-    prisma.scientistAward.updateMany({ where: { id, ...kvkScope(ctx) }, data: { headScientist: reqStr(v.headScientist), award: reqStr(v.award), amount: reqDec(v.amount), achievement: str(v.achievement), conferringAuthority: str(v.conferringAuthority) } }),
+    prisma.scientistAward.updateMany({ where: { id, ...kvkScope(ctx) }, data: { reportingDate: date(v.reportingDate), headScientist: reqStr(v.headScientist), award: reqStr(v.award), amount: reqDec(v.amount), achievement: str(v.achievement), conferringAuthority: str(v.conferringAuthority) } }),
   "achievements/awards/farmer": (id, v, ctx) =>
-    prisma.farmerAward.updateMany({ where: { id, ...kvkScope(ctx) }, data: { farmerName: reqStr(v.farmerName), address: str(v.address), contactNumber: str(v.contactNumber), award: reqStr(v.award), amount: reqDec(v.amount), achievement: str(v.achievement), conferringAuthority: str(v.conferringAuthority) } }),
+    prisma.farmerAward.updateMany({ where: { id, ...kvkScope(ctx) }, data: { reportingDate: date(v.reportingDate), farmerName: reqStr(v.farmerName), address: str(v.address), contactNumber: str(v.contactNumber), award: reqStr(v.award), amount: reqDec(v.amount), achievement: str(v.achievement), conferringAuthority: str(v.conferringAuthority), photoUrls: parsePhotoUrls(v.photo) } }),
 
   "projects/cfld/extension-activity-cfld": (id, v, ctx) =>
     prisma.cfldExtensionActivity.updateMany({
@@ -1775,16 +2177,5 @@ export const LEAF_UPDATE_REGISTRY: Record<string, UpdateFn> = {
         messagesAwareness: int(v.messagesAwareness) ?? 0,
         messagesOtherEnterprises: int(v.messagesOtherEnterprises) ?? 0,
       },
-    }),
-
-  "achievements/special-days/technology-week-celebration": (id, v, ctx) =>
-    prisma.technologyWeekCelebration.updateMany({
-      where: { id, ...kvkScope(ctx) },
-      data: { startDate: reqDate(v.startDate), endDate: reqDate(v.endDate), typeOfActivities: reqStr(v.typeOfActivities), noOfActivities: reqInt(v.noOfActivities), relatedCropTechnology: str(v.relatedCropTechnology), numberOfParticipants: reqInt(v.numberOfParticipants) },
-    }),
-  "achievements/special-days/world-soil-day": (id, v, ctx) =>
-    prisma.worldSoilDay.updateMany({
-      where: { id, ...kvkScope(ctx) },
-      data: { noOfActivitiesConducted: reqInt(v.noOfActivitiesConducted), soilHealthCardsDistributed: reqInt(v.soilHealthCardsDistributed), noOfVip: reqInt(v.noOfVip), vipNames: str(v.vipNames), totalParticipants: reqInt(v.totalParticipants) },
     }),
 };

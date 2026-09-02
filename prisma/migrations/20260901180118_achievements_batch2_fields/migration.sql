@@ -1,0 +1,53 @@
+-- AlterTable
+ALTER TABLE "FarmerAward" ADD COLUMN     "reportingDate" TIMESTAMP(3);
+
+-- AlterTable
+ALTER TABLE "Fld" ADD COLUMN     "cropAnimalEnterprise" TEXT,
+ADD COLUMN     "generalFemale" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN     "generalMale" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN     "noOfDemonstration" INTEGER,
+ADD COLUMN     "obcFemale" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN     "obcMale" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN     "quantity" DECIMAL(10,2),
+ADD COLUMN     "scFemale" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN     "scMale" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN     "season" TEXT,
+ADD COLUMN     "sector" TEXT,
+ADD COLUMN     "stFemale" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN     "stMale" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN     "staff" TEXT,
+ADD COLUMN     "thematicArea" TEXT,
+ADD COLUMN     "unit" TEXT;
+
+-- AlterTable
+ALTER TABLE "KvkAward" ADD COLUMN     "reportingDate" TIMESTAMP(3);
+
+-- AlterTable
+ALTER TABLE "ScientistAward" ADD COLUMN     "reportingDate" TIMESTAMP(3);
+
+-- AlterTable
+ALTER TABLE "SoilWaterPlantAnalysis" ADD COLUMN     "generalFemale" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN     "generalMale" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN     "obcFemale" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN     "obcMale" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN     "samplesAnalyzedThrough" TEXT,
+ADD COLUMN     "scFemale" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN     "scMale" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN     "stFemale" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN     "stMale" INTEGER NOT NULL DEFAULT 0;
+
+-- AlterTable
+ALTER TABLE "TechnologyProductProduction" ADD COLUMN     "generalFemale" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN     "generalMale" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN     "obcFemale" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN     "obcMale" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN     "product" TEXT,
+ADD COLUMN     "productCategory" TEXT,
+ADD COLUMN     "productType" TEXT,
+ADD COLUMN     "reportingDate" TIMESTAMP(3),
+ADD COLUMN     "scFemale" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN     "scMale" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN     "stFemale" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN     "stMale" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN     "unit" TEXT,
+ADD COLUMN     "value" DECIMAL(14,2);

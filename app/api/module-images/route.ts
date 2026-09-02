@@ -7,24 +7,17 @@ import { REPORT_FORM_LEAVES } from "@/lib/reports";
  * Real backend for "Module Images UI.pdf" (2026-08-28) - was UI-only before
  * (lib/module-images.ts's MODULE_IMAGE_ROWS stayed a hardcoded empty
  * array). A KVK Admin uploads photographs against a Form Management
- * category; Super Admin only ever browses/downloads across every KVK,
- * never uploads (spec section 1) - GET serves both, POST is KVK-only.
- *
- * `?published=true` (the Gallery page) switches to a different scope: every
- * published photo across the whole zone, for either role - a photo only
- * ever gets published once its own KVK (or Super Admin) has already opted
- * to share it, so zone-wide visibility at that point isn't a privacy gap,
- * unlike the default "my own KVK's uploads, any publish state" scope above.
+ * category and sees only their own KVK's uploads (any publish state);
+ * Super Admin browses/downloads every KVK's uploads across the zone, never
+ * uploads (spec section 1) - GET serves both, POST is KVK-only.
  */
-export async function GET(request: Request) {
+export async function GET() {
   const auth = await requireSession();
   if (!auth.ok) return auth.response;
 
-  const publishedOnly = new URL(request.url).searchParams.get("published") === "true";
   const isKvkAdmin = auth.session.role === "KVK_ADMIN";
-  const where = publishedOnly
-    ? { zoneId: auth.session.zoneId, published: true }
-    : isKvkAdmin && auth.session.kvkId
+  const where =
+    isKvkAdmin && auth.session.kvkId
       ? { kvkId: auth.session.kvkId }
       : { zoneId: auth.session.zoneId };
 
