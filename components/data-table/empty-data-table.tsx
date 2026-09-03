@@ -27,6 +27,7 @@ import {
 import type { SidebarIconName } from "@/lib/navigation";
 import { SIDEBAR_ICONS } from "@/components/layout/sidebar-icons";
 import { reportSubsectionForLeaf } from "@/lib/report-section-map";
+import type { ReportSection, ReportTable } from "@/lib/report-types";
 import { cn, downloadBlob } from "@/lib/utils";
 import { useSession } from "@/lib/session";
 import { Input } from "@/components/ui/input";
@@ -664,6 +665,84 @@ export function EmptyDataTable({
   }
 
   /**
+   * Applies the list's live filters (per-column value selections, the search
+   * box, the reporting-year filter, the date range) to a fetched report
+   * subtree so a "Download" from a filtered Form Management list produces a
+   * report of just those rows - not the whole zone. Only flat grid tables
+   * (columns + rows) are narrowed here; a single-KVK selection is also pushed
+   * down to the server via ?kvk= so grouped/aggregated tables rebuild at that
+   * scope. Report columns are matched to list columns by their shared label.
+   */
+  function scopeReportSectionsToFilters(sections: ReportSection[]): ReportSection[] {
+    const activeSelections = Object.entries(columnFilters)
+      .filter(([, s]) => s.selected !== null)
+      .map(([key, s]) => {
+        const col = columns.find((c) => c.key === key);
+        return col ? { label: col.label, allowed: s.selected as Set<string> } : null;
+      })
+      .filter((x): x is { label: string; allowed: Set<string> } => x !== null);
+    const q = search.trim().toLowerCase();
+    const yearActive = Boolean(reportingYearFilter);
+    const dateLabels = tableColumns
+      .filter((c) => c.key === "date" || /Date$/.test(c.key))
+      .map((c) => c.label);
+
+    if (activeSelections.length === 0 && !q && !yearActive && !hasActiveDates) {
+      return sections;
+    }
+
+    const scopeTable = (table: ReportTable): ReportTable => {
+      // Grouped (blocks) / pair tables and already-empty grids are left alone -
+      // only a plain columns+rows grid can be safely row-filtered by label.
+      if (table.blocks?.length || table.pairs?.length || table.rows.length === 0) {
+        return table;
+      }
+      const cols = table.columns;
+      const keyByLabel = new Map(cols.map((c) => [c.label, c.key]));
+      let rows = table.rows;
+      for (const { label, allowed } of activeSelections) {
+        const k = keyByLabel.get(label);
+        if (k) rows = rows.filter((r) => allowed.has(String(r[k] ?? "")));
+      }
+      if (yearActive) {
+        const k = keyByLabel.get("Reporting Year") ?? keyByLabel.get("Year");
+        if (k) rows = rows.filter((r) => String(r[k] ?? "") === reportingYear);
+      }
+      if (hasActiveDates) {
+        const dateKeys = dateLabels
+          .map((l) => keyByLabel.get(l))
+          .filter((k): k is string => Boolean(k));
+        if (dateKeys.length > 0) {
+          rows = rows.filter((r) =>
+            dateKeys.some((k) => {
+              const v = String(r[k] ?? "").slice(0, 10);
+              if (!v) return false;
+              if (fromDate && v < fromDate) return false;
+              if (toDate && v > toDate) return false;
+              return true;
+            }),
+          );
+        }
+      }
+      if (q) {
+        rows = rows.filter((r) =>
+          cols.some((c) => String(r[c.key] ?? "").toLowerCase().includes(q)),
+        );
+      }
+      if (rows === table.rows) return table;
+      return { ...table, rows, totalRow: undefined };
+    };
+
+    return sections.map((section) => ({
+      ...section,
+      subsections: section.subsections.map((sub) => ({
+        ...sub,
+        tables: sub.tables.map(scopeTable),
+      })),
+    }));
+  }
+
+  /**
    * The big-report subsection subtree for a mapped Form Management leaf,
    * rendered exactly like the Super Admin report (headings, grouped tables,
    * clickable contents) via the shared report renderers.
@@ -672,23 +751,54 @@ export function EmptyDataTable({
     if (!reportRef || !recordPath) return;
     setReportExport(format);
     try {
-      const res = await fetch(`/api/reports/generate?subsection=${encodeURIComponent(recordPath)}`);
+      /**
+       * A per-column filter that narrows a KVK-name column down to a single
+       * KVK is pushed to the server so grouped/aggregated tables rebuild at
+       * that scope (the same path the Reports page's KVK dropdown uses).
+       */
+      const kvkFilterCol = columns.find(
+        (c) =>
+          (c.key === "kvk" || c.key === "kvkName" || /kvk.*name/i.test(c.label)) &&
+          columnFilters[c.key]?.selected != null,
+      );
+      const kvkSelected = kvkFilterCol
+        ? Array.from(columnFilters[kvkFilterCol.key].selected as Set<string>)
+        : [];
+      const query = new URLSearchParams({ subsection: recordPath });
+      if (kvkSelected.length === 1) query.set("kvk", kvkSelected[0]);
+      /**
+       * The list's reporting-period control (OFT's "Reporting Year" dropdown,
+       * or the From/To date range) is pushed to the server so the report is
+       * built for that period only - a year maps to its Jan-Dec span.
+       */
+      if (reportingYearFilter && reportingYear) {
+        query.set("from", `${reportingYear}-01-01`);
+        query.set("to", `${reportingYear}-12-31`);
+      } else if (hasActiveDates) {
+        if (fromDate) query.set("from", fromDate);
+        if (toDate) query.set("to", toDate);
+      }
+
+      const res = await fetch(`/api/reports/generate?${query.toString()}`);
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error ?? "Could not build the report.");
       if (data.matched === false || !data.sections?.length) {
         await downloadFlat(format);
         return;
       }
+      const sections = scopeReportSectionsToFilters(data.sections as ReportSection[]);
+      const kvkNames: string[] =
+        kvkSelected.length > 0 ? kvkSelected : ((data.kvkNames ?? []) as string[]);
       const stamp = new Date().toISOString().slice(0, 10);
       const fileBase = `${reportRef.label.replace(/[^\w]+/g, "-")}-Report-${stamp}`;
       const { prefetchReportImages } = await import("@/lib/report-images");
       const common = {
         title: `${reportRef.label} - ATARI AMS Report`,
         zoneLabel: data.zoneLabel as string,
-        reportingYearLabel: "All Data",
-        kvkNames: (data.kvkNames ?? []) as string[],
-        sections: data.sections,
-        images: await prefetchReportImages(data.sections),
+        reportingYearLabel: (data.periodLabel as string) || (reportingYearFilter ? reportingYear : "All Data"),
+        kvkNames,
+        sections,
+        images: await prefetchReportImages(sections),
       };
       if (format === "pdf") {
         const { generateReportPdf } = await import("@/lib/report-pdf");

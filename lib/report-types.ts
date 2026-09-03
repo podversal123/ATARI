@@ -6,7 +6,24 @@
  * dragging the server data layer along.
  */
 
-export type ReportScope = { kvkId?: string; zoneId: string };
+/**
+ * `fromDate` / `toDate` are inclusive ISO `YYYY-MM-DD` bounds for the
+ * report's reporting period, threaded down to every list-style report table
+ * (see `periodClause` in lib/report-data.ts). Omitted = the whole history,
+ * the "All Data" report. A model that has a real reporting-year column is
+ * bounded by year; one with an activity date is bounded by that date; a
+ * point-in-time roster (Staff, Land, ...) is never period-filtered.
+ */
+export type ReportScope = { kvkId?: string; zoneId: string; fromDate?: string; toDate?: string };
+
+/** Human label for a reporting period - "2026" / "2024 - 2026" / "All Data". */
+export function reportPeriodLabel(fromDate?: string, toDate?: string): string {
+  const y1 = fromDate ? fromDate.slice(0, 4) : "";
+  const y2 = toDate ? toDate.slice(0, 4) : "";
+  if (!y1 && !y2) return "All Data";
+  if (y1 && y2) return y1 === y2 ? y1 : `${y1} - ${y2}`;
+  return y1 || y2;
+}
 
 export type ReportCell = Record<string, string>;
 

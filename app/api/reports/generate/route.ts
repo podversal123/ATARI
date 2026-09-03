@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/api-auth";
 import { buildReportSections } from "@/lib/report-data";
 import { zoneReportLabel } from "@/lib/reports";
+import { reportPeriodLabel } from "@/lib/report-types";
 import { pruneToSubsection, reportSubsectionForLeaf } from "@/lib/report-section-map";
 
 /**
@@ -26,6 +27,10 @@ export async function GET(request: Request) {
   const url = new URL(request.url);
   const kvkNameFilter = url.searchParams.get("kvk");
   const subsectionLeaf = url.searchParams.get("subsection");
+  /** Inclusive YYYY-MM-DD reporting-period bounds - the Reports filter's own From/To, and the Form Management list's date range / reporting-year. Ignored unless well-formed. */
+  const isoDate = (v: string | null) => (v && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : undefined);
+  const fromDate = isoDate(url.searchParams.get("from"));
+  const toDate = isoDate(url.searchParams.get("to"));
   const isKvkScoped = auth.session.role !== "SUPER_ADMIN";
 
   let kvkId: string | undefined = isKvkScoped ? auth.session.kvkId ?? undefined : undefined;
@@ -46,7 +51,7 @@ export async function GET(request: Request) {
     }),
   ]);
 
-  let sections = await buildReportSections({ kvkId, zoneId: auth.session.zoneId });
+  let sections = await buildReportSections({ kvkId, zoneId: auth.session.zoneId, fromDate, toDate });
 
   let matched: boolean | undefined;
   if (subsectionLeaf) {
@@ -63,6 +68,7 @@ export async function GET(request: Request) {
   return NextResponse.json({
     zoneLabel: zone?.name ? zoneReportLabel(zone.name) : "ATARI",
     kvkNames: kvks.map((k) => k.name),
+    periodLabel: reportPeriodLabel(fromDate, toDate),
     sections,
     ...(matched === undefined ? {} : { matched }),
   });

@@ -17,11 +17,9 @@ import {
 import { ReportHeaderBar } from "./report-header-bar";
 import { SelectFormDropdown } from "./select-form-dropdown";
 
-function firstOfMonth(): string {
+function firstOfYear(): string {
   const now = new Date();
-  return new Date(now.getFullYear(), now.getMonth(), 1)
-    .toISOString()
-    .slice(0, 10);
+  return new Date(now.getFullYear(), 0, 1).toISOString().slice(0, 10);
 }
 function today(): string {
   return new Date().toISOString().slice(0, 10);
@@ -51,9 +49,9 @@ export function KvkReportView({ kvkName }: KvkReportViewProps) {
   const [selectedForms, setSelectedForms] = useState<Set<string>>(
     new Set(ALL_FORM_PATHS),
   );
-  const [fromDate, setFromDate] = useState(firstOfMonth());
+  const [fromDate, setFromDate] = useState(firstOfYear());
   const [toDate, setToDate] = useState(today());
-  const [quickSelect, setQuickSelect] = useState<QuickSelectRange>("custom");
+  const [quickSelect, setQuickSelect] = useState<QuickSelectRange>("this-year");
   const [validationError, setValidationError] = useState<string | null>(null);
 
   const selectedFormLabel =
@@ -82,9 +80,9 @@ export function KvkReportView({ kvkName }: KvkReportViewProps) {
 
   function resetFilters() {
     setSelectedForms(new Set(ALL_FORM_PATHS));
-    setFromDate(firstOfMonth());
+    setFromDate(firstOfYear());
     setToDate(today());
-    setQuickSelect("custom");
+    setQuickSelect("this-year");
     setValidationError(null);
   }
 
