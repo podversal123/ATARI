@@ -287,6 +287,17 @@ export default function DashboardPage() {
 
   const isKvkAdmin = session.role === "kvk-admin";
 
+  /** Changes only when a filter changes (not on the 20s poll) - drives each progress card's pagination reset so switching a filter never strands the user on a now-empty page. */
+  const sharedFilterKey = JSON.stringify({
+    y: Array.from(yearFilter).sort(),
+    k: Array.from(kvkFilter).sort(),
+  });
+  const trainingFilterKey =
+    sharedFilterKey +
+    JSON.stringify([...trainingClientele].sort()) +
+    JSON.stringify([...trainingVenue].sort());
+  const extensionFilterKey = sharedFilterKey + JSON.stringify([...extensionNature].sort());
+
   const statCards = [
     { icon: BarChart3, label: "KVK", value: stats.totalKvks, href: "/forms/about-kvk/basic/view-kvks" },
     { icon: Users, label: "Total OFT", value: stats.oft.total, href: "/forms/achievements/oft" },
@@ -389,6 +400,7 @@ export default function DashboardPage() {
           }
           showAllLabel={`Show all (${stats.charts.oft.length})`}
           detailedHref="/dashboard/analytics/oft"
+          resetKey={sharedFilterKey}
         />
         <ProgressChartCard
           title="FLD Progress"
@@ -407,6 +419,7 @@ export default function DashboardPage() {
           }
           showAllLabel={`Show all (${stats.charts.fld.length})`}
           detailedHref="/dashboard/analytics/fld"
+          resetKey={sharedFilterKey}
         />
         <ProgressChartCard
           title="Training Progress"
@@ -444,6 +457,7 @@ export default function DashboardPage() {
           }
           showAllLabel={`Show all (${stats.charts.training.length})`}
           detailedHref="/dashboard/analytics/training"
+          resetKey={trainingFilterKey}
         />
         <ProgressChartCard
           title="Extension Activities Progress"
@@ -472,6 +486,7 @@ export default function DashboardPage() {
           }
           showAllLabel={`Show all (${stats.charts.extension.length})`}
           detailedHref="/dashboard/analytics/extension"
+          resetKey={extensionFilterKey}
         />
       </div>
 

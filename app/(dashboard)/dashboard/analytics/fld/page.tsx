@@ -79,6 +79,7 @@ export default function FldDetailedAnalyticsPage() {
           description="Status"
           totalCount={stats.total}
           rows={rows}
+          resetKey={JSON.stringify(filters)}
         />
       </div>
     </div>

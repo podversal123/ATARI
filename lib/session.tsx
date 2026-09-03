@@ -28,6 +28,15 @@ export function clearSession() {
   window.dispatchEvent(new Event("atari-ams-session-change"));
 }
 
+/** Whether this tab already has a cached session - false in a fresh tab, where the role must be fetched from the server before rendering role-dependent chrome. */
+export function hasStoredSession(): boolean {
+  try {
+    return !!window.sessionStorage.getItem(STORAGE_KEY);
+  } catch {
+    return false;
+  }
+}
+
 /**
  * sessionStorage, not localStorage - deliberately per-tab, not shared
  * across the whole browser. Multiple people can share one machine/browser

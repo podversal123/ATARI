@@ -55,6 +55,14 @@ type ProgressChartCardProps = {
   footer?: ReactNode;
   /** Real per-card filter dropdowns (client request, 2026-08-30: Training Progress's Clientele/Venue, Extension Activities Progress's Nature of Extension Activity) - rendered as their own row right under the description, above the summary/"Show all" row. Omitted for cards with no card-specific filter. */
   filters?: ReactNode;
+  /**
+   * A string that changes whenever the *caller's* filters change (Year/KVK
+   * on the Dashboard, the analytics filter bar on a detail page). Pagination
+   * and "Show all" reset when it changes, so switching a filter never leaves
+   * the user stranded on a page that's now all zero-value rows. A poll
+   * refresh keeps the same value, so it doesn't reset anything.
+   */
+  resetKey?: string;
 };
 
 /**
@@ -153,6 +161,7 @@ export function ProgressChartCard({
   detailedHref,
   footer,
   filters,
+  resetKey,
 }: ProgressChartCardProps) {
   const [view, setView] = useState<ChartView>(defaultView);
   const [page, setPage] = useState(0);
@@ -191,18 +200,19 @@ export function ProgressChartCard({
   const chartScrollRef = useRef<HTMLDivElement>(null);
 
   /**
-   * Reset pagination / "Show all" whenever the filter changes the set of
-   * rows (real bug: apply a filter, page to 3, then clear both filters back
-   * to "All" - the row set grows back to every KVK but `page` stayed at 3,
-   * and since rows are sorted busiest-first, page 3 was nothing but
-   * zero-value KVKs, so every bar "disappeared"). Keyed on the row ids, not
-   * the array reference, so the ~20s poll refresh (same KVKs, new array)
-   * doesn't yank a browsing user back to page 0.
+   * Reset pagination / "Show all" whenever the row set changes (the KVK ids,
+   * not the array reference - so the ~20s poll refresh doesn't yank a
+   * browsing user back to page 0) OR the caller's own filters change
+   * (`resetKey` - covers a Year filter that keeps all 66 KVKs but re-sorts
+   * them, so page 3 would otherwise become all zero-value rows and every bar
+   * "disappears"). Real bug: apply Year 2026, page to 3, switch Year to All -
+   * bars vanished because `page` stayed at 3 on a now-different sort.
    */
   const rowsKey = useMemo(() => rows.map((r) => r.id).join("|"), [rows]);
-  const [prevRowsKey, setPrevRowsKey] = useState(rowsKey);
-  if (rowsKey !== prevRowsKey) {
-    setPrevRowsKey(rowsKey);
+  const pageResetKey = `${rowsKey}#${resetKey ?? ""}`;
+  const [prevPageResetKey, setPrevPageResetKey] = useState(pageResetKey);
+  if (pageResetKey !== prevPageResetKey) {
+    setPrevPageResetKey(pageResetKey);
     setPage(0);
     setShowAll(false);
   }

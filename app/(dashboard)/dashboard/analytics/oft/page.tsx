@@ -83,6 +83,7 @@ export default function OftDetailedAnalyticsPage() {
           description="Status"
           totalCount={stats.total}
           rows={rows}
+          resetKey={JSON.stringify(filters)}
         />
       </div>
     </div>

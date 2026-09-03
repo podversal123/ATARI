@@ -1,25 +1,64 @@
 "use client";
 
-import { useSessionReady } from "@/lib/session";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import {
+  hasStoredSession,
+  persistSession,
+  useSessionReady,
+  type SessionRole,
+} from "@/lib/session";
 
 /**
  * Holds back the whole role-dependent dashboard shell until the real session
- * has been read on the client.
+ * is known.
  *
- * The session lives in sessionStorage (see lib/session.tsx), so a server
- * render can only ever assume the default Super Admin role. Rendering that
- * assumption and correcting it a frame later is what made a KVK Admin briefly
- * see Super Admin's sidebar and stats on every refresh. Gating here rather
- * than inside each page keeps the fix in one place - sidebar, topbar and page
- * body all appear together, already correct for the signed-in role.
+ * The per-tab sessionStorage copy (see lib/session.tsx) is the fast path, but
+ * it is absent in a brand-new tab and can go stale, and its fallback is Super
+ * Admin - which is why a KVK Admin opening the app in a second tab briefly
+ * (or not so briefly) saw Super Admin's sidebar and name. So on mount this
+ * also asks the server (`/api/auth/me`, backed by the httpOnly cookie) for
+ * the true identity and writes it back:
+ *   - fresh tab (no cached session): block on the fetch, then render.
+ *   - cached session present: render immediately, reconcile in the background
+ *     (persistSession fires the store-change event, so the chrome corrects
+ *     itself the moment the answer lands).
  *
- * The placeholder deliberately mirrors the real layout's geometry (green
- * sidebar rail, header strip) so nothing shifts when the real chrome swaps in.
+ * The placeholder mirrors the real layout's geometry so nothing shifts.
  */
 export function SessionGate({ children }: { children: React.ReactNode }) {
   const ready = useSessionReady();
+  const router = useRouter();
+  const [needsHydration, setNeedsHydration] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    return !hasStoredSession();
+  });
 
-  if (!ready) {
+  useEffect(() => {
+    let cancelled = false;
+    const hadStored = hasStoredSession();
+    fetch("/api/auth/me", { cache: "no-store" })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: { role?: SessionRole; kvkName?: string } | null) => {
+        if (cancelled) return;
+        const role = data?.role;
+        if (role === "super-admin" || role === "kvk-admin" || role === "kvk-user") {
+          persistSession({ role, kvkName: data?.kvkName });
+        } else if (!hadStored) {
+          router.replace("/login");
+          return;
+        }
+        setNeedsHydration(false);
+      })
+      .catch(() => {
+        if (!cancelled) setNeedsHydration(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [router]);
+
+  if (!ready || needsHydration) {
     return (
       <div className="flex h-screen overflow-hidden bg-background" aria-hidden>
         <div className="w-64 shrink-0 bg-sidebar" />
