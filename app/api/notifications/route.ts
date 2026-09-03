@@ -36,6 +36,7 @@ function toRow(n: {
     recipient,
     from,
     sentOn: n.createdAt.toISOString().slice(0, 10),
+    createdAt: n.createdAt.toISOString(),
   };
 }
 

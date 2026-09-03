@@ -5546,7 +5546,10 @@ async function fetchTable(entry: Entry, scope: ReportScope): Promise<ReportTable
         blocks: r.blocks && r.blocks.length > 0 ? r.blocks : undefined,
         pairs: r.pairs && r.pairs.length > 0 ? r.pairs : undefined,
       };
-    } catch {
+    } catch (error) {
+      // A failing builder shouldn't blank the whole report, but it must be
+      // visible in the logs - a silent empty table hid a stale-client bug once.
+      console.error(`[report] builder failed for ${entry.code} (${entry.model})`, error);
       return { ...base, columns: [], rows: [] };
     }
   }
@@ -5562,7 +5565,8 @@ async function fetchTable(entry: Entry, scope: ReportScope): Promise<ReportTable
     });
     const rows = rawRows.map((r) => Object.fromEntries(fields.map((f) => [f, stringifyValue(r[f])])));
     return { ...base, columns, rows };
-  } catch {
+  } catch (error) {
+    console.error(`[report] generic fetch failed for ${entry.code} (${entry.model})`, error);
     return { ...base, columns, rows: [] };
   }
 }
