@@ -990,7 +990,14 @@ export const LEAF_RECORD_REGISTRY: Record<string, CreateFn> = {
     }),
   "projects/csisa/csisa-details": (v, ctx) =>
     prisma.csisaDetail.create({
-      data: { ...ctx, season: reqStr(v.season), villageCovered: reqInt(v.villageCovered), blockCovered: reqInt(v.blockCovered), districtCovered: reqInt(v.districtCovered) },
+      data: {
+        ...ctx, season: reqStr(v.season), villageCovered: reqInt(v.villageCovered), blockCovered: reqInt(v.blockCovered), districtCovered: reqInt(v.districtCovered),
+        respondent: int(v.respondent), trailName: str(v.trailName), areaCoveredHa: dec(v.areaCoveredHa), cropName: str(v.cropName),
+        techOptions: str(v.techOptions), varietyName: str(v.varietyName), durationDays: int(v.durationDays),
+        sowingDate: date(v.sowingDate), harvestingDate: date(v.harvestingDate), maturityDays: int(v.maturityDays),
+        grainYieldQha: dec(v.grainYieldQha), costOfCultivationRsHa: dec(v.costOfCultivationRsHa),
+        grossReturnRsHa: dec(v.grossReturnRsHa), netReturnRsHa: dec(v.netReturnRsHa), bcr: dec(v.bcr),
+      },
     }),
   "projects/seed-hub/seed-hub-program": (v, ctx) =>
     prisma.seedHubProgram.create({
@@ -2104,7 +2111,14 @@ export const LEAF_UPDATE_REGISTRY: Record<string, UpdateFn> = {
   "projects/cra/cra-extension-activity": (id, v, ctx) =>
     prisma.craExtensionActivity.updateMany({ where: { id, ...kvkScope(ctx) }, data: { extensionActivity: reqStr(v.extensionActivity), startDate: reqDate(v.startDate), endDate: reqDate(v.endDate), withinOrWithoutState: str(v.withinOrWithoutState), exposureVisits: reqInt(v.exposureVisits), farmersUnderExposure: reqInt(v.farmersUnderExposure) } }),
   "projects/csisa/csisa-details": (id, v, ctx) =>
-    prisma.csisaDetail.updateMany({ where: { id, ...kvkScope(ctx) }, data: { season: reqStr(v.season), villageCovered: reqInt(v.villageCovered), blockCovered: reqInt(v.blockCovered), districtCovered: reqInt(v.districtCovered) } }),
+    prisma.csisaDetail.updateMany({ where: { id, ...kvkScope(ctx) }, data: {
+      season: reqStr(v.season), villageCovered: reqInt(v.villageCovered), blockCovered: reqInt(v.blockCovered), districtCovered: reqInt(v.districtCovered),
+      respondent: int(v.respondent), trailName: str(v.trailName), areaCoveredHa: dec(v.areaCoveredHa), cropName: str(v.cropName),
+      techOptions: str(v.techOptions), varietyName: str(v.varietyName), durationDays: int(v.durationDays),
+      sowingDate: date(v.sowingDate), harvestingDate: date(v.harvestingDate), maturityDays: int(v.maturityDays),
+      grainYieldQha: dec(v.grainYieldQha), costOfCultivationRsHa: dec(v.costOfCultivationRsHa),
+      grossReturnRsHa: dec(v.grossReturnRsHa), netReturnRsHa: dec(v.netReturnRsHa), bcr: dec(v.bcr),
+    } }),
   "projects/seed-hub/seed-hub-program": (id, v, ctx) =>
     prisma.seedHubProgram.updateMany({
       where: { id, ...kvkScope(ctx) },

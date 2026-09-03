@@ -2517,6 +2517,7 @@ export default async function FormsPage({ params, searchParams }: FormsPageProps
           reportingYearFilter={node.slug === "oft"}
           resultKind={node.slug === "view-fld" ? "fld" : node.slug === "oft" ? "oft" : undefined}
           staffTransferHistory={node.slug === "staff-transferred"}
+          staffTransfer={node.slug === "employee-details"}
           /** Exact wording from the client's "changes required 1.0.pdf" (2026-08-25, item 4) - each leaf's own note only, no cross-reference to the other leaf. CFLD Technical Parameter's own note is exact text confirmed against the real reference (atari-client.vercel.app, 2026-09-02). */
           note={
             node.slug === "oft"

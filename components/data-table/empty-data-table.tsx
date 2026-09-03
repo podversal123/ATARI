@@ -1,6 +1,6 @@
 "use client";
 
-import { type ReactNode, useId, useMemo, useRef, useState } from "react";
+import { type ReactNode, useEffect, useId, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
@@ -148,6 +148,8 @@ type EmptyDataTableProps = {
   note?: string;
   /** Staff Transferred only (real reference action, confirmed 2026-09-01): adds a "View Transfer History" item between Edit and Delete, reading each row's `historyJson` field (a JSON-stringified array of { fromKvk, toKvk, date }) built server-side from every StaffTransfer record for that staff member. */
   staffTransferHistory?: boolean;
+  /** Employee Details only: the Action dropdown gains "Transfer", opening a KVK + Date of Relieving dialog that POSTs to /api/staff/transfer. The hop then shows under the destination KVK's "Details of Staff Transferred" list only. */
+  staffTransfer?: boolean;
   /** Registry key in lib/leaf-record-registry.ts (Form Management) or lib/masters-registry.ts (All Masters) - enables real Edit/Delete for this leaf's rows. Omit for leaves not wired to the database yet. For recordKind "notification" this is just a truthy sentinel (the row's own `id` drives the real /api/notifications/[id] URL, not a registry path). */
   recordPath?: string;
   /** Which registry/endpoint `recordPath` refers to - "form" (default, KVK-scoped Form Management leaves), "master" (zone-scoped, Super Admin only, All Masters leaves), or "notification" (Notifications page's Sent/Received tables, /api/notifications/[id]). */
@@ -215,6 +217,7 @@ export function EmptyDataTable({
   editableColumnKeys,
   onMutated,
   staffTransferHistory,
+  staffTransfer,
 }: EmptyDataTableProps) {
   const session = useSession();
   const router = useRouter();
@@ -362,6 +365,59 @@ export function EmptyDataTable({
       setTransferError("Could not reach the server. Please try again.");
     } finally {
       setTransferring(false);
+    }
+  }
+
+  // --- Staff transfer (Employee Details) ---
+  const [staffTransferRow, setStaffTransferRow] = useState<Record<string, ReactNode> | null>(null);
+  const [staffTransferKvk, setStaffTransferKvk] = useState("");
+  const [staffTransferDate, setStaffTransferDate] = useState("");
+  const [staffTransferError, setStaffTransferError] = useState<string | null>(null);
+  const [staffTransferSubmitting, setStaffTransferSubmitting] = useState(false);
+  const [kvkOptions, setKvkOptions] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (!staffTransfer) return;
+    let cancelled = false;
+    fetch("/api/kvks")
+      .then((r) => (r.ok ? r.json() : { rows: [] }))
+      .then((data: { rows?: { kvk?: string }[] }) => {
+        if (!cancelled) setKvkOptions((data.rows ?? []).map((r) => r.kvk ?? "").filter(Boolean));
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [staffTransfer]);
+
+  async function submitStaffTransfer() {
+    const staffId = staffTransferRow?.id;
+    if (typeof staffId !== "string") return;
+    if (!staffTransferKvk || !staffTransferDate) {
+      setStaffTransferError("Select a KVK and the date of relieving.");
+      return;
+    }
+    setStaffTransferError(null);
+    setStaffTransferSubmitting(true);
+    try {
+      const response = await fetch("/api/staff/transfer", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ staffId, toKvkName: staffTransferKvk, transferDate: staffTransferDate }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        setStaffTransferError(data.error ?? "Something went wrong. Please try again.");
+        return;
+      }
+      setStaffTransferRow(null);
+      setStaffTransferKvk("");
+      setStaffTransferDate("");
+      router.refresh();
+    } catch {
+      setStaffTransferError("Could not reach the server. Please try again.");
+    } finally {
+      setStaffTransferSubmitting(false);
     }
   }
 
@@ -1091,6 +1147,19 @@ export function EmptyDataTable({
                               <Pencil className="size-3.5" />
                               Edit
                             </DropdownMenuItem>
+                            {staffTransfer && (
+                              <DropdownMenuItem
+                                onClick={() => {
+                                  setStaffTransferRow(row);
+                                  setStaffTransferKvk("");
+                                  setStaffTransferDate("");
+                                  setStaffTransferError(null);
+                                }}
+                              >
+                                <ArrowRightCircle className="size-3.5" />
+                                Transfer
+                              </DropdownMenuItem>
+                            )}
                             {staffTransferHistory && (
                               <DropdownMenuItem onClick={() => openTransferHistory(row)}>
                                 <History className="size-3.5" />
@@ -1316,6 +1385,58 @@ export function EmptyDataTable({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Staff transfer - Employee Details. KVK + Date of Relieving, then the hop shows under the destination KVK only. */}
+      {staffTransfer && (
+        <Dialog
+          open={staffTransferRow !== null}
+          onOpenChange={(open) => {
+            if (!open) {
+              setStaffTransferRow(null);
+              setStaffTransferError(null);
+            }
+          }}
+        >
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Transfer Details</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="staff-transfer-kvk">KVK</Label>
+                <SimpleSelect
+                  id="staff-transfer-kvk"
+                  value={staffTransferKvk}
+                  onValueChange={setStaffTransferKvk}
+                  placeholder="Select"
+                  options={kvkOptions.map((k) => ({ value: k, label: k }))}
+                  className="h-10"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="staff-transfer-date">Date of Relieving</Label>
+                <Input
+                  id="staff-transfer-date"
+                  type="date"
+                  value={staffTransferDate}
+                  onChange={(e) => setStaffTransferDate(e.target.value)}
+                  className="h-10"
+                />
+              </div>
+              {staffTransferError && (
+                <p role="alert" className="text-sm font-medium text-destructive">
+                  {staffTransferError}
+                </p>
+              )}
+            </div>
+            <DialogFooter>
+              <Button onClick={submitStaffTransfer} disabled={staffTransferSubmitting}>
+                {staffTransferSubmitting ? "Submitting…" : "Submit"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
 
       {/* Transfer to next reporting year - OFT/FLD and CFLD Technical Parameter, manual per client spec (never automatic). */}
       {(oftFldStatus || isCfldTechnicalParameter) && (

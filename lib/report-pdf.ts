@@ -282,8 +282,12 @@ export function generateReportPdf(opts: ReportPdfOptions) {
   doc.setTextColor(60, 60, 60);
   doc.text(`Reporting Year: ${opts.reportingYearLabel}`, pageW / 2, 76, { align: "center" });
 
+  // The "KVKS INCLUDED" box hugs its content - a single-KVK / per-section
+  // download shouldn't stretch a near-empty box down the whole page.
   const boxTop = 86;
-  const boxBottom = pageH - 16;
+  const cols = opts.kvkNames.length <= 6 ? 1 : 4;
+  const perCol = Math.ceil(opts.kvkNames.length / cols);
+  const boxBottom = Math.min(boxTop + 18 + perCol * 5.2 + 4, pageH - 16);
   doc.setDrawColor(...BORDER_GRAY);
   doc.setLineWidth(0.25);
   doc.rect(MARGIN, boxTop, contentW, boxBottom - boxTop);
@@ -294,8 +298,6 @@ export function generateReportPdf(opts: ReportPdfOptions) {
   doc.line(MARGIN + 4, boxTop + 11, pageW - MARGIN - 4, boxTop + 11);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9);
-  const cols = 4;
-  const perCol = Math.ceil(opts.kvkNames.length / cols);
   const colW = (contentW - 8) / cols;
   opts.kvkNames.forEach((name, i) => {
     const col = Math.floor(i / perCol);

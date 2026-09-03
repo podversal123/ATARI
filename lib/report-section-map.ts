@@ -13,16 +13,18 @@
  * numbering drift still resolves. A subsection matches when its title
  * contains `titleIncludes` (case-insensitive) OR its number is in `nums`.
  */
-export type ReportSubsectionRef = { nums: string[]; titleIncludes: string; label: string };
+export type ReportSubsectionRef = { nums: string[]; titleIncludes: string; label: string; tableIncludes?: string };
 
 const G = (nums: string[], titleIncludes: string, label: string): ReportSubsectionRef => ({ nums, titleIncludes, label });
+/** Like G, but the download is narrowed to just the one table in that subsection whose title contains `tableIncludes` (e.g. Employee Details -> only "All KVK Staff", not the whole "Employee Information" subsection). */
+const GT = (nums: string[], titleIncludes: string, label: string, tableIncludes: string): ReportSubsectionRef => ({ nums, titleIncludes, label, tableIncludes });
 
 export const REPORT_SUBSECTION_BY_LEAF: Record<string, ReportSubsectionRef> = {
   // 1. About KVK
   "about-kvk/basic/view-kvks": G(["1.1"], "Basic Information", "Basic Information"),
   "about-kvk/basic/bank-account-details": G(["1.1"], "Basic Information", "Basic Information"),
-  "about-kvk/employee/employee-details": G(["1.2"], "Employee Information", "Employee Information"),
-  "about-kvk/employee/staff-transferred": G(["1.2"], "Employee Information", "Employee Information"),
+  "about-kvk/employee/employee-details": GT(["1.2"], "Employee Information", "Employee Information", "All KVK Staff"),
+  "about-kvk/employee/staff-transferred": GT(["1.2"], "Employee Information", "Employee Information", "Staff Transferred"),
   "about-kvk/land-infrastructure/infrastructure-details": G(["1.3"], "Infrastructure Information", "Land & Infrastructure Information"),
   "about-kvk/land-infrastructure/land-details": G(["1.3"], "Infrastructure Information", "Land & Infrastructure Information"),
   "about-kvk/land-infrastructure/staff-quarters": G(["1.3"], "Infrastructure Information", "Land & Infrastructure Information"),
@@ -147,7 +149,7 @@ export function reportSubsectionForLeaf(recordPath: string | undefined): ReportS
   return recordPath ? REPORT_SUBSECTION_BY_LEAF[recordPath] : undefined;
 }
 
-type SubLike = { num: string; title: string };
+type SubLike = { num: string; title: string; tables?: { code: string; title: string }[] };
 type SecLike<S extends SubLike> = { subsections: S[] };
 
 /** True when a built subsection is (probably) the one `ref` points at - title match, else number match. Used to attach a leaf's Module Images to the right subsection. */
@@ -171,9 +173,18 @@ export function pruneToSubsection<S extends SubLike, T extends SecLike<S>>(
   const byTitle = (sub: SubLike) =>
     !!ref.titleIncludes && sub.title.toLowerCase().includes(ref.titleIncludes.toLowerCase());
   const byNum = (sub: SubLike) => ref.nums.includes(sub.num);
+  // When the ref names a single table, keep only that one inside the matched subsection.
+  const narrow = (sub: SubLike): SubLike => {
+    if (!ref.tableIncludes || !sub.tables) return sub;
+    const wanted = ref.tableIncludes.toLowerCase();
+    const tables = sub.tables.filter(
+      (t) => t.title.toLowerCase().includes(wanted) || t.code.toLowerCase() === wanted,
+    );
+    return tables.length > 0 ? { ...sub, tables } : sub;
+  };
   const keep = (predicate: (sub: SubLike) => boolean) =>
     sections
-      .map((sec) => ({ ...sec, subsections: sec.subsections.filter(predicate) }))
+      .map((sec) => ({ ...sec, subsections: sec.subsections.filter(predicate).map(narrow) }))
       .filter((sec) => sec.subsections.length > 0);
   const titled = keep(byTitle);
   return titled.length > 0 ? titled : keep(byNum);

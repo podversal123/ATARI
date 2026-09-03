@@ -123,7 +123,7 @@ const MODEL_FIELDS: Record<string, string[]> = {
   drmrActivity: ["startDate", "endDate", "training", "flds", "awarenessCamps", "distributionOfLiterature", "itemActivity", "unit", "quantity"],
   craDetail: ["season", "technologyDemonstrated", "croppingSystem", "areaHa", "noOfFarmer", "farmingSystem", "crop", "cropYieldQha", "systemProductivityQha", "totalReturnRsHa", "yieldFarmerPracticeQha"],
   craExtensionActivity: ["extensionActivity", "startDate", "endDate", "withinOrWithoutState", "exposureVisits", "farmersUnderExposure"],
-  csisaDetail: ["season", "villageCovered", "blockCovered", "districtCovered"],
+  csisaDetail: ["season", "villageCovered", "blockCovered", "districtCovered", "respondent", "trailName", "areaCoveredHa", "cropName", "techOptions", "varietyName", "durationDays", "sowingDate", "harvestingDate", "maturityDays", "grainYieldQha", "costOfCultivationRsHa", "grossReturnRsHa", "netReturnRsHa", "bcr"],
   seedHubProgram: ["season", "cropName", "variety", "areaHa", "yieldHa", "qtySeedProducedQ", "qtySeedSaleOutQ", "farmersPurchased", "qtySeedSaleOutToFarmersQ", "villagesCovered", "qtySeedSaleOutOtherOrgQ", "amountGeneratedLakh", "totalAmountInProjectLakh"],
   otherProgramme: ["programmeName", "programmeDate", "venue", "purpose", "participants"],
   kvkActivityImpact: ["specificArea", "briefDetails", "farmersBenefitted", "horizontalSpread", "adoptionPercent"],
@@ -3854,50 +3854,48 @@ async function buildDrmrActivity(scope: ReportScope): Promise<CustomTableResult>
   return { blocks };
 }
 
-/** 3.11.A "CRA Details" (super-v2-prod.pdf p.81) - flat, plus the caste participant block from `farmersByCategory`. */
+/** 3.11.A "CRA Details" (super-v2-prod.pdf p.81) - one block per state ("A. State: Bihar" ...), a serial column, farming-system+crop merged, and the caste participant block from `farmersByCategory`. */
 async function buildCraDetails(scope: ReportScope): Promise<CustomTableResult> {
   const records = await prisma.craDetail.findMany({
     where: scope.kvkId ? { kvkId: scope.kvkId } : { zoneId: scope.zoneId },
     select: {
-      season: true, technologyDemonstrated: true, croppingSystem: true, areaHa: true, noOfFarmer: true,
+      season: true, technologyDemonstrated: true, croppingSystem: true, areaHa: true,
       farmingSystem: true, crop: true, cropYieldQha: true, systemProductivityQha: true, totalReturnRsHa: true,
-      yieldFarmerPracticeQha: true, farmersByCategory: true, kvk: { select: { name: true } },
+      yieldFarmerPracticeQha: true, farmersByCategory: true,
+      kvk: { select: { name: true, state: { select: { name: true } } } },
     },
-    orderBy: { kvk: { name: "asc" } },
+    orderBy: [{ kvk: { state: { name: "asc" } } }, { kvk: { name: "asc" } }],
   });
   const columns: ReportColumn[] = [
-    { key: "kvk", label: "KVK" },
     { key: "season", label: "Season" },
-    { key: "tech", label: "Technology Demonstrated" },
-    { key: "croppingSystem", label: "Cropping System" },
-    { key: "farmingSystem", label: "Farming System" },
-    { key: "crop", label: "Crop" },
-    { key: "area", label: "Area (ha)" },
-    { key: "farmers", label: "No. of Farmer" },
-    { key: "cropYield", label: "Crop Yield (q/ha)" },
-    { key: "sysProd", label: "System Productivity (q/ha)" },
-    { key: "totalReturn", label: "Total Return (Rs./ha)" },
-    { key: "yieldFp", label: "Yield Farmer Practice (q/ha)" },
-    ...casteMftColumns("No. of Participants", { grandLabel: "Grand Total" }),
+    { key: "tech", label: "Technology demonstrated / interventions" },
+    { key: "croppingSystem", label: "Cropping system" },
+    { key: "farmingCrop", label: "Farming system crop under demonstration" },
+    { key: "area", label: "Area under demonstration (in ac)" },
+    { key: "cropYield", label: "Crop yield (q/ha)" },
+    { key: "sysProd", label: "System productivity (q/ha)" },
+    { key: "totalReturn", label: "Total return (Rs./ha)" },
+    { key: "yieldFp", label: "Yield obtained under farmer practice (q/ha)" },
+    ...casteMftColumns("No. of farmers under demonstration", { grandLabel: "Total" }),
   ];
-  return {
-    columns,
-    rows: records.map((r) => ({
-      kvk: r.kvk.name,
-      season: r.season,
-      tech: r.technologyDemonstrated,
-      croppingSystem: r.croppingSystem,
-      farmingSystem: r.farmingSystem ?? "",
-      crop: r.crop ?? "",
-      area: stringifyValue(r.areaHa),
-      farmers: String(r.noOfFarmer),
-      cropYield: stringifyValue(r.cropYieldQha),
-      sysProd: stringifyValue(r.systemProductivityQha),
-      totalReturn: stringifyValue(r.totalReturnRsHa),
-      yieldFp: stringifyValue(r.yieldFarmerPracticeQha),
-      ...jsonCasteRow(r.farmersByCategory),
-    })),
-  };
+  const rowOf = (r: (typeof records)[number]) => ({
+    season: r.season,
+    tech: r.technologyDemonstrated,
+    croppingSystem: r.croppingSystem,
+    farmingCrop: [r.farmingSystem, r.crop].filter(Boolean).join(" - "),
+    area: stringifyValue(r.areaHa),
+    cropYield: stringifyValue(r.cropYieldQha),
+    sysProd: stringifyValue(r.systemProductivityQha),
+    totalReturn: stringifyValue(r.totalReturnRsHa),
+    yieldFp: stringifyValue(r.yieldFarmerPracticeQha),
+    ...jsonCasteRow(r.farmersByCategory),
+  });
+  const letters = ["A", "B", "C", "D", "E", "F"];
+  const blocks: ReportBlock[] = [...groupInto(records, (r) => r.kvk.state?.name ?? "").entries()].map(([state, list], i) => ({
+    heading: `${letters[i] ?? String(i + 1)}. State: ${state}`,
+    parts: [{ kind: "grid", noSerial: false, columns, rows: list.map(rowOf) }],
+  }));
+  return { blocks };
 }
 
 /** 3.14.A "Other Programmes" (super-v2-prod.pdf p.82) - flat, plus the caste participant block from `farmersByCategory`. */
@@ -3909,21 +3907,17 @@ async function buildOtherProgrammes(scope: ReportScope): Promise<CustomTableResu
   });
   return {
     columns: [
-      { key: "kvk", label: "KVK" },
-      { key: "name", label: "Name of the Programme" },
-      { key: "date", label: "Date" },
+      { key: "name", label: "Name of the programme" },
+      { key: "date", label: "Date of the programme" },
       { key: "venue", label: "Venue" },
       { key: "purpose", label: "Purpose" },
-      { key: "participants", label: "Participants" },
-      ...casteMftColumns("No. of Participants", { grandLabel: "Grand Total" }),
+      ...casteMftColumns("", { flat: true, grandLabel: "Grand Total" }),
     ],
     rows: records.map((r) => ({
-      kvk: r.kvk.name,
       name: r.programmeName,
       date: stringifyValue(r.programmeDate),
       venue: r.venue ?? "",
       purpose: r.purpose ?? "",
-      participants: String(r.participants),
       ...jsonCasteRow(r.farmersByCategory),
     })),
   };
@@ -4967,25 +4961,41 @@ const SECTION_3_BUILDERS: Record<string, (scope: ReportScope) => Promise<CustomT
       { key: "villageCovered", label: "Village Covered" },
       { key: "blockCovered", label: "Block Covered" },
       { key: "districtCovered", label: "District Covered" },
+      { key: "respondent", label: "Respondent" },
+      { key: "trailName", label: "Trail Name" },
+      { key: "areaCoveredHa", label: "Area Covered (ha)" },
+      { key: "cropName", label: "Name of Crop" },
+      { key: "techOptions", label: "Tech. Options" },
+      { key: "varietyName", label: "Variety Name" },
+      { key: "durationDays", label: "Duration (Days)" },
+      { key: "sowingDate", label: "Sowing Date" },
+      { key: "harvestingDate", label: "Harvesting Date" },
+      { key: "maturityDays", label: "Maturity Days" },
+      { key: "grainYieldQha", label: "Grain Yield(q/ha)" },
+      { key: "costOfCultivationRsHa", label: "Cost of Cult.(Rs/ha)" },
+      { key: "grossReturnRsHa", label: "Gross Return(Rs/ha)" },
+      { key: "netReturnRsHa", label: "Net Return(Rs/ha)" },
+      { key: "bcr", label: "BCR" },
     ],
   }),
   seedHubProgram: flatReportTable({
     model: "seedHubProgram",
     lead: [KVK],
+    // Labels transcribed from super-v2-prod.pdf 3.13.A.
     columns: [
       { key: "season", label: "Season" },
-      { key: "cropName", label: "Crop Name" },
-      { key: "variety", label: "Variety" },
-      { key: "areaHa", label: "Area (ha)" },
-      { key: "yieldHa", label: "Yield (q/ha)" },
-      { key: "qtySeedProducedQ", label: "Qty. Seed Produced (q)" },
-      { key: "qtySeedSaleOutQ", label: "Qty. Seed Sale Out (q)" },
-      { key: "farmersPurchased", label: "Farmers Purchased" },
-      { key: "qtySeedSaleOutToFarmersQ", label: "Qty. Seed Sale Out to Farmers (q)" },
-      { key: "villagesCovered", label: "Villages Covered" },
-      { key: "qtySeedSaleOutOtherOrgQ", label: "Qty. Seed Sale Out Other Org (q)" },
-      { key: "amountGeneratedLakh", label: "Amount Generated (Lakh)" },
-      { key: "totalAmountInProjectLakh", label: "Total Amount in Project (Lakh)" },
+      { key: "cropName", label: "Name of crop taken under seed production" },
+      { key: "variety", label: "Name of variety taken under seed production" },
+      { key: "areaHa", label: "Crop and variety wise area (ha) covered under seed production" },
+      { key: "yieldHa", label: "Crop and variety wise Yield (Q/ha)" },
+      { key: "qtySeedProducedQ", label: "Crop and variety wise quantity of seed produced (Q)" },
+      { key: "qtySeedSaleOutQ", label: "Crop and variety wise sale out (Q)" },
+      { key: "farmersPurchased", label: "Crop and variety wise number of farmers purchased seed from KVK" },
+      { key: "qtySeedSaleOutToFarmersQ", label: "Quantity of seed sale out to farmers (Q)" },
+      { key: "villagesCovered", label: "No of village covered through sale of seed" },
+      { key: "qtySeedSaleOutOtherOrgQ", label: "Quantity of seed sale out to other organization (Q)" },
+      { key: "amountGeneratedLakh", label: "Amount generated (Lakh)" },
+      { key: "totalAmountInProjectLakh", label: "Total amount (Lakh) in Seed Hub project presently" },
     ],
   }),
 };

@@ -2707,6 +2707,22 @@ model CsisaDetail {
   villageCovered  Int
   blockCovered    Int
   districtCovered Int
+  /// super-v2-prod.pdf 3.12.A carries the full CSISA trial detail per row.
+  respondent           Int?
+  trailName            String?
+  areaCoveredHa        Decimal?  @db.Decimal(10, 2)
+  cropName             String?
+  techOptions          String?
+  varietyName          String?
+  durationDays         Int?
+  sowingDate           DateTime?
+  harvestingDate       DateTime?
+  maturityDays         Int?
+  grainYieldQha        Decimal?  @db.Decimal(10, 2)
+  costOfCultivationRsHa Decimal? @db.Decimal(12, 2)
+  grossReturnRsHa      Decimal?  @db.Decimal(12, 2)
+  netReturnRsHa        Decimal?  @db.Decimal(12, 2)
+  bcr                  Decimal?  @db.Decimal(6, 2)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
