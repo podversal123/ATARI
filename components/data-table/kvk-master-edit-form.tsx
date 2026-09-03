@@ -9,7 +9,13 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { SimpleSelect } from "@/components/ui/simple-select";
 import { PageHeader, type Crumb } from "@/components/layout/page-header";
-import { useCascadeOptions } from "./use-cascade-options";
+import {
+  ZONE_MASTER_ROWS,
+  INSTITUTE_MASTER_ROWS,
+  HOST_MASTER_ROWS,
+} from "@/lib/masters";
+import { STATES, DISTRICTS, JHARKHAND_DISTRICTS } from "@/lib/rbac";
+import { hostOrgsForState } from "@/lib/reports";
 
 type KvkMasterEditFormProps = {
   trail: Crumb[];
@@ -48,12 +54,14 @@ export function KvkMasterEditForm({ trail, backHref, id, title = "Edit KVK" }: K
   const [host, setHost] = useState("");
   const [kvkAddress, setKvkAddress] = useState("");
 
+  const [hostMobile, setHostMobile] = useState("");
   const [hostLandline, setHostLandline] = useState("");
   const [hostFax, setHostFax] = useState("");
+  const [hostEmail, setHostEmail] = useState("");
+  const [hostAddress, setHostAddress] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [loaded, setLoaded] = useState(false);
-  const cascade = useCascadeOptions(true);
 
   useEffect(() => {
     const raw = sessionStorage.getItem(`edit-record:${id}`);
@@ -75,27 +83,15 @@ export function KvkMasterEditForm({ trail, backHref, id, title = "Edit KVK" }: K
       setKvkAddress(row.address ?? "");
       const hostName = row.hostOrg ?? "";
       setHost(hostName);
+      const hostRow = HOST_MASTER_ROWS.find((r) => r.hostName === hostName);
+      setHostMobile(hostRow?.phone ?? "");
+      setHostEmail(hostRow?.email ?? "");
+      setHostAddress(hostRow?.address ?? "");
       setLoaded(true);
     } catch {
       setLoadError(true);
     }
   }, [id]);
-
-  /**
-   * The selected host's contact details are pure derived state (a lookup
-   * into the live Host Master rows by the currently-selected `host` name) -
-   * computed straight from render instead of mirrored into their own
-   * useState+useEffect, which would just be copying state React already has
-   * and risk the two drifting out of sync. Covers both the record's own
-   * host name loading in (host org details arrive async, separately from
-   * the synchronous sessionStorage read above) and the user picking a
-   * different host via `handleHostChange` below - both just change `host`,
-   * which this recomputes from automatically.
-   */
-  const hostRow = cascade.hostOrgDetails.find((r) => r.hostName === host);
-  const hostMobile = hostRow?.phone ?? "";
-  const hostEmail = hostRow?.email ?? "";
-  const hostAddress = hostRow?.address ?? "";
 
   async function submit() {
     setError(null);
@@ -136,11 +132,16 @@ export function KvkMasterEditForm({ trail, backHref, id, title = "Edit KVK" }: K
     }
   }
 
-  const districtOptions = cascade.districtsForState(state);
-  const hostOptions = state ? cascade.hostOrgsForState(state) : [];
+  const districtOptions =
+    state === "Bihar" ? DISTRICTS : state === "Jharkhand" ? JHARKHAND_DISTRICTS : [];
+  const hostOptions = state ? hostOrgsForState(state) : [];
 
   function handleHostChange(name: string) {
     setHost(name);
+    const row = HOST_MASTER_ROWS.find((r) => r.hostName === name);
+    setHostMobile(row?.phone ?? "");
+    setHostEmail(row?.email ?? "");
+    setHostAddress(row?.address ?? "");
     setHostLandline("");
     setHostFax("");
   }
@@ -166,13 +167,10 @@ export function KvkMasterEditForm({ trail, backHref, id, title = "Edit KVK" }: K
 
   return (
     <div>
-      {/* Heading slides in from the left as the card (below) slides in from the right (client direction, 2026-09-03) - the two converge toward the middle instead of both entering the same way. */}
-      <div className="animate-in fade-in-0 slide-in-from-left-8 ease-out duration-300">
-        <PageHeader backHref={backHref} trail={trail} title={title} />
-      </div>
+      <PageHeader backHref={backHref} trail={trail} title={title} />
 
-      <div className="animate-in fade-in-0 slide-in-from-right-8 ease-out rounded-lg border border-border bg-card p-6 duration-300">
-        <p className="mb-3 text-lg font-semibold text-primary">
+      <div className="animate-in fade-in-0 slide-in-from-bottom-2 rounded-lg border border-border bg-card p-6 duration-300">
+        <p className="mb-3 text-sm font-semibold text-primary">
           KVK General Information
         </p>
         <div className="space-y-5">
@@ -265,7 +263,7 @@ export function KvkMasterEditForm({ trail, backHref, id, title = "Edit KVK" }: K
                 value={zone}
                 onValueChange={setZone}
                 placeholder="Select"
-                options={cascade.zoneOptions.map((z) => ({ value: z, label: z }))}
+                options={ZONE_MASTER_ROWS.map((row) => ({ value: row.zoneName, label: row.zoneName }))}
                 className="h-10"
               />
             </div>
@@ -283,7 +281,7 @@ export function KvkMasterEditForm({ trail, backHref, id, title = "Edit KVK" }: K
                   setHost("");
                 }}
                 placeholder="Select State"
-                options={cascade.statesForZone(zone).map((s) => ({ value: s, label: s }))}
+                options={STATES.map((s) => ({ value: s, label: s }))}
                 className="h-10"
               />
             </div>
@@ -311,7 +309,7 @@ export function KvkMasterEditForm({ trail, backHref, id, title = "Edit KVK" }: K
                 value={institute}
                 onValueChange={setInstitute}
                 placeholder="Select Institute"
-                options={cascade.instituteOptions.map((i) => ({ value: i, label: i }))}
+                options={INSTITUTE_MASTER_ROWS.map((row) => ({ value: row.instituteName, label: row.instituteName }))}
                 className="h-10"
               />
             </div>
@@ -345,7 +343,7 @@ export function KvkMasterEditForm({ trail, backHref, id, title = "Edit KVK" }: K
         </div>
 
         <div className="mt-5 border-t border-border pt-4">
-          <p className="mb-3 text-lg font-semibold text-primary">
+          <p className="mb-3 text-sm font-semibold text-primary">
             Host Organization Details
           </p>
           <div className="space-y-5">
@@ -358,7 +356,6 @@ export function KvkMasterEditForm({ trail, backHref, id, title = "Edit KVK" }: K
                 id="kvk-host-name"
                 value={host}
                 disabled
-                readOnly
                 placeholder="Populated from host (host organisation)"
               />
             </div>
@@ -371,7 +368,6 @@ export function KvkMasterEditForm({ trail, backHref, id, title = "Edit KVK" }: K
                   id="kvk-host-mobile"
                   value={hostMobile}
                   disabled={!host}
-                  readOnly
                   placeholder="+91"
                 />
               </div>
@@ -382,7 +378,6 @@ export function KvkMasterEditForm({ trail, backHref, id, title = "Edit KVK" }: K
                   id="kvk-host-landline"
                   value={hostLandline}
                   disabled={!host}
-                  readOnly
                   placeholder="Enter landline"
                 />
               </div>
@@ -393,7 +388,6 @@ export function KvkMasterEditForm({ trail, backHref, id, title = "Edit KVK" }: K
                   id="kvk-host-fax"
                   value={hostFax}
                   disabled={!host}
-                  readOnly
                   placeholder="Enter fax"
                 />
               </div>
@@ -406,7 +400,6 @@ export function KvkMasterEditForm({ trail, backHref, id, title = "Edit KVK" }: K
                 id="kvk-host-email"
                 value={hostEmail}
                 disabled={!host}
-                readOnly
                 placeholder="Enter email address"
               />
             </div>
@@ -417,7 +410,6 @@ export function KvkMasterEditForm({ trail, backHref, id, title = "Edit KVK" }: K
                 id="kvk-host-address"
                 value={hostAddress}
                 disabled={!host}
-                readOnly
                 placeholder="Enter complete address"
               />
             </div>

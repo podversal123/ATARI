@@ -15,7 +15,6 @@ import {
   type MasterTab,
 } from "@/components/data-table/empty-data-table";
 import { AddLeafPage } from "@/components/data-table/add-leaf-page";
-import { EditLeafPage } from "@/components/data-table/edit-leaf-page";
 import { HostMasterAddForm } from "@/components/data-table/host-master-add-form";
 import { KvkMasterAddForm } from "@/components/data-table/kvk-master-add-form";
 import { prisma } from "@/lib/prisma";
@@ -38,23 +37,7 @@ export default async function MastersPage({ params }: MastersPageProps) {
    * pattern as forms/[...slug]/page.tsx.
    */
   const isAddPage = rawSlug[rawSlug.length - 1] === "add";
-  /**
-   * "Edit" opens this same kind of dedicated page instead of the popup
-   * EmptyDataTable's dialog otherwise uses (client direction, 2026-09-02 -
-   * same reasoning and trailing-segment technique as "Add New" above, and
-   * as Form Management's own identical Edit conversion, 2026-09-01). The
-   * record id is the final segment, "edit" the one before it. Approved
-   * first on Zone Master, then rolled out as the standard Edit for every
-   * All Masters leaf (`editHrefBase` below), same rollout shape as
-   * `compactFields`. Host Master and KVK Master go through this same
-   * generic path too (they only have bespoke *Add* forms, not bespoke
-   * Edit ones) - their own `columns` already omit the location-cascade
-   * fields their Add form has, same gap the popup dialog already had, so
-   * this is a container change only, not a field-set regression.
-   */
-  const isEditPage = rawSlug[rawSlug.length - 2] === "edit";
-  const editId = isEditPage ? rawSlug[rawSlug.length - 1] : undefined;
-  const slug = isAddPage ? rawSlug.slice(0, -1) : isEditPage ? rawSlug.slice(0, -2) : rawSlug;
+  const slug = isAddPage ? rawSlug.slice(0, -1) : rawSlug;
 
   const resolved = resolveNavPath(ALL_MASTERS, slug);
   if (!resolved) notFound();
@@ -69,26 +52,6 @@ export default async function MastersPage({ params }: MastersPageProps) {
         : node.type === "leaf" && node.slug === "institute-master"
           ? "institute"
           : undefined;
-
-  if (isEditPage) {
-    if (node.type !== "leaf" || !editId) notFound();
-    const editTrail: Crumb[] = [];
-    const editBackHref = `/masters/${slug.join("/")}`;
-    return (
-      <EditLeafPage
-        title={node.label.replace(/ Master$/, "")}
-        trail={editTrail}
-        backHref={editBackHref}
-        columns={node.columns}
-        cascadeType={cascadeType}
-        formColumns={node.formColumns}
-        compactFields={node.compactFields ?? true}
-        recordPath={node.slug}
-        recordKind="master"
-        id={editId}
-      />
-    );
-  }
 
   if (isAddPage) {
     if (node.type !== "leaf") notFound();
@@ -116,16 +79,6 @@ export default async function MastersPage({ params }: MastersPageProps) {
         cascadeType={cascadeType}
         showMarkAsOther={node.showMarkAsOther}
         formColumns={node.formColumns}
-        // Compact auto-fit field layout (client direction, 2026-09-02,
-        // approved first on Zone Master) is now the standard Add/Create
-        // layout for every All Masters leaf that goes through this generic
-        // page - defaults on rather than needing every one of this file's
-        // ~50 leaf() entries individually flagged. `node.compactFields`
-        // stays available as a per-leaf opt-out (`false`) if a future
-        // master's field shape doesn't suit it. Form Management's own Add
-        // page (app/(dashboard)/forms/[...slug]/page.tsx) is a separate
-        // route/component and never sets this, so it's unaffected.
-        compactFields={node.compactFields ?? true}
         titlePrefix="Create"
         recordPath={node.slug}
         recordKind="master"
@@ -261,10 +214,6 @@ export default async function MastersPage({ params }: MastersPageProps) {
           cascadeType={cascadeType}
           showMarkAsOther={node.showMarkAsOther}
           addNewHref={`/masters/${slug.join("/")}/add`}
-          // Full-page Edit (client direction, 2026-09-02, approved first
-          // on Zone Master) - now the standard Edit for every All Masters
-          // leaf, same rollout shape as `compactFields`.
-          editHrefBase={`/masters/${slug.join("/")}`}
           recordPath={node.slug}
           recordKind="master"
         />

@@ -117,7 +117,7 @@ export default async function FormsPage({ params, searchParams }: FormsPageProps
         return;
       }
       editTrail.push({
-        label: item.type === "leaf" ? (item.pageTitle ?? item.label) : item.label,
+        label: item.label,
         href: `/forms/${trail
           .slice(0, index + 1)
           .map((t) => t.slug)
@@ -131,7 +131,7 @@ export default async function FormsPage({ params, searchParams }: FormsPageProps
           trail={editTrail}
           backHref={editBackHref}
           id={editId}
-          title="Edit KVKs"
+          title="Edit View KVKs"
         />
       );
     }
@@ -171,11 +171,6 @@ export default async function FormsPage({ params, searchParams }: FormsPageProps
         trail={editTrail}
         backHref={editBackHref}
         columns={node.columns}
-        // Same compact auto-fit field layout as every All Masters leaf
-        // (app/(dashboard)/masters/[...slug]/page.tsx) - this route never
-        // set it before, so every generic Form Management leaf was still on
-        // the old one-field-per-row layout (client report, 2026-09-03).
-        compactFields={node.compactFields ?? true}
         recordPath={slug.join("/")}
         id={editId}
       />
@@ -194,7 +189,7 @@ export default async function FormsPage({ params, searchParams }: FormsPageProps
         return;
       }
       addTrail.push({
-        label: item.type === "leaf" ? (item.pageTitle ?? item.label) : item.label,
+        label: item.label,
         href: `/forms/${trail
           .slice(0, index + 1)
           .map((t) => t.slug)
@@ -203,7 +198,7 @@ export default async function FormsPage({ params, searchParams }: FormsPageProps
     });
     const backHref = `/forms/${slug.join("/")}`;
     if (node.slug === "view-kvks") {
-      return <KvkMasterAddForm trail={addTrail} backHref={backHref} title="Create KVKs" />;
+      return <KvkMasterAddForm trail={addTrail} backHref={backHref} title="Create View KVKs" />;
     }
     if (node.slug === "employee-details") {
       return <EmployeeDetailsAddForm trail={addTrail} backHref={backHref} />;
@@ -219,15 +214,10 @@ export default async function FormsPage({ params, searchParams }: FormsPageProps
     }
     return (
       <AddLeafPage
-        title={node.pageTitle ?? node.label}
+        title={node.label}
         trail={addTrail}
         backHref={backHref}
         columns={node.columns}
-        // Same compact auto-fit field layout as every All Masters leaf
-        // (app/(dashboard)/masters/[...slug]/page.tsx) - this route never
-        // set it before, so every generic Form Management leaf was still on
-        // the old one-field-per-row layout (client report, 2026-09-03).
-        compactFields={node.compactFields ?? true}
         recordPath={slug.join("/")}
       />
     );
@@ -855,6 +845,22 @@ export default async function FormsPage({ params, searchParams }: FormsPageProps
         kvk: r.kvk.name,
         category: r.category,
         variety: r.variety,
+        quantity: String(r.quantity),
+      })),
+      totalCount: rows.length,
+    };
+  } else if (user && node.type === "leaf" && node.slug === "soil-testing-equipment") {
+    const rows = await prisma.soilTestingEquipment.findMany({
+      where: kvkScope,
+      include: { kvk: true },
+      orderBy: { createdAt: "desc" },
+    });
+    formData = {
+      rows: rows.map((r) => ({
+        id: r.id,
+        kvk: r.kvk.name,
+        analysis: r.analysis,
+        equipmentName: r.equipmentName,
         quantity: String(r.quantity),
       })),
       totalCount: rows.length,

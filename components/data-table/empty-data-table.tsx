@@ -965,21 +965,16 @@ export function EmptyDataTable({
                           </td>
                         );
                       }
-                      // Every text cell stays on one line, full stop (client direction,
-                      // 2026-09-03: started as a KVK Name/Staff Name-only fix, but any
-                      // 2-3 line wrap - Agenda, Date, Representative from ATARI, whatever
-                      // column - reads as broken, not a deliberate compact layout). No
-                      // per-column heuristic needed any more: the table already scrolls
-                      // horizontally (see its wrapping container), so a wide value just
-                      // widens its own column instead of wrapping - that's the tradeoff
-                      // this direction explicitly accepts over multi-line wrapping.
                       return (
                         <td
                           key={column.key}
                           className="px-4 py-3.5 align-top text-foreground"
                         >
                           {typeof value === "string" ? (
-                            <span className="whitespace-nowrap" title={value}>
+                            <span
+                              className="line-clamp-2 max-w-xs"
+                              title={value}
+                            >
                               {value}
                             </span>
                           ) : (
