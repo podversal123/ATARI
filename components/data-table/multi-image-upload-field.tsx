@@ -12,6 +12,8 @@ type MultiImageUploadFieldProps = {
   uploadKind: UploadKind;
   value: string[];
   onChange: (urls: string[]) => void;
+  /** Overrides the caption's "(Max 5 MB per file)" text - every upload kind here is a real 5MB cap except Success Stories' own "Supporting Images" (reference caption: "File size must be less than 2MB", confirmed live 2026-09-03), so this only needs to be passed there. */
+  maxSizeMb?: number;
 };
 
 /**
@@ -26,7 +28,7 @@ type MultiImageUploadFieldProps = {
  * than a bare native file input, matching the app's own upload-zone look
  * used elsewhere - same upload/remove behavior underneath, cosmetic only.
  */
-export function MultiImageUploadField({ label, uploadKind, value, onChange }: MultiImageUploadFieldProps) {
+export function MultiImageUploadField({ label, uploadKind, value, onChange, maxSizeMb = 5 }: MultiImageUploadFieldProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -96,7 +98,7 @@ export function MultiImageUploadField({ label, uploadKind, value, onChange }: Mu
           {uploading ? "Uploading…" : "Click to upload photos"}
         </span>
         <span className="text-xs text-muted-foreground">
-          Only images allowed. Hold Ctrl/Cmd in the file picker to select multiple. (Max 5 MB per file)
+          Only images allowed. Hold Ctrl/Cmd in the file picker to select multiple. (Max {maxSizeMb} MB per file)
         </span>
       </button>
       {error && <p className="text-xs font-medium text-destructive">{error}</p>}

@@ -43,7 +43,7 @@ function LoginForm() {
           <p className="text-sm font-semibold tracking-wider uppercase">
             AMS - ATARI Zone (IV) Patna
           </p>
-          <h1 className="mt-3 text-5xl leading-[1.1] font-bold text-shadow-lg">
+          <h1 className="mt-3 text-4xl leading-[1.15] font-bold text-shadow-lg">
             ICAR - Agricultural Technology Application Research Institute
           </h1>
           <p className="mt-4 max-w-xl text-base text-white/90">

@@ -436,7 +436,8 @@ export function CfldTechnicalParameterPage({
                   onChange={setTrainingPhotoUrls}
                 />
                 <MultiImageUploadField
-                  label="Quality Action Photographs (field visits / technology demos)"
+                  // Shortened from "Quality Action Photographs (field visits / technology demos)" (audit finding, 2026-09-04) - the full label wrapped to 2 lines in its ~half-width card, pushing its own dropzone down out of alignment with the "Farmers' Training Photographs" card beside it (which stays 1 line). Same meaning, fits one line.
+                  label="Quality Action Photographs"
                   uploadKind="cfld-action-photo"
                   value={actionPhotoUrls}
                   onChange={setActionPhotoUrls}

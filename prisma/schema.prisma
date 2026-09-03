@@ -2786,6 +2786,8 @@ model KvkActivityImpact {
   impactObjective   String?
   incomeBefore      Decimal? @db.Decimal(14, 2)
   incomeAfter       Decimal? @db.Decimal(14, 2)
+  /// Real Add form field confirmed live (atariams.org/create-impact-activity, 2026-09-03) - was missing entirely before.
+  reportingYear     Int?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -2806,6 +2808,16 @@ model EntrepreneurshipDetail {
   /// Report 4.1.B columns (super-v2-prod.pdf p.84) - "Year of establishment", "Technical components".
   yearOfEstablishment      Int?
   technicalComponents      String?
+  /// Real Add form fields confirmed live (atariams.org/impact/entrepreneurship/create, 2026-09-03) - were missing entirely before.
+  reportingYear            Int?
+  registeredAddress        String?
+  registrationDetails      String?
+  roleOfKvk                String?
+  periodTimeline           String?
+  economicSocialStatus     String?
+  presentWorkingCondition  String?
+  majorAchievements        String?
+  majorConstraints         String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -2827,6 +2839,22 @@ model SuccessStory {
   enterprise           String?
   netIncome            Decimal? @db.Decimal(14, 2)
   costBenefitRatio     Decimal? @db.Decimal(8, 2)
+  /// Real Add form fields confirmed live (atariams.org/impact/success-story/create, 2026-09-03), 3 sections - Personal/Professional/Economic Information - were missing entirely before.
+  reportingYear          Int?
+  dateOfBirth            DateTime?
+  education              String?
+  cellNoEmail            String?
+  fullAddress            String?
+  professionalMembership String?
+  awardsReceived         String?
+  situationAnalysis      String?
+  planImplementSupport   String?
+  detailsOfPractices     String?
+  resultsOutput          String?
+  impactOutcome          String?
+  futurePlans            String?
+  supportingImageUrls    String[] @default([])
+  grossIncome            Decimal? @db.Decimal(14, 2)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -2953,6 +2981,7 @@ model DemonstrationUnit {
   kvkId        String
   kvk          Kvk      @relation(fields: [kvkId], references: [id])
   zoneId       String
+  reportingYear Int?
   demoUnitName String
   yearOfEstt   Int
   areaSqMt     Decimal  @db.Decimal(10, 2)
@@ -2977,6 +3006,7 @@ model InstructionalFarmCrop {
   kvkId        String
   kvk          Kvk      @relation(fields: [kvkId], references: [id])
   zoneId       String
+  reportingYear Int?
   cropName     String
   areaHa       Decimal  @db.Decimal(10, 2)
   season       String?
@@ -2999,6 +3029,7 @@ model ProductionUnit {
   kvkId        String
   kvk          Kvk      @relation(fields: [kvkId], references: [id])
   zoneId       String
+  reportingYear Int?
   productName  String
   qty          Decimal  @db.Decimal(12, 2)
   costOfInputs Decimal? @db.Decimal(14, 2)
@@ -3017,6 +3048,7 @@ model InstructionalFarmLivestock {
   kvkId        String
   kvk          Kvk      @relation(fields: [kvkId], references: [id])
   zoneId       String
+  reportingYear Int?
   animalName   String
   speciesBreed String?
   produceType  String?
@@ -3037,6 +3069,7 @@ model HostelUtilization {
   kvkId              String
   kvk                Kvk     @relation(fields: [kvkId], references: [id])
   zoneId             String
+  reportingYear      Int?
   months             String
   traineesStayed     Int
   traineeDays        Int
@@ -3057,6 +3090,10 @@ model StaffQuartersPerformance {
   noOfStaffQuarters Int
   dateOfCompletion  DateTime?
   remark            String?
+  /// Real Add form fields confirmed live (atariams.org/infra-performance/staff-quaters/create, 2026-09-04) - were missing entirely before. "quarterlyCompletion" is the Jan-Dec x Quarter 1-6 Yes/No completion matrix (72 cells), stored as one JSON object ({month: {quarter: "Yes"|"No"}}) rather than 72 columns.
+  whetherCompleted    String?
+  occupancyDetails    String?
+  quarterlyCompletion Json?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -3094,13 +3131,20 @@ model BudgetDetail {
   generalGrantExpenditure Decimal  @db.Decimal(14, 2)
   capitalGrantAllocation  Decimal  @db.Decimal(14, 2)
   capitalGrantExpenditure Decimal  @db.Decimal(14, 2)
-  /// Real "4.4.A Budget Details" (super-v2-prod.pdf p.86) breaks General and Capital Allocation into Main Grant/TSP/SCSP, alongside (not replacing) the existing Allocation/Expenditure fields above.
+  /// "generalMainGrant"/"capitalMainGrant" below are legacy, unused fields from a misread of a PDF report (the real live reference has no separate "Main Grant" beyond generalGrantAllocation/capitalGrantAllocation above) - kept in the DB (never dropped, per this session's own "don't delete extra fields" policy) but no longer exposed on the form; the 8 real TSP/SCSP Allocation+Expenditure pairs below (confirmed live 2026-09-04) replace this leaf's old single-value TSP/SCSP fields, which were missing their Expenditure half entirely.
   generalMainGrant        Decimal? @db.Decimal(14, 2)
   generalTsp              Decimal? @db.Decimal(14, 2)
+  generalTspExpenditure   Decimal? @db.Decimal(14, 2)
   generalScsp             Decimal? @db.Decimal(14, 2)
+  generalScspExpenditure  Decimal? @db.Decimal(14, 2)
   capitalMainGrant        Decimal? @db.Decimal(14, 2)
   capitalTsp              Decimal? @db.Decimal(14, 2)
+  capitalTspExpenditure   Decimal? @db.Decimal(14, 2)
   capitalScsp             Decimal? @db.Decimal(14, 2)
+  capitalScspExpenditure  Decimal? @db.Decimal(14, 2)
+  /// Real Add form field confirmed live (atariams.org/financial-performance/budget-details/create, 2026-09-04) - a Financial-Year date range, not required.
+  startDate               DateTime?
+  endDate                 DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -3122,6 +3166,9 @@ model ProjectWiseBudgetPerformance {
   budgetReleased  Decimal @db.Decimal(14, 2)
   expenditure     Decimal @db.Decimal(14, 2)
   unspentBalance  Decimal @db.Decimal(14, 2)
+  /// Real Add form field confirmed live (atariams.org/financial-performance/project-budget-details/create, 2026-09-04) - a Financial-Year date range, not required.
+  startDate       DateTime?
+  endDate         DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -3157,6 +3204,9 @@ model RevenueGeneration {
   headName         String
   income           Decimal @db.Decimal(14, 2)
   sponsoringAgency String?
+  /// Real Add form field confirmed live (atariams.org/financial-performance/revenue-generation/create, 2026-09-04) - a Financial-Year date range, not required.
+  startDate        DateTime?
+  endDate          DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -3175,6 +3225,9 @@ model ResourceGeneration {
   sourcesOfFund         String?
   amountLakhs           Decimal @db.Decimal(14, 2)
   infrastructureCreated String?
+  /// Real Add form field confirmed live (atariams.org/financial-performance/resource-generation/create, 2026-09-04) - a Financial-Year date range, not required.
+  startDate             DateTime?
+  endDate               DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -3190,6 +3243,8 @@ model FunctionalLinkage {
   zoneId           String
   organizationName String
   natureOfLinkage  String?
+  /// Real Add form field confirmed live (atariams.org/linkages/create, 2026-09-04) - was missing entirely before.
+  reportingYear    Int?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -3206,6 +3261,11 @@ model SpecialProgramme {
   programmeType  String
   programmeName  String
   initiationDate DateTime?
+  /// Real Add form fields confirmed live (atariams.org/linkage/details/create, 2026-09-04) - were missing entirely before.
+  reportingYear  Int?
+  purpose        String?
+  fundingAgency  String?
+  amount         Decimal?  @db.Decimal(14, 2)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -3309,8 +3369,17 @@ model NykTraining {
   programmeTitle String
   startDate      DateTime
   endDate        DateTime
+  /// `male`/`female` stay the list table's own aggregate columns (real reference: atariams.org/nehru-yuva-kendra, 2026-09-04) - server-computed from the 8 real General/OBC/SC/ST x M/F breakdown fields below, which are what the real Add form actually captures.
   male           Int
   female         Int
+  generalMale    Int      @default(0)
+  generalFemale  Int      @default(0)
+  obcMale        Int      @default(0)
+  obcFemale      Int      @default(0)
+  scMale         Int      @default(0)
+  scFemale       Int      @default(0)
+  stMale         Int      @default(0)
+  stFemale       Int      @default(0)
   fundReceived   Decimal  @db.Decimal(14, 2)
 
   createdAt DateTime @default(now())
@@ -3342,9 +3411,9 @@ model PpvFraTrainingProgramme {
 }
 
 model PpvFraFarmerDetail {
-  id              String  @id @default(cuid())
+  id              String   @id @default(cuid())
   kvkId           String
-  kvk             Kvk     @relation(fields: [kvkId], references: [id])
+  kvk             Kvk      @relation(fields: [kvkId], references: [id])
   zoneId          String
   year            Int
   crop            String
@@ -3355,6 +3424,8 @@ model PpvFraFarmerDetail {
   mobileNo        String?
   village         String?
   characteristics String?
+  /// Real Add form field confirmed live (atariams.org/sensitization-farmer-details/create, 2026-09-04) - a multi-file "Images" upload, missing entirely before.
+  images          String[] @default([])
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -3372,8 +3443,11 @@ model RaweFetFitProgramme {
   endDate          DateTime
   attachmentType   String
   attachment       String?
+  /// `numberOfStudents`/`daysStayed` stay the list table's own aggregate columns (real reference: atariams.org/rawe-program, 2026-09-04) - server-computed from `male`/`female` (the real "Student" section on the Add form) and the Start/End Date difference.
   numberOfStudents Int
   daysStayed       Int
+  male             Int      @default(0)
+  female           Int      @default(0)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

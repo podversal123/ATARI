@@ -397,18 +397,18 @@ export function KvkMasterEditForm({ trail, backHref, id, title = "Edit KVK" }: K
                   placeholder="Enter fax"
                 />
               </div>
-            </div>
-
-            <div className="space-y-1.5">
-              <Label htmlFor="kvk-host-email">E-mail</Label>
-              <Input
-                className="h-10"
-                id="kvk-host-email"
-                value={hostEmail}
-                disabled={!host}
-                readOnly
-                placeholder="Enter email address"
-              />
+              {/* Used to sit alone in its own full-width row (audit finding, 2026-09-04) while Mobile/Landline/Fax above it split evenly into 3 columns - moved into the same grid so a single short field doesn't stretch to the full card width. */}
+              <div className="space-y-1.5">
+                <Label htmlFor="kvk-host-email">E-mail</Label>
+                <Input
+                  className="h-10"
+                  id="kvk-host-email"
+                  value={hostEmail}
+                  disabled={!host}
+                  readOnly
+                  placeholder="Enter email address"
+                />
+              </div>
             </div>
 
             <div className="space-y-1.5">

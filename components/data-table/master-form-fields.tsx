@@ -12,8 +12,10 @@ import { MultiImageUploadField } from "./multi-image-upload-field";
 import { FormPhotosField, type FormPhoto } from "./form-photos-field";
 import { DemographicBreakdown, DemographicGrid, type DemographicValues } from "./demographic-breakdown";
 import { NfParametersField } from "./nf-parameters-field";
+import { MonthQuarterGridField } from "./month-quarter-grid-field";
 import { useCascadeOptions } from "./use-cascade-options";
 import { isNumericLabel } from "@/lib/numeric-field";
+import { compactPlaceholder } from "@/lib/compact-placeholder";
 import type { MasterColumn } from "@/lib/navigation";
 
 export const DEMOGRAPHIC_KEYS = [
@@ -132,8 +134,8 @@ function SourceMasterField({
         onValueChange={onChange}
         placeholder={
           disabled
-            ? `Select ${dependsOnLabel ?? "the required field"} first`
-            : `Select ${column.formLabel ?? column.label}`
+            ? `Select ${compactPlaceholder(dependsOnLabel ?? "the required field")} first`
+            : `Select ${compactPlaceholder(column.formLabel ?? column.label)}`
         }
         options={options.map((option) => ({ value: option, label: option }))}
         className={cn("h-10", noOptions && "rounded-b-none")}
@@ -294,6 +296,7 @@ export function MasterFormFields({
                 uploadKind={column.uploadKind}
                 value={value}
                 onChange={(urls) => onChange({ ...formValues, [column.key]: JSON.stringify(urls) })}
+                maxSizeMb={column.uploadKind === "success-story-image" ? 2 : undefined}
               />
             </div>
           );
@@ -334,6 +337,18 @@ export function MasterFormFields({
           );
         }
 
+        if (column.fieldKind === "month-quarter-grid") {
+          return (
+            <div key={column.key} className="col-[1/-1]">
+              <MonthQuarterGridField
+                label={column.formLabel ?? column.label}
+                value={formValues[column.key] ?? ""}
+                onChange={(next) => onChange({ ...formValues, [column.key]: next })}
+              />
+            </div>
+          );
+        }
+
         if (column.fieldKind === "checkbox") {
           return (
             <label key={column.key} className="flex items-center gap-2 pt-6 text-sm text-foreground">
@@ -359,7 +374,7 @@ export function MasterFormFields({
                 id={fieldId}
                 value={formValues[column.key] ?? ""}
                 onValueChange={(v) => onChange({ ...formValues, [column.key]: v })}
-                placeholder={`Select ${column.label}`}
+                placeholder={`Select ${compactPlaceholder(column.formLabel ?? column.label)}`}
                 options={column.staticOptions.map((option) => ({ value: option, label: option }))}
                 className="h-10"
               />
@@ -452,7 +467,7 @@ export function MasterFormFields({
                 placeholder={
                   disabled
                     ? `Select ${column.key === "stateName" ? "a zone" : "a state"} first`
-                    : `Select ${column.label}`
+                    : `Select ${compactPlaceholder(column.label)}`
                 }
                 options={options.map((option) => ({ value: option, label: option }))}
                 className="h-10"
@@ -471,7 +486,7 @@ export function MasterFormFields({
               type={
                 column.fieldKind === "date"
                   ? "date"
-                  : isNumericLabel(column.label, column.formLabel)
+                  : column.numeric !== false && isNumericLabel(column.label, column.formLabel)
                     ? "number"
                     : undefined
               }
@@ -480,7 +495,7 @@ export function MasterFormFields({
               placeholder={
                 column.fieldKind === "date"
                   ? undefined
-                  : (column.placeholder ?? `Enter ${(column.formLabel ?? column.label).toLowerCase()}`)
+                  : (column.placeholder ?? `Enter ${compactPlaceholder(column.formLabel ?? column.label).toLowerCase()}`)
               }
               onChange={(event) =>
                 onChange({ ...formValues, [column.key]: event.target.value })

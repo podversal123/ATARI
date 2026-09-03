@@ -31,6 +31,8 @@ const reqDec = (v: string | undefined) => Number(v) || 0;
 const date = (v: string | undefined) => (v?.trim() ? new Date(v) : undefined);
 const reqDate = (v: string | undefined) => new Date(v ?? Date.now());
 const bool = (v: string | undefined) => v?.trim().toLowerCase() === "yes" || v?.trim().toLowerCase() === "true";
+/** Inclusive day count between two dates (e.g. 1st-3rd = 3 days stayed, not 2) - for a leaf whose real reference form has no separate "days stayed" input, just Start/End Date, with the duration shown read-only in the list table (e.g. RAWE/FET/FIT Programme). */
+const daysBetween = (start: Date, end: Date) => Math.max(1, Math.round((end.getTime() - start.getTime()) / 86_400_000) + 1);
 
 /** Any `fieldKind: "multi-image"` field (e.g. Farmer Award's Photographs) arrives as one JSON-stringified array of URLs (same convention as OFT's technologyOptions below), since this registry's values are otherwise flat strings. */
 function parsePhotoUrls(raw: string | undefined): string[] {
@@ -138,6 +140,17 @@ function farmersByCategory(v: Record<string, string>) {
   return Object.fromEntries(demographicKeys.map((k) => [k, String(int(v[k]) ?? 0)]));
 }
 
+/** Parses MonthQuarterGridField's own JSON-string form value ({month: {quarter: "Yes"|"No"}}) into a real object for the Json column - undefined for a blank/empty grid so an untouched matrix doesn't store `{}`. */
+function quarterlyCompletion(raw: string | undefined) {
+  if (!raw?.trim()) return undefined;
+  try {
+    const parsed = JSON.parse(raw);
+    return typeof parsed === "object" && parsed !== null && Object.keys(parsed).length > 0 ? parsed : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 /**
  * Same 8 General/OBC/SC/ST x Male/Female keys, but as 8 discrete real int
  * columns (Training/ExtensionActivity/CelebrationDay's own shape) instead of
@@ -153,6 +166,19 @@ function demographicColumns(v: Record<string, string>, prefix = "") {
       return [key, reqInt(v[key])];
     }),
   );
+}
+
+/** Sum across all 8 General/OBC/SC/ST x Male/Female breakdown keys - for a leaf whose real reference form has no separate "total" input at all (e.g. PPV & FRA Training Programme's "No. of Participants"), just the breakdown itself, with the total shown read-only in the list table. */
+function demographicTotal(v: Record<string, string>, prefix = "") {
+  return demographicKeys.reduce((sum, k) => {
+    const key = prefix ? `${prefix}${k[0].toUpperCase()}${k.slice(1)}` : k;
+    return sum + (int(v[key]) ?? 0);
+  }, 0);
+}
+
+/** Sum of just the 4 Male (or Female) breakdown keys - for a leaf whose real reference table shows separate Male/Female totals rather than one grand total (e.g. NYK Training). */
+function demographicSexTotal(v: Record<string, string>, sex: "Male" | "Female") {
+  return ["general", "obc", "sc", "st"].reduce((sum, category) => sum + (int(v[`${category}${sex}`]) ?? 0), 0);
 }
 
 /** NARI models keep the General pair as `male`/`female`; the rest are the plain OBC/SC/ST x M/F ints. */
@@ -967,15 +993,56 @@ export const LEAF_RECORD_REGISTRY: Record<string, CreateFn> = {
   // --- Performance Indicators ---
   "performance/impact/impact-of-kvk-activities": (v, ctx) =>
     prisma.kvkActivityImpact.create({
-      data: { ...ctx, specificArea: reqStr(v.specificArea), briefDetails: str(v.briefDetails), farmersBenefitted: reqInt(v.farmersBenefitted), horizontalSpread: str(v.horizontalSpread), adoptionPercent: reqDec(v.adoptionPercent), impactSubjective: str(v.impactSubjective), impactObjective: str(v.impactObjective), incomeBefore: dec(v.incomeBefore), incomeAfter: dec(v.incomeAfter) },
+      data: { ...ctx, reportingYear: int(v.reportingYear), specificArea: reqStr(v.specificArea), briefDetails: str(v.briefDetails), farmersBenefitted: reqInt(v.farmersBenefitted), horizontalSpread: str(v.horizontalSpread), adoptionPercent: reqDec(v.adoptionPercent), impactSubjective: str(v.impactSubjective), impactObjective: str(v.impactObjective), incomeBefore: dec(v.incomeBefore), incomeAfter: dec(v.incomeAfter) },
     }),
   "performance/impact/entrepreneurship-details": (v, ctx) =>
     prisma.entrepreneurshipDetail.create({
-      data: { ...ctx, entrepreneurOrEnterprise: reqStr(v.entrepreneurOrEnterprise), enterpriseType: reqStr(v.enterpriseType), yearOfEstablishment: int(v.yearOfEstablishment), membersAssociated: reqInt(v.membersAssociated), annualIncome: reqDec(v.annualIncome), technicalComponents: str(v.technicalComponents) },
+      data: {
+        ...ctx,
+        reportingYear: int(v.reportingYear),
+        entrepreneurOrEnterprise: reqStr(v.entrepreneurOrEnterprise),
+        registeredAddress: str(v.registeredAddress),
+        enterpriseType: reqStr(v.enterpriseType),
+        yearOfEstablishment: int(v.yearOfEstablishment),
+        registrationDetails: str(v.registrationDetails),
+        membersAssociated: reqInt(v.membersAssociated),
+        technicalComponents: str(v.technicalComponents),
+        annualIncome: reqDec(v.annualIncome),
+        roleOfKvk: str(v.roleOfKvk),
+        periodTimeline: str(v.periodTimeline),
+        economicSocialStatus: str(v.economicSocialStatus),
+        presentWorkingCondition: str(v.presentWorkingCondition),
+        majorAchievements: str(v.majorAchievements),
+        majorConstraints: str(v.majorConstraints),
+      },
     }),
   "performance/impact/success-stories": (v, ctx) =>
     prisma.successStory.create({
-      data: { ...ctx, farmerOrEntrepreneur: reqStr(v.farmerOrEntrepreneur), experience: str(v.experience), majorAchievement: reqStr(v.majorAchievement), storyTitle: reqStr(v.storyTitle), enterprise: str(v.enterprise), netIncome: dec(v.netIncome), costBenefitRatio: dec(v.costBenefitRatio) },
+      data: {
+        ...ctx,
+        reportingYear: int(v.reportingYear),
+        farmerOrEntrepreneur: reqStr(v.farmerOrEntrepreneur),
+        dateOfBirth: date(v.dateOfBirth),
+        education: str(v.education),
+        experience: str(v.experience),
+        cellNoEmail: str(v.cellNoEmail),
+        fullAddress: str(v.fullAddress),
+        professionalMembership: str(v.professionalMembership),
+        majorAchievement: reqStr(v.majorAchievement),
+        awardsReceived: str(v.awardsReceived),
+        storyTitle: reqStr(v.storyTitle),
+        situationAnalysis: str(v.situationAnalysis),
+        planImplementSupport: str(v.planImplementSupport),
+        detailsOfPractices: str(v.detailsOfPractices),
+        resultsOutput: str(v.resultsOutput),
+        impactOutcome: str(v.impactOutcome),
+        futurePlans: str(v.futurePlans),
+        supportingImageUrls: parsePhotoUrls(v.supportingImageUrls),
+        enterprise: str(v.enterprise),
+        grossIncome: dec(v.grossIncome),
+        netIncome: dec(v.netIncome),
+        costBenefitRatio: dec(v.costBenefitRatio),
+      },
     }),
   "performance/district-village-performance/district-level-data": (v, ctx) =>
     prisma.districtLevelData.create({
@@ -1014,56 +1081,67 @@ export const LEAF_RECORD_REGISTRY: Record<string, CreateFn> = {
     prisma.demonstrationUnit.create({
       data: {
         ...ctx,
+        reportingYear: reqInt(v.reportingYear),
         demoUnitName: reqStr(v.demoUnitName),
         yearOfEstt: reqInt(v.yearOfEstt),
         areaSqMt: reqDec(v.areaSqMt),
-        varietyBreed: str(v.varietyBreed),
-        produce: str(v.produce),
-        qty: dec(v.qty),
-        costOfInputs: dec(v.costOfInputs),
-        grossIncome: dec(v.grossIncome),
-        remarks: str(v.remarks),
+        varietyBreed: reqStr(v.varietyBreed),
+        produce: reqStr(v.produce),
+        qty: reqDec(v.qty),
+        costOfInputs: reqDec(v.costOfInputs),
+        grossIncome: reqDec(v.grossIncome),
+        remarks: reqStr(v.remarks),
       },
     }),
   "performance/infrastructure-performance/instructional-farm-crops": (v, ctx) =>
     prisma.instructionalFarmCrop.create({
       data: {
         ...ctx,
+        reportingYear: reqInt(v.reportingYear),
         cropName: reqStr(v.cropName),
         areaHa: reqDec(v.areaHa),
-        season: str(v.season),
-        variety: str(v.variety),
-        produceType: str(v.produceType),
-        qty: dec(v.qty),
-        costOfInputs: dec(v.costOfInputs),
-        grossIncome: dec(v.grossIncome),
-        remarks: str(v.remarks),
+        season: reqStr(v.season),
+        variety: reqStr(v.variety),
+        produceType: reqStr(v.produceType),
+        qty: reqDec(v.qty),
+        costOfInputs: reqDec(v.costOfInputs),
+        grossIncome: reqDec(v.grossIncome),
+        remarks: reqStr(v.remarks),
       },
     }),
   "performance/infrastructure-performance/production-units": (v, ctx) =>
     prisma.productionUnit.create({
-      data: { ...ctx, productName: reqStr(v.productName), qty: reqDec(v.qty), costOfInputs: dec(v.costOfInputs), grossIncome: dec(v.grossIncome), remarks: str(v.remarks) },
+      data: { ...ctx, reportingYear: reqInt(v.reportingYear), productName: reqStr(v.productName), qty: reqDec(v.qty), costOfInputs: reqDec(v.costOfInputs), grossIncome: reqDec(v.grossIncome), remarks: reqStr(v.remarks) },
     }),
   "performance/infrastructure-performance/instructional-farm-livestock": (v, ctx) =>
     prisma.instructionalFarmLivestock.create({
       data: {
         ...ctx,
+        reportingYear: reqInt(v.reportingYear),
         animalName: reqStr(v.animalName),
-        speciesBreed: str(v.speciesBreed),
-        produceType: str(v.produceType),
-        qty: dec(v.qty),
-        costOfInputs: dec(v.costOfInputs),
-        grossIncome: dec(v.grossIncome),
-        remarks: str(v.remarks),
+        speciesBreed: reqStr(v.speciesBreed),
+        produceType: reqStr(v.produceType),
+        qty: reqDec(v.qty),
+        costOfInputs: reqDec(v.costOfInputs),
+        grossIncome: reqDec(v.grossIncome),
+        remarks: reqStr(v.remarks),
       },
     }),
   "performance/infrastructure-performance/hostel-utilization": (v, ctx) =>
     prisma.hostelUtilization.create({
-      data: { ...ctx, months: reqStr(v.months), traineesStayed: reqInt(v.traineesStayed), traineeDays: reqInt(v.traineeDays), reasonForShortFall: str(v.reasonForShortFall) },
+      data: { ...ctx, reportingYear: reqInt(v.reportingYear), months: reqStr(v.months), traineesStayed: reqInt(v.traineesStayed), traineeDays: reqInt(v.traineeDays), reasonForShortFall: reqStr(v.reasonForShortFall) },
     }),
   "performance/infrastructure-performance/staff-quarters-performance": (v, ctx) =>
     prisma.staffQuartersPerformance.create({
-      data: { ...ctx, noOfStaffQuarters: reqInt(v.noOfStaffQuarters), dateOfCompletion: date(v.dateOfCompletion), remark: str(v.remark) },
+      data: {
+        ...ctx,
+        noOfStaffQuarters: reqInt(v.noOfStaffQuarters),
+        dateOfCompletion: date(v.dateOfCompletion),
+        remark: reqStr(v.remark),
+        whetherCompleted: reqStr(v.whetherCompleted),
+        occupancyDetails: reqStr(v.occupancyDetails),
+        quarterlyCompletion: quarterlyCompletion(v.quarterlyCompletion),
+      },
     }),
   "performance/infrastructure-performance/rain-water-harvesting": (v, ctx) =>
     prisma.rainWaterHarvesting.create({
@@ -1073,27 +1151,33 @@ export const LEAF_RECORD_REGISTRY: Record<string, CreateFn> = {
     prisma.budgetDetail.create({
       data: {
         ...ctx,
+        startDate: date(v.startDate),
+        endDate: date(v.endDate),
         salaryAllocation: reqDec(v.salaryAllocation),
         salaryExpenditure: reqDec(v.salaryExpenditure),
         generalGrantAllocation: reqDec(v.generalGrantAllocation),
         generalGrantExpenditure: reqDec(v.generalGrantExpenditure),
         capitalGrantAllocation: reqDec(v.capitalGrantAllocation),
         capitalGrantExpenditure: reqDec(v.capitalGrantExpenditure),
-        generalMainGrant: dec(v.generalMainGrant),
-        generalTsp: dec(v.generalTsp),
-        generalScsp: dec(v.generalScsp),
-        capitalMainGrant: dec(v.capitalMainGrant),
-        capitalTsp: dec(v.capitalTsp),
-        capitalScsp: dec(v.capitalScsp),
+        generalTsp: reqDec(v.generalTsp),
+        generalTspExpenditure: reqDec(v.generalTspExpenditure),
+        generalScsp: reqDec(v.generalScsp),
+        generalScspExpenditure: reqDec(v.generalScspExpenditure),
+        capitalTsp: reqDec(v.capitalTsp),
+        capitalTspExpenditure: reqDec(v.capitalTspExpenditure),
+        capitalScsp: reqDec(v.capitalScsp),
+        capitalScspExpenditure: reqDec(v.capitalScspExpenditure),
       },
     }),
   "performance/financial-performance/project-wise-budget-performance": (v, ctx) =>
     prisma.projectWiseBudgetPerformance.create({
       data: {
         ...ctx,
+        startDate: date(v.startDate),
+        endDate: date(v.endDate),
         projectName: reqStr(v.projectName),
-        accountNumber: str(v.accountNumber),
-        fundingAgency: str(v.fundingAgency),
+        accountNumber: reqStr(v.accountNumber),
+        fundingAgency: reqStr(v.fundingAgency),
         budgetEstimate: reqDec(v.budgetEstimate),
         budgetAllocated: reqDec(v.budgetAllocated),
         budgetReleased: reqDec(v.budgetReleased),
@@ -1107,19 +1191,19 @@ export const LEAF_RECORD_REGISTRY: Record<string, CreateFn> = {
     }),
   "performance/financial-performance/revenue-generation": (v, ctx) =>
     prisma.revenueGeneration.create({
-      data: { ...ctx, headName: reqStr(v.headName), income: reqDec(v.income), sponsoringAgency: str(v.sponsoringAgency) },
+      data: { ...ctx, startDate: date(v.startDate), endDate: date(v.endDate), headName: reqStr(v.headName), income: reqDec(v.income), sponsoringAgency: reqStr(v.sponsoringAgency) },
     }),
   "performance/financial-performance/resource-generation": (v, ctx) =>
     prisma.resourceGeneration.create({
-      data: { ...ctx, programmeName: reqStr(v.programmeName), purpose: str(v.purpose), sourcesOfFund: str(v.sourcesOfFund), amountLakhs: reqDec(v.amountLakhs), infrastructureCreated: str(v.infrastructureCreated) },
+      data: { ...ctx, startDate: date(v.startDate), endDate: date(v.endDate), programmeName: reqStr(v.programmeName), purpose: reqStr(v.purpose), sourcesOfFund: reqStr(v.sourcesOfFund), amountLakhs: reqDec(v.amountLakhs), infrastructureCreated: reqStr(v.infrastructureCreated) },
     }),
   "performance/linkages/functional-linkage": (v, ctx) =>
     prisma.functionalLinkage.create({
-      data: { ...ctx, organizationName: reqStr(v.organizationName), natureOfLinkage: str(v.natureOfLinkage) },
+      data: { ...ctx, reportingYear: reqInt(v.reportingYear), organizationName: reqStr(v.organizationName), natureOfLinkage: reqStr(v.natureOfLinkage) },
     }),
   "performance/linkages/special-programmes": (v, ctx) =>
     prisma.specialProgramme.create({
-      data: { ...ctx, programmeType: reqStr(v.programmeType), programmeName: reqStr(v.programmeName), initiationDate: date(v.initiationDate) },
+      data: { ...ctx, reportingYear: reqInt(v.reportingYear), programmeType: reqStr(v.programmeType), programmeName: reqStr(v.programmeName), purpose: reqStr(v.purpose), fundingAgency: reqStr(v.fundingAgency), amount: reqDec(v.amount), initiationDate: date(v.initiationDate) },
     }),
 
   // --- Meetings ---
@@ -1135,7 +1219,7 @@ export const LEAF_RECORD_REGISTRY: Record<string, CreateFn> = {
   // --- Miscellaneous ---
   "miscellaneous/prevalent-diseases-crops": (v, ctx) =>
     prisma.prevalentDiseaseCrop.create({
-      data: { ...ctx, diseaseName: reqStr(v.diseaseName), crop: reqStr(v.crop), outbreakDate: reqDate(v.outbreakDate), areaAffected: reqDec(v.areaAffected), commodityLossPercent: reqDec(v.commodityLossPercent), preventiveMeasures: str(v.preventiveMeasures) },
+      data: { ...ctx, diseaseName: reqStr(v.diseaseName), crop: reqStr(v.crop), outbreakDate: reqDate(v.outbreakDate), areaAffected: reqDec(v.areaAffected), commodityLossPercent: reqDec(v.commodityLossPercent), preventiveMeasures: reqStr(v.preventiveMeasures) },
     }),
   "miscellaneous/prevalent-diseases-livestock": (v, ctx) =>
     prisma.prevalentDiseaseLivestock.create({
@@ -1144,16 +1228,25 @@ export const LEAF_RECORD_REGISTRY: Record<string, CreateFn> = {
         diseaseName: reqStr(v.diseaseName),
         speciesAffected: reqStr(v.speciesAffected),
         outbreakDate: reqDate(v.outbreakDate),
-        mortalityMorbidity: str(v.mortalityMorbidity),
+        mortalityMorbidity: reqStr(v.mortalityMorbidity),
         animalsVaccinated: reqInt(v.animalsVaccinated),
-        preventiveMeasures: str(v.preventiveMeasures),
+        preventiveMeasures: reqStr(v.preventiveMeasures),
         areaAffected: dec(v.areaAffected),
         commodityLossPercent: dec(v.commodityLossPercent),
       },
     }),
   "miscellaneous/nyk-training": (v, ctx) =>
     prisma.nykTraining.create({
-      data: { ...ctx, programmeTitle: reqStr(v.programmeTitle), startDate: reqDate(v.startDate), endDate: reqDate(v.endDate), male: reqInt(v.male), female: reqInt(v.female), fundReceived: reqDec(v.fundReceived) },
+      data: {
+        ...ctx,
+        programmeTitle: reqStr(v.programmeTitle),
+        startDate: reqDate(v.startDate),
+        endDate: reqDate(v.endDate),
+        ...demographicColumns(v),
+        male: demographicSexTotal(v, "Male"),
+        female: demographicSexTotal(v, "Female"),
+        fundReceived: reqDec(v.fundReceived),
+      },
     }),
   "miscellaneous/ppv-fra-sensitization/ppv-fra-training-programme": (v, ctx) =>
     prisma.ppvFraTrainingProgramme.create({
@@ -1161,10 +1254,10 @@ export const LEAF_RECORD_REGISTRY: Record<string, CreateFn> = {
         ...ctx,
         date: reqDate(v.date),
         title: reqStr(v.title),
-        type: str(v.type),
-        venue: str(v.venue),
-        resourcePerson: str(v.resourcePerson),
-        participants: reqInt(v.participants),
+        type: reqStr(v.type),
+        venue: reqStr(v.venue),
+        resourcePerson: reqStr(v.resourcePerson),
+        participants: demographicTotal(v),
         farmersByCategory: farmersByCategory(v),
       },
     }),
@@ -1176,20 +1269,36 @@ export const LEAF_RECORD_REGISTRY: Record<string, CreateFn> = {
         crop: reqStr(v.crop),
         registrationNo: reqStr(v.registrationNo),
         farmerName: reqStr(v.farmerName),
-        block: str(v.block),
-        district: str(v.district),
-        mobileNo: str(v.mobileNo),
-        village: str(v.village),
-        characteristics: str(v.characteristics),
+        block: reqStr(v.block),
+        district: reqStr(v.district),
+        mobileNo: reqStr(v.mobileNo),
+        village: reqStr(v.village),
+        characteristics: reqStr(v.characteristics),
+        images: parsePhotoUrls(v.images),
       },
     }),
-  "miscellaneous/rawe-fet-fit-programme": (v, ctx) =>
-    prisma.raweFetFitProgramme.create({
-      data: { ...ctx, startDate: reqDate(v.startDate), endDate: reqDate(v.endDate), attachmentType: reqStr(v.attachmentType), attachment: str(v.attachment), numberOfStudents: reqInt(v.numberOfStudents), daysStayed: reqInt(v.daysStayed) },
-    }),
+  "miscellaneous/rawe-fet-fit-programme": (v, ctx) => {
+    const startDate = reqDate(v.startDate);
+    const endDate = reqDate(v.endDate);
+    const male = reqInt(v.male);
+    const female = reqInt(v.female);
+    return prisma.raweFetFitProgramme.create({
+      data: {
+        ...ctx,
+        startDate,
+        endDate,
+        attachmentType: reqStr(v.attachmentType),
+        attachment: str(v.attachment),
+        male,
+        female,
+        numberOfStudents: male + female,
+        daysStayed: daysBetween(startDate, endDate),
+      },
+    });
+  },
   "miscellaneous/vip-visitors": (v, ctx) =>
     prisma.vipVisitor.create({
-      data: { ...ctx, visitDate: reqDate(v.visitDate), dignitaryType: reqStr(v.dignitaryType), ministerName: reqStr(v.ministerName), observations: str(v.observations) },
+      data: { ...ctx, visitDate: reqDate(v.visitDate), dignitaryType: reqStr(v.dignitaryType), ministerName: reqStr(v.ministerName), observations: reqStr(v.observations) },
     }),
   "miscellaneous/digital-information/digital-mobile-app": (v, ctx) =>
     prisma.digitalMobileApp.create({
@@ -2069,11 +2178,56 @@ export const LEAF_UPDATE_REGISTRY: Record<string, UpdateFn> = {
     }),
 
   "performance/impact/impact-of-kvk-activities": (id, v, ctx) =>
-    prisma.kvkActivityImpact.updateMany({ where: { id, ...kvkScope(ctx) }, data: { specificArea: reqStr(v.specificArea), briefDetails: str(v.briefDetails), farmersBenefitted: reqInt(v.farmersBenefitted), horizontalSpread: str(v.horizontalSpread), adoptionPercent: reqDec(v.adoptionPercent), impactSubjective: str(v.impactSubjective), impactObjective: str(v.impactObjective), incomeBefore: dec(v.incomeBefore), incomeAfter: dec(v.incomeAfter) } }),
+    prisma.kvkActivityImpact.updateMany({ where: { id, ...kvkScope(ctx) }, data: { reportingYear: int(v.reportingYear), specificArea: reqStr(v.specificArea), briefDetails: str(v.briefDetails), farmersBenefitted: reqInt(v.farmersBenefitted), horizontalSpread: str(v.horizontalSpread), adoptionPercent: reqDec(v.adoptionPercent), impactSubjective: str(v.impactSubjective), impactObjective: str(v.impactObjective), incomeBefore: dec(v.incomeBefore), incomeAfter: dec(v.incomeAfter) } }),
   "performance/impact/entrepreneurship-details": (id, v, ctx) =>
-    prisma.entrepreneurshipDetail.updateMany({ where: { id, ...kvkScope(ctx) }, data: { entrepreneurOrEnterprise: reqStr(v.entrepreneurOrEnterprise), enterpriseType: reqStr(v.enterpriseType), yearOfEstablishment: int(v.yearOfEstablishment), membersAssociated: reqInt(v.membersAssociated), annualIncome: reqDec(v.annualIncome), technicalComponents: str(v.technicalComponents) } }),
+    prisma.entrepreneurshipDetail.updateMany({
+      where: { id, ...kvkScope(ctx) },
+      data: {
+        reportingYear: int(v.reportingYear),
+        entrepreneurOrEnterprise: reqStr(v.entrepreneurOrEnterprise),
+        registeredAddress: str(v.registeredAddress),
+        enterpriseType: reqStr(v.enterpriseType),
+        yearOfEstablishment: int(v.yearOfEstablishment),
+        registrationDetails: str(v.registrationDetails),
+        membersAssociated: reqInt(v.membersAssociated),
+        technicalComponents: str(v.technicalComponents),
+        annualIncome: reqDec(v.annualIncome),
+        roleOfKvk: str(v.roleOfKvk),
+        periodTimeline: str(v.periodTimeline),
+        economicSocialStatus: str(v.economicSocialStatus),
+        presentWorkingCondition: str(v.presentWorkingCondition),
+        majorAchievements: str(v.majorAchievements),
+        majorConstraints: str(v.majorConstraints),
+      },
+    }),
   "performance/impact/success-stories": (id, v, ctx) =>
-    prisma.successStory.updateMany({ where: { id, ...kvkScope(ctx) }, data: { farmerOrEntrepreneur: reqStr(v.farmerOrEntrepreneur), experience: str(v.experience), majorAchievement: reqStr(v.majorAchievement), storyTitle: reqStr(v.storyTitle), enterprise: str(v.enterprise), netIncome: dec(v.netIncome), costBenefitRatio: dec(v.costBenefitRatio) } }),
+    prisma.successStory.updateMany({
+      where: { id, ...kvkScope(ctx) },
+      data: {
+        reportingYear: int(v.reportingYear),
+        farmerOrEntrepreneur: reqStr(v.farmerOrEntrepreneur),
+        dateOfBirth: date(v.dateOfBirth),
+        education: str(v.education),
+        experience: str(v.experience),
+        cellNoEmail: str(v.cellNoEmail),
+        fullAddress: str(v.fullAddress),
+        professionalMembership: str(v.professionalMembership),
+        majorAchievement: reqStr(v.majorAchievement),
+        awardsReceived: str(v.awardsReceived),
+        storyTitle: reqStr(v.storyTitle),
+        situationAnalysis: str(v.situationAnalysis),
+        planImplementSupport: str(v.planImplementSupport),
+        detailsOfPractices: str(v.detailsOfPractices),
+        resultsOutput: str(v.resultsOutput),
+        impactOutcome: str(v.impactOutcome),
+        futurePlans: str(v.futurePlans),
+        supportingImageUrls: parsePhotoUrls(v.supportingImageUrls),
+        enterprise: str(v.enterprise),
+        grossIncome: dec(v.grossIncome),
+        netIncome: dec(v.netIncome),
+        costBenefitRatio: dec(v.costBenefitRatio),
+      },
+    }),
   "performance/district-village-performance/district-level-data": (id, v, ctx) =>
     prisma.districtLevelData.updateMany({ where: { id, ...kvkScope(ctx) }, data: { reportingYear: reqInt(v.reportingYear), items: reqStr(v.items), information: str(v.information) } }),
   "performance/district-village-performance/district-crop-productivity": (id, v, ctx) =>
@@ -2101,78 +2255,97 @@ export const LEAF_UPDATE_REGISTRY: Record<string, UpdateFn> = {
     prisma.demonstrationUnit.updateMany({
       where: { id, ...kvkScope(ctx) },
       data: {
+        reportingYear: reqInt(v.reportingYear),
         demoUnitName: reqStr(v.demoUnitName),
         yearOfEstt: reqInt(v.yearOfEstt),
         areaSqMt: reqDec(v.areaSqMt),
-        varietyBreed: str(v.varietyBreed),
-        produce: str(v.produce),
-        qty: dec(v.qty),
-        costOfInputs: dec(v.costOfInputs),
-        grossIncome: dec(v.grossIncome),
-        remarks: str(v.remarks),
+        varietyBreed: reqStr(v.varietyBreed),
+        produce: reqStr(v.produce),
+        qty: reqDec(v.qty),
+        costOfInputs: reqDec(v.costOfInputs),
+        grossIncome: reqDec(v.grossIncome),
+        remarks: reqStr(v.remarks),
       },
     }),
   "performance/infrastructure-performance/instructional-farm-crops": (id, v, ctx) =>
     prisma.instructionalFarmCrop.updateMany({
       where: { id, ...kvkScope(ctx) },
       data: {
+        reportingYear: reqInt(v.reportingYear),
         cropName: reqStr(v.cropName),
         areaHa: reqDec(v.areaHa),
-        season: str(v.season),
-        variety: str(v.variety),
-        produceType: str(v.produceType),
-        qty: dec(v.qty),
-        costOfInputs: dec(v.costOfInputs),
-        grossIncome: dec(v.grossIncome),
-        remarks: str(v.remarks),
+        season: reqStr(v.season),
+        variety: reqStr(v.variety),
+        produceType: reqStr(v.produceType),
+        qty: reqDec(v.qty),
+        costOfInputs: reqDec(v.costOfInputs),
+        grossIncome: reqDec(v.grossIncome),
+        remarks: reqStr(v.remarks),
       },
     }),
   "performance/infrastructure-performance/production-units": (id, v, ctx) =>
-    prisma.productionUnit.updateMany({ where: { id, ...kvkScope(ctx) }, data: { productName: reqStr(v.productName), qty: reqDec(v.qty), costOfInputs: dec(v.costOfInputs), grossIncome: dec(v.grossIncome), remarks: str(v.remarks) } }),
+    prisma.productionUnit.updateMany({ where: { id, ...kvkScope(ctx) }, data: { reportingYear: reqInt(v.reportingYear), productName: reqStr(v.productName), qty: reqDec(v.qty), costOfInputs: reqDec(v.costOfInputs), grossIncome: reqDec(v.grossIncome), remarks: reqStr(v.remarks) } }),
   "performance/infrastructure-performance/instructional-farm-livestock": (id, v, ctx) =>
     prisma.instructionalFarmLivestock.updateMany({
       where: { id, ...kvkScope(ctx) },
       data: {
+        reportingYear: reqInt(v.reportingYear),
         animalName: reqStr(v.animalName),
-        speciesBreed: str(v.speciesBreed),
-        produceType: str(v.produceType),
-        qty: dec(v.qty),
-        costOfInputs: dec(v.costOfInputs),
-        grossIncome: dec(v.grossIncome),
-        remarks: str(v.remarks),
+        speciesBreed: reqStr(v.speciesBreed),
+        produceType: reqStr(v.produceType),
+        qty: reqDec(v.qty),
+        costOfInputs: reqDec(v.costOfInputs),
+        grossIncome: reqDec(v.grossIncome),
+        remarks: reqStr(v.remarks),
       },
     }),
   "performance/infrastructure-performance/hostel-utilization": (id, v, ctx) =>
-    prisma.hostelUtilization.updateMany({ where: { id, ...kvkScope(ctx) }, data: { months: reqStr(v.months), traineesStayed: reqInt(v.traineesStayed), traineeDays: reqInt(v.traineeDays), reasonForShortFall: str(v.reasonForShortFall) } }),
+    prisma.hostelUtilization.updateMany({ where: { id, ...kvkScope(ctx) }, data: { reportingYear: reqInt(v.reportingYear), months: reqStr(v.months), traineesStayed: reqInt(v.traineesStayed), traineeDays: reqInt(v.traineeDays), reasonForShortFall: reqStr(v.reasonForShortFall) } }),
   "performance/infrastructure-performance/staff-quarters-performance": (id, v, ctx) =>
-    prisma.staffQuartersPerformance.updateMany({ where: { id, ...kvkScope(ctx) }, data: { noOfStaffQuarters: reqInt(v.noOfStaffQuarters), dateOfCompletion: date(v.dateOfCompletion), remark: str(v.remark) } }),
+    prisma.staffQuartersPerformance.updateMany({
+      where: { id, ...kvkScope(ctx) },
+      data: {
+        noOfStaffQuarters: reqInt(v.noOfStaffQuarters),
+        dateOfCompletion: date(v.dateOfCompletion),
+        remark: reqStr(v.remark),
+        whetherCompleted: reqStr(v.whetherCompleted),
+        occupancyDetails: reqStr(v.occupancyDetails),
+        quarterlyCompletion: quarterlyCompletion(v.quarterlyCompletion),
+      },
+    }),
   "performance/infrastructure-performance/rain-water-harvesting": (id, v, ctx) =>
     prisma.rainWaterHarvesting.updateMany({ where: { id, ...kvkScope(ctx) }, data: { trainingProgrammes: reqInt(v.trainingProgrammes), demonstrations: reqInt(v.demonstrations), plantMaterialProduced: reqInt(v.plantMaterialProduced), farmerVisits: reqInt(v.farmerVisits), officialVisits: reqInt(v.officialVisits) } }),
   "performance/financial-performance/budget-details": (id, v, ctx) =>
     prisma.budgetDetail.updateMany({
       where: { id, ...kvkScope(ctx) },
       data: {
+        startDate: date(v.startDate),
+        endDate: date(v.endDate),
         salaryAllocation: reqDec(v.salaryAllocation),
         salaryExpenditure: reqDec(v.salaryExpenditure),
         generalGrantAllocation: reqDec(v.generalGrantAllocation),
         generalGrantExpenditure: reqDec(v.generalGrantExpenditure),
         capitalGrantAllocation: reqDec(v.capitalGrantAllocation),
         capitalGrantExpenditure: reqDec(v.capitalGrantExpenditure),
-        generalMainGrant: dec(v.generalMainGrant),
-        generalTsp: dec(v.generalTsp),
-        generalScsp: dec(v.generalScsp),
-        capitalMainGrant: dec(v.capitalMainGrant),
-        capitalTsp: dec(v.capitalTsp),
-        capitalScsp: dec(v.capitalScsp),
+        generalTsp: reqDec(v.generalTsp),
+        generalTspExpenditure: reqDec(v.generalTspExpenditure),
+        generalScsp: reqDec(v.generalScsp),
+        generalScspExpenditure: reqDec(v.generalScspExpenditure),
+        capitalTsp: reqDec(v.capitalTsp),
+        capitalTspExpenditure: reqDec(v.capitalTspExpenditure),
+        capitalScsp: reqDec(v.capitalScsp),
+        capitalScspExpenditure: reqDec(v.capitalScspExpenditure),
       },
     }),
   "performance/financial-performance/project-wise-budget-performance": (id, v, ctx) =>
     prisma.projectWiseBudgetPerformance.updateMany({
       where: { id, ...kvkScope(ctx) },
       data: {
+        startDate: date(v.startDate),
+        endDate: date(v.endDate),
         projectName: reqStr(v.projectName),
-        accountNumber: str(v.accountNumber),
-        fundingAgency: str(v.fundingAgency),
+        accountNumber: reqStr(v.accountNumber),
+        fundingAgency: reqStr(v.fundingAgency),
         budgetEstimate: reqDec(v.budgetEstimate),
         budgetAllocated: reqDec(v.budgetAllocated),
         budgetReleased: reqDec(v.budgetReleased),
@@ -2183,13 +2356,13 @@ export const LEAF_UPDATE_REGISTRY: Record<string, UpdateFn> = {
   "performance/financial-performance/revolving-fund": (id, v, ctx) =>
     prisma.revolvingFund.updateMany({ where: { id, ...kvkScope(ctx) }, data: { reportingYear: reqInt(v.reportingYear), openingBalance: reqDec(v.openingBalance), incomeDuringYear: reqDec(v.incomeDuringYear), expenditureDuringYear: reqDec(v.expenditureDuringYear), closing: reqDec(v.closing), kind: str(v.kind) } }),
   "performance/financial-performance/revenue-generation": (id, v, ctx) =>
-    prisma.revenueGeneration.updateMany({ where: { id, ...kvkScope(ctx) }, data: { headName: reqStr(v.headName), income: reqDec(v.income), sponsoringAgency: str(v.sponsoringAgency) } }),
+    prisma.revenueGeneration.updateMany({ where: { id, ...kvkScope(ctx) }, data: { startDate: date(v.startDate), endDate: date(v.endDate), headName: reqStr(v.headName), income: reqDec(v.income), sponsoringAgency: reqStr(v.sponsoringAgency) } }),
   "performance/financial-performance/resource-generation": (id, v, ctx) =>
-    prisma.resourceGeneration.updateMany({ where: { id, ...kvkScope(ctx) }, data: { programmeName: reqStr(v.programmeName), purpose: str(v.purpose), sourcesOfFund: str(v.sourcesOfFund), amountLakhs: reqDec(v.amountLakhs), infrastructureCreated: str(v.infrastructureCreated) } }),
+    prisma.resourceGeneration.updateMany({ where: { id, ...kvkScope(ctx) }, data: { startDate: date(v.startDate), endDate: date(v.endDate), programmeName: reqStr(v.programmeName), purpose: reqStr(v.purpose), sourcesOfFund: reqStr(v.sourcesOfFund), amountLakhs: reqDec(v.amountLakhs), infrastructureCreated: reqStr(v.infrastructureCreated) } }),
   "performance/linkages/functional-linkage": (id, v, ctx) =>
-    prisma.functionalLinkage.updateMany({ where: { id, ...kvkScope(ctx) }, data: { organizationName: reqStr(v.organizationName), natureOfLinkage: str(v.natureOfLinkage) } }),
+    prisma.functionalLinkage.updateMany({ where: { id, ...kvkScope(ctx) }, data: { reportingYear: reqInt(v.reportingYear), organizationName: reqStr(v.organizationName), natureOfLinkage: reqStr(v.natureOfLinkage) } }),
   "performance/linkages/special-programmes": (id, v, ctx) =>
-    prisma.specialProgramme.updateMany({ where: { id, ...kvkScope(ctx) }, data: { programmeType: reqStr(v.programmeType), programmeName: reqStr(v.programmeName), initiationDate: date(v.initiationDate) } }),
+    prisma.specialProgramme.updateMany({ where: { id, ...kvkScope(ctx) }, data: { reportingYear: reqInt(v.reportingYear), programmeType: reqStr(v.programmeType), programmeName: reqStr(v.programmeName), purpose: reqStr(v.purpose), fundingAgency: reqStr(v.fundingAgency), amount: reqDec(v.amount), initiationDate: date(v.initiationDate) } }),
 
   "meetings/sac-meetings": (id, v, ctx) =>
     prisma.sacMeeting.updateMany({
@@ -2200,7 +2373,7 @@ export const LEAF_UPDATE_REGISTRY: Record<string, UpdateFn> = {
     prisma.otherMeeting.updateMany({ where: { id, ...kvkScope(ctx) }, data: { date: reqDate(v.date), meetingType: reqStr(v.meetingType), agenda: str(v.agenda), representativeFromAtari: str(v.representativeFromAtari) } }),
 
   "miscellaneous/prevalent-diseases-crops": (id, v, ctx) =>
-    prisma.prevalentDiseaseCrop.updateMany({ where: { id, ...kvkScope(ctx) }, data: { diseaseName: reqStr(v.diseaseName), crop: reqStr(v.crop), outbreakDate: reqDate(v.outbreakDate), areaAffected: reqDec(v.areaAffected), commodityLossPercent: reqDec(v.commodityLossPercent), preventiveMeasures: str(v.preventiveMeasures) } }),
+    prisma.prevalentDiseaseCrop.updateMany({ where: { id, ...kvkScope(ctx) }, data: { diseaseName: reqStr(v.diseaseName), crop: reqStr(v.crop), outbreakDate: reqDate(v.outbreakDate), areaAffected: reqDec(v.areaAffected), commodityLossPercent: reqDec(v.commodityLossPercent), preventiveMeasures: reqStr(v.preventiveMeasures) } }),
   "miscellaneous/prevalent-diseases-livestock": (id, v, ctx) =>
     prisma.prevalentDiseaseLivestock.updateMany({
       where: { id, ...kvkScope(ctx) },
@@ -2208,25 +2381,36 @@ export const LEAF_UPDATE_REGISTRY: Record<string, UpdateFn> = {
         diseaseName: reqStr(v.diseaseName),
         speciesAffected: reqStr(v.speciesAffected),
         outbreakDate: reqDate(v.outbreakDate),
-        mortalityMorbidity: str(v.mortalityMorbidity),
+        mortalityMorbidity: reqStr(v.mortalityMorbidity),
         animalsVaccinated: reqInt(v.animalsVaccinated),
-        preventiveMeasures: str(v.preventiveMeasures),
+        preventiveMeasures: reqStr(v.preventiveMeasures),
         areaAffected: dec(v.areaAffected),
         commodityLossPercent: dec(v.commodityLossPercent),
       },
     }),
   "miscellaneous/nyk-training": (id, v, ctx) =>
-    prisma.nykTraining.updateMany({ where: { id, ...kvkScope(ctx) }, data: { programmeTitle: reqStr(v.programmeTitle), startDate: reqDate(v.startDate), endDate: reqDate(v.endDate), male: reqInt(v.male), female: reqInt(v.female), fundReceived: reqDec(v.fundReceived) } }),
+    prisma.nykTraining.updateMany({
+      where: { id, ...kvkScope(ctx) },
+      data: {
+        programmeTitle: reqStr(v.programmeTitle),
+        startDate: reqDate(v.startDate),
+        endDate: reqDate(v.endDate),
+        ...demographicColumns(v),
+        male: demographicSexTotal(v, "Male"),
+        female: demographicSexTotal(v, "Female"),
+        fundReceived: reqDec(v.fundReceived),
+      },
+    }),
   "miscellaneous/ppv-fra-sensitization/ppv-fra-training-programme": (id, v, ctx) =>
     prisma.ppvFraTrainingProgramme.updateMany({
       where: { id, ...kvkScope(ctx) },
       data: {
         date: reqDate(v.date),
         title: reqStr(v.title),
-        type: str(v.type),
-        venue: str(v.venue),
-        resourcePerson: str(v.resourcePerson),
-        participants: reqInt(v.participants),
+        type: reqStr(v.type),
+        venue: reqStr(v.venue),
+        resourcePerson: reqStr(v.resourcePerson),
+        participants: demographicTotal(v),
         farmersByCategory: farmersByCategory(v),
       },
     }),
@@ -2238,17 +2422,35 @@ export const LEAF_UPDATE_REGISTRY: Record<string, UpdateFn> = {
         crop: reqStr(v.crop),
         registrationNo: reqStr(v.registrationNo),
         farmerName: reqStr(v.farmerName),
-        block: str(v.block),
-        district: str(v.district),
-        mobileNo: str(v.mobileNo),
-        village: str(v.village),
-        characteristics: str(v.characteristics),
+        block: reqStr(v.block),
+        district: reqStr(v.district),
+        mobileNo: reqStr(v.mobileNo),
+        village: reqStr(v.village),
+        characteristics: reqStr(v.characteristics),
+        images: parsePhotoUrls(v.images),
       },
     }),
-  "miscellaneous/rawe-fet-fit-programme": (id, v, ctx) =>
-    prisma.raweFetFitProgramme.updateMany({ where: { id, ...kvkScope(ctx) }, data: { startDate: reqDate(v.startDate), endDate: reqDate(v.endDate), attachmentType: reqStr(v.attachmentType), attachment: str(v.attachment), numberOfStudents: reqInt(v.numberOfStudents), daysStayed: reqInt(v.daysStayed) } }),
+  "miscellaneous/rawe-fet-fit-programme": (id, v, ctx) => {
+    const startDate = reqDate(v.startDate);
+    const endDate = reqDate(v.endDate);
+    const male = reqInt(v.male);
+    const female = reqInt(v.female);
+    return prisma.raweFetFitProgramme.updateMany({
+      where: { id, ...kvkScope(ctx) },
+      data: {
+        startDate,
+        endDate,
+        attachmentType: reqStr(v.attachmentType),
+        attachment: str(v.attachment),
+        male,
+        female,
+        numberOfStudents: male + female,
+        daysStayed: daysBetween(startDate, endDate),
+      },
+    });
+  },
   "miscellaneous/vip-visitors": (id, v, ctx) =>
-    prisma.vipVisitor.updateMany({ where: { id, ...kvkScope(ctx) }, data: { visitDate: reqDate(v.visitDate), dignitaryType: reqStr(v.dignitaryType), ministerName: reqStr(v.ministerName), observations: str(v.observations) } }),
+    prisma.vipVisitor.updateMany({ where: { id, ...kvkScope(ctx) }, data: { visitDate: reqDate(v.visitDate), dignitaryType: reqStr(v.dignitaryType), ministerName: reqStr(v.ministerName), observations: reqStr(v.observations) } }),
   "miscellaneous/digital-information/digital-mobile-app": (id, v, ctx) =>
     prisma.digitalMobileApp.updateMany({ where: { id, ...kvkScope(ctx) }, data: { mobileAppsDeveloped: reqInt(v.mobileAppsDeveloped), appName: str(v.appName), appLanguage: str(v.appLanguage), meantFor: str(v.meantFor), timesDownloaded: reqInt(v.timesDownloaded) } }),
   "miscellaneous/digital-information/digital-web-portal": (id, v, ctx) =>

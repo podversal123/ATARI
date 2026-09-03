@@ -10,7 +10,10 @@ export type UploadKind =
   | "cfld-action-photo"
   | "oft-photograph"
   | "oft-supplementary-datasheet"
-  | "farmer-award-photo";
+  | "farmer-award-photo"
+  | "success-story-image"
+  | "rawe-attachment"
+  | "ppv-fra-farmer-image";
 
 const UPLOAD_RULES: Record<UploadKind, { folder: string; maxBytes: number; mimeTypes: string[] }> = {
   "staff-photo": {
@@ -72,6 +75,33 @@ const UPLOAD_RULES: Record<UploadKind, { folder: string; maxBytes: number; mimeT
   /** Real reference (atari-client.vercel.app, 2026-09-02): Farmer Award's own "Photographs" upload field, confirmed missing entirely before this - "Only images allowed... Max 5 MB per file", same as the app's other photo fields. */
   "farmer-award-photo": {
     folder: "awards/farmer-photos",
+    maxBytes: 5 * 1024 * 1024,
+    mimeTypes: ["image/jpeg", "image/png", "image/webp"],
+  },
+  /** Real reference (atariams.org/impact/success-story/create, 2026-09-03): Success Stories' own "Supporting Images" field, confirmed missing entirely before this - "File size must be less than 2MB" (the one upload field in this app with a 2MB cap instead of the usual 5MB). */
+  "success-story-image": {
+    folder: "impact/success-story-images",
+    maxBytes: 2 * 1024 * 1024,
+    mimeTypes: ["image/jpeg", "image/png", "image/webp"],
+  },
+  /** Real Add form field confirmed live (atariams.org/rawe-program/create, 2026-09-04): RAWE/FET/FIT Programme's own "Attachment Upload" file field, plain text before - same accepted types as oft-supplementary-datasheet (PDF/image/Excel/Word), no cap confirmed live so kept at this app's usual 5MB. */
+  "rawe-attachment": {
+    folder: "miscellaneous/rawe-attachments",
+    maxBytes: 5 * 1024 * 1024,
+    mimeTypes: [
+      "application/pdf",
+      "image/jpeg",
+      "image/png",
+      "image/webp",
+      "application/vnd.ms-excel",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "application/msword",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    ],
+  },
+  /** Real Add form field confirmed live (atariams.org/sensitization-farmer-details/create, 2026-09-04): PPV & FRA Sensitization Farmer Details' own "Images" multi-file field, missing entirely before. */
+  "ppv-fra-farmer-image": {
+    folder: "miscellaneous/ppv-fra-farmer-images",
     maxBytes: 5 * 1024 * 1024,
     mimeTypes: ["image/jpeg", "image/png", "image/webp"],
   },

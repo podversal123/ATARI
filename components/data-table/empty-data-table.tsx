@@ -711,13 +711,13 @@ export function EmptyDataTable({
   return (
     <div>
       {tabs && tabs.length > 1 ? (
-        <div className="mb-4 inline-flex flex-wrap gap-1 rounded-lg bg-primary p-1">
+        <div className="mb-4 inline-flex max-w-full flex-nowrap gap-1 overflow-x-auto rounded-lg bg-primary p-1">
           {tabs.map((tab) => (
             <Link
               key={tab.href}
               href={tab.href}
               className={cn(
-                "rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
+                "shrink-0 rounded-md px-3 py-1.5 text-sm font-medium whitespace-nowrap transition-colors",
                 tab.active
                   ? "bg-white text-primary"
                   : "text-primary-foreground/85 hover:text-primary-foreground",
@@ -741,11 +741,6 @@ export function EmptyDataTable({
             )}
           </div>
           <div className="flex items-center gap-2">
-            {reportRef && (
-              <span className="mr-1 hidden text-xs text-muted-foreground sm:inline">
-                Downloads section {reportRef.label}
-              </span>
-            )}
             <Button
               variant="outline"
               size="lg"
@@ -808,7 +803,7 @@ export function EmptyDataTable({
           </div>
         </div>
 
-        <div className="relative z-10 flex flex-wrap items-center gap-2 border-b border-border bg-card px-4 py-5">
+        <div className="relative z-10 flex flex-nowrap items-center gap-2 overflow-x-auto border-b border-border bg-card px-4 py-5">
           <div className="relative">
             <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input

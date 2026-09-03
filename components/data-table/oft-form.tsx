@@ -16,6 +16,7 @@ import {
 } from "./demographic-breakdown";
 import { FormPhotosField, type FormPhoto } from "./form-photos-field";
 import { TagInputField } from "./tag-input-field";
+import { compactPlaceholder } from "@/lib/compact-placeholder";
 import { OftResultFields } from "./oft-result-fields";
 
 type OftFormProps = {
@@ -305,7 +306,7 @@ export function OftForm({ trail, backHref, id, initialView }: OftFormProps) {
           className="h-10"
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          placeholder={placeholder ?? (type === "text" ? `Enter ${label.toLowerCase()}` : undefined)}
+          placeholder={placeholder ?? (type === "text" ? `Enter ${compactPlaceholder(label).toLowerCase()}` : undefined)}
         />
       </div>
     );
@@ -381,7 +382,7 @@ export function OftForm({ trail, backHref, id, initialView }: OftFormProps) {
         </div>
 
         {/* Real "type each value and press , or Enter to add as a tag" input (confirmed live, 2026-09-03) - was a plain multi-line textarea before, which doesn't match the reference's own pill/tag editor at all. */}
-        <div className="mt-4">
+        <div className="mt-4 max-w-xl">
           <TagInputField
             id="oft-performance-indicators"
             label="Performance Indicators of the Technology"
@@ -440,7 +441,7 @@ export function OftForm({ trail, backHref, id, initialView }: OftFormProps) {
           {textField("oft-cost", "Cost of OFT", costOfOft, setCostOfOft, true, undefined, "number")}
         </div>
 
-        <div className="mt-4">
+        <div className="mt-4 grid grid-cols-[repeat(auto-fit,minmax(240px,320px))] gap-5">
           {textField("oft-funding-agency", "Funding Agency Name", fundingAgency, setFundingAgency)}
         </div>
 

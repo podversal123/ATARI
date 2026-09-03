@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { SimpleSelect } from "@/components/ui/simple-select";
 import { PageHeader, type Crumb } from "@/components/layout/page-header";
 import { cn } from "@/lib/utils";
+import { compactPlaceholder } from "@/lib/compact-placeholder";
 import { DemographicGrid, type DemographicValues } from "./demographic-breakdown";
 import { FormPhotosField, type FormPhoto } from "./form-photos-field";
 import { FldResultFields } from "./fld-result-fields";
@@ -266,7 +267,7 @@ export function FldForm({ trail, backHref, id, initialView }: FldFormProps) {
           className="h-10"
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          placeholder={type === "text" ? `Enter ${label.toLowerCase()}` : undefined}
+          placeholder={type === "text" ? `Enter ${compactPlaceholder(label).toLowerCase()}` : undefined}
         />
       </div>
     );

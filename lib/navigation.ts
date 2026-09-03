@@ -28,7 +28,7 @@ export type MasterColumn = {
   /** Renders a real file-upload control instead of a text input, and a thumbnail/"View" link instead of raw text in the list table. The stored value is the uploaded file's Vercel Blob URL. */
   fileKind?: "image" | "document";
   /** Which /api/upload validation rule (size/mime-type) and storage folder applies - required whenever fileKind is set. Mirrors lib/blob.ts's UploadKind (kept as a separate literal type, not imported, since that file is server-only and this one is loaded client-side too). */
-  uploadKind?: "staff-photo" | "staff-resume" | "cfld-crop-image" | "farmer-award-photo";
+  uploadKind?: "staff-photo" | "staff-resume" | "cfld-crop-image" | "farmer-award-photo" | "success-story-image" | "rawe-attachment" | "ppv-fra-farmer-image";
   /**
    * Renders as a <select> populated by another All Masters leaf's real
    * saved rows (fetched from /api/master-options) instead of free text a
@@ -62,7 +62,8 @@ export type MasterColumn = {
   /** "nf-parameters" renders NfParametersField - the fixed "Without / With NF Practice" comparison grid (NF_COMPARISON_PARAMETERS), stored as one JSON string on the record's `parameters` column. Used by Natural Farming's Demonstration Information (3.5.C) and Farmers Practicing (3.5.D). */
   /** "calculated" renders a disabled, muted input showing the field's current (server-computed) value - unlike a plain `readonly` column (which is dropped from the form entirely), the real reference still *shows* some computed totals, just not editable (e.g. Poshan Maaha's own "Total Participants", confirmed live 2026-09-03: "Auto-calculated: sum of all participant categories" reads directly under a real, visible, disabled field). Pair with `helperText` for that caption. Always set `readonly: true` alongside it too, so required-field validation still skips it. */
   /** "section-heading" renders just a bold heading line (no input) spanning the full row - for a real section break the reference shows (e.g. Poshan Maaha's own "No. of participants" above its Girls/Farm Woman/... fields) that doesn't correspond to any real demographic-breakdown block or other grouped field kind. `label` is the heading text. */
-  fieldKind?: "checkbox" | "demographic-breakdown" | "multi-image" | "date" | "photos" | "nf-parameters" | "calculated" | "section-heading";
+  /** "month-quarter-grid" renders MonthQuarterGridField - the real Jan-Dec x Quarter 1-6 Yes/No completion matrix (72 cells) confirmed live on Staff Quarters' own Create form (atariams.org/infra-performance/staff-quaters/create, 2026-09-04), stored as one JSON-string value on this column's key (parsed into a Prisma `Json?` column by the leaf's registry entry). */
+  fieldKind?: "checkbox" | "demographic-breakdown" | "multi-image" | "date" | "photos" | "nf-parameters" | "calculated" | "section-heading" | "month-quarter-grid";
   /** "calculated" only - the explanatory caption shown under the disabled field (e.g. "Auto-calculated: sum of all participant categories"). */
   helperText?: string;
   /** demographic-breakdown only - prepended to DemographicBreakdown's own key convention (e.g. "farmers" -> "farmersGeneralMale") so one form can hold two independent blocks (Farmers + Extension Officials). Omit for a single block. */
@@ -79,6 +80,8 @@ export type MasterColumn = {
   placeholder?: string;
   /** Pre-selects this value on the Create form instead of the disabled "Select {label}" placeholder - only set where a real reference screenshot showed a value already chosen on a blank Create form (e.g. Vehicle/Equipment Present Status's Hide in Next Year defaulting to "No", Is Active to "Yes"), 2026-08-31. */
   defaultValue?: string;
+  /** Forces the Add/Edit field to stay a plain text input even though `lib/numeric-field.ts`'s label heuristic would otherwise render it `type="number"` - for a real, confirmed case where the label reads as numeric ("Horizontal Spread (in area/no.)") but the reference itself accepts mixed text (e.g. "5 villages", not just a bare number), matching this column's own DB type (`String?`, not `Int?`/`Decimal?`). Live audit finding, 2026-09-03: typing "5 villages" into the auto-detected number input silently mangled it to "5e" (the browser's native number input only lets non-digit characters through if they're valid scientific-notation syntax). Leave unset everywhere else - the heuristic is right far more often than not. */
+  numeric?: false;
 };
 
 export type NavLeaf = {
@@ -1692,7 +1695,7 @@ const projects = group(
         /** Report 3.2.B "Details" columns - Category / Sub-category pivot with Area/Unit and Net return (added 2026-09-03). */
         { key: "category", label: "Category" },
         { key: "subCategory", label: "Sub-category" },
-        { key: "areaOrUnit", label: "Area/Unit" },
+        { key: "areaOrUnit", label: "Area/Unit", numeric: false },
         { key: "netReturn", label: "Net return" },
         /** KVK report 3.2.B per-record detail columns (added 2026-09-03). */
         { key: "month", label: "Month" },
@@ -1721,6 +1724,7 @@ const projects = group(
         { key: "endDate", label: "End Date", fieldKind: "date", required: true },
         { key: "farmersAttended", label: "Number of farmers attended", required: true },
         ...DEMOGRAPHIC_COLUMNS,
+      ]),
       group("others", "Others", [
         leaf("intervention", "Intervention", [
           { key: "kvk", label: "KVK Name", readonly: true },
@@ -1850,7 +1854,7 @@ const projects = group(
         { key: "groupsActive", label: "No. of Groups active", required: true },
         /** Report 3.4.A "Current Year Details" per-enterprise economics columns (added 2026-09-03). */
         { key: "trainingsConducted", label: "No. of Training conducted" },
-        { key: "unitsEstablished", label: "No. of entrepreneurial units established (Progressive)" },
+        { key: "unitsEstablished", label: "No. of entrepreneurial units established (Progressive)", formLabel: "Units Established (Progressive)" },
         { key: "ruralYouthMale", label: "Rural youth trained - Male" },
         { key: "ruralYouthFemale", label: "Rural youth trained - Female" },
         { key: "avgUnitSize", label: "Average size of each entrepreneurial unit" },
@@ -1869,7 +1873,7 @@ const projects = group(
         { key: "totalRestarted", label: "Total Restarted", required: true },
         { key: "restartedDate", label: "Restarted date", fieldKind: "date", required: true },
         /** Report 3.4.B "Previous Year Evaluation" ~17-column grid (added 2026-09-03). */
-        { key: "unitsEstablishedProgressive", label: "No. of entrepreneurial units established (up to previous year progressive)" },
+        { key: "unitsEstablishedProgressive", label: "No. of entrepreneurial units established (up to previous year progressive)", formLabel: "Units Established (Prev. Yr. Progressive)" },
         { key: "sizeMale", label: "Unit Size - Male" },
         { key: "sizeFemale", label: "Unit Size - Female" },
         { key: "sizeNoOfUnit", label: "Unit Size - No. of Unit" },
@@ -1881,7 +1885,7 @@ const projects = group(
         { key: "grossReturnPerUnitYear", label: "Gross return per unit/year" },
         { key: "netBenefitPerUnitYear", label: "Net benefit / unit/year" },
         { key: "employmentFamily", label: "Employment generated/year - Family" },
-        { key: "employmentOtherThanFamily", label: "Employment generated/year - Other than Family" },
+        { key: "employmentOtherThanFamily", label: "Employment generated/year - Other than Family", formLabel: "Employment Generated/Year - Other" },
         { key: "personsVisited", label: "No. of persons visited entrepreneur unit" },
       ]),
     ], { cardLabel: "ARYA / SAFAL" }),
@@ -1968,6 +1972,7 @@ const projects = group(
         {
           key: "farmersInfluenced",
           label: "No. of farmers influenced to adopt Natural Farming",
+          formLabel: "Farmers Influenced to Adopt NF",
           required: true,
         },
         /** Report 3.5.E "Beneficiaries" columns - reporting year, all/one-season engaged farmers, remark (added 2026-09-03). */
@@ -2081,7 +2086,7 @@ const projects = group(
       leaf("nari-training", "Training programmes in Nutri-Smart village", [
         { key: "kvk", label: "KVK Name", readonly: true },
         { key: "nutriSmartVillage", label: "Name of Nutri-Smart Village", required: true },
-        { key: "areaOfTraining", label: "Area of Training", required: true },
+        { key: "areaOfTraining", label: "Area of Training", required: true, numeric: false },
         { key: "activity", label: "Activity", required: true },
         { key: "titleOfTraining", label: "Title of Training", required: true },
         { key: "numberOfCourses", label: "No. of Courses", required: true },
@@ -2159,9 +2164,21 @@ const projects = group(
         { key: "noOfFpoManagementCost", label: "No. of FPO received management cost" },
         { key: "noOfFpoEquityGrant", label: "No. of FPO received equity grant" },
         { key: "techBackstoppingFpos", label: "Tech. backstopping provided to no. of FPOs" },
-        { key: "noOfTrainingProgrammes", label: "No. of training programme organized for FPOs as CBBO" },
-        { key: "assistanceEconomicActivities", label: "Assistance to no. of FPOs in economic activities" },
-        { key: "businessPlanWithoutCbbo", label: "Is Business Plan Prepared for FPOs as without CBBOs" },
+        {
+          key: "noOfTrainingProgrammes",
+          label: "No. of training programme organized for FPOs as CBBO",
+          formLabel: "Training Programmes Organized (CBBO)",
+        },
+        {
+          key: "assistanceEconomicActivities",
+          label: "Assistance to no. of FPOs in economic activities",
+          formLabel: "Assistance to FPOs in Economic Activities",
+        },
+        {
+          key: "businessPlanWithoutCbbo",
+          label: "Is Business Plan Prepared for FPOs as without CBBOs",
+          formLabel: "Business Plan Prepared (without CBBOs)",
+        },
       ]),
       /** Columns confirmed against the client's own "Details of commodity-based organizations/farmers cooperative society/FPO formed/Associated with KVK under NCDC funding" screenshot (AMS User Manual p.34). */
       leaf("fpo-management", "FPO Management", [
@@ -2222,6 +2239,7 @@ const projects = group(
         {
           key: "flds",
           label: "Frontline Demonstration (FLDs) and Other Demonstrations",
+          formLabel: "FLDs and Other Demonstrations",
           required: true,
         },
         { key: "awarenessCamps", label: "Awareness Camps", required: true },
@@ -2342,245 +2360,371 @@ const performanceIndicators = group(
   [
     group("impact", "Impact", [
       leaf("impact-of-kvk-activities", "Impact of KVK Activities", [
-        { key: "kvk", label: "KVK Name" },
-        { key: "specificArea", label: "Name of Specific Area", sourceMaster: { master: "impact-specific-area", optionKey: "name" } },
-        { key: "briefDetails", label: "Brief Details of the Area" },
-        { key: "farmersBenefitted", label: "No. of Farmers Benefitted" },
-        { key: "horizontalSpread", label: "Horizontal Spread (in area/no.)" },
-        { key: "adoptionPercent", label: "% of Adoption" },
-        { key: "impactSubjective", label: "Impact of the technology in subjective terms" },
-        { key: "impactObjective", label: "Impact of the technology in objective terms" },
-        { key: "incomeBefore", label: "Income Before" },
-        { key: "incomeAfter", label: "Income After" },
+        { key: "kvk", label: "KVK Name", readonly: true },
+        // Real Add form field confirmed live (atariams.org/create-impact-activity, 2026-09-03) - was missing entirely before.
+        // `formOnly` on this and every other field below except specificArea/briefDetails/farmersBenefitted/horizontalSpread/adoptionPercent - the real reference list table only ever showed those 5 (+ KVK Name) columns (client report, 2026-09-03: "jitne columns h table me bs mujhe wahi chahiye" - the fuller Add form is real, but a wider table would just be confusing), even though its own Add/Edit form asks for more.
+        { key: "reportingYear", label: "Reporting Year", required: true, formOnly: true },
+        { key: "specificArea", label: "Name of Specific Area", required: true, sourceMaster: { master: "impact-specific-area", optionKey: "name" } },
+        { key: "briefDetails", label: "Brief Details of the Area", required: true },
+        { key: "farmersBenefitted", label: "No. of Farmers Benefitted", required: true },
+        { key: "horizontalSpread", label: "Horizontal Spread (in area/no.)", required: true, numeric: false },
+        { key: "adoptionPercent", label: "% of Adoption", required: true },
+        // formLabel shortened - the reference's own full text wraps to 2 lines in this app's ~240-320px field track, misaligning it against its row's neighbor (client report, 2026-09-03, same class of fix as CFLD's Perception Fields).
+        { key: "impactSubjective", label: "Impact of the Technology in Subjective Terms (Qualitative)", formLabel: "Impact - Subjective (Qualitative)", required: true, formOnly: true },
+        { key: "impactObjective", label: "Impact of the Technology in Objective Terms (Quantitative)", formLabel: "Impact - Objective (Quantitative)", required: true, formOnly: true },
+        // Real section heading the reference shows above the Before/After pair (confirmed live, 2026-09-03) - was missing entirely before.
+        { key: "incomeSectionHeading", label: "Change in Income (Rs.)", fieldKind: "section-heading", formOnly: true },
+        { key: "incomeBefore", label: "Before (Rs./Unit)", required: true, formOnly: true },
+        { key: "incomeAfter", label: "After (Rs./Unit)", required: true, formOnly: true },
       ]),
       leaf("entrepreneurship-details", "Details of Entrepreneurship", [
-        { key: "kvk", label: "KVK Name" },
+        { key: "kvk", label: "KVK Name", readonly: true },
+        // Real Add form fields confirmed live (atariams.org/impact/entrepreneurship/create, 2026-09-03) - reportingYear/registeredAddress/registrationDetails/roleOfKvk/periodTimeline/economicSocialStatus/presentWorkingCondition/majorAchievements/majorConstraints were missing entirely before (no matching DB column either - added via the same migration that added these fields).
+        // `formOnly` here (and on yearOfEstablishment/technicalComponents, both pre-existing) - the real reference list table only ever showed entrepreneurOrEnterprise/enterpriseType/membersAssociated/annualIncome (+ KVK Name), same "table stays narrow, form can ask for more" split as every other Impact leaf (client report, 2026-09-03).
+        { key: "reportingYear", label: "Reporting Year", required: true, formOnly: true },
         {
           key: "entrepreneurOrEnterprise",
           label: "Name of the Entrepreneur/Name of the Enterprise/Firm",
+          formLabel: "Entrepreneur/Enterprise/Firm Name",
+          required: true,
         },
-        { key: "enterpriseType", label: "Type of Enterprise", sourceMaster: { master: "type-of-enterprise", optionKey: "name" } },
-        { key: "yearOfEstablishment", label: "Year of establishment" },
-        { key: "membersAssociated", label: "No of Members Associated" },
+        { key: "registeredAddress", label: "Registered address of the entrepreneur/firm", required: true, formOnly: true },
+        { key: "yearOfEstablishment", label: "Year of establishment", required: true, formOnly: true },
+        { key: "enterpriseType", label: "Type of Enterprise", required: true, sourceMaster: { master: "type-of-enterprise", optionKey: "name" } },
+        { key: "registrationDetails", label: "Registration details", required: true, formOnly: true },
+        { key: "membersAssociated", label: "No of Members Associated", required: true },
+        // formLabel shortened here and below - the reference's own full text wraps to 2 lines in this app's ~240-320px field track, misaligning it against its row's neighbor (client report, 2026-09-03, same class of fix as CFLD's Perception Fields).
+        { key: "technicalComponents", label: "Technical Components of the Enterprise (with commodity)", formLabel: "Technical Components (with commodity)", required: true, formOnly: true },
         {
           key: "annualIncome",
           label: "Annual Income/Revenue of the Enterprise",
+          required: true,
         },
-        { key: "technicalComponents", label: "Technical components" },
+        { key: "roleOfKvk", label: "Role of KVK/Technology Backstopping (Quantitative Data Support)", formLabel: "Role of KVK/Tech Backstopping", required: true, formOnly: true },
+        { key: "periodTimeline", label: "Period/Timeline of the Entrepreneurship Development", formLabel: "Period/Timeline of Development", required: true, formOnly: true },
+        { key: "economicSocialStatus", label: "Economic and Social Status of Entrepreneur Before and After the Enterprise", formLabel: "Economic/Social Status (Before & After)", required: true, formOnly: true },
+        { key: "presentWorkingCondition", label: "Present Working Condition of Enterprise", required: true, formOnly: true },
+        { key: "majorAchievements", label: "Major Achievements", required: true, formOnly: true },
+        { key: "majorConstraints", label: "Major Constraints", required: true, formOnly: true },
       ]),
+      /**
+       * The real reference form (atariams.org/impact/success-story/create,
+       * audit finding 2026-09-03) has 21 fields across 3 real sections
+       * (Personal/Professional/Economic Information) - all now added below,
+       * backed by the same migration that added the matching SuccessStory
+       * columns (dateOfBirth/education/cellNoEmail/fullAddress/
+       * professionalMembership/awardsReceived/situationAnalysis/
+       * planImplementSupport/detailsOfPractices/resultsOutput/
+       * impactOutcome/futurePlans/supportingImageUrls/grossIncome).
+       */
+      // `formOnly` on every field below except farmerOrEntrepreneur/experience/majorAchievement/storyTitle - the real reference list table only ever showed those 4 (+ KVK Name) columns (client report, 2026-09-03), same "table stays narrow, form can ask for more" split as every other Impact leaf.
       leaf("success-stories", "Success Stories", [
-        { key: "kvk", label: "KVK Name" },
+        { key: "kvk", label: "KVK Name", readonly: true },
+        { key: "personalInfoSectionHeading", label: "Personal Information", fieldKind: "section-heading", formOnly: true },
+        { key: "reportingYear", label: "Reporting Year", required: true, formOnly: true },
         {
           key: "farmerOrEntrepreneur",
           label: "Name of the Farmer/Entrepreneur",
+          required: true,
         },
-        { key: "experience", label: "Farming Experience/Experience in Enterprise" },
-        { key: "majorAchievement", label: "Major Achievement of the Farmers" },
+        { key: "dateOfBirth", label: "Date of Birth", fieldKind: "date", required: true, formOnly: true },
+        { key: "education", label: "Education", required: true, formOnly: true },
+        { key: "experience", label: "Farming Experience/Experience in Enterprise", required: true },
+        { key: "cellNoEmail", label: "Cell no./E-mail", required: true, formOnly: true },
+        { key: "fullAddress", label: "Full Address", required: true, formOnly: true },
+        { key: "professionalMembership", label: "Professional Membership", required: true, formOnly: true },
+        { key: "majorAchievement", label: "Major Achievement of the Farmers", required: true },
+        { key: "awardsReceived", label: "Awards Received", required: true, formOnly: true },
+        { key: "professionalInfoSectionHeading", label: "Professional Information", fieldKind: "section-heading", formOnly: true },
         {
           key: "storyTitle",
           label: "Title of the Success Story / Case Study",
+          required: true,
         },
-        { key: "enterprise", label: "Enterprise" },
-        { key: "netIncome", label: "Net Income" },
-        { key: "costBenefitRatio", label: "Cost-Benefit Ratio" },
+        { key: "situationAnalysis", label: "Situation Analysis/Problem Statement", required: true, formOnly: true },
+        // formLabel shortened - the reference's own full text wraps to 2 lines in this app's ~240-320px field track, misaligning it against its row's neighbor (client report, 2026-09-03, same class of fix as CFLD's Perception Fields).
+        { key: "planImplementSupport", label: "Plan, Implement and Support/KVK Intervention(s)", formLabel: "Plan & KVK Intervention(s)", required: true, formOnly: true },
+        { key: "detailsOfPractices", label: "Details of Practices Followed by the Farmer", required: true, formOnly: true },
+        { key: "resultsOutput", label: "Results/Output (Economical/Social/etc.)", required: true, formOnly: true },
+        { key: "impactOutcome", label: "Impact/Outcome", required: true, formOnly: true },
+        { key: "futurePlans", label: "Future Plans", required: true, formOnly: true },
+        // Not required on the reference (no asterisk) - the one upload field in this leaf.
+        { key: "supportingImageUrls", label: "Supporting Images", fieldKind: "multi-image", uploadKind: "success-story-image", formOnly: true },
+        { key: "economicInfoSectionHeading", label: "Economic Information", fieldKind: "section-heading", formOnly: true },
+        { key: "enterprise", label: "Enterprise", required: true, formOnly: true },
+        { key: "grossIncome", label: "Gross Income (annual)", required: true, formOnly: true },
+        { key: "netIncome", label: "Net Income", required: true, formOnly: true },
+        { key: "costBenefitRatio", label: "Cost-Benefit Ratio", required: true, formOnly: true },
       ]),
     ]),
     group("district-village-performance", "District and Village Performance", [
       leaf("district-level-data", "District Level Data", [
-        { key: "kvk", label: "KVK" },
-        { key: "reportingYear", label: "Reporting Year" },
-        { key: "items", label: "Items" },
-        { key: "information", label: "Information" },
+        { key: "kvk", label: "KVK", readonly: true },
+        { key: "reportingYear", label: "Reporting Year", required: true },
+        // Real Add form field confirmed live (atariams.org/district-level-data/create, 2026-09-03) - a fixed 7-option dropdown, not free text. The reference's own field label there reads "Account type" (contradicts its own table's "Items" column header, and its own option list, which is clearly a set of report ITEMS, not account types) - kept our correct "Items" label rather than copy what looks like a labeling mistake on their side.
+        {
+          key: "items",
+          label: "Items",
+          required: true,
+          staticOptions: [
+            "Major Farming system/enterprise",
+            "Agro-climatic Zone",
+            "Agro ecological situation",
+            "Soil type",
+            "Productivity of major 2-3 crops under cereals, pulses, oilseeds, vegetables, fruits and others",
+            "Mean yearly temperature, rainfall, humidity of the district",
+            "Production of major livestock products like milk, egg, meat etc",
+          ],
+        },
+        { key: "information", label: "Information", required: true },
       ]),
       leaf("district-crop-productivity", "Productivity of Major Crops", [
-        { key: "kvk", label: "KVK" },
-        { key: "season", label: "Season" },
-        { key: "type", label: "Type" },
-        { key: "cropName", label: "Name of Crop" },
-        { key: "areaHa", label: "Area (Ha)" },
-        { key: "productionMt", label: "Production (MT)" },
-        { key: "productivityQha", label: "Productivity (q/ha)" },
+        { key: "kvk", label: "KVK", readonly: true },
+        { key: "season", label: "Season", required: true },
+        { key: "type", label: "Type", required: true },
+        { key: "cropName", label: "Name of Crop", required: true },
+        { key: "areaHa", label: "Area (Ha)", required: true },
+        { key: "productionMt", label: "Production (MT)", required: true },
+        { key: "productivityQha", label: "Productivity (q/ha)", required: true },
         { key: "remarks", label: "Remarks" },
       ]),
       leaf("district-livestock-production", "Production of Major Livestock Products", [
-        { key: "kvk", label: "KVK" },
-        { key: "livestockName", label: "Name of Livestock" },
-        { key: "number", label: "Number" },
+        { key: "kvk", label: "KVK", readonly: true },
+        { key: "livestockName", label: "Name of Livestock", required: true },
+        { key: "number", label: "Number", required: true },
         { key: "remarks", label: "Remarks" },
-      ]),
+        // tabLabel shortened by one letter ("Products" -> "Product") - the reference's own 6-tab pill bar (District Level Data/.../Priority Thrust Area) needed a horizontal scrollbar for this leaf's full label to fit (client screenshot, 2026-09-04) even after the tabs row was fixed to never wrap. Breadcrumb/page title keep the real full label.
+      ], undefined, undefined, undefined, undefined, "Production of Major Livestock Product"),
       leaf("operational-area-details", "Operational Area Details", [
-        { key: "kvk", label: "KVK" },
-        { key: "reportingYear", label: "Reporting Year" },
-        { key: "taluk", label: "Taluk" },
-        { key: "block", label: "Block" },
-        { key: "village", label: "Village" },
-        { key: "majorCrops", label: "Major Crops" },
+        { key: "kvk", label: "KVK", readonly: true },
+        { key: "reportingYear", label: "Reporting Year", required: true },
+        { key: "taluk", label: "Taluk", required: true },
+        { key: "block", label: "Block", required: true },
+        { key: "village", label: "Village", required: true },
+        { key: "majorCrops", label: "Major Crops", required: true },
         {
           key: "majorProblems",
           label: "Major Problems Identified (crop-wise)",
+          required: true,
         },
-        { key: "thrustAreas", label: "Identified Thrust Areas" },
+        { key: "thrustAreas", label: "Identified Thrust Areas", required: true, numeric: false },
       ]),
       leaf("village-adoption-programme", "Village Adoption Programme", [
-        { key: "kvk", label: "KVK" },
-        { key: "reportingYear", label: "Reporting Year" },
-        { key: "village", label: "Village" },
-        { key: "block", label: "Block" },
-        { key: "actionTaken", label: "Action Taken for Development" },
+        { key: "kvk", label: "KVK", readonly: true },
+        { key: "reportingYear", label: "Reporting Year", required: true },
+        { key: "village", label: "Village", required: true },
+        { key: "block", label: "Block", required: true },
+        { key: "actionTaken", label: "Action Taken for Development", required: true },
       ]),
       leaf("priority-thrust-area", "Priority Thrust Area", [
-        { key: "kvk", label: "KVK" },
-        { key: "reportingYear", label: "Reporting Year" },
-        { key: "thrustArea", label: "Thrust Area" },
-        { key: "majorFocus", label: "Major Focus" },
-        { key: "achievement", label: "Achievement" },
+        { key: "kvk", label: "KVK", readonly: true },
+        { key: "reportingYear", label: "Reporting Year", required: true },
+        { key: "thrustArea", label: "Thrust Area", required: true, numeric: false },
+        // Real reference (atariams.org/priority-thrust-area, 2026-09-03) has neither of these on its own table or Add form at all - genuine extras on our side, kept per instruction not to delete extra fields, just hidden from the table to match the reference's own 3-column list.
+        { key: "majorFocus", label: "Major Focus", formOnly: true },
+        { key: "achievement", label: "Achievement", formOnly: true },
       ]),
     ]),
     group("infrastructure-performance", "Infrastructure Performance", [
       leaf("demonstration-units", "Performance of demonstration Units", [
-        { key: "kvk", label: "KVK Name" },
-        { key: "demoUnitName", label: "Name of Demo Unit" },
-        { key: "yearOfEstt", label: "Year of Estt." },
-        { key: "areaSqMt", label: "Area (Sq. mt)" },
-        { key: "varietyBreed", label: "Variety/Breed" },
-        { key: "produce", label: "Produce" },
-        { key: "qty", label: "Qty." },
-        { key: "costOfInputs", label: "Cost of Inputs" },
-        { key: "grossIncome", label: "Gross Income" },
-        { key: "remarks", label: "Remarks" },
+        { key: "kvk", label: "KVK Name", readonly: true },
+        // Real Add form field confirmed live (atariams.org/infra-performance/demonstration-units/create, 2026-09-03) - was missing entirely before. Not a table column there (own table has only KVK/Name/Year of Estt./Area), so hidden from ours too.
+        { key: "reportingYear", label: "Reporting Year", required: true, formOnly: true },
+        { key: "demoUnitName", label: "Name of Demo Unit", required: true },
+        { key: "yearOfEstt", label: "Year of Estt.", required: true },
+        { key: "areaSqMt", label: "Area (Sq. mt)", required: true },
+        // Real reference (2026-09-03) has all 6 of these required, and none of them are columns on its own table - hidden from ours to match.
+        { key: "varietyBreed", label: "Variety/Breed", required: true, formOnly: true },
+        { key: "produce", label: "Produce", required: true, formOnly: true },
+        { key: "qty", label: "Qty.", required: true, formOnly: true },
+        { key: "costOfInputs", label: "Cost of Inputs", required: true, formOnly: true },
+        { key: "grossIncome", label: "Gross Income", required: true, formOnly: true },
+        { key: "remarks", label: "Remarks", required: true, formOnly: true },
       ], "Demonstration Units", undefined, "Demonstration Units", undefined, "Demonstration Units"),
       leaf("instructional-farm-crops", "Performance of Instructional Farm(crops)", [
-        { key: "kvk", label: "KVK Name" },
-        { key: "cropName", label: "Name of the Crop" },
-        { key: "areaHa", label: "Area (ha)" },
-        { key: "season", label: "Season" },
-        { key: "variety", label: "Variety" },
-        { key: "produceType", label: "Type of Produce" },
-        { key: "qty", label: "Qty." },
-        { key: "costOfInputs", label: "Cost of Inputs" },
-        { key: "grossIncome", label: "Gross Income" },
-        { key: "remarks", label: "Remarks" },
+        { key: "kvk", label: "KVK Name", readonly: true },
+        // Real Add form field confirmed live (atariams.org/infra-performance/crop-farms/create, 2026-09-03) - was missing entirely before, not a table column there.
+        { key: "reportingYear", label: "Reporting Year", required: true, formOnly: true },
+        { key: "cropName", label: "Name of the Crop", required: true },
+        { key: "areaHa", label: "Area (ha)", required: true },
+        // Real reference (2026-09-03) has all 7 of these required, and none are columns on its own table (own table: KVK/Crop/Area only) - hidden from ours to match.
+        { key: "season", label: "Season", required: true, formOnly: true },
+        { key: "variety", label: "Variety", required: true, formOnly: true },
+        { key: "produceType", label: "Type of Produce", required: true, formOnly: true },
+        { key: "qty", label: "Qty. (q)", required: true, formOnly: true },
+        { key: "costOfInputs", label: "Cost of Inputs", required: true, formOnly: true },
+        { key: "grossIncome", label: "Gross Income", required: true, formOnly: true },
+        { key: "remarks", label: "Remarks", required: true, formOnly: true },
       ], "Instructional Farm - Crops", undefined, "Instructional Farm - Crops", undefined, "Instructional Farm - Crops"),
       leaf("production-units", "Performance of Production Units", [
-        { key: "kvk", label: "KVK Name" },
-        { key: "productName", label: "Name of the Product" },
-        { key: "qty", label: "Qty" },
-        { key: "costOfInputs", label: "Cost of Inputs" },
-        { key: "grossIncome", label: "Gross Income" },
-        { key: "remarks", label: "Remarks" },
+        { key: "kvk", label: "KVK Name", readonly: true },
+        // Real Add form field confirmed live (atariams.org/infra-performance/production-units/create, 2026-09-03) - was missing entirely before, not a table column there.
+        { key: "reportingYear", label: "Reporting Year", required: true, formOnly: true },
+        { key: "productName", label: "Name of the Product", required: true },
+        { key: "qty", label: "Qty. (Kg)", required: true },
+        // Real reference (2026-09-03) has these 3 required, and none are columns on its own table (own table: KVK/Product/Qty only) - hidden from ours to match.
+        { key: "costOfInputs", label: "Cost of Inputs", required: true, formOnly: true },
+        { key: "grossIncome", label: "Gross Income", required: true, formOnly: true },
+        { key: "remarks", label: "Remarks", required: true, formOnly: true },
       ], "Production Units", undefined, "Production Units", undefined, "Production Units"),
       leaf("instructional-farm-livestock", "Performance of Instructional Farm(livestock)", [
-        { key: "kvk", label: "KVK Name" },
-        { key: "animalName", label: "Name of the Animal/Bird/Aquatics" },
-        { key: "speciesBreed", label: "Species / Breed / Variety" },
-        { key: "produceType", label: "Type of Produce" },
-        { key: "qty", label: "Qty." },
-        { key: "costOfInputs", label: "Cost of Inputs" },
-        { key: "grossIncome", label: "Gross Income" },
-        { key: "remarks", label: "Remarks" },
+        { key: "kvk", label: "KVK Name", readonly: true },
+        // Real Add form field confirmed live (atariams.org/infra-performance/livestock-farms/create, 2026-09-03) - was missing entirely before, not a table column there.
+        { key: "reportingYear", label: "Reporting Year", required: true, formOnly: true },
+        { key: "animalName", label: "Name of the Animal/Bird/Aquatics", required: true },
+        { key: "speciesBreed", label: "Species / Breed / Variety", required: true },
+        { key: "produceType", label: "Type of Produce", required: true },
+        // Real reference (2026-09-03) has these 4 required, and none are columns on its own table (own table: KVK/Animal/Species/Produce Type only) - hidden from ours to match.
+        { key: "qty", label: "Qty.", required: true, formOnly: true },
+        { key: "costOfInputs", label: "Cost of Inputs", required: true, formOnly: true },
+        { key: "grossIncome", label: "Gross Income", required: true, formOnly: true },
+        { key: "remarks", label: "Remarks", required: true, formOnly: true },
       ], "Instructional Farm - Livestock", undefined, "Instructional Farm - Livestock", undefined, "Instructional Farm - Livestock"),
       leaf("hostel-utilization", "Utilization of Hostel Facilities Accommodation", [
-        { key: "kvk", label: "KVK Name" },
-        { key: "months", label: "Months" },
-        { key: "traineesStayed", label: "No. of Trainees Stayed" },
-        { key: "traineeDays", label: "Trainee Days (Days Stayed)" },
-        { key: "reasonForShortFall", label: "Reason for Short Fall" },
+        { key: "kvk", label: "KVK Name", readonly: true },
+        // Real Add form field confirmed live (atariams.org/infra-performance/hostel-facility/create, 2026-09-03) - was missing entirely before, not a table column there.
+        { key: "reportingYear", label: "Reporting Year", required: true, formOnly: true },
+        { key: "months", label: "Months", required: true },
+        { key: "traineesStayed", label: "No. of Trainees Stayed", required: true },
+        { key: "traineeDays", label: "Trainee Days (Days Stayed)", required: true },
+        // Real reference (2026-09-03) marks this required too, and it isn't a column on its own table (own table: KVK/Months/Trainees/Trainee Days only) - hidden from ours to match.
+        { key: "reasonForShortFall", label: "Reason for Short Fall", required: true, formOnly: true },
       ], "Hostel Utilization", undefined, "Hostel Utilization", undefined, "Hostel Utilization"),
       leaf("staff-quarters-performance", "Utilization of Staff Quarters", [
-        { key: "kvk", label: "KVK Name" },
-        { key: "noOfStaffQuarters", label: "No. of Staff Quarters" },
-        { key: "dateOfCompletion", label: "Date of Completion" },
-        { key: "remark", label: "Remark" },
+        { key: "kvk", label: "KVK Name", readonly: true },
+        { key: "noOfStaffQuarters", label: "No. of Staff Quarters", required: true, formOrder: 3 },
+        { key: "dateOfCompletion", label: "Date of Completion", fieldKind: "date", required: true, formOrder: 1 },
+        { key: "remark", label: "Remark", required: true, formOrder: 5 },
+        // Real Add form fields confirmed live (atariams.org/infra-performance/staff-quaters/create, 2026-09-04) - were missing entirely before. Neither is a column on its own table (own table: KVK/No. of Staff Quarters/Date of Completion/Remark only), so hidden from ours to match. formOrder matches the reference's own field sequence (Date/Whether/No. of Quarters/Occupancy/Remark), which differs from this leaf's table column order.
+        { key: "whetherCompleted", label: "Whether staff quarters have been completed", formLabel: "Whether Completed", required: true, staticOptions: ["Yes", "No"], formOnly: true, formOrder: 2 },
+        { key: "occupancyDetails", label: "Occupancy Details", required: true, formOnly: true, formOrder: 4 },
+        // Real Add form field confirmed live (2026-09-04) - the Month x Quarter 1-6 Yes/No completion matrix below the main fields, not a table column.
+        { key: "quarterlyCompletion", label: "Month-wise Quarter Completion", fieldKind: "month-quarter-grid", formOnly: true, formOrder: 6 },
       ], "Staff Quarters", undefined, "Staff Quarters", undefined, "Staff Quarters"),
       leaf("rain-water-harvesting", "Rain Water Harvesting structure and micro irrigation system", [
-        { key: "kvk", label: "KVK Name" },
+        { key: "kvk", label: "KVK Name", readonly: true },
         {
           key: "trainingProgrammes",
           label: "No of Training Programme Conducted",
+          required: true,
         },
-        { key: "demonstrations", label: "No. of Demonstrations" },
+        { key: "demonstrations", label: "No. of Demonstrations", required: true },
         {
           key: "plantMaterialProduced",
           label: "No. of Plant Material Produced",
+          required: true,
         },
-        { key: "farmerVisits", label: "Visit by the Farmers (No.)" },
-        { key: "officialVisits", label: "Visit by the Officials (No.)" },
+        { key: "farmerVisits", label: "Visit by the Farmers (No.)", required: true },
+        { key: "officialVisits", label: "Visit by the Officials (No.)", required: true },
       ], "Rain Water Harvesting", undefined, "Rain Water Harvesting", undefined, "Rain Water Harvesting"),
     ]),
     group("financial-performance", "Financial Performance", [
       leaf("budget-details", "Budget Details", [
-        { key: "kvk", label: "KVK" },
-        { key: "salaryAllocation", label: "Salary Allocation" },
-        { key: "salaryExpenditure", label: "Salary Expenditure" },
+        { key: "kvk", label: "KVK", readonly: true },
+        // Real Add form fields confirmed live (atariams.org/financial-performance/budget-details/create, 2026-09-04) - a Financial-Year date range, not required (no asterisk on the reference form). Not a table column there, so hidden from ours to match.
+        { key: "startDate", label: "Start Date", fieldKind: "date", formOnly: true },
+        { key: "endDate", label: "End Date", fieldKind: "date", formOnly: true },
+        { key: "salaryAllocation", label: "Salary Allocation", required: true },
+        { key: "salaryExpenditure", label: "Salary Expenditure", required: true },
         {
           key: "generalGrantAllocation",
           label: "General Main Grant Allocation",
+          required: true,
         },
         {
           key: "generalGrantExpenditure",
           label: "General Main Grant Expenditure",
+          required: true,
         },
         {
           key: "capitalGrantAllocation",
           label: "Capital Main Grant Allocation",
+          required: true,
         },
         {
           key: "capitalGrantExpenditure",
           label: "Capital Main Grant Expenditure",
+          required: true,
         },
-        { key: "generalMainGrant", label: "General Allocation - Main Grant" },
-        { key: "generalTsp", label: "General Allocation - TSP" },
-        { key: "generalScsp", label: "General Allocation - SCSP" },
-        { key: "capitalMainGrant", label: "Capital Allocation - Main Grant" },
-        { key: "capitalTsp", label: "Capital Allocation - TSP" },
-        { key: "capitalScsp", label: "Capital Allocation - SCSP" },
+        // Real reference (2026-09-04) splits General/Capital into Main Grant (above) + TSP + SCSP, each with its own Allocation AND Expenditure - the "General Allocation - TSP" style single-value fields this leaf had before were wrong (missing the Expenditure half entirely). All 4 pairs required, none are table columns. "generalMainGrant"/"capitalMainGrant" (this leaf's old, incorrect duplicates of generalGrantAllocation/capitalGrantAllocation above) are no longer shown - the real reference has no separate "Main Grant" field beyond the one already captured by generalGrantAllocation/capitalGrantAllocation.
+        { key: "generalTsp", label: "General TSP Grant Allocation", required: true, formOnly: true },
+        { key: "generalTspExpenditure", label: "General TSP Grant Expenditure", required: true, formOnly: true },
+        { key: "generalScsp", label: "General SCSP Grant Allocation", required: true, formOnly: true },
+        { key: "generalScspExpenditure", label: "General SCSP Grant Expenditure", required: true, formOnly: true },
+        { key: "capitalTsp", label: "Capital TSP Grant Allocation", required: true, formOnly: true },
+        { key: "capitalTspExpenditure", label: "Capital TSP Grant Expenditure", required: true, formOnly: true },
+        { key: "capitalScsp", label: "Capital SCSP Grant Allocation", required: true, formOnly: true },
+        { key: "capitalScspExpenditure", label: "Capital SCSP Grant Expenditure", required: true, formOnly: true },
       ]),
       leaf("project-wise-budget-performance", "Project-wise Budget Details", [
-        { key: "kvk", label: "KVK" },
-        { key: "projectName", label: "Project Name" },
-        { key: "accountNumber", label: "Account Number" },
-        { key: "fundingAgency", label: "Funding Agency" },
-        { key: "budgetEstimate", label: "Budget Estimate" },
-        { key: "budgetAllocated", label: "Budget Allocated" },
-        { key: "budgetReleased", label: "Budget Released" },
-        { key: "expenditure", label: "Expenditure" },
-        { key: "unspentBalance", label: "Unspent Balance" },
+        { key: "kvk", label: "KVK", readonly: true },
+        // Real Add form field confirmed live (atariams.org/financial-performance/project-budget-details/create, 2026-09-04) - a Financial-Year date range, not required, not a table column.
+        { key: "startDate", label: "Start Date", fieldKind: "date", formOnly: true },
+        { key: "endDate", label: "End Date", fieldKind: "date", formOnly: true },
+        // Real reference (2026-09-04) - a fixed dropdown, not free text.
+        { key: "projectName", label: "Project Name", required: true, staticOptions: ["CFLD Oilseed", "CFLD Pulses", "Model Village Oilseed", "Model Village Pulses", "NICRA", "ARYA", "FPO", "Natural Farming", "DRMR", "NARI", "IIPR", "TSP", "SCSP", "SAP", "Others"] },
+        // Real reference marks this required (asterisk) and it isn't a table column there (own table: KVK/Project Name/Funding Agency/Budget Estimate/Budget Allocated/Budget Released/Expenditure/Unspent Balance only, no Account Number) - hidden from ours to match.
+        { key: "accountNumber", label: "Account Number", required: true, formOnly: true },
+        // Real reference (2026-09-04) - a fixed dropdown, not free text.
+        { key: "fundingAgency", label: "Funding Agency", required: true, staticOptions: ["ICAR", "State Govt. Ministry of A&FW", "Central Govt.", "Others"] },
+        { key: "budgetEstimate", label: "Budget Estimate", required: true },
+        { key: "budgetAllocated", label: "Budget Allocated", required: true },
+        { key: "budgetReleased", label: "Budget Released", required: true },
+        { key: "expenditure", label: "Expenditure", required: true },
+        { key: "unspentBalance", label: "Unspent Balance", required: true },
       ], "Project-wise Budget", undefined, "Project-wise Budget", undefined, "Project-wise Budget"),
       leaf("revolving-fund", "Status of revolving fund", [
-        { key: "kvk", label: "KVK" },
-        { key: "reportingYear", label: "Reporting Year" },
-        { key: "openingBalance", label: "Opening Balance as on 1st April" },
-        { key: "incomeDuringYear", label: "Income During the Year" },
-        { key: "expenditureDuringYear", label: "Expenditure During the Year" },
-        { key: "closing", label: "Closing" },
+        { key: "kvk", label: "KVK", readonly: true },
+        { key: "reportingYear", label: "Reporting Year", required: true },
+        { key: "openingBalance", label: "Opening Balance as on 1st April", required: true },
+        { key: "incomeDuringYear", label: "Income During the Year", required: true },
+        { key: "expenditureDuringYear", label: "Expenditure During the Year", required: true },
+        { key: "closing", label: "Closing", required: true },
+        // Real reference (atariams.org/financial-performance/revolving-fund-status/create, 2026-09-04) has no asterisk on this field, unlike the other 5 - was wrongly marked required before.
         { key: "kind", label: "Kind" },
       ], "Revolving Fund", undefined, "Revolving Fund", undefined, "Revolving Fund"),
       leaf("revenue-generation", "Revenue Generation", [
-        { key: "kvk", label: "KVK" },
-        { key: "headName", label: "Name of Head" },
-        { key: "income", label: "Income (Rs.)" },
-        { key: "sponsoringAgency", label: "Sponsoring Agency" },
+        { key: "kvk", label: "KVK", readonly: true },
+        // Real Add form field confirmed live (atariams.org/financial-performance/revenue-generation/create, 2026-09-04) - a Financial-Year date range, not required, not a table column.
+        { key: "startDate", label: "Start Date", fieldKind: "date", formOnly: true },
+        { key: "endDate", label: "End Date", fieldKind: "date", formOnly: true },
+        { key: "headName", label: "Name of Head", required: true },
+        { key: "income", label: "Income (Rs.)", required: true },
+        { key: "sponsoringAgency", label: "Sponsoring Agency", required: true },
       ]),
       leaf("resource-generation", "Resource Generation", [
-        { key: "kvk", label: "KVK" },
-        { key: "programmeName", label: "Name of the Programme" },
-        { key: "purpose", label: "Purpose of the Programme" },
-        { key: "sourcesOfFund", label: "Sources of Fund", sourceMaster: { master: "asset-funding-source", optionKey: "name" } },
-        { key: "amountLakhs", label: "Amount (Rs. Lakhs)" },
-        { key: "infrastructureCreated", label: "Infrastructure Created" },
+        { key: "kvk", label: "KVK", readonly: true },
+        // Real Add form field confirmed live (atariams.org/financial-performance/resource-generation/create, 2026-09-04) - a Financial-Year date range, not required, not a table column.
+        { key: "startDate", label: "Start Date", fieldKind: "date", formOnly: true },
+        { key: "endDate", label: "End Date", fieldKind: "date", formOnly: true },
+        { key: "programmeName", label: "Name of the Programme", required: true },
+        { key: "purpose", label: "Purpose of the Programme", required: true },
+        // Real reference (2026-09-04) shows this as a plain text field, not a dropdown - kept as our own validated sourceMaster dropdown instead (a deliberate improvement over the reference, not a mismatch to copy blindly); flagged to the client rather than silently reverted.
+        { key: "sourcesOfFund", label: "Sources of Fund", required: true, sourceMaster: { master: "asset-funding-source", optionKey: "name" } },
+        { key: "amountLakhs", label: "Amount (Rs. Lakhs)", required: true },
+        // Real reference marks this required and it isn't a table column there (own table: KVK/Name of the programme/Purpose of the programme/Sources of fund/Amount only) - hidden from ours to match.
+        { key: "infrastructureCreated", label: "Infrastructure Created", required: true, formOnly: true },
       ]),
     ]),
     group("linkages", "Linkages", [
       leaf("functional-linkage", "Functional Linkage with Different Organizations", [
-        { key: "kvk", label: "KVK Name" },
-        { key: "organizationName", label: "Name of Organization" },
-        { key: "natureOfLinkage", label: "Nature of Linkage" },
+        { key: "kvk", label: "KVK Name", readonly: true },
+        // Real Add form field confirmed live (atariams.org/linkages/create, 2026-09-04) - was missing entirely before, not a table column there.
+        { key: "reportingYear", label: "Reporting Year", required: true, formOnly: true },
+        { key: "organizationName", label: "Name of Organization", required: true },
+        { key: "natureOfLinkage", label: "Nature of Linkage", required: true },
       ], "Functional Linkage", undefined, "Functional Linkage", undefined, "Functional Linkage"),
       leaf("special-programmes", "List of Special Programmes Undertaken", [
-        { key: "kvk", label: "KVK Name" },
-        { key: "programmeType", label: "Programme Type", sourceMaster: { master: "programme-type", optionKey: "name" } },
-        { key: "programmeName", label: "Name of the Programme/Scheme" },
-        { key: "initiationDate", label: "Date/Month of Initiation" },
+        { key: "kvk", label: "KVK Name", readonly: true },
+        // Real Add form field confirmed live (atariams.org/linkage/details/create, 2026-09-04) - was missing entirely before, not a table column there.
+        { key: "reportingYear", label: "Reporting Year", required: true, formOnly: true },
+        { key: "programmeType", label: "Programme Type", required: true, sourceMaster: { master: "programme-type", optionKey: "name" } },
+        { key: "programmeName", label: "Name of the Programme/Scheme", required: true },
+        // Real Add form fields confirmed live (2026-09-04) - "Purpose of programme" and "Funding agency" and "Amount (Rs.)" were missing entirely before, none are table columns there (own table: KVK/Programme Type/Name of the Programme-Scheme/Date-Month of initiation only).
+        { key: "purpose", label: "Purpose of programme", required: true, formOnly: true },
+        { key: "fundingAgency", label: "Funding agency", required: true, formOnly: true },
+        { key: "amount", label: "Amount (Rs.)", required: true, formOnly: true },
+        { key: "initiationDate", label: "Date/Month of Initiation", fieldKind: "date", required: true },
       ], "Special Programmes", undefined, "Special Programmes", undefined, "Special Programmes"),
     ]),
   ],
@@ -2609,6 +2753,7 @@ const meetings = group("meetings", "Meetings", [
         // direction, 2026-09-03: keep the correct spelling on this app
         // rather than reproducing the reference's error.
         label: "Total Statutory Members Present (State Line Department)",
+        formLabel: "Statutory Members Present (State Line Dept.)",
       },
       { key: "recommendations", label: "Salient Recommendations" },
       { key: "actionTaken", label: "Action Taken" },
@@ -2643,89 +2788,106 @@ const meetings = group("meetings", "Meetings", [
  */
 const miscellaneous = group("miscellaneous", "Miscellaneous", [
   leaf("prevalent-diseases-crops", "Prevalent Diseases in Crops", [
-    { key: "kvk", label: "KVK Name" },
-    { key: "diseaseName", label: "Name of the Disease" },
-    { key: "crop", label: "Crop" },
-    { key: "outbreakDate", label: "Date of Outbreak" },
-    { key: "areaAffected", label: "Area Affected (in ha)" },
-    { key: "commodityLossPercent", label: "% Commodity Loss" },
+    { key: "kvk", label: "KVK Name", readonly: true },
+    { key: "diseaseName", label: "Name of the Disease", required: true },
+    { key: "crop", label: "Crop", required: true },
+    { key: "outbreakDate", label: "Date of Outbreak", fieldKind: "date", required: true },
+    { key: "areaAffected", label: "Area Affected (in ha)", required: true },
+    { key: "commodityLossPercent", label: "% Commodity Loss", required: true },
     {
       key: "preventiveMeasures",
       label: "Preventive Measures Taken for Area (in ha)",
+      required: true,
+      numeric: false,
     },
   ]),
   leaf("prevalent-diseases-livestock", "Prevalent Diseases in Livestock", [
-    { key: "kvk", label: "KVK Name" },
-    { key: "diseaseName", label: "Name of the Disease" },
-    { key: "speciesAffected", label: "Species Affected" },
-    { key: "outbreakDate", label: "Date of Outbreak" },
-    { key: "mortalityMorbidity", label: "Number of Death/Morbidity Rate (%)" },
-    { key: "animalsVaccinated", label: "Number of Animals Vaccinated" },
+    { key: "kvk", label: "KVK Name", readonly: true },
+    { key: "diseaseName", label: "Name of the Disease", required: true },
+    { key: "speciesAffected", label: "Species Affected", required: true },
+    { key: "outbreakDate", label: "Date of Outbreak", fieldKind: "date", required: true },
+    { key: "mortalityMorbidity", label: "Number of Death/Morbidity Rate (%)", required: true },
+    { key: "animalsVaccinated", label: "Number of Animals Vaccinated", required: true },
     {
       key: "preventiveMeasures",
       label: "Preventive Measures Taken for Area (in ha)",
+      required: true,
+      numeric: false,
     },
-    { key: "areaAffected", label: "Area Affected (ha)" },
-    { key: "commodityLossPercent", label: "% Commodity Loss" },
+    // Real reference (atariams.org/prevalent-diseases/livestock/create, 2026-09-04) has neither of these on its own table or Add form at all - genuine extras on our side (a copy from the Crop disease leaf's own real fields), kept per instruction not to delete extra fields, just hidden from the table to match the reference's own 7-column list.
+    { key: "areaAffected", label: "Area Affected (ha)", formOnly: true },
+    { key: "commodityLossPercent", label: "% Commodity Loss", formOnly: true },
   ]),
   leaf("nyk-training", "NYK Training", [
-    { key: "kvk", label: "KVK Name" },
-    { key: "programmeTitle", label: "Title of the Training Programme" },
-    { key: "startDate", label: "Start Date" },
-    { key: "endDate", label: "End Date" },
-    { key: "male", label: "Male" },
-    { key: "female", label: "Female" },
-    { key: "fundReceived", label: "Amount of Fund Received (Rs)" },
+    { key: "kvk", label: "KVK Name", readonly: true },
+    { key: "programmeTitle", label: "Title of the Training Programme", required: true },
+    { key: "startDate", label: "Start Date", fieldKind: "date", required: true },
+    { key: "endDate", label: "End Date", fieldKind: "date", required: true },
+    // Real reference (atariams.org/nehru-yuva-kendra/create, 2026-09-04) has no plain Male/Female inputs at all - only the real General/OBC/SC/ST x M/F breakdown below, with Male/Female as its own table's aggregate columns. Server-computed from that breakdown (lib/leaf-record-registry.ts), never a real form input.
+    { key: "male", label: "Male", readonly: true },
+    { key: "female", label: "Female", readonly: true },
+    { key: "fundReceived", label: "Amount of Fund Received (Rs)", required: true },
+    { key: "participantsBreakdown", label: "No. of the Participant", fieldKind: "demographic-breakdown", demographicVariant: "grid", formOnly: true },
   ]),
   group("ppv-fra-sensitization", "PPV & FRA Sensitization", [
     leaf(
       "ppv-fra-training-programme",
       "PPV & FRA Sensitization Training Programme",
       [
-        { key: "kvk", label: "KVK Name" },
-        { key: "date", label: "Date" },
-        { key: "title", label: "Title" },
-        { key: "type", label: "Type", sourceMaster: { master: "ppv-fra-training-type", optionKey: "name" } },
-        { key: "venue", label: "Venue" },
-        { key: "resourcePerson", label: "Resource Person" },
-        { key: "participants", label: "No. of Participants" },
-        ...DEMOGRAPHIC_COLUMNS,
+        { key: "kvk", label: "KVK Name", readonly: true },
+        { key: "date", label: "Date", fieldKind: "date", required: true },
+        { key: "title", label: "Title", required: true },
+        { key: "type", label: "Type", required: true, sourceMaster: { master: "ppv-fra-training-type", optionKey: "name" } },
+        { key: "venue", label: "Venue", required: true },
+        { key: "resourcePerson", label: "Resource Person", required: true },
+        // Real reference (atariams.org/sensitization-training-programme/create, 2026-09-04) has no separate "No. of Participants" input - only the real General/OBC/SC/ST x M/F breakdown below. Server-computed from that breakdown, never a real form input.
+        { key: "participants", label: "No. of Participants", readonly: true },
+        { key: "farmersDetails", label: "No. of the Participant", fieldKind: "demographic-breakdown", demographicVariant: "grid", formOnly: true },
       ],
     ),
     leaf("ppv-fra-farmer-details", "PPV & FRA Sensitization Farmer Details", [
-      { key: "kvk", label: "KVK Name" },
-      { key: "year", label: "Year" },
-      { key: "crop", label: "Crop" },
-      { key: "registrationNo", label: "Registration No." },
-      { key: "farmerName", label: "Farmer Name" },
-      { key: "block", label: "Block" },
-      { key: "district", label: "District" },
-      { key: "mobileNo", label: "Mobile No." },
-      { key: "village", label: "Village" },
-      { key: "characteristics", label: "Characteristics" },
+      { key: "kvk", label: "KVK Name", readonly: true },
+      { key: "year", label: "Year", formLabel: "Reporting Year", required: true },
+      { key: "crop", label: "Crop", formLabel: "Name of Crop Registered", required: true },
+      { key: "registrationNo", label: "Registration No.", required: true },
+      { key: "farmerName", label: "Farmer Name", required: true },
+      { key: "block", label: "Block", required: true },
+      { key: "district", label: "District", required: true },
+      { key: "mobileNo", label: "Mobile No.", required: true, formOnly: true },
+      { key: "village", label: "Village", required: true, formOnly: true },
+      { key: "characteristics", label: "Characteristics", required: true, formOnly: true },
+      // Real Add form field confirmed live (2026-09-04) - a multi-file upload, missing entirely before, not required (no asterisk), not a table column.
+      { key: "images", label: "Images", fieldKind: "multi-image", uploadKind: "ppv-fra-farmer-image", formOnly: true },
     ]),
   ]),
   leaf("rawe-fet-fit-programme", "RAWE/FET/FIT Programme", [
-    { key: "startDate", label: "Start Date" },
-    { key: "endDate", label: "End Date" },
-    { key: "kvk", label: "KVK" },
-    { key: "attachmentType", label: "Attachment Type" },
-    { key: "attachment", label: "Attachment" },
-    { key: "numberOfStudents", label: "Number of Student" },
-    { key: "daysStayed", label: "No of Days Stayed" },
+    { key: "startDate", label: "Start Date", fieldKind: "date", required: true },
+    { key: "endDate", label: "End Date", fieldKind: "date", required: true },
+    { key: "kvk", label: "KVK", readonly: true },
+    { key: "attachmentType", label: "Attachment Type", required: true },
+    // Real reference (atariams.org/rawe-program/create, 2026-09-04) - a real file upload ("Attachment Upload"), not free text; not required (no asterisk).
+    { key: "attachment", label: "Attachment", fileKind: "document", uploadKind: "rawe-attachment" },
+    // Real reference has no separate "Number of Student"/"No. of Days Stayed" inputs - only "No. of Male"/"No. of Female" (Student section) below, with Start/End Date's own difference. Both server-computed (lib/leaf-record-registry.ts), never real form inputs.
+    { key: "numberOfStudents", label: "Number of Student", readonly: true },
+    { key: "daysStayed", label: "No of Days Stayed", readonly: true },
+    { key: "male", label: "No. of Male", required: true, formOnly: true },
+    { key: "female", label: "No. of Female", required: true, formOnly: true },
   ]),
   leaf("vip-visitors", "List of VIP Visitors", [
-    { key: "kvk", label: "KVK" },
-    { key: "visitDate", label: "Date of Visit" },
-    { key: "dignitaryType", label: "Type of Dignitaries", sourceMaster: { master: "vip-dignitary", optionKey: "name" } },
-    { key: "ministerName", label: "Name of Hon'ble Minister" },
-    { key: "observations", label: "Salient Points in His/Her Observation" },
+    { key: "kvk", label: "KVK", readonly: true },
+    { key: "visitDate", label: "Date of Visit", fieldKind: "date", required: true },
+    { key: "dignitaryType", label: "Type of Dignitaries", required: true, sourceMaster: { master: "vip-dignitary", optionKey: "name" } },
+    { key: "ministerName", label: "Name of Hon'ble Minister", required: true },
+    { key: "observations", label: "Salient Points in His/Her Observation", required: true },
   ]),
   /**
    * Real sub-items, placement (nested under Miscellaneous Information), and
    * columns confirmed against the client's own live atariams.org
    * screenshots for all 5 Digital Information sub-forms (2026-08-24).
-   * Reporting Year/KVKs are filters there, not columns.
+   * Reporting Year/KVKs are filters there, not columns. Client direction,
+   * 2026-09-04: keep this nested here (this app's own deliberate structure)
+   * rather than matching the live reference's own separate top-level
+   * placement - only this leaf group's internal fields/table needed fixing.
    */
   group("digital-information", "Digital Information", [
     leaf("digital-mobile-app", "Details of Mobile App", [
@@ -2744,7 +2906,8 @@ const miscellaneous = group("miscellaneous", "Miscellaneous", [
     ]),
     leaf("digital-web-portal", "Details of Web Portal", [
       { key: "kvk", label: "KVK Name" },
-      { key: "portalName", label: "Name of Web portal" },
+      // Real reference table (atariams.org/miscellaneous/view-ict-web-portal, 2026-09-04) has only 3 real columns (KVK/visitors/farmersRegistered) - no "Name of Web portal" column, hidden from ours to match. Kept as a form-only field since the reference itself gives no Add form to confirm it doesn't belong on the form too.
+      { key: "portalName", label: "Name of Web portal", formOnly: true },
       { key: "visitors", label: "No. of Visitors Visited the Portal" },
       {
         key: "farmersRegistered",
@@ -2813,9 +2976,11 @@ const miscellaneous = group("miscellaneous", "Miscellaneous", [
           key: "weatherBulletinFarmers",
           label: "No. of Farmers Sent Weather Advisory Bulletin",
         },
+        // Real reference table (atariams.org/miscellaneous/view-ict-other-channel, 2026-09-04) has only the 8 real Advisories/Farmers-sent columns above (KVK + 8) - these next 9 fields are a stray copy-paste of the sibling KMAS leaf's own fields (audit finding, 2026-09-04), not real columns of this leaf at all. Hidden from the table rather than deleted, per this session's own "don't delete extra fields" policy.
         {
           key: "channel",
           label: "Channel",
+          formOnly: true,
           staticOptions: [
             "Advisories through Text messages",
             "Advisories through WhatsApp",
@@ -2823,14 +2988,14 @@ const miscellaneous = group("miscellaneous", "Miscellaneous", [
             "Advisories through social media/FB/Twitter/Instagram/Other",
           ],
         },
-        { key: "farmersCovered", label: "No. of Farmers Covered" },
-        { key: "advisoriesSent", label: "No. of Advisories Sent" },
-        { key: "messagesCrop", label: "Type of Messages - Crop" },
-        { key: "messagesLivestock", label: "Type of Messages - Livestock" },
-        { key: "messagesWeather", label: "Type of Messages - Weather" },
-        { key: "messagesMarketing", label: "Type of Messages - Marketing" },
-        { key: "messagesAwareness", label: "Type of Messages - Awareness" },
-        { key: "messagesOtherEnterprises", label: "Type of Messages - Other Enterprises" },
+        { key: "farmersCovered", label: "No. of Farmers Covered", formOnly: true },
+        { key: "advisoriesSent", label: "No. of Advisories Sent", formOnly: true },
+        { key: "messagesCrop", label: "Type of Messages - Crop", formOnly: true },
+        { key: "messagesLivestock", label: "Type of Messages - Livestock", formOnly: true },
+        { key: "messagesWeather", label: "Type of Messages - Weather", formOnly: true },
+        { key: "messagesMarketing", label: "Type of Messages - Marketing", formOnly: true },
+        { key: "messagesAwareness", label: "Type of Messages - Awareness", formOnly: true },
+        { key: "messagesOtherEnterprises", label: "Type of Messages - Other Enterprises", formOnly: true },
       ],
     ),
   ]),
