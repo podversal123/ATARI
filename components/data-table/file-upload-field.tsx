@@ -3,7 +3,6 @@
 import { useRef, useState } from "react";
 import { FileText, ImageIcon, Loader2, Upload, X } from "lucide-react";
 import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { MasterColumn } from "@/lib/navigation";
 
@@ -20,6 +19,14 @@ type FileUploadFieldProps = {
  * typed it into a plain text field, so the rest of the Add/Edit flow
  * (submitForm/submit in empty-data-table.tsx and add-leaf-page.tsx) doesn't
  * need to know files are involved at all.
+ *
+ * Styled as the same full-width dashed drop-zone "card" as the app's own
+ * multi-image upload fields (MultiImageUploadField - "Farmers' Training
+ * Photographs" etc.) instead of the old cramped inline thumbnail/row layout
+ * (client report, 2026-09-03: Employee Details' Photo/Resume looked
+ * noticeably smaller than every other field). Single-file, so there's no
+ * thumbnail strip - the card itself flips into a "file attached" state with
+ * Replace/Remove once a value is set.
  */
 export function FileUploadField({ column, fieldId, value, onChange }: FileUploadFieldProps) {
   const inputRef = useRef<HTMLInputElement>(null);
@@ -50,6 +57,7 @@ export function FileUploadField({ column, fieldId, value, onChange }: FileUpload
 
   const isImage = column.fileKind === "image";
   const accept = isImage ? "image/jpeg,image/png,image/webp" : ".pdf,.doc,.docx";
+  const noun = column.label.toLowerCase();
 
   return (
     <div className="space-y-1.5">
@@ -65,98 +73,75 @@ export function FileUploadField({ column, fieldId, value, onChange }: FileUpload
           if (file) handleFile(file);
         }}
       />
-      {isImage ? (
-        <div className="flex items-center gap-3">
-          <button
-            type="button"
-            disabled={uploading}
-            onClick={() => inputRef.current?.click()}
-            className={cn(
-              "group relative flex size-20 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-dashed border-border bg-muted/30 transition-colors hover:border-primary/50 disabled:cursor-not-allowed disabled:opacity-60",
-              value && "border-solid",
-            )}
-          >
-            {uploading ? (
-              <Loader2 className="size-6 animate-spin text-primary" />
-            ) : value ? (
-              <>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={`/api/files/view?url=${encodeURIComponent(value)}`}
-                  alt={column.label}
-                  className="size-full object-cover"
-                />
-                <span className="absolute inset-0 flex items-center justify-center bg-black/50 text-xs font-medium text-white opacity-0 transition-opacity group-hover:opacity-100">
-                  Replace
-                </span>
-              </>
-            ) : (
-              <ImageIcon className="size-6 text-muted-foreground/60" />
-            )}
-          </button>
-          <div className="flex flex-col gap-1.5">
-            {value ? (
-              <>
-                <a
-                  href={`/api/files/view?url=${encodeURIComponent(value)}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-xs font-medium text-primary hover:underline"
-                >
-                  View full size
-                </a>
-                <button
-                  type="button"
-                  onClick={() => onChange("")}
-                  disabled={uploading}
-                  className="flex items-center gap-1 text-xs text-muted-foreground hover:text-destructive"
-                >
-                  <X className="size-3" />
-                  Remove photo
-                </button>
-              </>
-            ) : (
-              <span className="text-xs text-muted-foreground">No photo uploaded</span>
-            )}
-          </div>
-        </div>
-      ) : (
-        <div className="flex items-center gap-2">
-          {value ? (
+
+      {value && !uploading ? (
+        <div className="flex w-full items-center gap-3 rounded-lg border border-border bg-muted/30 px-4 py-3.5">
+          {isImage ? (
+            <div className="size-12 shrink-0 overflow-hidden rounded-md border border-border">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={`/api/files/view?url=${encodeURIComponent(value)}`}
+                alt={column.label}
+                className="size-full object-cover"
+              />
+            </div>
+          ) : (
+            <div className="flex size-12 shrink-0 items-center justify-center rounded-md border border-border bg-background">
+              <FileText className="size-5 text-primary" />
+            </div>
+          )}
+          <div className="flex min-w-0 flex-1 flex-col gap-1">
             <a
               href={`/api/files/view?url=${encodeURIComponent(value)}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex h-8 flex-1 items-center gap-1.5 truncate rounded-lg border border-input px-2.5 text-sm text-primary hover:underline"
+              className="truncate text-sm font-medium text-primary hover:underline"
             >
-              <FileText className="size-3.5 shrink-0" />
-              View current file
+              {isImage ? "View full size" : "View current file"}
             </a>
-          ) : (
-            <span className="flex h-8 flex-1 items-center px-2.5 text-sm text-muted-foreground">
-              No file uploaded
-            </span>
-          )}
-          <Button
+            <button
+              type="button"
+              onClick={() => onChange("")}
+              className="flex w-fit items-center gap-1 text-xs text-muted-foreground hover:text-destructive"
+            >
+              <X className="size-3" />
+              Remove
+            </button>
+          </div>
+          <button
             type="button"
-            variant="outline"
-            size="sm"
             disabled={uploading}
             onClick={() => inputRef.current?.click()}
+            className="shrink-0 rounded-md border border-input px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:border-primary/50 hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {uploading ? (
-              <Loader2 className="size-3.5 animate-spin" />
-            ) : (
-              <Upload className="size-3.5" />
-            )}
-            {value ? "Replace" : "Upload"}
-          </Button>
-          {value && !uploading && (
-            <Button type="button" variant="outline" size="sm" onClick={() => onChange("")}>
-              <X className="size-3.5" />
-            </Button>
-          )}
+            Replace
+          </button>
         </div>
+      ) : (
+        <button
+          type="button"
+          disabled={uploading}
+          onClick={() => inputRef.current?.click()}
+          className={cn(
+            "flex w-full flex-col items-center justify-center gap-1.5 rounded-lg border-2 border-dashed border-border bg-muted/30 px-4 py-5 text-center transition-colors hover:border-primary/50 hover:bg-muted/50 disabled:cursor-not-allowed disabled:opacity-60",
+          )}
+        >
+          {uploading ? (
+            <Loader2 className="size-6 animate-spin text-primary" />
+          ) : isImage ? (
+            <ImageIcon className="size-6 text-muted-foreground" />
+          ) : (
+            <Upload className="size-6 text-muted-foreground" />
+          )}
+          <span className="text-sm font-medium text-primary">
+            {uploading ? "Uploading…" : `Click to upload ${noun}`}
+          </span>
+          <span className="text-xs text-muted-foreground">
+            {isImage
+              ? "JPG, PNG or WEBP. (Max 5 MB)"
+              : "PDF or Word document. (Max 5 MB)"}
+          </span>
+        </button>
       )}
       {error && <p className="text-xs font-medium text-destructive">{error}</p>}
     </div>
