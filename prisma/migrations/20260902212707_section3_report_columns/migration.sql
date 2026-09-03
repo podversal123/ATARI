@@ -1,0 +1,61 @@
+-- AlterTable
+ALTER TABLE "CfldBudgetUtilization" ADD COLUMN     "areaAchievedHa" DECIMAL(10,2),
+ADD COLUMN     "areaAllotedHa" DECIMAL(10,2),
+ADD COLUMN     "criticalInputBalance" DECIMAL(14,2),
+ADD COLUMN     "criticalInputReceived" DECIMAL(14,2),
+ADD COLUMN     "criticalInputUtilization" DECIMAL(14,2),
+ADD COLUMN     "extensionBalance" DECIMAL(14,2),
+ADD COLUMN     "extensionReceived" DECIMAL(14,2),
+ADD COLUMN     "extensionUtilization" DECIMAL(14,2),
+ADD COLUMN     "publicationBalance" DECIMAL(14,2),
+ADD COLUMN     "publicationReceived" DECIMAL(14,2),
+ADD COLUMN     "publicationUtilization" DECIMAL(14,2),
+ADD COLUMN     "taDaBalance" DECIMAL(14,2),
+ADD COLUMN     "taDaReceived" DECIMAL(14,2),
+ADD COLUMN     "taDaUtilization" DECIMAL(14,2);
+
+-- AlterTable
+ALTER TABLE "NicraCustomHiringFarmImplement" ADD COLUMN     "generalFemale" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN     "generalMale" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN     "obcFemale" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN     "obcMale" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN     "scFemale" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN     "scMale" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN     "stFemale" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN     "stMale" INTEGER NOT NULL DEFAULT 0;
+
+-- AlterTable
+ALTER TABLE "NicraExtensionActivity" ADD COLUMN     "generalFemale" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN     "generalMale" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN     "obcFemale" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN     "obcMale" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN     "scFemale" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN     "scMale" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN     "stFemale" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN     "stMale" INTEGER NOT NULL DEFAULT 0;
+
+-- AlterTable
+ALTER TABLE "NicraSoilHealthCard" ADD COLUMN     "generalFemale" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN     "generalMale" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN     "obcFemale" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN     "obcMale" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN     "scFemale" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN     "scMale" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN     "stFemale" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN     "stMale" INTEGER NOT NULL DEFAULT 0;
+
+-- AlterTable
+ALTER TABLE "NicraTraining" ADD COLUMN     "generalFemale" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN     "generalMale" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN     "obcFemale" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN     "obcMale" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN     "scFemale" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN     "scMale" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN     "stFemale" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN     "stMale" INTEGER NOT NULL DEFAULT 0;
+
+-- AlterTable
+ALTER TABLE "NicraVillageWiseVcrmc" ADD COLUMN     "majorDecision" TEXT,
+ADD COLUMN     "membersFemale" INTEGER,
+ADD COLUMN     "membersMale" INTEGER,
+ADD COLUMN     "presidentName" TEXT;
