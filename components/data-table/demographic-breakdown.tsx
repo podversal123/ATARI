@@ -149,7 +149,6 @@ export function DemographicGrid({
               id={`demo-grid-${key}`}
               type="number"
               min="0"
-              className="h-10"
               value={values[key] ?? ""}
               onChange={(e) => onChange(key, e.target.value)}
             />

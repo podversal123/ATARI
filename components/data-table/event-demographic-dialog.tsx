@@ -247,7 +247,7 @@ export function EventDemographicDialog({
                 />
               </div>
               <div className="space-y-2">
-                <p className="text-lg font-semibold text-primary">
+                <p className="text-sm font-semibold text-primary">
                   Farmers Details
                 </p>
                 <DemographicBreakdown
@@ -324,7 +324,7 @@ export function EventDemographicDialog({
                 />
               </div>
               <div className="space-y-2">
-                <p className="text-lg font-semibold text-primary">
+                <p className="text-sm font-semibold text-primary">
                   Farmers Details
                 </p>
                 <DemographicBreakdown

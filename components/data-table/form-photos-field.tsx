@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import { ImagePlus, Loader2, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 
 export type FormPhoto = { url: string; caption: string };
@@ -66,8 +67,7 @@ export function FormPhotosField({ label = "Photographs", value, onChange }: Form
 
   return (
     <div className="space-y-2">
-      {/* Same "text-lg font-semibold text-primary" section-heading style as every other card sub-section (Farmers Details, Details of technologies selected..., ...) - was a plain field-size Label before (client report, 2026-09-03: card sub-headings missing/too small in several places), which read as just another input instead of a section break. */}
-      <p className="text-lg font-semibold text-primary">{label}</p>
+      <Label>{label}</Label>
       <input
         ref={inputRef}
         type="file"

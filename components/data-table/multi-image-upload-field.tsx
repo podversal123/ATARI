@@ -7,8 +7,7 @@ import { cn } from "@/lib/utils";
 import type { UploadKind } from "@/lib/blob";
 
 type MultiImageUploadFieldProps = {
-  /** Optional - omit when an external heading already introduces this field (e.g. OftResultFields' own "Photographs" section title, styled bigger than a plain field label); CFLD's two side-by-side cards ("Farmers' Training Photographs", "Quality Action Photographs") still pass their own, since there each card needs its own name. */
-  label?: string;
+  label: string;
   uploadKind: UploadKind;
   value: string[];
   onChange: (urls: string[]) => void;
@@ -67,7 +66,7 @@ export function MultiImageUploadField({ label, uploadKind, value, onChange }: Mu
 
   return (
     <div className="space-y-1.5">
-      {label && <Label>{label}</Label>}
+      <Label>{label}</Label>
       <input
         ref={inputRef}
         type="file"
