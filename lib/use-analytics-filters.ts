@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { EMPTY_ANALYTICS_FILTERS, type AnalyticsFilters } from "@/components/dashboard/analytics-filter-bar";
+import { usePolling } from "@/lib/use-polling";
 
 /** Shape every `/api/dashboard-stats?scope=...` response shares, regardless of which section it's scoped to. */
 export type AnalyticsData = {
@@ -19,13 +20,16 @@ export type AnalyticsData = {
  * (OFT/FLD/Training/Extension) - each re-fetches `/api/dashboard-stats`
  * whenever Year/State/District/KVK/Group By changes, same real
  * query-param pattern the main Dashboard's own Year/KVK filter already
- * uses (2026-08-27).
+ * uses (2026-08-27). Also polls every ~20s (like the main Dashboard) so a
+ * KVK's real changes show up without a manual reload; the chart's own
+ * pagination is keyed on the row ids, not the array identity, so an
+ * unchanged poll result never yanks a browsing user back to page 1.
  */
 export function useAnalyticsFilters(scope: "oft" | "fld" | "training" | "extension") {
   const [filters, setFilters] = useState<AnalyticsFilters>(EMPTY_ANALYTICS_FILTERS);
   const [data, setData] = useState<AnalyticsData | null>(null);
 
-  useEffect(() => {
+  const load = useCallback(() => {
     let cancelled = false;
     const params = new URLSearchParams({ scope });
     if (filters.year !== "All") params.set("year", filters.year);
@@ -45,7 +49,19 @@ export function useAnalyticsFilters(scope: "oft" | "fld" | "training" | "extensi
     return () => {
       cancelled = true;
     };
-  }, [scope, filters.year, filters.state, filters.district, filters.institute, filters.kvk, filters.groupBy, filters.breakdown]);
+  }, [
+    scope,
+    filters.year,
+    filters.state,
+    filters.district,
+    filters.institute,
+    filters.kvk,
+    filters.groupBy,
+    filters.breakdown,
+  ]);
+
+  useEffect(() => load(), [load]);
+  usePolling(load);
 
   return { filters, setFilters, data };
 }

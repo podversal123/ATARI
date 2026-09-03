@@ -173,3 +173,6 @@
     background-color: rgba(255, 255, 255, 0.4);
   }
 }
+
+/* The topbar waving flag (components/layout/waving-flag.tsx) animates itself
+   with inline SMIL - no rule needed here. */

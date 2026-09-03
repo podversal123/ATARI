@@ -29,7 +29,7 @@ function sheetName(raw: string) {
 /** Grouped columns flatten to "Group - Label" here (a merged two-row header isn't worth the width-calc cost in a spreadsheet); every column stays a real, filterable column. */
 function flatHeaders(grid: ReportGrid, serial: boolean) {
   return [
-    ...(serial ? ["S.No."] : []),
+    ...(serial ? ["Sl. No."] : []),
     ...grid.columns.map((c) => [...(c.groups ?? []), c.label].join(" - ")),
   ];
 }
@@ -51,6 +51,17 @@ function writeGrid(sheet: ExcelJS.Worksheet, r: number, grid: ReportGrid): numbe
   }
 
   const headers = flatHeaders(grid, serial);
+
+  for (const band of grid.titleBands ?? []) {
+    sheet.mergeCells(r, 1, r, Math.max(headers.length, 1));
+    const cell = sheet.getCell(`A${r}`);
+    cell.value = band;
+    cell.font = { bold: true, size: 10 };
+    cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFEBEBEB" } };
+    cell.border = CELL_BORDER;
+    r += 1;
+  }
+
   const headerRow = sheet.getRow(r);
   headers.forEach((label, i) => {
     const cell = headerRow.getCell(i + 1);
@@ -138,9 +149,11 @@ function writePairs(
 function writeTableBody(sheet: ExcelJS.Worksheet, r: number, table: ReportTable): number {
   if (table.blocks) {
     for (const block of table.blocks) {
-      sheet.getCell(`A${r}`).value = block.heading;
-      sheet.getCell(`A${r}`).font = { bold: true, size: 11 };
-      r += 1;
+      if (block.heading) {
+        sheet.getCell(`A${r}`).value = block.heading;
+        sheet.getCell(`A${r}`).font = { bold: true, size: 11 };
+        r += 1;
+      }
       for (const note of block.notes ?? []) {
         sheet.getCell(`A${r}`).value = note;
         sheet.getCell(`A${r}`).font = { size: 9, color: { argb: "FF555555" } };
@@ -245,22 +258,22 @@ export async function generateReportExcel(opts: ReportExcelOptions): Promise<Exc
 
       const imgs = (sub.images ?? []).filter((im) => opts.images?.has(im.url));
       if (imgs.length > 0) {
-        sheet.getCell(`A${r}`).value = "Module Images";
+        sheet.getCell(`A${r}`).value = `Photographs (${imgs.length})`;
         sheet.getCell(`A${r}`).font = { bold: true, size: 10, color: { argb: "FF333333" } };
-        r += 1;
+        r += 2;
         for (const im of imgs) {
           const data = opts.images!.get(im.url)!;
           const m = /^data:image\/(png|jpe?g|gif)/i.exec(data)?.[1]?.toLowerCase();
           const ext: "png" | "jpeg" | "gif" = m === "jpg" || m === "jpeg" ? "jpeg" : m === "gif" ? "gif" : "png";
           try {
             const imgId = wb.addImage({ base64: data, extension: ext });
-            sheet.addImage(imgId, { tl: { col: 0, row: r - 1 }, ext: { width: 320, height: 200 } });
+            sheet.addImage(imgId, { tl: { col: 0, row: r - 1 }, ext: { width: 340, height: 210 }, editAs: "oneCell" });
           } catch {
             // Skip an image that fails rather than aborting the workbook.
           }
-          r += 11; // leave room for the picture
-          sheet.getCell(`A${r}`).value = im.caption + (im.date ? ` (${im.date})` : "");
-          sheet.getCell(`A${r}`).font = { size: 9, color: { argb: "FF555555" } };
+          r += 12; // leave room for the picture
+          sheet.getCell(`A${r}`).value = (im.caption || "Untitled") + ([im.category, im.date].filter(Boolean).length ? `  |  ${[im.category, im.date].filter(Boolean).join("  |  ")}` : "");
+          sheet.getCell(`A${r}`).font = { size: 9, bold: true, color: { argb: "FF444444" } };
           r += 2;
         }
       }

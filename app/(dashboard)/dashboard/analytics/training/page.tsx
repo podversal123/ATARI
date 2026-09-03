@@ -64,7 +64,7 @@ export default function TrainingDetailedAnalyticsPage() {
       </div>
 
       <div className="mt-4">
-        <ProgressChartCard title="Training by Zone" description="Status" totalCount={total} rows={rows} mode="total" />
+        <ProgressChartCard title="Training by Zone" description="Status" totalCount={total} rows={rows} mode="total" resetKey={JSON.stringify(filters)} />
       </div>
     </div>
   );

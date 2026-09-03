@@ -14,7 +14,7 @@ import { formatDisplayDate } from "@/lib/reports";
 import { downloadBlob } from "@/lib/utils";
 import { reportTableRowCount, type ReportSection } from "@/lib/report-types";
 
-type ReportData = { zoneLabel: string; kvkNames: string[]; sections: ReportSection[] };
+type ReportData = { zoneLabel: string; kvkNames: string[]; sections: ReportSection[]; periodLabel?: string };
 
 /**
  * Generate Preview navigates here instead of updating the filter page
@@ -52,7 +52,13 @@ function ReportPreviewContent() {
 
   async function fetchReportData(): Promise<ReportData> {
     const kvkFilter = params.get("kvk");
-    const query = kvkFilter ? `?kvk=${encodeURIComponent(kvkFilter)}` : "";
+    const q = new URLSearchParams();
+    if (kvkFilter && kvkFilter !== "All KVKs") q.set("kvk", kvkFilter);
+    const from = params.get("from");
+    const to = params.get("to");
+    if (from) q.set("from", from);
+    if (to) q.set("to", to);
+    const query = q.toString() ? `?${q.toString()}` : "";
     const response = await fetch(`/api/reports/generate${query}`);
     const data: ReportData | { error: string } = await response.json();
     if (!response.ok || "error" in data) {
@@ -96,7 +102,7 @@ function ReportPreviewContent() {
       const doc = generateReportPdf({
         title: "ATARI AMS REPORT",
         zoneLabel: data.zoneLabel,
-        reportingYearLabel: "All Data",
+        reportingYearLabel: data.periodLabel ?? "All Data",
         kvkNames: data.kvkNames,
         sections: data.sections,
         images: await prefetchReportImages(data.sections),
@@ -121,7 +127,7 @@ function ReportPreviewContent() {
       const wb = await generateReportExcel({
         title: "ATARI AMS REPORT",
         zoneLabel: data.zoneLabel,
-        reportingYearLabel: "All Data",
+        reportingYearLabel: data.periodLabel ?? "All Data",
         kvkNames: data.kvkNames,
         sections: data.sections,
         images: await prefetchReportImages(data.sections),
@@ -150,7 +156,7 @@ function ReportPreviewContent() {
       const blob = await generateReportWord({
         title: "ATARI AMS REPORT",
         zoneLabel: data.zoneLabel,
-        reportingYearLabel: "All Data",
+        reportingYearLabel: data.periodLabel ?? "All Data",
         kvkNames: data.kvkNames,
         sections: data.sections,
         images: await prefetchReportImages(data.sections),

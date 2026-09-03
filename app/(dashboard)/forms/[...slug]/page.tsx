@@ -5,7 +5,9 @@ import {
   resolveNavPath,
   landingCards,
   type NavGroup,
+  type MasterColumn,
 } from "@/lib/navigation";
+import { REPORT_FORM_LEAVES } from "@/lib/reports";
 import { PageHeader, type Crumb } from "@/components/layout/page-header";
 import { AutoRefresh } from "@/components/layout/auto-refresh";
 import { SectionedMasterGrid } from "@/components/layout/sectioned-master-grid";
@@ -28,6 +30,24 @@ import { getCurrentUser } from "@/lib/auth";
 
 /** Technology Week Celebration and World Soil Day moved off the popup EventDemographicDialog onto the generic full-page Add/Edit flow (client direction, 2026-09-02 - see the matching leaf-record-registry.ts comment). Kept as an empty set (rather than deleted outright) since `customForm="event-demographic"` below still exists as a real EmptyDataTable prop, just never triggered now. */
 const EVENT_DEMOGRAPHIC_SLUGS = new Set<string>([]);
+
+/** Every Form Management leaf Reports files a Module Images category for - the same list Reports and the standalone Module Images page draw from. */
+const REPORT_LEAF_PATHS = new Set(REPORT_FORM_LEAVES.map((leaf) => leaf.path));
+
+/** The end-of-form "Photographs (with caption)" section every generic leaf's Add/Edit form now carries - on save it flows straight into Module Images -> Reports (see lib/leaf-record-registry.ts syncLeafModuleImages). */
+const MODULE_IMAGES_COLUMN: MasterColumn = {
+  key: "moduleImages",
+  label: "Photographs",
+  fieldKind: "photos",
+  formOnly: true,
+};
+
+/** Appends the shared Photographs section to a leaf's generic Add/Edit form unless it already declares one (OFT/FLD carry their own) or Reports has no category for it. */
+function withModuleImages(columns: MasterColumn[], path: string): MasterColumn[] {
+  if (!REPORT_LEAF_PATHS.has(path)) return columns;
+  if (columns.some((column) => column.fieldKind === "photos")) return columns;
+  return [...columns, MODULE_IMAGES_COLUMN];
+}
 /** View OFT / View FLD only - see EmptyDataTable's `oftFldStatus` prop for the full spec (client pointer, 2026-08-24). */
 const OFT_FLD_STATUS_SLUGS = new Set(["oft", "view-fld"]);
 /** Leaves whose real Add/Edit shape isn't a flat field list - these keep opening their existing bespoke dialog instead of the new full-page Add flow. CFLD Technical Parameter used to be one of these too, but its own 4-tab shape moved to a dedicated page (CfldTechnicalParameterPage) same as every other leaf, 2026-09-01 - it's handled by its own `node.slug === "technical-parameter"` branches below instead. */
@@ -170,7 +190,7 @@ export default async function FormsPage({ params, searchParams }: FormsPageProps
         title={node.pageTitle ?? node.label}
         trail={editTrail}
         backHref={editBackHref}
-        columns={node.columns}
+        columns={withModuleImages(node.columns, slug.join("/"))}
         // Same compact auto-fit field layout as every All Masters leaf
         // (app/(dashboard)/masters/[...slug]/page.tsx) - this route never
         // set it before, so every generic Form Management leaf was still on
@@ -222,7 +242,7 @@ export default async function FormsPage({ params, searchParams }: FormsPageProps
         title={node.pageTitle ?? node.label}
         trail={addTrail}
         backHref={backHref}
-        columns={node.columns}
+        columns={withModuleImages(node.columns, slug.join("/"))}
         // Same compact auto-fit field layout as every All Masters leaf
         // (app/(dashboard)/masters/[...slug]/page.tsx) - this route never
         // set it before, so every generic Form Management leaf was still on
@@ -2608,6 +2628,7 @@ export default async function FormsPage({ params, searchParams }: FormsPageProps
           reportingYearFilter={node.slug === "oft"}
           resultKind={node.slug === "view-fld" ? "fld" : node.slug === "oft" ? "oft" : undefined}
           staffTransferHistory={node.slug === "staff-transferred"}
+          staffTransfer={node.slug === "employee-details"}
           /** Exact wording from the client's "changes required 1.0.pdf" (2026-08-25, item 4) - each leaf's own note only, no cross-reference to the other leaf. CFLD Technical Parameter's own note is exact text confirmed against the real reference (atari-client.vercel.app, 2026-09-02). */
           note={
             node.slug === "oft"

@@ -1,8 +1,11 @@
 "use client";
 
+import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
-import { Bell, ChevronDown, KeyRound, LogOut, User } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { Bell, ChevronDown, Clock, KeyRound, LogOut, User } from "lucide-react";
+import { WavingFlag } from "./waving-flag";
+import { LiveClock } from "./live-clock";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -20,11 +23,52 @@ import { ChangePasswordDialog } from "./change-password-dialog";
  * 2/3) replaces that mock with an actual authenticated user, but the shape
  * (role decided once, at login) doesn't change.
  */
+type NotifItem = { id: string; title: string; from: string; sentOn: string; createdAt: string };
+const NOTIF_SEEN_KEY = "ams-notif-last-seen";
+
+function readSeen(): number {
+  try {
+    return Number(localStorage.getItem(NOTIF_SEEN_KEY)) || 0;
+  } catch {
+    return 0;
+  }
+}
+
 export function Topbar() {
   const router = useRouter();
   const session = useSession();
   const sessionReady = useSessionReady();
   const [changePasswordOpen, setChangePasswordOpen] = useState(false);
+
+  const [received, setReceived] = useState<NotifItem[]>([]);
+  const [lastSeen, setLastSeen] = useState<number>(() =>
+    typeof window === "undefined" ? 0 : readSeen(),
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/notifications")
+      .then((r) => (r.ok ? r.json() : { received: [] }))
+      .then((data: { received?: NotifItem[] }) => {
+        if (!cancelled) setReceived(data.received ?? []);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const unreadCount = received.filter((n) => new Date(n.createdAt).getTime() > lastSeen).length;
+
+  const markSeen = useCallback(() => {
+    const now = Date.now();
+    try {
+      localStorage.setItem(NOTIF_SEEN_KEY, String(now));
+    } catch {
+      // per-device convenience only - fine if storage is unavailable
+    }
+    setLastSeen(now);
+  }, []);
 
   /**
    * Before the real session has been read out of sessionStorage, `session`
@@ -47,30 +91,87 @@ export function Topbar() {
         : "KVK User";
 
   return (
-    <header className="flex h-16 shrink-0 items-center justify-between border-b border-border bg-card px-6">
-      <p className="text-xl font-semibold text-primary">
+    <header className="flex h-16 shrink-0 items-center justify-between gap-4 border-b border-border bg-card px-6">
+      <div className="flex flex-1 items-center gap-3">
+        <Image
+          src="/brand/zone-seal-patna.png"
+          alt="ATARI Zone IV Patna"
+          width={300}
+          height={300}
+          priority
+          className="size-12 rounded-full"
+        />
+        <span className="hidden items-center gap-1.5 rounded-full border border-border bg-muted/40 px-2.5 py-1 lg:inline-flex">
+          <Clock className="size-3.5 shrink-0 text-muted-foreground" />
+          <LiveClock className="whitespace-nowrap text-xs font-medium tabular-nums text-foreground/80" />
+        </span>
+      </div>
+
+      <p className="shrink-0 text-center text-base font-bold tracking-tight text-primary sm:text-xl">
         AMS - ATARI Zone (IV) Patna
       </p>
 
-      <div className="flex items-center gap-5">
-        <DropdownMenu>
+      <div className="flex flex-1 items-center justify-end gap-4">
+        <Image
+          src="/brand/icar-logo.png"
+          alt="ICAR"
+          width={225}
+          height={300}
+          priority
+          className="hidden h-12 w-auto md:block"
+        />
+        <WavingFlag className="hidden h-10 w-[3.25rem] sm:inline-flex" />
+        <span aria-hidden className="hidden h-8 w-px bg-border md:block" />
+
+        <DropdownMenu onOpenChange={(open) => { if (open && unreadCount > 0) markSeen(); }}>
           <DropdownMenuTrigger
             render={
               <button
                 type="button"
-                aria-label="Notifications"
-                className="text-muted-foreground transition-colors outline-none hover:text-foreground"
+                aria-label={
+                  unreadCount > 0 ? `Notifications, ${unreadCount} unread` : "Notifications"
+                }
+                className="relative text-muted-foreground transition-colors outline-none hover:text-foreground"
               >
                 <Bell className="size-5" />
+                {unreadCount > 0 && (
+                  <span className="absolute -top-1.5 -right-1.5 flex min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] leading-4 font-semibold text-white">
+                    {unreadCount > 9 ? "9+" : unreadCount}
+                  </span>
+                )}
               </button>
             }
           />
-          <DropdownMenuContent align="end" className="w-72 min-w-0">
+          <DropdownMenuContent align="end" className="w-80 min-w-0">
             <p className="px-1.5 py-1.5 text-sm font-medium text-foreground">Notifications</p>
             <DropdownMenuSeparator />
-            <p className="px-1.5 py-3 text-center text-sm text-muted-foreground">
-              No notifications yet.
-            </p>
+            {received.length === 0 ? (
+              <p className="px-1.5 py-3 text-center text-sm text-muted-foreground">
+                No notifications yet.
+              </p>
+            ) : (
+              <div className="max-h-72 overflow-y-auto">
+                {received.slice(0, 6).map((n) => {
+                  const isUnread = new Date(n.createdAt).getTime() > lastSeen;
+                  return (
+                    <button
+                      key={n.id}
+                      type="button"
+                      onClick={() => router.push("/notifications")}
+                      className="flex w-full flex-col gap-0.5 border-b border-border/60 px-2 py-2 text-left last:border-0 hover:bg-muted/50"
+                    >
+                      <span className="flex items-center gap-1.5 text-sm font-medium text-foreground">
+                        {isUnread && <span className="size-1.5 shrink-0 rounded-full bg-destructive" />}
+                        <span className="truncate">{n.title}</span>
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        {n.from} · {n.sentOn}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={() => router.push("/notifications")}>
               View all notifications
@@ -83,15 +184,15 @@ export function Topbar() {
             render={
               <button
                 type="button"
-                className="flex items-center gap-2 outline-none"
+                className="flex items-center gap-2.5 rounded-full border border-border bg-card py-1 pr-3 pl-1 outline-none transition-colors hover:bg-muted/50 data-popup-open:bg-muted/50"
               >
-                <span className="flex size-8 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                <span className="flex size-8 items-center justify-center rounded-full bg-gradient-to-br from-primary to-primary/75 text-primary-foreground ring-2 ring-primary/15">
                   <User className="size-4.5" strokeWidth={1.75} />
                 </span>
-                <span className="flex items-center gap-1 leading-tight">
+                <span className="hidden items-center gap-1 leading-tight sm:flex">
                   <span className="text-left">
-                    <p className="text-sm font-medium">{displayName}</p>
-                    <p className="text-xs text-muted-foreground">{roleLabel}</p>
+                    <p className="text-sm font-semibold text-foreground">{displayName}</p>
+                    <p className="text-[11px] text-muted-foreground">{roleLabel}</p>
                   </span>
                   <ChevronDown className="size-4 text-muted-foreground" />
                 </span>

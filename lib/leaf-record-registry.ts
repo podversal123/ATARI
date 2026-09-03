@@ -1,5 +1,6 @@
 import "server-only";
 import { prisma } from "@/lib/prisma";
+import { REPORT_FORM_LEAVES } from "@/lib/reports";
 
 export type RecordContext = { kvkId: string; zoneId: string };
 /** Update/delete run for both a KVK Admin (own records only) and a Super Admin (any KVK's records - Super Admin has no kvkId of its own). */
@@ -116,6 +117,65 @@ async function syncModuleImages(
       uploadedById: opts.uploadedById,
       formRecordId: opts.formRecordId,
     })),
+  });
+}
+
+/** First real date found among a leaf form's common date-ish fields, else today - so a Module Image filed against a record inherits that record's own activity date / reporting year rather than "now". */
+const LEAF_DATE_KEYS = [
+  "activityDate", "date", "startDate", "reportingDate", "meetingDate",
+  "dateOfVisit", "dateOfVisited", "programmeDate", "eventDate", "dateOfDemos",
+  "trainingDate", "meetingDate", "observationDate",
+];
+function leafActivityDate(v: Record<string, string>): Date {
+  for (const k of LEAF_DATE_KEYS) {
+    const raw = v[k]?.trim();
+    if (raw) {
+      const d = new Date(raw);
+      if (!Number.isNaN(d.getTime())) return d;
+    }
+  }
+  return new Date();
+}
+
+/** path -> {label} for every Form Management leaf Reports knows about, so any leaf's saved photos can be filed under the right Module Images category without re-typing the list here. */
+const LEAF_LABEL_BY_PATH = new Map(
+  (REPORT_FORM_LEAVES as { path: string; label: string; groupLabel: string }[]).map((l) => [
+    l.path,
+    `${l.groupLabel} - ${l.label}`,
+  ]),
+);
+
+/**
+ * Generic Module-Images reconciliation for ANY Form Management leaf, called
+ * by the leaf-record create/update API routes right after the record is
+ * saved. Every generic leaf's Add/Edit form now carries the end-of-form
+ * "Photographs (with caption)" section, and whatever the user attaches there
+ * flows straight into Module Images -> Reports, keyed by `formRecordId` so a
+ * later edit reconciles cleanly. A no-op when the leaf isn't one Reports
+ * maps a category for, or when nothing was attached.
+ */
+export async function syncLeafModuleImages(
+  path: string,
+  rawModuleImages: string | undefined,
+  opts: { kvkId: string; zoneId: string; formRecordId: string; values?: Record<string, string>; uploadedById?: string },
+) {
+  // Field absent from the submission (leaf has no Photographs section, or an
+  // older client) - leave any existing images alone. `"[]"` is different: the
+  // user opened the section and removed every photo, so that DOES reconcile.
+  if (rawModuleImages === undefined) return;
+  const label = LEAF_LABEL_BY_PATH.get(path);
+  if (!label) return;
+  const when = opts.values ? leafActivityDate(opts.values) : new Date();
+  const reportingYear = Number(opts.values?.reportingYear) || when.getFullYear();
+  await syncModuleImages(rawModuleImages, {
+    kvkId: opts.kvkId,
+    zoneId: opts.zoneId,
+    categoryPath: path,
+    categoryLabel: label,
+    reportingYear,
+    activityDate: when,
+    formRecordId: opts.formRecordId,
+    uploadedById: opts.uploadedById,
   });
 }
 
@@ -687,7 +747,7 @@ export const LEAF_RECORD_REGISTRY: Record<string, CreateFn> = {
     }),
   "projects/nicra/others/dignitaries-visited-nicra-villages": (v, ctx) =>
     prisma.nicraDignitaryVisit.create({
-      data: { ...ctx, vipExperts: reqStr(v.vipExperts), name: reqStr(v.name), dateOfVisit: reqDate(v.dateOfVisit) },
+      data: { ...ctx, vipExperts: reqStr(v.vipExperts), name: reqStr(v.name), dateOfVisit: reqDate(v.dateOfVisit), remark: str(v.remark) },
     }),
   "projects/nicra/others/pi-co-pi-list": (v, ctx) =>
     prisma.nicraPiCoPi.create({
@@ -956,7 +1016,14 @@ export const LEAF_RECORD_REGISTRY: Record<string, CreateFn> = {
     }),
   "projects/csisa/csisa-details": (v, ctx) =>
     prisma.csisaDetail.create({
-      data: { ...ctx, season: reqStr(v.season), villageCovered: reqInt(v.villageCovered), blockCovered: reqInt(v.blockCovered), districtCovered: reqInt(v.districtCovered) },
+      data: {
+        ...ctx, season: reqStr(v.season), villageCovered: reqInt(v.villageCovered), blockCovered: reqInt(v.blockCovered), districtCovered: reqInt(v.districtCovered),
+        respondent: int(v.respondent), trailName: str(v.trailName), areaCoveredHa: dec(v.areaCoveredHa), cropName: str(v.cropName),
+        techOptions: str(v.techOptions), varietyName: str(v.varietyName), durationDays: int(v.durationDays),
+        sowingDate: date(v.sowingDate), harvestingDate: date(v.harvestingDate), maturityDays: int(v.maturityDays),
+        grainYieldQha: dec(v.grainYieldQha), costOfCultivationRsHa: dec(v.costOfCultivationRsHa),
+        grossReturnRsHa: dec(v.grossReturnRsHa), netReturnRsHa: dec(v.netReturnRsHa), bcr: dec(v.bcr),
+      },
     }),
   "projects/seed-hub/seed-hub-program": (v, ctx) =>
     prisma.seedHubProgram.create({
@@ -1059,6 +1126,14 @@ export const LEAF_RECORD_REGISTRY: Record<string, CreateFn> = {
         productionMt: reqDec(v.productionMt),
         productivityQha: reqDec(v.productivityQha),
         remarks: str(v.remarks),
+      },
+    }),
+  "performance/district-village-performance/district-monthly-weather": (v, ctx) =>
+    prisma.districtMonthlyWeather.create({
+      data: {
+        ...ctx, month: reqStr(v.month),
+        rainfallMm: dec(v.rainfallMm), maxTempC: dec(v.maxTempC), minTempC: dec(v.minTempC),
+        maxRhPct: dec(v.maxRhPct), minRhPct: dec(v.minRhPct), remarks: str(v.remarks),
       },
     }),
   "performance/district-village-performance/district-livestock-production": (v, ctx) =>
@@ -1209,7 +1284,7 @@ export const LEAF_RECORD_REGISTRY: Record<string, CreateFn> = {
   // --- Meetings ---
   "meetings/sac-meetings": (v, ctx) =>
     prisma.sacMeeting.create({
-      data: { ...ctx, startDate: reqDate(v.startDate), endDate: reqDate(v.endDate), participants: reqInt(v.participants), statutoryMembers: reqInt(v.statutoryMembers), recommendations: str(v.recommendations), actionTaken: str(v.actionTaken), reason: str(v.reason), fileUrl: str(v.file) },
+      data: { ...ctx, startDate: reqDate(v.startDate), endDate: reqDate(v.endDate), participants: reqInt(v.participants), statutoryMembers: reqInt(v.statutoryMembers), recommendations: str(v.recommendations), actionTaken: str(v.actionTaken), actionCompliance: str(v.actionCompliance), reason: str(v.reason), fileUrl: str(v.file) },
     }),
   "meetings/other-meetings": (v, ctx) =>
     prisma.otherMeeting.create({
@@ -1457,6 +1532,7 @@ export const LEAF_DELETE_REGISTRY: Record<string, DeleteFn> = {
   "performance/impact/success-stories": (id, ctx) => prisma.successStory.deleteMany({ where: { id, ...kvkScope(ctx) } }),
   "performance/district-village-performance/district-level-data": (id, ctx) => prisma.districtLevelData.deleteMany({ where: { id, ...kvkScope(ctx) } }),
   "performance/district-village-performance/district-crop-productivity": (id, ctx) => prisma.districtCropProductivity.deleteMany({ where: { id, ...kvkScope(ctx) } }),
+  "performance/district-village-performance/district-monthly-weather": (id, ctx) => prisma.districtMonthlyWeather.deleteMany({ where: { id, ...kvkScope(ctx) } }),
   "performance/district-village-performance/district-livestock-production": (id, ctx) => prisma.districtLivestockProduction.deleteMany({ where: { id, ...kvkScope(ctx) } }),
   "performance/district-village-performance/operational-area-details": (id, ctx) => prisma.operationalAreaDetail.deleteMany({ where: { id, ...kvkScope(ctx) } }),
   "performance/district-village-performance/village-adoption-programme": (id, ctx) => prisma.villageAdoptionProgramme.deleteMany({ where: { id, ...kvkScope(ctx) } }),
@@ -1951,7 +2027,7 @@ export const LEAF_UPDATE_REGISTRY: Record<string, UpdateFn> = {
   "projects/nicra/others/convergence-programme": (id, v, ctx) =>
     prisma.nicraConvergenceProgramme.updateMany({ where: { id, ...kvkScope(ctx) }, data: { startDate: reqDate(v.startDate), endDate: reqDate(v.endDate), scheme: reqStr(v.scheme), natureOfWork: reqStr(v.natureOfWork), amount: reqDec(v.amount) } }),
   "projects/nicra/others/dignitaries-visited-nicra-villages": (id, v, ctx) =>
-    prisma.nicraDignitaryVisit.updateMany({ where: { id, ...kvkScope(ctx) }, data: { vipExperts: reqStr(v.vipExperts), name: reqStr(v.name), dateOfVisit: reqDate(v.dateOfVisit) } }),
+    prisma.nicraDignitaryVisit.updateMany({ where: { id, ...kvkScope(ctx) }, data: { vipExperts: reqStr(v.vipExperts), name: reqStr(v.name), dateOfVisit: reqDate(v.dateOfVisit), remark: str(v.remark) } }),
   "projects/nicra/others/pi-co-pi-list": (id, v, ctx) =>
     prisma.nicraPiCoPi.updateMany({ where: { id, ...kvkScope(ctx) }, data: { startDate: reqDate(v.startDate), endDate: reqDate(v.endDate), piCoPi: reqStr(v.piCoPi), name: reqStr(v.name) } }),
   "projects/arya-safal/arya-safal-current-year": (id, v, ctx) =>
@@ -2144,7 +2220,14 @@ export const LEAF_UPDATE_REGISTRY: Record<string, UpdateFn> = {
   "projects/cra/cra-extension-activity": (id, v, ctx) =>
     prisma.craExtensionActivity.updateMany({ where: { id, ...kvkScope(ctx) }, data: { extensionActivity: reqStr(v.extensionActivity), startDate: reqDate(v.startDate), endDate: reqDate(v.endDate), withinOrWithoutState: str(v.withinOrWithoutState), exposureVisits: reqInt(v.exposureVisits), farmersUnderExposure: reqInt(v.farmersUnderExposure) } }),
   "projects/csisa/csisa-details": (id, v, ctx) =>
-    prisma.csisaDetail.updateMany({ where: { id, ...kvkScope(ctx) }, data: { season: reqStr(v.season), villageCovered: reqInt(v.villageCovered), blockCovered: reqInt(v.blockCovered), districtCovered: reqInt(v.districtCovered) } }),
+    prisma.csisaDetail.updateMany({ where: { id, ...kvkScope(ctx) }, data: {
+      season: reqStr(v.season), villageCovered: reqInt(v.villageCovered), blockCovered: reqInt(v.blockCovered), districtCovered: reqInt(v.districtCovered),
+      respondent: int(v.respondent), trailName: str(v.trailName), areaCoveredHa: dec(v.areaCoveredHa), cropName: str(v.cropName),
+      techOptions: str(v.techOptions), varietyName: str(v.varietyName), durationDays: int(v.durationDays),
+      sowingDate: date(v.sowingDate), harvestingDate: date(v.harvestingDate), maturityDays: int(v.maturityDays),
+      grainYieldQha: dec(v.grainYieldQha), costOfCultivationRsHa: dec(v.costOfCultivationRsHa),
+      grossReturnRsHa: dec(v.grossReturnRsHa), netReturnRsHa: dec(v.netReturnRsHa), bcr: dec(v.bcr),
+    } }),
   "projects/seed-hub/seed-hub-program": (id, v, ctx) =>
     prisma.seedHubProgram.updateMany({
       where: { id, ...kvkScope(ctx) },
@@ -2243,6 +2326,11 @@ export const LEAF_UPDATE_REGISTRY: Record<string, UpdateFn> = {
         remarks: str(v.remarks),
       },
     }),
+  "performance/district-village-performance/district-monthly-weather": (id, v, ctx) =>
+    prisma.districtMonthlyWeather.updateMany({ where: { id, ...kvkScope(ctx) }, data: {
+      month: reqStr(v.month), rainfallMm: dec(v.rainfallMm), maxTempC: dec(v.maxTempC), minTempC: dec(v.minTempC),
+      maxRhPct: dec(v.maxRhPct), minRhPct: dec(v.minRhPct), remarks: str(v.remarks),
+    } }),
   "performance/district-village-performance/district-livestock-production": (id, v, ctx) =>
     prisma.districtLivestockProduction.updateMany({ where: { id, ...kvkScope(ctx) }, data: { livestockName: reqStr(v.livestockName), number: reqDec(v.number), remarks: str(v.remarks) } }),
   "performance/district-village-performance/operational-area-details": (id, v, ctx) =>
@@ -2367,7 +2455,7 @@ export const LEAF_UPDATE_REGISTRY: Record<string, UpdateFn> = {
   "meetings/sac-meetings": (id, v, ctx) =>
     prisma.sacMeeting.updateMany({
       where: { id, ...kvkScope(ctx) },
-      data: { startDate: reqDate(v.startDate), endDate: reqDate(v.endDate), participants: reqInt(v.participants), statutoryMembers: reqInt(v.statutoryMembers), recommendations: str(v.recommendations), actionTaken: str(v.actionTaken), reason: str(v.reason), fileUrl: str(v.file) },
+      data: { startDate: reqDate(v.startDate), endDate: reqDate(v.endDate), participants: reqInt(v.participants), statutoryMembers: reqInt(v.statutoryMembers), recommendations: str(v.recommendations), actionTaken: str(v.actionTaken), actionCompliance: str(v.actionCompliance), reason: str(v.reason), fileUrl: str(v.file) },
     }),
   "meetings/other-meetings": (id, v, ctx) =>
     prisma.otherMeeting.updateMany({ where: { id, ...kvkScope(ctx) }, data: { date: reqDate(v.date), meetingType: reqStr(v.meetingType), agenda: str(v.agenda), representativeFromAtari: str(v.representativeFromAtari) } }),

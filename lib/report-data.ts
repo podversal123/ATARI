@@ -123,7 +123,7 @@ const MODEL_FIELDS: Record<string, string[]> = {
   drmrActivity: ["startDate", "endDate", "training", "flds", "awarenessCamps", "distributionOfLiterature", "itemActivity", "unit", "quantity"],
   craDetail: ["season", "technologyDemonstrated", "croppingSystem", "areaHa", "noOfFarmer", "farmingSystem", "crop", "cropYieldQha", "systemProductivityQha", "totalReturnRsHa", "yieldFarmerPracticeQha"],
   craExtensionActivity: ["extensionActivity", "startDate", "endDate", "withinOrWithoutState", "exposureVisits", "farmersUnderExposure"],
-  csisaDetail: ["season", "villageCovered", "blockCovered", "districtCovered"],
+  csisaDetail: ["season", "villageCovered", "blockCovered", "districtCovered", "respondent", "trailName", "areaCoveredHa", "cropName", "techOptions", "varietyName", "durationDays", "sowingDate", "harvestingDate", "maturityDays", "grainYieldQha", "costOfCultivationRsHa", "grossReturnRsHa", "netReturnRsHa", "bcr"],
   seedHubProgram: ["season", "cropName", "variety", "areaHa", "yieldHa", "qtySeedProducedQ", "qtySeedSaleOutQ", "farmersPurchased", "qtySeedSaleOutToFarmersQ", "villagesCovered", "qtySeedSaleOutOtherOrgQ", "amountGeneratedLakh", "totalAmountInProjectLakh"],
   otherProgramme: ["programmeName", "programmeDate", "venue", "purpose", "participants"],
   kvkActivityImpact: ["specificArea", "briefDetails", "farmersBenefitted", "horizontalSpread", "adoptionPercent"],
@@ -158,9 +158,153 @@ const MODEL_FIELDS: Record<string, string[]> = {
   digitalKisanSarathi: ["farmersRegisteredKsp", "phoneCallAddressed", "answeredCall"],
   digitalKmas: ["farmersCovered", "advisoriesSent", "messagesCrop", "messagesLivestock", "messagesWeather", "messagesMarketing", "messagesAwareness", "messagesOtherEnterprises", "messagesAnyOther"],
   digitalOtherChannel: ["channel", "farmersCovered", "advisoriesSent", "messagesCrop", "messagesLivestock", "messagesWeather", "messagesMarketing", "messagesAwareness", "messagesOtherEnterprises"],
-  sacMeeting: ["startDate", "endDate", "participants", "statutoryMembers", "recommendations", "actionTaken", "reason"],
+  sacMeeting: ["startDate", "endDate", "participants", "statutoryMembers", "recommendations", "actionTaken", "actionCompliance", "reason"],
   otherMeeting: ["date", "meetingType", "agenda", "representativeFromAtari"],
 };
+
+/**
+ * Reporting-year Int column per model - mechanically read from
+ * prisma/schema.prisma (`<field> Int` named `reportingYear` / `year` /
+ * `practicingYear`), not guessed. When the report has a period bound and a
+ * model appears here, its rows are filtered to that year (or `{ in: [...] }`
+ * for a multi-year span). Year wins over `MODEL_PERIOD_DATE_FIELDS` because
+ * it is the client's own explicit "annual reporting" key.
+ */
+const MODEL_PERIOD_YEAR_FIELD: Record<string, string> = {
+  target: "reportingYear",
+  vehicleStatus: "reportingYear",
+  equipmentStatus: "reportingYear",
+  technicalAchievementSummaryEntry: "reportingYear",
+  oft: "reportingYear",
+  fld: "reportingYear",
+  training: "reportingYear",
+  extensionActivity: "reportingYear",
+  otherExtensionActivity: "reportingYear",
+  swachhtaBudgetExpenditure: "reportingYear",
+  worldSoilDay: "reportingYear",
+  cfldTechnicalParameter: "reportingYear",
+  nicraRevenueGenerated: "year",
+  nfAlreadyPracticing: "practicingYear",
+  nfBeneficiary: "reportingYear",
+  agriDroneIntroduction: "year",
+  districtLevelData: "reportingYear",
+  operationalAreaDetail: "reportingYear",
+  villageAdoptionProgramme: "reportingYear",
+  priorityThrustArea: "reportingYear",
+  revolvingFund: "reportingYear",
+  ppvFraFarmerDetail: "year",
+};
+
+/**
+ * Activity-date column(s) per model - schema-extracted `DateTime` fields,
+ * with roster / point-in-time dates deliberately left out (a Staff member's
+ * date of joining, a quarter's date of completion, an FPO's registration
+ * date: those tables show current state, the reference never date-bounds
+ * them). Where a model has both a start and an end date the bound matches on
+ * either (`OR`), same as the list toolbar's From/To behaviour.
+ */
+const MODEL_PERIOD_DATE_FIELDS: Record<string, string[]> = {
+  staffTransfer: ["transferDate"],
+  oft: ["startMonth", "endMonth"],
+  fld: ["startDate", "endDate"],
+  fldExtensionTraining: ["date"],
+  training: ["startDate", "endDate"],
+  extensionActivity: ["startDate", "endDate"],
+  otherExtensionActivity: ["startDate", "endDate"],
+  technologyWeekCelebration: ["startDate", "endDate"],
+  celebrationDay: ["eventDate"],
+  poshanMaaha: ["activityDate"],
+  technologyProductProduction: ["reportingDate"],
+  soilWaterPlantAnalysis: ["startDate", "endDate"],
+  publication: ["reportingDate"],
+  humanResourceDevelopment: ["startDate", "endDate"],
+  kvkAward: ["reportingDate"],
+  scientistAward: ["reportingDate"],
+  farmerAward: ["reportingDate"],
+  cfldTechnicalParameter: ["reportingDate"],
+  cfldExtensionActivity: ["date"],
+  nicraBasicInformation: ["reportingDate", "startDate", "endDate"],
+  nicraTraining: ["startDate", "endDate"],
+  nicraExtensionActivity: ["startDate", "endDate"],
+  nicraIntervention: ["startDate", "endDate"],
+  nicraVillageWiseVcrmc: ["meetingDate"],
+  nicraSoilHealthCard: ["startDate", "endDate"],
+  nicraConvergenceProgramme: ["startDate", "endDate"],
+  nicraDignitaryVisit: ["dateOfVisit"],
+  nicraPiCoPi: ["startDate", "endDate"],
+  aryaCurrentYearDetail: ["startDate", "endDate"],
+  aryaPreviousYearEvaluation: ["closingDate", "restartedDate"],
+  nfGeographicalInfo: ["startDate", "endDate"],
+  nfPhysicalInfo: ["trainingDate"],
+  agriDroneDemonstration: ["dateOfDemos"],
+  drmrActivity: ["startDate", "endDate"],
+  craExtensionActivity: ["startDate", "endDate"],
+  csisaDetail: ["sowingDate", "harvestingDate"],
+  otherProgramme: ["programmeDate"],
+  specialProgramme: ["initiationDate"],
+  sacMeeting: ["startDate", "endDate"],
+  otherMeeting: ["date"],
+  prevalentDiseaseCrop: ["outbreakDate"],
+  prevalentDiseaseLivestock: ["outbreakDate"],
+  nykTraining: ["startDate", "endDate"],
+  ppvFraTrainingProgramme: ["date"],
+  raweFetFitProgramme: ["startDate", "endDate"],
+  vipVisitor: ["visitDate"],
+  moduleImage: ["activityDate"],
+};
+
+/** Calendar years touched by an inclusive [from, to] range (either bound may be absent). */
+function yearsInRange(fromDate?: string, toDate?: string): number[] {
+  const y1 = fromDate ? Number(fromDate.slice(0, 4)) : undefined;
+  const y2 = toDate ? Number(toDate.slice(0, 4)) : undefined;
+  const lo = y1 ?? y2;
+  const hi = y2 ?? y1;
+  if (lo == null || hi == null || Number.isNaN(lo) || Number.isNaN(hi)) return [];
+  const out: number[] = [];
+  for (let y = Math.min(lo, hi); y <= Math.max(lo, hi); y++) out.push(y);
+  return out;
+}
+
+/**
+ * The Prisma `where` fragment that bounds a model's rows to the report's
+ * reporting period. Empty object when the report has no period set, or the
+ * model has neither a reporting-year nor an activity-date column (roster /
+ * master tables just return their full contents, as the reference does).
+ */
+function periodClause(scope: ReportScope, model: string): Record<string, unknown> {
+  if (!scope.fromDate && !scope.toDate) return {};
+
+  const yearField = MODEL_PERIOD_YEAR_FIELD[model];
+  if (yearField) {
+    const years = yearsInRange(scope.fromDate, scope.toDate);
+    if (years.length === 1) return { [yearField]: years[0] };
+    if (years.length > 1) return { [yearField]: { in: years } };
+    return {};
+  }
+
+  const dateFields = MODEL_PERIOD_DATE_FIELDS[model];
+  if (!dateFields || dateFields.length === 0) return {};
+  const range: Record<string, Date> = {};
+  if (scope.fromDate) range.gte = new Date(`${scope.fromDate}T00:00:00.000Z`);
+  if (scope.toDate) range.lte = new Date(`${scope.toDate}T23:59:59.999Z`);
+  return dateFields.length === 1
+    ? { [dateFields[0]]: range }
+    : { OR: dateFields.map((f) => ({ [f]: range })) };
+}
+
+/**
+ * The standard "this one KVK, or the whole zone" report filter, plus the
+ * reporting-period bound. Drop-in replacement for the bare
+ * `scope.kvkId ? { kvkId: scope.kvkId } : { zoneId: scope.zoneId }` ternary
+ * that every list-style builder used, so the Reports / Form Management
+ * From-To filter actually reaches the data.
+ */
+function scopeAndPeriod(scope: ReportScope, model: string): Record<string, unknown> {
+  return {
+    ...(scope.kvkId ? { kvkId: scope.kvkId } : { zoneId: scope.zoneId }),
+    ...periodClause(scope, model),
+  };
+}
 
 type ScopeMode = "direct" | { via: string };
 
@@ -237,10 +381,11 @@ async function buildOftTechnologySummary(scope: ReportScope): Promise<CustomTabl
   const [subjects, oftRows, states] = await Promise.all([
     prisma.oftSubject.findMany({
       where: { zoneId: scope.zoneId, name: { in: OFT_SUBJECT_ORDER } },
-      include: { thematicAreas: { orderBy: { id: "asc" } } },
+      // super-v2-prod.pdf lists the thematic-area rows alphabetically within each A-E block.
+      include: { thematicAreas: { orderBy: { name: "asc" } } },
     }),
     prisma.oft.findMany({
-      where: scope.kvkId ? { kvkId: scope.kvkId } : { zoneId: scope.zoneId },
+      where: scopeAndPeriod(scope, "oft"),
       select: {
         thematicArea: true,
         discipline: true,
@@ -358,7 +503,7 @@ const CASTE_GENDER_LABELS = ["General M", "General F", "OBC M", "OBC F", "SC M",
 async function buildOftStateWiseDetails(scope: ReportScope): Promise<CustomTableResult> {
   const [oftRows, states] = await Promise.all([
     prisma.oft.findMany({
-      where: scope.kvkId ? { kvkId: scope.kvkId } : { zoneId: scope.zoneId },
+      where: scopeAndPeriod(scope, "oft"),
       select: {
         generalMale: true, generalFemale: true, obcMale: true, obcFemale: true,
         scMale: true, scFemale: true, stMale: true, stFemale: true,
@@ -405,7 +550,7 @@ async function buildOftStateWiseDetails(scope: ReportScope): Promise<CustomTable
 function buildOftKvkWiseDetails(codePrefix: string) {
   return async (scope: ReportScope): Promise<CustomTableResult> => {
   const ofts = await prisma.oft.findMany({
-    where: scope.kvkId ? { kvkId: scope.kvkId } : { zoneId: scope.zoneId },
+    where: scopeAndPeriod(scope, "oft"),
     include: { kvk: { select: { name: true } }, technologyOptions: { orderBy: { id: "asc" } } },
     orderBy: [{ kvkId: "asc" }, { id: "asc" }],
   });
@@ -737,7 +882,7 @@ async function buildSoilWaterAnalysis(scope: ReportScope): Promise<CustomTableRe
  */
 async function buildPublications(scope: ReportScope): Promise<CustomTableResult> {
   const rows = await prisma.publication.findMany({
-    where: scope.kvkId ? { kvkId: scope.kvkId } : { zoneId: scope.zoneId },
+    where: scopeAndPeriod(scope, "publication"),
     include: { kvk: { select: { name: true } } },
     orderBy: [{ kvkId: "asc" }, { itemName: "asc" }, { id: "asc" }],
   });
@@ -764,7 +909,7 @@ async function buildPublications(scope: ReportScope): Promise<CustomTableResult>
     heading: `KVK: ${kvkName}`,
     parts: [...groupInto(recs, (r) => r.itemName).entries()].map(([itemName, items]) => ({
       kind: "grid" as const,
-      caption: `Publication Item: ${itemName}`,
+      titleBands: [`Publication Item: ${itemName}`],
       columns: colsFor(itemName),
       rows: items.map(rowFor),
     })),
@@ -775,7 +920,7 @@ async function buildPublications(scope: ReportScope): Promise<CustomTableResult>
 /** 2.11.A "Human Resources Development" (super-v2-prod.pdf p.54) - per KVK block. Duration is the inclusive day count between Start and End Date. */
 async function buildHrd(scope: ReportScope): Promise<CustomTableResult> {
   const rows = await prisma.humanResourceDevelopment.findMany({
-    where: scope.kvkId ? { kvkId: scope.kvkId } : { zoneId: scope.zoneId },
+    where: scopeAndPeriod(scope, "humanResourceDevelopment"),
     include: { kvk: { select: { name: true } } },
     orderBy: [{ kvkId: "asc" }, { startDate: "asc" }],
   });
@@ -824,7 +969,7 @@ function buildAwardCountByPerson(
   return async (scope: ReportScope): Promise<CustomTableResult> => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const rows: Record<string, any>[] = await (prisma as any)[model].findMany({
-      where: scope.kvkId ? { kvkId: scope.kvkId } : { zoneId: scope.zoneId },
+      where: scopeAndPeriod(scope, model),
       include: { kvk: { select: { name: true } } },
       orderBy: { kvk: { name: "asc" } },
     });
@@ -1251,7 +1396,7 @@ const DOUBLE_CASTE_SELECT = {
 async function buildTrainings(scope: ReportScope): Promise<CustomTableResult> {
   const [trainings, states] = await Promise.all([
     prisma.training.findMany({
-      where: scope.kvkId ? { kvkId: scope.kvkId } : { zoneId: scope.zoneId },
+      where: scopeAndPeriod(scope, "training"),
       select: {
         ...CASTE_SELECT,
         clientele: true, trainingType: true, trainingArea: true, thematicArea: true,
@@ -1278,10 +1423,17 @@ async function buildTrainings(scope: ReportScope): Promise<CustomTableResult> {
     ...casteMftColumns("No. of Participants"),
   ];
   const label = (v: string | null) => v?.trim() || "Not specified";
-  const consolidateRows = (outerField: "trainingType" | "clientele") => {
-    const rows: Record<string, string>[] = [];
+
+  /**
+   * super-v2-prod.pdf p.38-39: each `outerField` value ("Farmers and Farm
+   * Women", "Rural Youth", ...) is its own headed sub-table; inside it the
+   * Training Area is a banded row and each Thematic Area is a data row with a
+   * "Sub Total" per area. One composite block per outer value.
+   */
+  const consolidateBlocks = (outerField: "trainingType" | "clientele"): ReportBlock[] => {
+    const blocks: ReportBlock[] = [];
     for (const [outer, outerRows] of groupInto(trainings, (t) => label(t[outerField]))) {
-      rows.push({ row: outer });
+      const rows: Record<string, string>[] = [];
       for (const [area, areaRows] of groupInto(outerRows, (t) => label(t.trainingArea))) {
         rows.push({ row: area });
         for (const [thematic, tRows] of groupInto(areaRows, (t) => label(t.thematicArea))) {
@@ -1289,8 +1441,12 @@ async function buildTrainings(scope: ReportScope): Promise<CustomTableResult> {
         }
         rows.push({ row: "Sub Total", courses: String(areaRows.length), ...casteMftRow(areaRows) });
       }
+      blocks.push({
+        heading: outer,
+        parts: [{ kind: "grid", noSerial: true, keepEmpty: true, columns: consolidateColumns, rows }],
+      });
     }
-    return rows;
+    return blocks;
   };
 
   return {
@@ -1307,14 +1463,10 @@ async function buildTrainings(scope: ReportScope): Promise<CustomTableResult> {
           },
         ],
       },
-      {
-        heading: "2.4.A - Consolidate table (On & Off Campus) Training Type Wise",
-        parts: [{ kind: "grid", noSerial: true, columns: consolidateColumns, rows: consolidateRows("trainingType") }],
-      },
-      {
-        heading: "2.4.C - Consolidate table (On & Off Campus) Clientele Wise",
-        parts: [{ kind: "grid", noSerial: true, columns: consolidateColumns, rows: consolidateRows("clientele") }],
-      },
+      { heading: "2.4.A - Consolidate table (On & Off Campus) Training Type Wise", parts: [] },
+      ...consolidateBlocks("trainingType"),
+      { heading: "2.4.C - Consolidate table (On & Off Campus) Clientele Wise", parts: [] },
+      ...consolidateBlocks("clientele"),
     ],
   };
 }
@@ -1328,7 +1480,7 @@ async function buildTrainings(scope: ReportScope): Promise<CustomTableResult> {
 async function buildExtensionActivities(scope: ReportScope): Promise<CustomTableResult> {
   const [rows, stateNames] = await Promise.all([
     prisma.extensionActivity.findMany({
-      where: scope.kvkId ? { kvkId: scope.kvkId } : { zoneId: scope.zoneId },
+      where: scopeAndPeriod(scope, "extensionActivity"),
       select: {
         natureOfExtensionActivity: true,
         noOfActivities: true,
@@ -1399,7 +1551,7 @@ async function buildExtensionActivities(scope: ReportScope): Promise<CustomTable
 async function buildOtherExtensionActivities(scope: ReportScope): Promise<CustomTableResult> {
   const [rows, stateNames] = await Promise.all([
     prisma.otherExtensionActivity.findMany({
-      where: scope.kvkId ? { kvkId: scope.kvkId } : { zoneId: scope.zoneId },
+      where: scopeAndPeriod(scope, "otherExtensionActivity"),
       select: {
         natureOfExtensionActivity: true,
         noOfActivities: true,
@@ -1589,12 +1741,12 @@ async function buildCelebrationDays(scope: ReportScope): Promise<CustomTableResu
 function perKvkBlocks<R extends { kvk: { name: string } }>(
   records: R[],
   columns: ReportColumn[],
-  rowOf: (r: R) => Record<string, string>,
+  rowOf: (r: R, index: number) => Record<string, string>,
   totalOf: (list: R[], firstKey: string) => Record<string, string> | null,
 ): ReportBlock[] {
   const firstKey = columns[0].key;
   return [...groupInto(records, (r) => r.kvk.name).entries()].map(([kvkName, list]) => {
-    const rows = list.map(rowOf);
+    const rows = list.map((r, i) => rowOf(r, i));
     const total = totalOf(list, firstKey);
     return {
       heading: kvkName,
@@ -1611,7 +1763,7 @@ function perKvkBlocks<R extends { kvk: { name: string } }>(
  */
 async function buildWorldSoilDay(scope: ReportScope): Promise<CustomTableResult> {
   const records = await prisma.worldSoilDay.findMany({
-    where: scope.kvkId ? { kvkId: scope.kvkId } : { zoneId: scope.zoneId },
+    where: scopeAndPeriod(scope, "worldSoilDay"),
     select: {
       reportingYear: true, noOfActivitiesConducted: true, soilHealthCardsDistributed: true,
       noOfVip: true, vipNames: true, totalParticipants: true, ...CASTE_SELECT,
@@ -1623,6 +1775,7 @@ async function buildWorldSoilDay(scope: ReportScope): Promise<CustomTableResult>
   type R = (typeof records)[number];
 
   const columns: ReportColumn[] = [
+    { key: "sl", label: "Sl." },
     { key: "year", label: "Year" },
     { key: "acts", label: "No. of Activity conducted" },
     { key: "shc", label: "Soil Health Cards distributed" },
@@ -1631,7 +1784,8 @@ async function buildWorldSoilDay(scope: ReportScope): Promise<CustomTableResult>
     { key: "vipNames", label: "Name(s) of VIP(s) involved if any" },
     { key: "participants", label: "Total No. of Participants attended the program" },
   ];
-  const rowOf = (r: R) => ({
+  const rowOf = (r: R, index: number) => ({
+    sl: String(index + 1),
     year: r.reportingYear != null ? String(r.reportingYear) : "",
     acts: String(r.noOfActivitiesConducted),
     shc: String(r.soilHealthCardsDistributed),
@@ -1640,8 +1794,9 @@ async function buildWorldSoilDay(scope: ReportScope): Promise<CustomTableResult>
     vipNames: r.vipNames ?? "",
     participants: String(r.totalParticipants),
   });
-  const totalOf = (list: R[]): Record<string, string> => ({
-    year: "Total",
+  const totalOf = (list: R[], slLabel: string): Record<string, string> => ({
+    sl: slLabel,
+    year: "",
     acts: String(list.reduce((s, r) => s + r.noOfActivitiesConducted, 0)),
     shc: String(list.reduce((s, r) => s + r.soilHealthCardsDistributed, 0)),
     ...casteMftRow(list, "", false),
@@ -1652,8 +1807,8 @@ async function buildWorldSoilDay(scope: ReportScope): Promise<CustomTableResult>
 
   return {
     blocks: [
-      ...perKvkBlocks(records, columns, rowOf, (list) => totalOf(list)),
-      { heading: "Grand Total (all KVKs)", parts: [{ kind: "grid", noSerial: true, columns, rows: [{ ...totalOf(records), year: "" }] }] },
+      ...perKvkBlocks(records, columns, rowOf, (list) => totalOf(list, "Total")),
+      { heading: "Grand Total (all KVKs)", parts: [{ kind: "grid", noSerial: true, columns, rows: [totalOf(records, "")] }] },
     ],
   };
 }
@@ -1661,7 +1816,7 @@ async function buildWorldSoilDay(scope: ReportScope): Promise<CustomTableResult>
 /** "2.6.D Poshan Maah" (super-v2-prod.pdf p.41) - per KVK, one row per datewise activity. */
 async function buildPoshanMaah(scope: ReportScope): Promise<CustomTableResult> {
   const records = await prisma.poshanMaaha.findMany({
-    where: scope.kvkId ? { kvkId: scope.kvkId } : { zoneId: scope.zoneId },
+    where: scopeAndPeriod(scope, "poshanMaaha"),
     select: {
       activityDate: true, activitiesConducted: true, eventName: true, saplingsPlanted: true, vegetableKits: true,
       totalParticipants: true, participantsGirls: true, participantsFarmWoman: true, participantsFarmers: true,
@@ -1673,6 +1828,9 @@ async function buildPoshanMaah(scope: ReportScope): Promise<CustomTableResult> {
   if (records.length === 0) return {};
   type R = (typeof records)[number];
 
+  // super-v2-prod.pdf p.41: the six participant categories sit under the "No.
+  // of participants" group header; "Total Participants" is its own column
+  // after the group, not inside it.
   const P = "No. of participants";
   const columns: ReportColumn[] = [
     { key: "date", label: "Datewise activity" },
@@ -1680,13 +1838,13 @@ async function buildPoshanMaah(scope: ReportScope): Promise<CustomTableResult> {
     { key: "event", label: "Name of Event/Programme" },
     { key: "saplings", label: "No. of saplings planted" },
     { key: "kits", label: "No. of vegetable kits distributed" },
-    { key: "pTotal", label: "Total Participants", groups: [P] },
     { key: "pGirls", label: "Girls", groups: [P] },
     { key: "pFarmWoman", label: "Farm Woman", groups: [P] },
     { key: "pFarmers", label: "Farmers", groups: [P] },
     { key: "pAnganwadi", label: "Anganwadi Workers", groups: [P] },
     { key: "pGovt", label: "Govt Officials", groups: [P] },
     { key: "pPublic", label: "Public Representatives", groups: [P] },
+    { key: "pTotal", label: "Total Participants" },
   ];
   const rowOf = (r: R) => ({
     date: stringifyValue(r.activityDate),
@@ -1714,7 +1872,7 @@ async function buildPoshanMaah(scope: ReportScope): Promise<CustomTableResult> {
 function buildSwachhtaByKind(kind: "SEWA" | "PAKHWADA") {
   return async (scope: ReportScope): Promise<CustomTableResult> => {
     const rows = await prisma.swachhtaObservance.findMany({
-      where: { kind, ...(scope.kvkId ? { kvkId: scope.kvkId } : { zoneId: scope.zoneId }) },
+      where: { kind, ...(scopeAndPeriod(scope, "swachhtaObservance")) },
       select: {
         dateDurationOfObservation: true, totalNoOfActivitiesUndertaken: true,
         noOfStaffs: true, noOfFarmers: true, noOfOthers: true,
@@ -1765,7 +1923,7 @@ function buildSwachhtaByKind(kind: "SEWA" | "PAKHWADA") {
  */
 async function buildSwachhtaBudget(scope: ReportScope): Promise<CustomTableResult> {
   const rows = await prisma.swachhtaBudgetExpenditure.findMany({
-    where: scope.kvkId ? { kvkId: scope.kvkId } : { zoneId: scope.zoneId },
+    where: scopeAndPeriod(scope, "swachhtaBudgetExpenditure"),
     select: {
       vermicompostingVillagesCovered: true, vermicompostingTotalExpenditure: true,
       otherVillagesCovered: true, otherTotalExpenditure: true,
@@ -1831,24 +1989,28 @@ function casteMfTotalRow(records: CasteRecord[]): Record<string, string> {
  */
 async function buildTechnicalAchievementSummary(scope: ReportScope): Promise<CustomTableResult> {
   const where = scope.kvkId ? { kvkId: scope.kvkId } : { zoneId: scope.zoneId };
+  // OFT / FLD / Training / Extension all bound their reporting period by
+  // `reportingYear` (identical clause), the production table by its
+  // `reportingDate`, targets by `reportingYear`.
+  const yearWhere = { ...where, ...periodClause(scope, "oft") };
   const [ofts, flds, fldArea, trainings, extensions, otherExt, production, targets] = await Promise.all([
-    prisma.oft.findMany({ where, select: { noOfLocation: true, noOfTrialReplicationFarmer: true, ...CASTE_SELECT } }),
-    prisma.fld.findMany({ where, select: { ...CASTE_SELECT } }),
+    prisma.oft.findMany({ where: yearWhere, select: { noOfLocation: true, noOfTrialReplicationFarmer: true, ...CASTE_SELECT } }),
+    prisma.fld.findMany({ where: yearWhere, select: { ...CASTE_SELECT } }),
     prisma.fldDemonstrationDetail
       .aggregate({
         where: scope.kvkId ? { fld: { kvkId: scope.kvkId } } : { zoneId: scope.zoneId },
         _sum: { areaHa: true },
       })
       .then((a) => Number(a._sum.areaHa ?? 0)),
-    prisma.training.findMany({ where, select: { ...CASTE_SELECT } }),
-    prisma.extensionActivity.findMany({ where, select: { noOfActivities: true, ...DOUBLE_CASTE_SELECT } }),
-    prisma.otherExtensionActivity.findMany({ where, select: { natureOfExtensionActivity: true, noOfActivities: true } }),
+    prisma.training.findMany({ where: yearWhere, select: { ...CASTE_SELECT } }),
+    prisma.extensionActivity.findMany({ where: yearWhere, select: { noOfActivities: true, ...DOUBLE_CASTE_SELECT } }),
+    prisma.otherExtensionActivity.findMany({ where: yearWhere, select: { natureOfExtensionActivity: true, noOfActivities: true } }),
     prisma.technologyProductProduction.findMany({
-      where,
-      select: { productCategory: true, quantity: true, value: true, ...CASTE_SELECT },
+      where: { ...where, ...periodClause(scope, "technologyProductProduction") },
+      select: { productCategory: true, category: true, quantity: true, value: true, ...CASTE_SELECT },
     }),
     prisma.target.findMany({
-      where: scope.kvkId ? { kvkId: scope.kvkId } : { zoneId: scope.zoneId },
+      where: { ...where, ...periodClause(scope, "target") },
       select: { category: true, targetValue: true },
     }),
   ]);
@@ -1864,12 +2026,14 @@ async function buildTechnicalAchievementSummary(scope: ReportScope): Promise<Cus
     farmerGroup: string,
     casteRecords: CasteRecord[],
   ): ReportBlock => ({
-    heading,
-    notes: note ? [note] : undefined,
+    // super-v2-prod.pdf p.19-21 draws the "OFT" / "No. of Technologies Tested"
+    // labels as banded rows joined to the grid, not loose headings above it.
+    heading: "",
     parts: [
       {
         kind: "grid",
         noSerial: true,
+        titleBands: note ? [heading, note] : [heading],
         columns: [
           ...metricCols.map((c) => ({ ...c, groups: [metricGroup] })),
           { key: "farmerTarget", label: "Farmer Target", groups: [farmerGroup] },
@@ -1903,11 +2067,12 @@ async function buildTechnicalAchievementSummary(scope: ReportScope): Promise<Cus
       { target: targetOf("Extension Activity"), ach: String(extensions.reduce((s, r) => s + r.noOfActivities, 0)) },
       "Number of Participants", extCaste),
     {
-      heading: "Other Extension Activities",
+      heading: "",
       parts: [
         {
           kind: "grid",
           noSerial: true,
+          titleBands: ["Other Extension Activities"],
           columns: [
             { key: "type", label: "Activity Type" },
             { key: "count", label: "Number of Activities" },
@@ -1922,9 +2087,17 @@ async function buildTechnicalAchievementSummary(scope: ReportScope): Promise<Cus
     },
   ];
 
-  for (const [cat, list] of groupInto(production, (r) => (r.productCategory ?? "").trim() || "Production")) {
+  // Product Category Master values already read "Production of Seed" etc.; only
+  // when a record has none do we build the label from its finer `category`.
+  const productionLabel = (r: { productCategory: string | null; category: string }) => {
+    const pc = r.productCategory?.trim();
+    if (pc) return pc.toLowerCase().startsWith("production") ? pc : `Production of ${pc}`;
+    const c = r.category?.trim();
+    return c ? `Production of ${c}` : "Production";
+  };
+  for (const [label, list] of groupInto(production, productionLabel)) {
     blocks.push(
-      oneRow(`Production of ${cat}`, `Production of ${cat}`, `Production of ${cat}`,
+      oneRow(label, "", label,
         [
           { key: "target", label: "Target" },
           { key: "qty", label: "Quantity" },
@@ -1950,7 +2123,7 @@ async function buildTechnicalAchievementSummary(scope: ReportScope): Promise<Cus
 async function buildProductionAndSupply(scope: ReportScope): Promise<CustomTableResult> {
   const [records, stateNames, masterCats] = await Promise.all([
     prisma.technologyProductProduction.findMany({
-      where: scope.kvkId ? { kvkId: scope.kvkId } : { zoneId: scope.zoneId },
+      where: scopeAndPeriod(scope, "technologyProductProduction"),
       select: {
         productCategory: true, productType: true, product: true, category: true, variety: true,
         quantity: true, value: true, ...CASTE_SELECT,
@@ -2002,11 +2175,14 @@ async function buildProductionAndSupply(scope: ReportScope): Promise<CustomTable
 
   const blocks: ReportBlock[] = categoryNames.map((cat, ci): ReportBlock => {
     const inCat = records.filter((r) => (r.productCategory ?? "") === cat);
+    // Product Category Master values already read "Production of Seed" etc.,
+    // so strip that prefix before the builder re-adds its own.
+    const catName = cat.replace(/^production of\s+/i, "");
 
     // View 1: state-wise total quantity
     const v1Cols: ReportColumn[] = [
       { key: "state", label: "States" },
-      { key: "prod", label: `Production of ${cat}` },
+      { key: "prod", label: `Production of ${catName}` },
     ];
     const v1Rows = stateNames.map((s) => ({ state: s, prod: String(qty(inCat.filter((r) => r.kvk.state.name === s))) }));
 
@@ -2026,7 +2202,7 @@ async function buildProductionAndSupply(scope: ReportScope): Promise<CustomTable
     }
 
     return {
-      heading: `${letters[ci] ?? String(ci + 1)}. Production of ${cat}`,
+      heading: `${letters[ci] ?? String(ci + 1)}. Production of ${catName}`,
       parts: [
         {
           kind: "grid",
@@ -2034,7 +2210,7 @@ async function buildProductionAndSupply(scope: ReportScope): Promise<CustomTable
           columns: v1Cols,
           rows: v1Rows,
           totalRow: { state: "Total", prod: String(qty(inCat)) },
-          caption: `1. State-wise details of Production of ${cat}`,
+          caption: `1. State-wise details of Production of ${catName}`,
         },
         {
           kind: "grid",
@@ -2313,7 +2489,7 @@ function buildNariByActivity(
     const delegate = (prisma as any)[model];
     const rows: { activity: string; count: number; male: number; female: number; kvk: { state: { name: string } } }[] =
       await delegate.findMany({
-        where: scope.kvkId ? { kvkId: scope.kvkId } : { zoneId: scope.zoneId },
+        where: scopeAndPeriod(scope, model),
         select: { activity: true, [countField]: true, male: true, female: true, kvk: { select: { state: { select: { name: true } } } } },
       }).then((rs: Record<string, unknown>[]) =>
         rs.map((r) => ({ activity: String(r.activity), count: Number(r[countField]), male: Number(r.male), female: Number(r.female), kvk: r.kvk as { state: { name: string } } })),
@@ -2401,7 +2577,7 @@ function kvkOwnedTable(
   return async (scope: ReportScope): Promise<CustomTableResult> => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const records: Record<string, any>[] = await (prisma as any)[model].findMany({
-      where: scope.kvkId ? { kvkId: scope.kvkId } : { zoneId: scope.zoneId },
+      where: scopeAndPeriod(scope, model),
       include: { kvk: { select: { name: true } } },
       orderBy: { kvk: { name: "asc" } },
       take: 5000,
@@ -2516,12 +2692,22 @@ const MONTH_NAMES = [
  */
 async function buildStaffQuarters(scope: ReportScope): Promise<CustomTableResult> {
   const records = await prisma.staffQuarters.findMany({
-    where: scope.kvkId ? { kvkId: scope.kvkId } : { zoneId: scope.zoneId },
+    where: scopeAndPeriod(scope, "staffQuarters"),
     include: { kvk: { select: { name: true } }, occupancy: true },
     orderBy: { kvk: { name: "asc" } },
   });
 
-  const blocks: ReportBlock[] = records.map((rec) => {
+  // super-v2-prod.pdf prints this descriptive line once above the per-KVK blocks.
+  const blocks: ReportBlock[] = [
+    { heading: "Utilization of Staff Quarters Whether Staff Quarters has been Completed", parts: [] },
+  ];
+
+  // The Super Admin report carries the KVK name as the summary grid's first
+  // column (many KVKs on one page); the single-KVK report keeps it as the
+  // block heading, matching each reference PDF.
+  const perKvkColumn = !scope.kvkId;
+
+  for (const rec of records) {
     const maxQuarter = Math.max(
       rec.numberOfQuarters,
       0,
@@ -2530,12 +2716,14 @@ async function buildStaffQuarters(scope: ReportScope): Promise<CustomTableResult
     const summary: ReportGrid = {
       noSerial: true,
       columns: [
+        ...(perKvkColumn ? [{ key: "kvk", label: "KVK" }] : []),
         { key: "doc", label: "Date of Completion" },
         { key: "count", label: "No.of Staff Quarters" },
         { key: "occ", label: "Occupancy Details" },
       ],
       rows: [
         {
+          ...(perKvkColumn ? { kvk: rec.kvk?.name ?? "" } : {}),
           doc: stringifyValue(rec.dateOfCompletion),
           count: String(rec.numberOfQuarters),
           occ: rec.remark ?? "",
@@ -2561,8 +2749,8 @@ async function buildStaffQuarters(scope: ReportScope): Promise<CustomTableResult
       parts.push({ kind: "grid", noSerial: true, columns: gridColumns, rows: gridRows });
     }
 
-    return { heading: rec.kvk?.name ?? "", parts };
-  });
+    blocks.push({ heading: perKvkColumn ? "" : (rec.kvk?.name ?? ""), parts });
+  }
 
   return { blocks };
 }
@@ -2684,7 +2872,7 @@ function flatReportTable(spec: FlatSpec) {
     const needKvk = lead.length > 0;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const records: Record<string, any>[] = await (prisma as any)[spec.model].findMany({
-      where: scope.kvkId ? { kvkId: scope.kvkId } : { zoneId: scope.zoneId },
+      where: scopeAndPeriod(scope, spec.model),
       ...(needKvk
         ? { include: { kvk: { select: { name: true, state: { select: { name: true } }, district: { select: { name: true } } } } } }
         : {}),
@@ -2716,7 +2904,7 @@ const DISTRICT_LEAD = { key: "district" as const, label: "Name of District" };
 /** 4.4.A "Budget Details" (super-v2-prod.pdf p.87) - KVK, Salary Allocation, then grouped General / Capital allocation (Main Grant / TSP / SCSP / Total) and a Grand Total. */
 async function buildBudgetDetails(scope: ReportScope): Promise<CustomTableResult> {
   const rows = await prisma.budgetDetail.findMany({
-    where: scope.kvkId ? { kvkId: scope.kvkId } : { zoneId: scope.zoneId },
+    where: scopeAndPeriod(scope, "budgetDetail"),
     select: {
       salaryAllocation: true,
       generalMainGrant: true, generalTsp: true, generalScsp: true,
@@ -2759,9 +2947,13 @@ async function buildBudgetDetails(scope: ReportScope): Promise<CustomTableResult
 /** 4.2.A "District Level Data" (super-v2-prod.pdf p.84-85) - four stacked grids: general items, crop productivity, monthly weather (no backing model yet - omitted, flagged), livestock products. */
 async function buildDistrictLevelData(scope: ReportScope): Promise<CustomTableResult> {
   const where = scope.kvkId ? { kvkId: scope.kvkId } : { zoneId: scope.zoneId };
-  const [items, crops, livestock] = await Promise.all([
-    prisma.districtLevelData.findMany({ where, select: { items: true, information: true } }),
+  const [items, crops, weather, livestock] = await Promise.all([
+    prisma.districtLevelData.findMany({
+      where: { ...where, ...periodClause(scope, "districtLevelData") },
+      select: { items: true, information: true },
+    }),
     prisma.districtCropProductivity.findMany({ where, select: { season: true, type: true, cropName: true, areaHa: true, productionMt: true, productivityQha: true, remarks: true } }),
+    prisma.districtMonthlyWeather.findMany({ where, select: { month: true, rainfallMm: true, maxTempC: true, minTempC: true, maxRhPct: true, minRhPct: true, remarks: true } }),
     prisma.districtLivestockProduction.findMany({ where, select: { livestockName: true, number: true, remarks: true } }),
   ]);
   return {
@@ -2779,6 +2971,21 @@ async function buildDistrictLevelData(scope: ReportScope): Promise<CustomTableRe
             { key: "areaHa", label: "Area(Ha)" }, { key: "productionMt", label: "Production(MT)" }, { key: "productivityQha", label: "Productivity(q/ha)" }, { key: "remarks", label: "Remarks" },
           ],
           rows: crops.map((r) => ({ season: r.season, type: r.type, cropName: r.cropName, areaHa: stringifyValue(r.areaHa), productionMt: stringifyValue(r.productionMt), productivityQha: stringifyValue(r.productivityQha), remarks: r.remarks ?? "" })),
+        }],
+      },
+      {
+        heading: "2.a.2 Mean yearly temperature, rainfall, humidity of the district",
+        parts: [{
+          kind: "grid", noSerial: false,
+          columns: [
+            { key: "month", label: "Month" }, { key: "rain", label: "Rainfall(mm)" },
+            { key: "maxT", label: "Max. Temp. (0C)" }, { key: "minT", label: "Min. Temp. (0C)" },
+            { key: "maxRh", label: "Max. R.H. (%)" }, { key: "minRh", label: "Min. R.H. (%)" }, { key: "remarks", label: "Remarks" },
+          ],
+          rows: weather.map((r) => ({
+            month: r.month, rain: stringifyValue(r.rainfallMm), maxT: stringifyValue(r.maxTempC), minT: stringifyValue(r.minTempC),
+            maxRh: stringifyValue(r.maxRhPct), minRh: stringifyValue(r.minRhPct), remarks: r.remarks ?? "",
+          })),
         }],
       },
       {
@@ -2804,7 +3011,7 @@ function casteFromJson(json: unknown): CasteRecord {
 /** 5.2.A "Training & Awareness Program" (PPV & FRA, super-v2-prod.pdf p.89) - KVK-led, grouped caste M/F/T participant block (from the `farmersByCategory` JSON). */
 async function buildPpvTraining(scope: ReportScope): Promise<CustomTableResult> {
   const raw = await prisma.ppvFraTrainingProgramme.findMany({
-    where: scope.kvkId ? { kvkId: scope.kvkId } : { zoneId: scope.zoneId },
+    where: scopeAndPeriod(scope, "ppvFraTrainingProgramme"),
     select: {
       date: true, title: true, type: true, venue: true, resourcePerson: true, farmersByCategory: true,
       kvk: { select: { name: true } },
@@ -2853,7 +3060,7 @@ const KMAS_MSG_TYPES = [
 /** 5.3.F "Kisan Mobile Advisory Services/KMAS" (super-v2-prod.pdf p.91) - KVK, farmers covered, advisories, grouped "Type of messages". */
 async function buildKmas(scope: ReportScope): Promise<CustomTableResult> {
   const rows = await prisma.digitalKmas.findMany({
-    where: scope.kvkId ? { kvkId: scope.kvkId } : { zoneId: scope.zoneId },
+    where: scopeAndPeriod(scope, "digitalKmas"),
     include: { kvk: { select: { name: true } } },
     orderBy: { kvk: { name: "asc" } },
   });
@@ -2879,7 +3086,7 @@ async function buildKmas(scope: ReportScope): Promise<CustomTableResult> {
 /** 5.3.G "Details of messages send through other channels" (super-v2-prod.pdf p.91-92) - per KVK, one row per channel, grouped "Type of messages". */
 async function buildDigitalOtherChannels(scope: ReportScope): Promise<CustomTableResult> {
   const rows = await prisma.digitalOtherChannel.findMany({
-    where: scope.kvkId ? { kvkId: scope.kvkId } : { zoneId: scope.zoneId },
+    where: scopeAndPeriod(scope, "digitalOtherChannel"),
     include: { kvk: { select: { name: true } } },
     orderBy: { kvk: { name: "asc" } },
   });
@@ -3140,7 +3347,9 @@ const SECTION_456_BUILDERS: Record<string, (scope: ReportScope) => Promise<Custo
     columns: [
       { key: "startDate", label: "Start Date" }, { key: "endDate", label: "End Date" }, { key: "participants", label: "No of Participants" },
       { key: "statutoryMembers", label: "Total Statutory Members Present" }, { key: "recommendations", label: "Salient Recommendations" },
-      { key: "actionTaken", label: "Action Taken In Compliance" }, { key: "reason", label: "Reason" },
+      { key: "actionTaken", label: "Taken", groups: ["Action"] },
+      { key: "actionCompliance", label: "In Compliance", groups: ["Action"] },
+      { key: "reason", label: "Reason", groups: ["Action"] },
     ],
   }),
   otherMeeting: flatReportTable({
@@ -3200,7 +3409,7 @@ const MISCELLANEOUS_SECTION: Sec = {
       { code: "5.3.A", title: "RAWE/FET programme", model: "raweFetFitProgramme", scope: "direct" },
       { code: "5.3.B", title: "List of VIP visitors", model: "vipVisitor", scope: "direct" },
       { code: "5.3.C", title: "Details of Mobile App", model: "digitalMobileApp", scope: "direct" },
-      { code: "5.3.D", title: "Details of Web Portal", model: "digitalWebPortal", scope: "direct" },
+      { code: "5.3.D", title: "Details of KVK Portal", model: "digitalWebPortal", scope: "direct" },
       { code: "5.3.E", title: "Details of Kisan Sarathi", model: "digitalKisanSarathi", scope: "direct" },
       { code: "5.3.F", title: "Kisan Mobile Advisory Services/KMAS", model: "digitalKmas", scope: "direct" },
       { code: "5.3.G", title: "Details of messages sent through other channels", model: "digitalOtherChannel", scope: "direct" },
@@ -3248,7 +3457,7 @@ function kvkBlocksWithGrandTotal<R extends { kvk: { name: string } }>(
 /** 3.1.B "CFLD Extension Activity" (super-v2-prod.pdf p.57-58) - per KVK, one row per activity with the General/OBC/SC/ST/Total M/F/T farmer block. */
 async function buildCfldExtensionActivity(scope: ReportScope): Promise<CustomTableResult> {
   const records = await prisma.cfldExtensionActivity.findMany({
-    where: scope.kvkId ? { kvkId: scope.kvkId } : { zoneId: scope.zoneId },
+    where: scopeAndPeriod(scope, "cfldExtensionActivity"),
     select: {
       activitiesOrganized: true, season: true, date: true, placeOfActivity: true, ...CASTE_SELECT,
       kvk: { select: { name: true } },
@@ -3276,7 +3485,7 @@ async function buildCfldExtensionActivity(scope: ReportScope): Promise<CustomTab
 /** 3.3.A "NICRA Intervention" (super-v2-prod.pdf p.60) - per KVK, seed/fodder bank rows with a quantity sub-total. */
 async function buildNicraIntervention(scope: ReportScope): Promise<CustomTableResult> {
   const records = await prisma.nicraIntervention.findMany({
-    where: scope.kvkId ? { kvkId: scope.kvkId } : { zoneId: scope.zoneId },
+    where: scopeAndPeriod(scope, "nicraIntervention"),
     select: { seedBankFodderBank: true, crop: true, variety: true, quantityQuintal: true, startDate: true, endDate: true, kvk: { select: { name: true } } },
     orderBy: [{ kvkId: "asc" }, { startDate: "asc" }],
   });
@@ -3309,7 +3518,7 @@ async function buildNicraIntervention(scope: ReportScope): Promise<CustomTableRe
 /** 3.3.B "NICRA Revenue Generated" (super-v2-prod.pdf p.60) - revenue per KVK. */
 async function buildNicraRevenue(scope: ReportScope): Promise<CustomTableResult> {
   const records = await prisma.nicraRevenueGenerated.findMany({
-    where: scope.kvkId ? { kvkId: scope.kvkId } : { zoneId: scope.zoneId },
+    where: scopeAndPeriod(scope, "nicraRevenueGenerated"),
     select: { revenue: true, kvk: { select: { name: true } } },
     orderBy: { kvk: { name: "asc" } },
   });
@@ -3328,7 +3537,7 @@ async function buildNicraRevenue(scope: ReportScope): Promise<CustomTableResult>
 /** 3.3.F "NICRA Convergence Programme" (super-v2-prod.pdf p.61-62) - per KVK, scheme rows with a count + amount sub-total. */
 async function buildNicraConvergence(scope: ReportScope): Promise<CustomTableResult> {
   const records = await prisma.nicraConvergenceProgramme.findMany({
-    where: scope.kvkId ? { kvkId: scope.kvkId } : { zoneId: scope.zoneId },
+    where: scopeAndPeriod(scope, "nicraConvergenceProgramme"),
     select: { scheme: true, natureOfWork: true, amount: true, startDate: true, endDate: true, kvk: { select: { name: true } } },
     orderBy: [{ kvkId: "asc" }, { startDate: "asc" }],
   });
@@ -3361,8 +3570,8 @@ async function buildNicraConvergence(scope: ReportScope): Promise<CustomTableRes
 /** 3.3.G "NICRA Dignitaries Visited" (super-v2-prod.pdf p.62) - per KVK, one row per visit + a visit count. */
 async function buildNicraDignitaries(scope: ReportScope): Promise<CustomTableResult> {
   const records = await prisma.nicraDignitaryVisit.findMany({
-    where: scope.kvkId ? { kvkId: scope.kvkId } : { zoneId: scope.zoneId },
-    select: { vipExperts: true, name: true, dateOfVisit: true, kvk: { select: { name: true } } },
+    where: scopeAndPeriod(scope, "nicraDignitaryVisit"),
+    select: { vipExperts: true, name: true, dateOfVisit: true, remark: true, kvk: { select: { name: true } } },
     orderBy: [{ kvkId: "asc" }, { dateOfVisit: "asc" }],
   });
   if (records.length === 0) return {};
@@ -3371,16 +3580,17 @@ async function buildNicraDignitaries(scope: ReportScope): Promise<CustomTableRes
     { key: "date", label: "Date of Visit" },
     { key: "type", label: "Dignitary Type" },
     { key: "name", label: "Name" },
+    { key: "remark", label: "Remark" },
   ];
-  const rowOf = (r: R) => ({ date: stringifyValue(r.dateOfVisit), type: r.vipExperts, name: r.name });
-  const subtotalOf = (list: R[], label: string) => ({ date: `${label} (visits)`, type: "", name: String(list.length) });
+  const rowOf = (r: R) => ({ date: stringifyValue(r.dateOfVisit), type: r.vipExperts, name: r.name, remark: r.remark ?? "" });
+  const subtotalOf = (list: R[], label: string) => ({ date: `${label} (visits)`, type: "", name: "", remark: String(list.length) });
   return { blocks: kvkBlocksWithGrandTotal(records, columns, rowOf, subtotalOf) };
 }
 
 /** 3.3.H "NICRA PI/Co-PI List" (super-v2-prod.pdf p.62) - per KVK. */
 async function buildNicraPiCoPi(scope: ReportScope): Promise<CustomTableResult> {
   const records = await prisma.nicraPiCoPi.findMany({
-    where: scope.kvkId ? { kvkId: scope.kvkId } : { zoneId: scope.zoneId },
+    where: scopeAndPeriod(scope, "nicraPiCoPi"),
     include: { kvk: { select: { name: true } } },
     orderBy: [{ kvkId: "asc" }, { startDate: "asc" }],
   });
@@ -3491,7 +3701,7 @@ function buildNicraStatePivot(model: "nicraTraining" | "nicraExtensionActivity",
 /** 3.3.C "NICRA Custom Hiring" (super-v2-prod.pdf p.61) - one block per "KVK - State", caste M/F/T beneficiary block then area/hours/revenue/expenditure. */
 async function buildNicraCustomHiring(scope: ReportScope): Promise<CustomTableResult> {
   const records = await prisma.nicraCustomHiringFarmImplement.findMany({
-    where: scope.kvkId ? { kvkId: scope.kvkId } : { zoneId: scope.zoneId },
+    where: scopeAndPeriod(scope, "nicraCustomHiringFarmImplement"),
     select: {
       farmImplementName: true, areaCovered: true, hoursUsed: true, revenueGenerated: true, repairExpenditure: true, ...CASTE_SELECT,
       kvk: { select: { name: true, state: { select: { name: true } } } },
@@ -3533,7 +3743,7 @@ async function buildNicraCustomHiring(scope: ReportScope): Promise<CustomTableRe
 /** 3.3.D "NICRA VCRMC" (super-v2-prod.pdf p.61) - per KVK, one row per village. */
 async function buildNicraVcrmc(scope: ReportScope): Promise<CustomTableResult> {
   const records = await prisma.nicraVillageWiseVcrmc.findMany({
-    where: scope.kvkId ? { kvkId: scope.kvkId } : { zoneId: scope.zoneId },
+    where: scopeAndPeriod(scope, "nicraVillageWiseVcrmc"),
     include: { kvk: { select: { name: true } } },
     orderBy: { kvk: { name: "asc" } },
   });
@@ -3583,7 +3793,7 @@ async function buildNicraVcrmc(scope: ReportScope): Promise<CustomTableResult> {
 /** 3.3.E "NICRA Soil Health Card" (super-v2-prod.pdf p.61) - per KVK, samples + caste M/F/T farmer-benefitted block. */
 async function buildNicraSoilHealthCard(scope: ReportScope): Promise<CustomTableResult> {
   const records = await prisma.nicraSoilHealthCard.findMany({
-    where: scope.kvkId ? { kvkId: scope.kvkId } : { zoneId: scope.zoneId },
+    where: scopeAndPeriod(scope, "nicraSoilHealthCard"),
     select: { samplesCollected: true, samplesAnalysed: true, shcIssued: true, ...CASTE_SELECT, kvk: { select: { name: true } } },
     orderBy: { kvk: { name: "asc" } },
   });
@@ -3623,7 +3833,7 @@ const CFLD_BUDGET_ITEMS = [
 
 async function buildCfldBudgetUtilization(scope: ReportScope): Promise<CustomTableResult> {
   const records = await prisma.cfldBudgetUtilization.findMany({
-    where: scope.kvkId ? { kvkId: scope.kvkId } : { zoneId: scope.zoneId },
+    where: scopeAndPeriod(scope, "cfldBudgetUtilization"),
     include: { kvk: { select: { name: true } } },
     orderBy: { kvk: { name: "asc" } },
   });
@@ -3677,7 +3887,7 @@ function jsonCasteRow(json: unknown): Record<string, string> {
 /** 3.5.A "NF Geographical Information" (super-v2-prod.pdf p.64-65) - per KVK. */
 async function buildNfGeographical(scope: ReportScope): Promise<CustomTableResult> {
   const records = await prisma.nfGeographicalInfo.findMany({
-    where: scope.kvkId ? { kvkId: scope.kvkId } : { zoneId: scope.zoneId },
+    where: scopeAndPeriod(scope, "nfGeographicalInfo"),
     include: { kvk: { select: { name: true } } },
     orderBy: [{ kvkId: "asc" }, { startDate: "asc" }],
   });
@@ -3731,34 +3941,40 @@ const AGRI_DRONE_PARAMS: { label: string; key: string }[] = [
 async function buildAgriDroneIntroduction(scope: ReportScope): Promise<CustomTableResult> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const records: Record<string, any>[] = await prisma.agriDroneIntroduction.findMany({
-    where: scope.kvkId ? { kvkId: scope.kvkId } : { zoneId: scope.zoneId },
+    where: scopeAndPeriod(scope, "agriDroneIntroduction"),
     orderBy: { year: "asc" },
   });
   if (records.length === 0) return {};
-  const blocks: ReportBlock[] = records.map((r) => ({
-    heading: r.centreName ?? "Agri Drone",
-    parts: [
-      {
-        kind: "grid" as const,
-        noSerial: true,
-        columns: [
-          { key: "param", label: "Name of parameter" },
-          { key: "detail", label: "Details of parameter" },
-        ],
-        rows: AGRI_DRONE_PARAMS.map((p, i) => ({
-          param: `${i + 1} ${p.label}`,
-          detail: p.key === "_companyModel" ? `${r.companyOfDrone ?? ""} and ${r.modelOfDrone ?? ""}` : stringifyValue(r[p.key]),
-        })),
-      },
-    ],
-  }));
+  const blocks: ReportBlock[] = [
+    { heading: "Information of Agri Drone project implementation by the different Institutions/KVK", align: "center", parts: [] },
+  ];
+  for (const r of records) {
+    blocks.push({
+      // super-v2-prod.pdf p.78-79 runs the per-PIC parameter tables back to
+      // back with a real S.No. column; the PIC name is row 1's value, not a heading.
+      heading: "",
+      parts: [
+        {
+          kind: "grid" as const,
+          columns: [
+            { key: "param", label: "Name of parameter" },
+            { key: "detail", label: "Details of parameter" },
+          ],
+          rows: AGRI_DRONE_PARAMS.map((p) => ({
+            param: p.label,
+            detail: p.key === "_companyModel" ? `${r.companyOfDrone ?? ""} and ${r.modelOfDrone ?? ""}` : stringifyValue(r[p.key]),
+          })),
+        },
+      ],
+    });
+  }
   return { blocks };
 }
 
 /** 3.10.B "DRMR Activity" (super-v2-prod.pdf p.80-81) - per KVK, one row per item/activity with the caste participant block from `farmersByCategory`. */
 async function buildDrmrActivity(scope: ReportScope): Promise<CustomTableResult> {
   const records = await prisma.drmrActivity.findMany({
-    where: scope.kvkId ? { kvkId: scope.kvkId } : { zoneId: scope.zoneId },
+    where: scopeAndPeriod(scope, "drmrActivity"),
     select: { itemActivity: true, unit: true, quantity: true, farmersByCategory: true, kvk: { select: { name: true } } },
     orderBy: { kvk: { name: "asc" } },
   });
@@ -3789,76 +4005,70 @@ async function buildDrmrActivity(scope: ReportScope): Promise<CustomTableResult>
   return { blocks };
 }
 
-/** 3.11.A "CRA Details" (super-v2-prod.pdf p.81) - flat, plus the caste participant block from `farmersByCategory`. */
+/** 3.11.A "CRA Details" (super-v2-prod.pdf p.81) - one block per state ("A. State: Bihar" ...), a serial column, farming-system+crop merged, and the caste participant block from `farmersByCategory`. */
 async function buildCraDetails(scope: ReportScope): Promise<CustomTableResult> {
   const records = await prisma.craDetail.findMany({
-    where: scope.kvkId ? { kvkId: scope.kvkId } : { zoneId: scope.zoneId },
+    where: scopeAndPeriod(scope, "craDetail"),
     select: {
-      season: true, technologyDemonstrated: true, croppingSystem: true, areaHa: true, noOfFarmer: true,
+      season: true, technologyDemonstrated: true, croppingSystem: true, areaHa: true,
       farmingSystem: true, crop: true, cropYieldQha: true, systemProductivityQha: true, totalReturnRsHa: true,
-      yieldFarmerPracticeQha: true, farmersByCategory: true, kvk: { select: { name: true } },
+      yieldFarmerPracticeQha: true, farmersByCategory: true,
+      kvk: { select: { name: true, state: { select: { name: true } } } },
     },
-    orderBy: { kvk: { name: "asc" } },
+    orderBy: [{ kvk: { state: { name: "asc" } } }, { kvk: { name: "asc" } }],
   });
   const columns: ReportColumn[] = [
-    { key: "kvk", label: "KVK" },
     { key: "season", label: "Season" },
-    { key: "tech", label: "Technology Demonstrated" },
-    { key: "croppingSystem", label: "Cropping System" },
-    { key: "farmingSystem", label: "Farming System" },
-    { key: "crop", label: "Crop" },
-    { key: "area", label: "Area (ha)" },
-    { key: "farmers", label: "No. of Farmer" },
-    { key: "cropYield", label: "Crop Yield (q/ha)" },
-    { key: "sysProd", label: "System Productivity (q/ha)" },
-    { key: "totalReturn", label: "Total Return (Rs./ha)" },
-    { key: "yieldFp", label: "Yield Farmer Practice (q/ha)" },
-    ...casteMftColumns("No. of Participants", { grandLabel: "Grand Total" }),
+    { key: "tech", label: "Technology demonstrated / interventions" },
+    { key: "croppingSystem", label: "Cropping system" },
+    { key: "farmingCrop", label: "Farming system crop under demonstration" },
+    { key: "area", label: "Area under demonstration (in ac)" },
+    { key: "cropYield", label: "Crop yield (q/ha)" },
+    { key: "sysProd", label: "System productivity (q/ha)" },
+    { key: "totalReturn", label: "Total return (Rs./ha)" },
+    { key: "yieldFp", label: "Yield obtained under farmer practice (q/ha)" },
+    ...casteMftColumns("No. of farmers under demonstration", { grandLabel: "Total" }),
   ];
-  return {
-    columns,
-    rows: records.map((r) => ({
-      kvk: r.kvk.name,
-      season: r.season,
-      tech: r.technologyDemonstrated,
-      croppingSystem: r.croppingSystem,
-      farmingSystem: r.farmingSystem ?? "",
-      crop: r.crop ?? "",
-      area: stringifyValue(r.areaHa),
-      farmers: String(r.noOfFarmer),
-      cropYield: stringifyValue(r.cropYieldQha),
-      sysProd: stringifyValue(r.systemProductivityQha),
-      totalReturn: stringifyValue(r.totalReturnRsHa),
-      yieldFp: stringifyValue(r.yieldFarmerPracticeQha),
-      ...jsonCasteRow(r.farmersByCategory),
-    })),
-  };
+  const rowOf = (r: (typeof records)[number]) => ({
+    season: r.season,
+    tech: r.technologyDemonstrated,
+    croppingSystem: r.croppingSystem,
+    farmingCrop: [r.farmingSystem, r.crop].filter(Boolean).join(" - "),
+    area: stringifyValue(r.areaHa),
+    cropYield: stringifyValue(r.cropYieldQha),
+    sysProd: stringifyValue(r.systemProductivityQha),
+    totalReturn: stringifyValue(r.totalReturnRsHa),
+    yieldFp: stringifyValue(r.yieldFarmerPracticeQha),
+    ...jsonCasteRow(r.farmersByCategory),
+  });
+  const letters = ["A", "B", "C", "D", "E", "F"];
+  const blocks: ReportBlock[] = [...groupInto(records, (r) => r.kvk.state?.name ?? "").entries()].map(([state, list], i) => ({
+    heading: `${letters[i] ?? String(i + 1)}. State: ${state}`,
+    parts: [{ kind: "grid", noSerial: false, columns, rows: list.map(rowOf) }],
+  }));
+  return { blocks };
 }
 
 /** 3.14.A "Other Programmes" (super-v2-prod.pdf p.82) - flat, plus the caste participant block from `farmersByCategory`. */
 async function buildOtherProgrammes(scope: ReportScope): Promise<CustomTableResult> {
   const records = await prisma.otherProgramme.findMany({
-    where: scope.kvkId ? { kvkId: scope.kvkId } : { zoneId: scope.zoneId },
+    where: scopeAndPeriod(scope, "otherProgramme"),
     select: { programmeName: true, programmeDate: true, venue: true, purpose: true, participants: true, farmersByCategory: true, kvk: { select: { name: true } } },
     orderBy: { kvk: { name: "asc" } },
   });
   return {
     columns: [
-      { key: "kvk", label: "KVK" },
-      { key: "name", label: "Name of the Programme" },
-      { key: "date", label: "Date" },
+      { key: "name", label: "Name of the programme" },
+      { key: "date", label: "Date of the programme" },
       { key: "venue", label: "Venue" },
       { key: "purpose", label: "Purpose" },
-      { key: "participants", label: "Participants" },
-      ...casteMftColumns("No. of Participants", { grandLabel: "Grand Total" }),
+      ...casteMftColumns("", { flat: true, grandLabel: "Grand Total" }),
     ],
     rows: records.map((r) => ({
-      kvk: r.kvk.name,
       name: r.programmeName,
       date: stringifyValue(r.programmeDate),
       venue: r.venue ?? "",
       purpose: r.purpose ?? "",
-      participants: String(r.participants),
       ...jsonCasteRow(r.farmersByCategory),
     })),
   };
@@ -4033,8 +4243,12 @@ async function buildCfldTechnicalParameter(scope: ReportScope): Promise<CustomTa
   const blocks: ReportBlock[] = [];
   [...groupInto(records, (r) => r.cropType ?? "Not Specified").entries()].forEach(([category, catRecords], ci) => {
     const byState = [...groupInto(catRecords, (r) => r.kvk.state?.name ?? "").entries()];
+    // super-v2-prod.pdf p.55: "1. Oilseed" is its own heading, then the
+    // "State wise details..." / "Cluster Front Line Demonstration on <season>"
+    // sub-tables follow without repeating the crop category in their titles.
+    blocks.push({ heading: `${ci + 1}. ${category}`, parts: [] });
     blocks.push({
-      heading: `${ci + 1}. ${category} - State wise details of Cluster Front Line Demonstration`,
+      heading: "State wise details of Cluster Front Line Demonstration",
       parts: [{
         kind: "grid" as const,
         columns: stateCols,
@@ -4045,7 +4259,7 @@ async function buildCfldTechnicalParameter(scope: ReportScope): Promise<CustomTa
     for (const [season, seasonRecords] of groupInto(catRecords, (r) => r.season || "Not Specified").entries()) {
       const byCropState = [...groupInto(seasonRecords, (r) => `${r.crop}||${r.kvk.state?.name ?? ""}`).entries()];
       blocks.push({
-        heading: `${category} - Cluster Front Line Demonstration on ${season}`,
+        heading: `Cluster Front Line Demonstration on ${season}`,
         parts: [{
           kind: "grid" as const,
           columns: seasonCols,
@@ -4275,7 +4489,7 @@ async function buildNicraDetails(scope: ReportScope): Promise<CustomTableResult>
 async function buildAryaCurrentYear(scope: ReportScope): Promise<CustomTableResult> {
   const [records, enterprises, stateNames] = await Promise.all([
     prisma.aryaCurrentYearDetail.findMany({
-      where: scope.kvkId ? { kvkId: scope.kvkId } : { zoneId: scope.zoneId },
+      where: scopeAndPeriod(scope, "aryaCurrentYearDetail"),
       select: {
         enterprise: true, viableUnits: true, closedUnits: true,
         trainingsConducted: true, unitsEstablished: true, ruralYouthMale: true, ruralYouthFemale: true,
@@ -4342,7 +4556,7 @@ async function buildAryaCurrentYear(scope: ReportScope): Promise<CustomTableResu
 async function buildAryaPreviousYear(scope: ReportScope): Promise<CustomTableResult> {
   const [records, enterprises, stateNames] = await Promise.all([
     prisma.aryaPreviousYearEvaluation.findMany({
-      where: scope.kvkId ? { kvkId: scope.kvkId } : { zoneId: scope.zoneId },
+      where: scopeAndPeriod(scope, "aryaPreviousYearEvaluation"),
       select: {
         enterprise: true, totalClosed: true, totalRestarted: true, unitsEstablishedProgressive: true,
         closingDate: true, restartedDate: true,
@@ -4434,7 +4648,7 @@ async function buildAryaPreviousYear(scope: ReportScope): Promise<CustomTableRes
 async function buildNfPhysical(scope: ReportScope): Promise<CustomTableResult> {
   const [records, stateNames] = await Promise.all([
     prisma.nfPhysicalInfo.findMany({
-      where: scope.kvkId ? { kvkId: scope.kvkId } : { zoneId: scope.zoneId },
+      where: scopeAndPeriod(scope, "nfPhysicalInfo"),
       select: {
         activityName: true, trainingTitle: true, trainingDate: true, venue: true, remarks: true, ...CASTE_SELECT,
         kvk: { select: { name: true, state: { select: { name: true } } } },
@@ -4510,7 +4724,7 @@ async function buildNfPhysical(scope: ReportScope): Promise<CustomTableResult> {
  */
 async function buildNfBeneficiary(scope: ReportScope): Promise<CustomTableResult> {
   const records = await prisma.nfBeneficiary.findMany({
-    where: scope.kvkId ? { kvkId: scope.kvkId } : { zoneId: scope.zoneId },
+    where: scopeAndPeriod(scope, "nfBeneficiary"),
     select: {
       reportingYear: true, numberOfBlock: true, numberOfVillage: true, numberOfTraining: true,
       farmersInfluenced: true, farmersEngagedAllSeason: true, farmersEngagedOneSeason: true, remarks: true,
@@ -4555,7 +4769,7 @@ async function buildNfBeneficiary(scope: ReportScope): Promise<CustomTableResult
  */
 async function buildNfSoilData(scope: ReportScope): Promise<CustomTableResult> {
   const records = await prisma.nfSoilData.findMany({
-    where: scope.kvkId ? { kvkId: scope.kvkId } : { zoneId: scope.zoneId },
+    where: scopeAndPeriod(scope, "nfSoilData"),
     select: {
       season: true, type: true, crop: true,
       beforePh: true, beforeEc: true, beforeEcOc: true, beforeN: true, beforeP: true, beforeK: true, beforeMicrobes: true,
@@ -4595,7 +4809,7 @@ async function buildNfSoilData(scope: ReportScope): Promise<CustomTableResult> {
 /** 3.5.G "Natural Farming Budget Expenditure" (super-v2-prod.pdf p.76) - flat, with a Total row. */
 async function buildNfBudgetExpenditure(scope: ReportScope): Promise<CustomTableResult> {
   const records = await prisma.nfBudgetExpenditure.findMany({
-    where: scope.kvkId ? { kvkId: scope.kvkId } : { zoneId: scope.zoneId },
+    where: scopeAndPeriod(scope, "nfBudgetExpenditure"),
     select: { activityName: true, activitiesOrganised: true, budgetSanction: true, budgetExpenditure: true, totalBudgetExpenditure: true },
     orderBy: { activityName: "asc" },
   });
@@ -4654,7 +4868,7 @@ function nfParameterGrid(parameters: unknown): ReportBlockPart {
  */
 async function buildNfDemonstration(scope: ReportScope): Promise<CustomTableResult> {
   const records = await prisma.nfDemonstrationInfo.findMany({
-    where: scope.kvkId ? { kvkId: scope.kvkId } : { zoneId: scope.zoneId },
+    where: scopeAndPeriod(scope, "nfDemonstrationInfo"),
     include: { kvk: { select: { name: true, state: { select: { name: true } } } } },
     orderBy: [{ kvk: { name: "asc" } }, { createdAt: "asc" }],
   });
@@ -4695,7 +4909,7 @@ async function buildNfDemonstration(scope: ReportScope): Promise<CustomTableResu
  */
 async function buildNfAlreadyPracticing(scope: ReportScope): Promise<CustomTableResult> {
   const records = await prisma.nfAlreadyPracticing.findMany({
-    where: scope.kvkId ? { kvkId: scope.kvkId } : { zoneId: scope.zoneId },
+    where: scopeAndPeriod(scope, "nfAlreadyPracticing"),
     include: { kvk: { select: { name: true } } },
     orderBy: [{ kvk: { name: "asc" } }, { createdAt: "asc" }],
   });
@@ -4730,7 +4944,7 @@ async function buildNfAlreadyPracticing(scope: ReportScope): Promise<CustomTable
  */
 async function buildAgriDroneDemonstration(scope: ReportScope): Promise<CustomTableResult> {
   const records = await prisma.agriDroneDemonstration.findMany({
-    where: scope.kvkId ? { kvkId: scope.kvkId } : { zoneId: scope.zoneId },
+    where: scopeAndPeriod(scope, "agriDroneDemonstration"),
     select: {
       centreName: true, district: true, dateOfDemos: true, placeOfDemos: true, cropName: true,
       noOfDemos: true, areaCovered: true, ...CASTE_SELECT,
@@ -4770,7 +4984,7 @@ async function buildAgriDroneDemonstration(scope: ReportScope): Promise<CustomTa
  */
 async function buildFpoCbboDetails(scope: ReportScope): Promise<CustomTableResult> {
   const records = await prisma.fpoCbboDetail.findMany({
-    where: scope.kvkId ? { kvkId: scope.kvkId } : { zoneId: scope.zoneId },
+    where: scopeAndPeriod(scope, "fpoCbboDetail"),
     select: {
       noOfBlocksAllocated: true, noOfFposRegistered: true, avgMembersPerFpo: true,
       noOfFpoManagementCost: true, noOfFpoEquityGrant: true, techBackstoppingFpos: true,
@@ -4898,25 +5112,41 @@ const SECTION_3_BUILDERS: Record<string, (scope: ReportScope) => Promise<CustomT
       { key: "villageCovered", label: "Village Covered" },
       { key: "blockCovered", label: "Block Covered" },
       { key: "districtCovered", label: "District Covered" },
+      { key: "respondent", label: "Respondent" },
+      { key: "trailName", label: "Trail Name" },
+      { key: "areaCoveredHa", label: "Area Covered (ha)" },
+      { key: "cropName", label: "Name of Crop" },
+      { key: "techOptions", label: "Tech. Options" },
+      { key: "varietyName", label: "Variety Name" },
+      { key: "durationDays", label: "Duration (Days)" },
+      { key: "sowingDate", label: "Sowing Date" },
+      { key: "harvestingDate", label: "Harvesting Date" },
+      { key: "maturityDays", label: "Maturity Days" },
+      { key: "grainYieldQha", label: "Grain Yield(q/ha)" },
+      { key: "costOfCultivationRsHa", label: "Cost of Cult.(Rs/ha)" },
+      { key: "grossReturnRsHa", label: "Gross Return(Rs/ha)" },
+      { key: "netReturnRsHa", label: "Net Return(Rs/ha)" },
+      { key: "bcr", label: "BCR" },
     ],
   }),
   seedHubProgram: flatReportTable({
     model: "seedHubProgram",
     lead: [KVK],
+    // Labels transcribed from super-v2-prod.pdf 3.13.A.
     columns: [
       { key: "season", label: "Season" },
-      { key: "cropName", label: "Crop Name" },
-      { key: "variety", label: "Variety" },
-      { key: "areaHa", label: "Area (ha)" },
-      { key: "yieldHa", label: "Yield (q/ha)" },
-      { key: "qtySeedProducedQ", label: "Qty. Seed Produced (q)" },
-      { key: "qtySeedSaleOutQ", label: "Qty. Seed Sale Out (q)" },
-      { key: "farmersPurchased", label: "Farmers Purchased" },
-      { key: "qtySeedSaleOutToFarmersQ", label: "Qty. Seed Sale Out to Farmers (q)" },
-      { key: "villagesCovered", label: "Villages Covered" },
-      { key: "qtySeedSaleOutOtherOrgQ", label: "Qty. Seed Sale Out Other Org (q)" },
-      { key: "amountGeneratedLakh", label: "Amount Generated (Lakh)" },
-      { key: "totalAmountInProjectLakh", label: "Total Amount in Project (Lakh)" },
+      { key: "cropName", label: "Name of crop taken under seed production" },
+      { key: "variety", label: "Name of variety taken under seed production" },
+      { key: "areaHa", label: "Crop and variety wise area (ha) covered under seed production" },
+      { key: "yieldHa", label: "Crop and variety wise Yield (Q/ha)" },
+      { key: "qtySeedProducedQ", label: "Crop and variety wise quantity of seed produced (Q)" },
+      { key: "qtySeedSaleOutQ", label: "Crop and variety wise sale out (Q)" },
+      { key: "farmersPurchased", label: "Crop and variety wise number of farmers purchased seed from KVK" },
+      { key: "qtySeedSaleOutToFarmersQ", label: "Quantity of seed sale out to farmers (Q)" },
+      { key: "villagesCovered", label: "No of village covered through sale of seed" },
+      { key: "qtySeedSaleOutOtherOrgQ", label: "Quantity of seed sale out to other organization (Q)" },
+      { key: "amountGeneratedLakh", label: "Amount generated (Lakh)" },
+      { key: "totalAmountInProjectLakh", label: "Total amount (Lakh) in Seed Hub project presently" },
     ],
   }),
 };
@@ -5442,8 +5672,11 @@ const KVK_TREE: Sec[] = [
 function whereFor(entry: Entry, scope: ReportScope): Record<string, unknown> {
   if (entry.model === "kvk") return scope.kvkId ? { id: scope.kvkId } : { zoneId: scope.zoneId };
   const base = scope.kvkId ? { kvkId: scope.kvkId } : { zoneId: scope.zoneId };
-  if (entry.scope === "direct") return base;
-  return scope.kvkId ? { [entry.scope.via]: { kvkId: scope.kvkId } } : { zoneId: scope.zoneId };
+  const period = periodClause(scope, entry.model);
+  if (entry.scope === "direct") return { ...base, ...period };
+  return scope.kvkId
+    ? { [entry.scope.via]: { kvkId: scope.kvkId }, ...period }
+    : { zoneId: scope.zoneId, ...period };
 }
 
 async function fetchTable(entry: Entry, scope: ReportScope): Promise<ReportTable> {
@@ -5467,7 +5700,10 @@ async function fetchTable(entry: Entry, scope: ReportScope): Promise<ReportTable
         blocks: r.blocks && r.blocks.length > 0 ? r.blocks : undefined,
         pairs: r.pairs && r.pairs.length > 0 ? r.pairs : undefined,
       };
-    } catch {
+    } catch (error) {
+      // A failing builder shouldn't blank the whole report, but it must be
+      // visible in the logs - a silent empty table hid a stale-client bug once.
+      console.error(`[report] builder failed for ${entry.code} (${entry.model})`, error);
       return { ...base, columns: [], rows: [] };
     }
   }
@@ -5483,7 +5719,8 @@ async function fetchTable(entry: Entry, scope: ReportScope): Promise<ReportTable
     });
     const rows = rawRows.map((r) => Object.fromEntries(fields.map((f) => [f, stringifyValue(r[f])])));
     return { ...base, columns, rows };
-  } catch {
+  } catch (error) {
+    console.error(`[report] generic fetch failed for ${entry.code} (${entry.model})`, error);
     return { ...base, columns, rows: [] };
   }
 }
@@ -5510,7 +5747,7 @@ export async function buildReportSections(scope: ReportScope): Promise<ReportSec
     // leaf path it was uploaded under (categoryPath), which maps to a report
     // subsection via REPORT_SUBSECTION_BY_LEAF.
     prisma.moduleImage.findMany({
-      where: { published: true, ...(scope.kvkId ? { kvkId: scope.kvkId } : { zoneId: scope.zoneId }) },
+      where: { published: true, ...(scopeAndPeriod(scope, "moduleImage")) },
       select: { categoryPath: true, categoryLabel: true, caption: true, imageUrl: true, reportingYear: true, activityDate: true },
       orderBy: [{ categoryPath: "asc" }, { activityDate: "asc" }],
     }),

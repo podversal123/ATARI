@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
   BarChart3,
   Users,
@@ -18,7 +18,6 @@ import { MultiFilterSelect } from "@/components/dashboard/multi-filter-select";
 import { Button } from "@/components/ui/button";
 import { useSession } from "@/lib/session";
 import { cn } from "@/lib/utils";
-import { FORM_MANAGEMENT } from "@/lib/navigation";
 import { usePolling } from "@/lib/use-polling";
 
 type ChartRow = { id: string; label: string; ongoing: number; completed: number };
@@ -55,25 +54,61 @@ function toTotalChartRows(rows: TotalRow[]): ChartRow[] {
   return rows.map((r) => ({ id: r.id, label: r.label, ongoing: 0, completed: r.total }));
 }
 
+type FormSummaryLeaf = { path: string; label: string; count: number };
+type FormSummarySection = { sectionLabel: string; leaves: FormSummaryLeaf[] };
+type FormSummaryKvk = {
+  id: string;
+  name: string;
+  filled: number;
+  total: number;
+  percent: number;
+  sections: FormSummarySection[];
+};
+
 /**
  * A KVK User's whole job is filling in Form Management for their own KVK -
  * unlike Super Admin/KVK Admin, who need cross-KVK oversight stats, a KVK
- * User needs to know one thing: what's still left to fill in. So their
- * Dashboard is the same per-form fill-status list as Form Summary's KVK
- * view, not the stat-card oversight dashboard.
+ * User needs to know one thing: what's still left to fill in. Real per-form
+ * fill counts come from /api/form-summary (the same endpoint Form Summary's
+ * KVK view uses), scoped server-side to this user's own KVK - the rows here
+ * were a hardcoded "Not filled / 0%" placeholder before.
  */
 function KvkUserDashboard({ kvkName }: { kvkName?: string }) {
+  const [data, setData] = useState<FormSummaryKvk | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  const load = useCallback(() => {
+    fetch("/api/form-summary")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((d: { byKvk?: FormSummaryKvk[] } | null) => {
+        setData(d?.byKvk?.[0] ?? null);
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
+  }, []);
+  useEffect(() => load(), [load]);
+  usePolling(load);
+
+  const sections = data?.sections ?? [];
+
   return (
     <div>
       <div className="mb-6">
         <div className="flex items-center gap-2">
           <LayoutDashboard className="size-5 shrink-0 text-primary" />
-          <h1 className="text-3xl font-semibold text-primary">
-            My Pending Forms
-          </h1>
+          <h1 className="text-3xl font-semibold text-primary">My Pending Forms</h1>
         </div>
         <p className="mt-1 text-sm text-muted-foreground">
           Track what still needs filling in for {kvkName ?? "your KVK"}
+          {data && (
+            <>
+              {" "}
+              &middot;{" "}
+              <span className="font-medium text-foreground">
+                {data.filled} of {data.total} forms started ({data.percent}%)
+              </span>
+            </>
+          )}
         </p>
       </div>
 
@@ -81,30 +116,49 @@ function KvkUserDashboard({ kvkName }: { kvkName?: string }) {
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-border bg-muted/50 text-left text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-              <th className="px-4 py-3">Form</th>
-              <th className="px-4 py-3">Filled</th>
+              <th className="px-4 py-3">Section</th>
+              <th className="px-4 py-3">Forms started</th>
               <th className="px-4 py-3">Progress</th>
               <th className="px-4 py-3 text-right">%</th>
             </tr>
           </thead>
           <tbody>
-            {FORM_MANAGEMENT.map((form) => (
-              <tr
-                key={form.slug}
-                className="border-b border-border last:border-0"
-              >
-                <td className="px-4 py-3 text-foreground">{form.label}</td>
-                <td className="px-4 py-3 text-muted-foreground">Not filled</td>
-                <td className="px-4 py-3">
-                  <div className="h-2 w-32 overflow-hidden rounded-full bg-muted">
-                    <div className="h-full w-0 rounded-full bg-primary" />
-                  </div>
-                </td>
-                <td className="px-4 py-3 text-right text-muted-foreground">
-                  0%
+            {loading ? (
+              <tr>
+                <td colSpan={4} className="px-4 py-6 text-center text-muted-foreground">
+                  Loading&hellip;
                 </td>
               </tr>
-            ))}
+            ) : sections.length === 0 ? (
+              <tr>
+                <td colSpan={4} className="px-4 py-6 text-center text-muted-foreground">
+                  No forms tracked yet.
+                </td>
+              </tr>
+            ) : (
+              sections.map((section) => {
+                const total = section.leaves.length;
+                const started = section.leaves.filter((l) => l.count > 0).length;
+                const pct = total === 0 ? 0 : Math.round((started / total) * 100);
+                return (
+                  <tr key={section.sectionLabel} className="border-b border-border last:border-0">
+                    <td className="px-4 py-3 text-foreground">{section.sectionLabel}</td>
+                    <td className="px-4 py-3 text-muted-foreground">
+                      {started} of {total}
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="h-2 w-32 overflow-hidden rounded-full bg-muted">
+                        <div
+                          className="h-full rounded-full bg-primary"
+                          style={{ width: `${pct}%` }}
+                        />
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 text-right text-muted-foreground">{pct}%</td>
+                  </tr>
+                );
+              })
+            )}
           </tbody>
         </table>
       </div>
@@ -233,6 +287,17 @@ export default function DashboardPage() {
 
   const isKvkAdmin = session.role === "kvk-admin";
 
+  /** Changes only when a filter changes (not on the 20s poll) - drives each progress card's pagination reset so switching a filter never strands the user on a now-empty page. */
+  const sharedFilterKey = JSON.stringify({
+    y: Array.from(yearFilter).sort(),
+    k: Array.from(kvkFilter).sort(),
+  });
+  const trainingFilterKey =
+    sharedFilterKey +
+    JSON.stringify([...trainingClientele].sort()) +
+    JSON.stringify([...trainingVenue].sort());
+  const extensionFilterKey = sharedFilterKey + JSON.stringify([...extensionNature].sort());
+
   const statCards = [
     { icon: BarChart3, label: "KVK", value: stats.totalKvks, href: "/forms/about-kvk/basic/view-kvks" },
     { icon: Users, label: "Total OFT", value: stats.oft.total, href: "/forms/achievements/oft" },
@@ -335,6 +400,7 @@ export default function DashboardPage() {
           }
           showAllLabel={`Show all (${stats.charts.oft.length})`}
           detailedHref="/dashboard/analytics/oft"
+          resetKey={sharedFilterKey}
         />
         <ProgressChartCard
           title="FLD Progress"
@@ -353,6 +419,7 @@ export default function DashboardPage() {
           }
           showAllLabel={`Show all (${stats.charts.fld.length})`}
           detailedHref="/dashboard/analytics/fld"
+          resetKey={sharedFilterKey}
         />
         <ProgressChartCard
           title="Training Progress"
@@ -390,6 +457,7 @@ export default function DashboardPage() {
           }
           showAllLabel={`Show all (${stats.charts.training.length})`}
           detailedHref="/dashboard/analytics/training"
+          resetKey={trainingFilterKey}
         />
         <ProgressChartCard
           title="Extension Activities Progress"
@@ -418,6 +486,7 @@ export default function DashboardPage() {
           }
           showAllLabel={`Show all (${stats.charts.extension.length})`}
           detailedHref="/dashboard/analytics/extension"
+          resetKey={extensionFilterKey}
         />
       </div>
 

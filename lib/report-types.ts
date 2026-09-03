@@ -6,7 +6,24 @@
  * dragging the server data layer along.
  */
 
-export type ReportScope = { kvkId?: string; zoneId: string };
+/**
+ * `fromDate` / `toDate` are inclusive ISO `YYYY-MM-DD` bounds for the
+ * report's reporting period, threaded down to every list-style report table
+ * (see `periodClause` in lib/report-data.ts). Omitted = the whole history,
+ * the "All Data" report. A model that has a real reporting-year column is
+ * bounded by year; one with an activity date is bounded by that date; a
+ * point-in-time roster (Staff, Land, ...) is never period-filtered.
+ */
+export type ReportScope = { kvkId?: string; zoneId: string; fromDate?: string; toDate?: string };
+
+/** Human label for a reporting period - "2026" / "2024 - 2026" / "All Data". */
+export function reportPeriodLabel(fromDate?: string, toDate?: string): string {
+  const y1 = fromDate ? fromDate.slice(0, 4) : "";
+  const y2 = toDate ? toDate.slice(0, 4) : "";
+  if (!y1 && !y2) return "All Data";
+  if (y1 && y2) return y1 === y2 ? y1 : `${y1} - ${y2}`;
+  return y1 || y2;
+}
 
 export type ReportCell = Record<string, string>;
 
@@ -74,6 +91,8 @@ export type ReportGrid = {
   noSerial?: boolean;
   /** Render the header even with no rows, and skip the "No data available" note - super-v2-prod.pdf's empty "Table 2" result grids print as a bare header. */
   keepEmpty?: boolean;
+  /** Full-width bordered rows drawn inside the table, above the column header - super-v2-prod.pdf's 2.1.A boxes each sub-block ("OFT", then "No. of Technologies Tested") as banded rows joined to the grid rather than loose headings. */
+  titleBands?: string[];
 };
 
 export type ReportPairList = {
@@ -144,6 +163,19 @@ export function isRedundantTableHeading(
   table: { code: string; title: string },
 ) {
   return table.code === sub.num && table.title === sub.title;
+}
+
+/**
+ * A composite-block note like "• Thematic area: Horticulture" prints in
+ * super-v2-prod.pdf with the leading label ("• Thematic area:") bold and the
+ * value that follows in normal weight. Splits on the first colon so every
+ * renderer can bold the same span; a note with no colon has an empty `value`
+ * and renders whole.
+ */
+export function splitNoteLabel(note: string): { label: string; value: string } {
+  const i = note.indexOf(":");
+  if (i === -1) return { label: note, value: "" };
+  return { label: note.slice(0, i + 1), value: note.slice(i + 1).replace(/^\s+/, "") };
 }
 
 /**

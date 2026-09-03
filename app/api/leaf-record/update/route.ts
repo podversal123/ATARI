@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireSession } from "@/lib/api-auth";
-import { LEAF_UPDATE_REGISTRY } from "@/lib/leaf-record-registry";
+import { LEAF_UPDATE_REGISTRY, syncLeafModuleImages } from "@/lib/leaf-record-registry";
 import { safeErrorMessage } from "@/lib/safe-error-message";
 
 export async function POST(request: Request) {
@@ -30,6 +30,18 @@ export async function POST(request: Request) {
         { error: "Record not found, or it doesn't belong to your KVK." },
         { status: 404 },
       );
+    }
+    // A KVK Admin editing its own record reconciles that record's Module
+    // Images (add/remove in the form's Photographs section) - keyed by the
+    // record id so other records' images are untouched.
+    if (auth.session.kvkId) {
+      await syncLeafModuleImages(path, values.moduleImages, {
+        kvkId: auth.session.kvkId,
+        zoneId: auth.session.zoneId,
+        formRecordId: id,
+        values,
+        uploadedById: auth.session.sub,
+      });
     }
     return NextResponse.json({ ok: true });
   } catch (error) {

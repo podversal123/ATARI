@@ -77,8 +77,12 @@ export const QUICK_SELECT_OPTIONS: {
   { value: "custom", label: "Custom Range" },
 ];
 
+/** `YYYY-MM-DD` from the date's *local* parts - `toISOString()` would shift it a day either way of UTC (e.g. 1 Jan local reads as 31 Dec in India). */
 function toInputDate(date: Date): string {
-  return date.toISOString().slice(0, 10);
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
 }
 
 /** Resolves a quick-select pill to a concrete {from, to} date pair; "custom" leaves the current dates untouched. */

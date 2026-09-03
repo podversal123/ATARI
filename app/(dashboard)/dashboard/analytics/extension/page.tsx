@@ -64,7 +64,7 @@ export default function ExtensionDetailedAnalyticsPage() {
       </div>
 
       <div className="mt-4">
-        <ProgressChartCard title="Extension Activities by Zone" description="Status" totalCount={total} rows={rows} mode="total" />
+        <ProgressChartCard title="Extension Activities by Zone" description="Status" totalCount={total} rows={rows} mode="total" resetKey={JSON.stringify(filters)} />
       </div>
     </div>
   );

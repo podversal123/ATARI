@@ -232,6 +232,10 @@ export function ColumnFilterMenu({
           <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
+            /* Base UI's Menu owns keydown on the popup for typeahead/arrow nav,
+               which otherwise swallows every character before it reaches this
+               input - stop the bubble so typing actually lands here. */
+            onKeyDown={(e) => e.stopPropagation()}
             placeholder="Search values..."
             className="h-7 pl-7 text-xs"
           />
@@ -269,7 +273,7 @@ export function ColumnFilterMenu({
           )}
         </div>
 
-        <div className="mt-3 flex items-center justify-between gap-2 border-t border-border pt-2">
+        <div className="sticky bottom-0 -mx-3 -mb-3 mt-3 flex items-center justify-between gap-2 border-t border-border bg-popover px-3 pt-2 pb-3">
           <button
             type="button"
             onClick={clear}

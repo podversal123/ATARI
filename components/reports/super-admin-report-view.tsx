@@ -26,14 +26,15 @@ import { SelectFormDropdown } from "./select-form-dropdown";
 import { SelectOrgKvksDropdown } from "./select-org-kvks-dropdown";
 import { MultiSelectChecklist } from "./multi-select-checklist";
 
-function firstOfMonth(): string {
-  const now = new Date();
-  return new Date(now.getFullYear(), now.getMonth(), 1)
-    .toISOString()
-    .slice(0, 10);
+/** `YYYY-MM-DD` from local parts - `toISOString()` would shift a day either side of UTC (1 Jan local -> 31 Dec in India). */
+function toLocalIso(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+function firstOfYear(): string {
+  return toLocalIso(new Date(new Date().getFullYear(), 0, 1));
 }
 function today(): string {
-  return new Date().toISOString().slice(0, 10);
+  return toLocalIso(new Date());
 }
 
 /**
@@ -60,9 +61,9 @@ export function SuperAdminReportView() {
   const [selectedForms, setSelectedForms] = useState<Set<string>>(
     new Set(ALL_FORM_PATHS),
   );
-  const [fromDate, setFromDate] = useState(firstOfMonth());
+  const [fromDate, setFromDate] = useState(firstOfYear());
   const [toDate, setToDate] = useState(today());
-  const [quickSelect, setQuickSelect] = useState<QuickSelectRange>("custom");
+  const [quickSelect, setQuickSelect] = useState<QuickSelectRange>("this-year");
   const [validationError, setValidationError] = useState<string | null>(null);
 
   const hostOrgOptions = hostOrgsForStates(Array.from(selectedStates));
@@ -166,9 +167,9 @@ export function SuperAdminReportView() {
     setSelectedDistricts(new Set(ALL_HOST_ORG_DISTRICTS));
     setSelectedKvks(new Set(kvksForHostOrgsAndDistricts(ALL_HOST_ORGS, ALL_HOST_ORG_DISTRICTS)));
     setSelectedForms(new Set(ALL_FORM_PATHS));
-    setFromDate(firstOfMonth());
+    setFromDate(firstOfYear());
     setToDate(today());
-    setQuickSelect("custom");
+    setQuickSelect("this-year");
     setValidationError(null);
   }
 
