@@ -3,6 +3,7 @@ import autoTable from "jspdf-autotable";
 import {
   buildHeaderMatrix,
   isRedundantTableHeading,
+  splitNoteLabel,
   type ReportColumn,
   type ReportGrid,
   type ReportImage,
@@ -25,10 +26,10 @@ const LINE_GRAY: [number, number, number] = [170, 170, 170];
 const MARGIN = 12;
 const TOC_START_Y = 28;
 const TOC_CONT_Y = 18;
-const SECTION_ROW_H = 6;
-const SUB_ROW_H = 5;
-const TABLE_ROW_H = 4.5;
-const SECTION_GAP = 2;
+const SECTION_ROW_H = 10;
+const SUB_ROW_H = 8;
+const TABLE_ROW_H = 7;
+const SECTION_GAP = 5;
 
 /** Inserts a thin space between characters, matching the reference PDF's tracked-caps headings ("A T A R I   Z O N E - 4"). */
 function spaced(text: string) {
@@ -45,7 +46,7 @@ function docId() {
 
 /** jspdf-autotable `head` from the shared N-row header matrix (super-v2-prod.pdf's pivots go up to ~6 levels). */
 function buildHead(columns: ReportColumn[], serial: boolean): any[] {
-  return buildHeaderMatrix(columns, serial ? "S.No." : undefined).map((row) =>
+  return buildHeaderMatrix(columns, serial ? "Sl. No." : undefined).map((row) =>
     row.map((cell) => ({
       content: cell.text,
       colSpan: cell.colSpan,
@@ -81,7 +82,15 @@ function renderGrid(doc: jsPDF, grid: ReportGrid, startY: number): number {
     return startY + 8;
   }
 
-  const head = buildHead(grid.columns, serial);
+  const totalCols = (serial ? 1 : 0) + grid.columns.length;
+  const bands: any[] = (grid.titleBands ?? []).map((band, i) => [
+    {
+      content: band,
+      colSpan: totalCols,
+      styles: { halign: "left", fontStyle: "bold", fillColor: i === 0 ? [235, 235, 235] : [245, 245, 245] },
+    },
+  ]);
+  const head = [...bands, ...buildHead(grid.columns, serial)];
   const body: any[] = grid.rows.map((row, i) => [
     ...(serial ? [String(i + 1)] : []),
     ...grid.columns.map((c) => row[c.key] ?? ""),
@@ -93,14 +102,19 @@ function renderGrid(doc: jsPDF, grid: ReportGrid, startY: number): number {
     ]);
   }
   const totalRowIndex = grid.totalRow ? body.length - 1 : -1;
+  const contentW = doc.internal.pageSize.getWidth() - MARGIN * 2;
 
   autoTable(doc, {
     startY,
     margin: { left: MARGIN, right: MARGIN },
+    // Always fill the page width and let long headers wrap, rather than
+    // letting one text-heavy column blow out while the numeric columns get
+    // squeezed - matches super-v2-prod.pdf's balanced column widths.
+    tableWidth: contentW,
     head,
     body,
-    styles: GRID_STYLES,
-    headStyles: HEAD_STYLES,
+    styles: { ...GRID_STYLES, overflow: "linebreak", valign: "middle", minCellWidth: 6 },
+    headStyles: { ...HEAD_STYLES, overflow: "linebreak", valign: "middle", halign: "center" },
     theme: "grid",
     didParseCell: (data: any) => {
       if (data.section === "body" && data.row.index === totalRowIndex) {
@@ -139,11 +153,12 @@ function renderPairs(
   autoTable(doc, {
     startY,
     margin: { left: MARGIN, right: MARGIN },
+    tableWidth: pageW - MARGIN * 2,
     body: pairs.map((p) => [p.num ? `${p.num} ${p.label}` : p.label, p.value]),
     columnStyles: {
       0: { cellWidth: (pageW - MARGIN * 2) * 0.42, fontStyle: "bold" },
     },
-    styles: { ...GRID_STYLES, fontSize: 8, cellPadding: 1.4 },
+    styles: { ...GRID_STYLES, fontSize: 8, cellPadding: 1.4, overflow: "linebreak", valign: "middle" },
     theme: "grid",
   });
   return (doc as any).lastAutoTable.finalY + 6;
@@ -351,24 +366,31 @@ export function generateReportPdf(opts: ReportPdfOptions) {
           for (const block of table.blocks) {
             ensureSpace(20);
             const centered = block.align === "center" && block.parts.length === 0;
-            doc.setFont("helvetica", "bold");
-            doc.setFontSize(centered ? 12 : 10.5);
-            doc.setTextColor(0, 0, 0);
-            if (centered) {
-              doc.text(block.heading, pageW / 2, cursorY + 1, { align: "center" });
-              cursorY += 8;
-            } else {
-              doc.text(block.heading, MARGIN, cursorY);
-              cursorY += 5.5;
+            if (block.heading) {
+              doc.setFont("helvetica", "bold");
+              doc.setFontSize(centered ? 12 : 10.5);
+              doc.setTextColor(0, 0, 0);
+              if (centered) {
+                doc.text(block.heading, pageW / 2, cursorY + 1, { align: "center" });
+                cursorY += 8;
+              } else {
+                doc.text(block.heading, MARGIN, cursorY);
+                cursorY += 5.5;
+              }
             }
 
             for (const note of block.notes ?? []) {
-              doc.setFont("helvetica", "normal");
+              // super-v2-prod.pdf bolds the leading "• Label:" and leaves the value plain.
+              const { label, value } = splitNoteLabel(note);
               doc.setFontSize(8);
               doc.setTextColor(60, 60, 60);
-              const wrapped = doc.splitTextToSize(note, contentW);
-              doc.text(wrapped, MARGIN + 2, cursorY);
-              cursorY += wrapped.length * 3.8 + 1;
+              doc.setFont("helvetica", "bold");
+              const labelW = doc.getTextWidth(label + " ");
+              doc.text(label, MARGIN + 2, cursorY);
+              doc.setFont("helvetica", "normal");
+              const wrapped = doc.splitTextToSize(value, Math.max(contentW - labelW - 2, 20));
+              if (value) doc.text(wrapped, MARGIN + 2 + labelW, cursorY);
+              cursorY += Math.max(wrapped.length, 1) * 3.8 + 1;
             }
 
             for (const part of block.parts) {
@@ -400,43 +422,63 @@ export function generateReportPdf(opts: ReportPdfOptions) {
         cursorY = renderGrid(doc, table, cursorY);
       }
 
-      // --- Module Images for this subsection ---
+      // --- Photographs for this subsection (Module Images) ---
       const imgs = (sub.images ?? []).filter((im: ReportImage) => opts.images?.has(im.url));
       if (imgs.length > 0) {
-        ensureSpace(22);
+        ensureSpace(24);
+        doc.setDrawColor(...LINE_GRAY);
+        doc.setLineWidth(0.2);
+        doc.line(MARGIN, cursorY - 2, pageW - MARGIN, cursorY - 2);
         doc.setFont("helvetica", "bold");
-        doc.setFontSize(9);
+        doc.setFontSize(9.5);
         doc.setTextColor(20, 20, 20);
-        doc.text("Module Images", MARGIN, cursorY);
-        cursorY += 5;
-        const perRow = 3;
-        const gap = 4;
+        doc.text(`Photographs (${imgs.length})`, MARGIN, cursorY + 3);
+        cursorY += 8;
+
+        const perRow = 2;
+        const gap = 6;
         const cw = (contentW - gap * (perRow - 1)) / perRow;
-        const ch = cw * 0.62;
+        const boxH = cw * 0.62; // frame the photo fits inside, aspect-preserved
+        const capH = 9;
         let col = 0;
+        let rowTop = cursorY;
         for (const im of imgs) {
-          if (col === 0) ensureSpace(ch + 12);
-          const x = MARGIN + col * (cw + gap);
-          try {
-            const data = opts.images!.get(im.url)!;
-            const fmt = /^data:image\/(png|jpe?g|webp)/i.exec(data)?.[1]?.toUpperCase().replace("JPG", "JPEG") ?? "JPEG";
-            doc.addImage(data, fmt, x, cursorY, cw, ch);
-          } catch {
-            doc.setDrawColor(...BORDER_GRAY);
-            doc.rect(x, cursorY, cw, ch);
+          if (col === 0) {
+            ensureSpace(boxH + capH + 6);
+            rowTop = cursorY;
           }
+          const x = MARGIN + col * (cw + gap);
+          const data = opts.images!.get(im.url)!;
+          doc.setDrawColor(...BORDER_GRAY);
+          doc.setLineWidth(0.15);
+          doc.rect(x, rowTop, cw, boxH);
+          try {
+            const fmt = /^data:image\/(png|jpe?g|webp)/i.exec(data)?.[1]?.toUpperCase().replace("JPG", "JPEG") ?? "JPEG";
+            const props = (doc as any).getImageProperties(data);
+            const scale = Math.min((cw - 2) / props.width, (boxH - 2) / props.height);
+            const iw = props.width * scale;
+            const ih = props.height * scale;
+            doc.addImage(data, fmt, x + (cw - iw) / 2, rowTop + (boxH - ih) / 2, iw, ih);
+          } catch {
+            // keep the empty frame
+          }
+          doc.setFont("helvetica", "bold");
+          doc.setFontSize(6.8);
+          doc.setTextColor(40, 40, 40);
+          const cap = doc.splitTextToSize(im.caption || "Untitled", cw);
+          doc.text(cap.slice(0, 1), x, rowTop + boxH + 3.5);
           doc.setFont("helvetica", "normal");
-          doc.setFontSize(6.5);
-          doc.setTextColor(70, 70, 70);
-          const cap = doc.splitTextToSize(im.caption + (im.date ? ` (${im.date})` : ""), cw);
-          doc.text(cap.slice(0, 2), x, cursorY + ch + 3);
+          doc.setFontSize(6);
+          doc.setTextColor(110, 110, 110);
+          const meta = [im.category, im.date].filter(Boolean).join("  |  ");
+          if (meta) doc.text(doc.splitTextToSize(meta, cw).slice(0, 1), x, rowTop + boxH + 6.8);
           col++;
           if (col === perRow) {
             col = 0;
-            cursorY += ch + 10;
+            cursorY = rowTop + boxH + capH + 4;
           }
         }
-        if (col !== 0) cursorY += ch + 10;
+        if (col !== 0) cursorY = rowTop + boxH + capH + 4;
         cursorY += 2;
       }
     }
@@ -467,9 +509,13 @@ export function generateReportPdf(opts: ReportPdfOptions) {
         doc.setTextColor(80, 80, 80);
       }
       doc.text(line.text, line.x, line.y);
-      doc.setDrawColor(...LINE_GRAY);
-      doc.setLineWidth(0.15);
-      doc.line(MARGIN, line.y + 1.5, pageW - MARGIN, line.y + 1.5);
+      // A rule under section / subsection headers only - leaf rows just get
+      // whitespace, matching the reference's own airier Table of Contents.
+      if (line.level !== "table") {
+        doc.setDrawColor(...LINE_GRAY);
+        doc.setLineWidth(line.level === "section" ? 0.3 : 0.15);
+        doc.line(MARGIN, line.y + 2.5, pageW - MARGIN, line.y + 2.5);
+      }
 
       const targetPage = targetPageByKey[line.targetKey];
       if (targetPage) {

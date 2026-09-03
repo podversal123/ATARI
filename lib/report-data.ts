@@ -158,7 +158,7 @@ const MODEL_FIELDS: Record<string, string[]> = {
   digitalKisanSarathi: ["farmersRegisteredKsp", "phoneCallAddressed", "answeredCall"],
   digitalKmas: ["farmersCovered", "advisoriesSent", "messagesCrop", "messagesLivestock", "messagesWeather", "messagesMarketing", "messagesAwareness", "messagesOtherEnterprises", "messagesAnyOther"],
   digitalOtherChannel: ["channel", "farmersCovered", "advisoriesSent", "messagesCrop", "messagesLivestock", "messagesWeather", "messagesMarketing", "messagesAwareness", "messagesOtherEnterprises"],
-  sacMeeting: ["startDate", "endDate", "participants", "statutoryMembers", "recommendations", "actionTaken", "reason"],
+  sacMeeting: ["startDate", "endDate", "participants", "statutoryMembers", "recommendations", "actionTaken", "actionCompliance", "reason"],
   otherMeeting: ["date", "meetingType", "agenda", "representativeFromAtari"],
 };
 
@@ -237,7 +237,8 @@ async function buildOftTechnologySummary(scope: ReportScope): Promise<CustomTabl
   const [subjects, oftRows, states] = await Promise.all([
     prisma.oftSubject.findMany({
       where: { zoneId: scope.zoneId, name: { in: OFT_SUBJECT_ORDER } },
-      include: { thematicAreas: { orderBy: { id: "asc" } } },
+      // super-v2-prod.pdf lists the thematic-area rows alphabetically within each A-E block.
+      include: { thematicAreas: { orderBy: { name: "asc" } } },
     }),
     prisma.oft.findMany({
       where: scope.kvkId ? { kvkId: scope.kvkId } : { zoneId: scope.zoneId },
@@ -764,7 +765,7 @@ async function buildPublications(scope: ReportScope): Promise<CustomTableResult>
     heading: `KVK: ${kvkName}`,
     parts: [...groupInto(recs, (r) => r.itemName).entries()].map(([itemName, items]) => ({
       kind: "grid" as const,
-      caption: `Publication Item: ${itemName}`,
+      titleBands: [`Publication Item: ${itemName}`],
       columns: colsFor(itemName),
       rows: items.map(rowFor),
     })),
@@ -1278,10 +1279,17 @@ async function buildTrainings(scope: ReportScope): Promise<CustomTableResult> {
     ...casteMftColumns("No. of Participants"),
   ];
   const label = (v: string | null) => v?.trim() || "Not specified";
-  const consolidateRows = (outerField: "trainingType" | "clientele") => {
-    const rows: Record<string, string>[] = [];
+
+  /**
+   * super-v2-prod.pdf p.38-39: each `outerField` value ("Farmers and Farm
+   * Women", "Rural Youth", ...) is its own headed sub-table; inside it the
+   * Training Area is a banded row and each Thematic Area is a data row with a
+   * "Sub Total" per area. One composite block per outer value.
+   */
+  const consolidateBlocks = (outerField: "trainingType" | "clientele"): ReportBlock[] => {
+    const blocks: ReportBlock[] = [];
     for (const [outer, outerRows] of groupInto(trainings, (t) => label(t[outerField]))) {
-      rows.push({ row: outer });
+      const rows: Record<string, string>[] = [];
       for (const [area, areaRows] of groupInto(outerRows, (t) => label(t.trainingArea))) {
         rows.push({ row: area });
         for (const [thematic, tRows] of groupInto(areaRows, (t) => label(t.thematicArea))) {
@@ -1289,8 +1297,12 @@ async function buildTrainings(scope: ReportScope): Promise<CustomTableResult> {
         }
         rows.push({ row: "Sub Total", courses: String(areaRows.length), ...casteMftRow(areaRows) });
       }
+      blocks.push({
+        heading: outer,
+        parts: [{ kind: "grid", noSerial: true, keepEmpty: true, columns: consolidateColumns, rows }],
+      });
     }
-    return rows;
+    return blocks;
   };
 
   return {
@@ -1307,14 +1319,10 @@ async function buildTrainings(scope: ReportScope): Promise<CustomTableResult> {
           },
         ],
       },
-      {
-        heading: "2.4.A - Consolidate table (On & Off Campus) Training Type Wise",
-        parts: [{ kind: "grid", noSerial: true, columns: consolidateColumns, rows: consolidateRows("trainingType") }],
-      },
-      {
-        heading: "2.4.C - Consolidate table (On & Off Campus) Clientele Wise",
-        parts: [{ kind: "grid", noSerial: true, columns: consolidateColumns, rows: consolidateRows("clientele") }],
-      },
+      { heading: "2.4.A - Consolidate table (On & Off Campus) Training Type Wise", parts: [] },
+      ...consolidateBlocks("trainingType"),
+      { heading: "2.4.C - Consolidate table (On & Off Campus) Clientele Wise", parts: [] },
+      ...consolidateBlocks("clientele"),
     ],
   };
 }
@@ -1589,12 +1597,12 @@ async function buildCelebrationDays(scope: ReportScope): Promise<CustomTableResu
 function perKvkBlocks<R extends { kvk: { name: string } }>(
   records: R[],
   columns: ReportColumn[],
-  rowOf: (r: R) => Record<string, string>,
+  rowOf: (r: R, index: number) => Record<string, string>,
   totalOf: (list: R[], firstKey: string) => Record<string, string> | null,
 ): ReportBlock[] {
   const firstKey = columns[0].key;
   return [...groupInto(records, (r) => r.kvk.name).entries()].map(([kvkName, list]) => {
-    const rows = list.map(rowOf);
+    const rows = list.map((r, i) => rowOf(r, i));
     const total = totalOf(list, firstKey);
     return {
       heading: kvkName,
@@ -1623,6 +1631,7 @@ async function buildWorldSoilDay(scope: ReportScope): Promise<CustomTableResult>
   type R = (typeof records)[number];
 
   const columns: ReportColumn[] = [
+    { key: "sl", label: "Sl." },
     { key: "year", label: "Year" },
     { key: "acts", label: "No. of Activity conducted" },
     { key: "shc", label: "Soil Health Cards distributed" },
@@ -1631,7 +1640,8 @@ async function buildWorldSoilDay(scope: ReportScope): Promise<CustomTableResult>
     { key: "vipNames", label: "Name(s) of VIP(s) involved if any" },
     { key: "participants", label: "Total No. of Participants attended the program" },
   ];
-  const rowOf = (r: R) => ({
+  const rowOf = (r: R, index: number) => ({
+    sl: String(index + 1),
     year: r.reportingYear != null ? String(r.reportingYear) : "",
     acts: String(r.noOfActivitiesConducted),
     shc: String(r.soilHealthCardsDistributed),
@@ -1640,8 +1650,9 @@ async function buildWorldSoilDay(scope: ReportScope): Promise<CustomTableResult>
     vipNames: r.vipNames ?? "",
     participants: String(r.totalParticipants),
   });
-  const totalOf = (list: R[]): Record<string, string> => ({
-    year: "Total",
+  const totalOf = (list: R[], slLabel: string): Record<string, string> => ({
+    sl: slLabel,
+    year: "",
     acts: String(list.reduce((s, r) => s + r.noOfActivitiesConducted, 0)),
     shc: String(list.reduce((s, r) => s + r.soilHealthCardsDistributed, 0)),
     ...casteMftRow(list, "", false),
@@ -1652,8 +1663,8 @@ async function buildWorldSoilDay(scope: ReportScope): Promise<CustomTableResult>
 
   return {
     blocks: [
-      ...perKvkBlocks(records, columns, rowOf, (list) => totalOf(list)),
-      { heading: "Grand Total (all KVKs)", parts: [{ kind: "grid", noSerial: true, columns, rows: [{ ...totalOf(records), year: "" }] }] },
+      ...perKvkBlocks(records, columns, rowOf, (list) => totalOf(list, "Total")),
+      { heading: "Grand Total (all KVKs)", parts: [{ kind: "grid", noSerial: true, columns, rows: [totalOf(records, "")] }] },
     ],
   };
 }
@@ -1673,6 +1684,9 @@ async function buildPoshanMaah(scope: ReportScope): Promise<CustomTableResult> {
   if (records.length === 0) return {};
   type R = (typeof records)[number];
 
+  // super-v2-prod.pdf p.41: the six participant categories sit under the "No.
+  // of participants" group header; "Total Participants" is its own column
+  // after the group, not inside it.
   const P = "No. of participants";
   const columns: ReportColumn[] = [
     { key: "date", label: "Datewise activity" },
@@ -1680,13 +1694,13 @@ async function buildPoshanMaah(scope: ReportScope): Promise<CustomTableResult> {
     { key: "event", label: "Name of Event/Programme" },
     { key: "saplings", label: "No. of saplings planted" },
     { key: "kits", label: "No. of vegetable kits distributed" },
-    { key: "pTotal", label: "Total Participants", groups: [P] },
     { key: "pGirls", label: "Girls", groups: [P] },
     { key: "pFarmWoman", label: "Farm Woman", groups: [P] },
     { key: "pFarmers", label: "Farmers", groups: [P] },
     { key: "pAnganwadi", label: "Anganwadi Workers", groups: [P] },
     { key: "pGovt", label: "Govt Officials", groups: [P] },
     { key: "pPublic", label: "Public Representatives", groups: [P] },
+    { key: "pTotal", label: "Total Participants" },
   ];
   const rowOf = (r: R) => ({
     date: stringifyValue(r.activityDate),
@@ -1845,7 +1859,7 @@ async function buildTechnicalAchievementSummary(scope: ReportScope): Promise<Cus
     prisma.otherExtensionActivity.findMany({ where, select: { natureOfExtensionActivity: true, noOfActivities: true } }),
     prisma.technologyProductProduction.findMany({
       where,
-      select: { productCategory: true, quantity: true, value: true, ...CASTE_SELECT },
+      select: { productCategory: true, category: true, quantity: true, value: true, ...CASTE_SELECT },
     }),
     prisma.target.findMany({
       where: scope.kvkId ? { kvkId: scope.kvkId } : { zoneId: scope.zoneId },
@@ -1864,12 +1878,14 @@ async function buildTechnicalAchievementSummary(scope: ReportScope): Promise<Cus
     farmerGroup: string,
     casteRecords: CasteRecord[],
   ): ReportBlock => ({
-    heading,
-    notes: note ? [note] : undefined,
+    // super-v2-prod.pdf p.19-21 draws the "OFT" / "No. of Technologies Tested"
+    // labels as banded rows joined to the grid, not loose headings above it.
+    heading: "",
     parts: [
       {
         kind: "grid",
         noSerial: true,
+        titleBands: note ? [heading, note] : [heading],
         columns: [
           ...metricCols.map((c) => ({ ...c, groups: [metricGroup] })),
           { key: "farmerTarget", label: "Farmer Target", groups: [farmerGroup] },
@@ -1903,11 +1919,12 @@ async function buildTechnicalAchievementSummary(scope: ReportScope): Promise<Cus
       { target: targetOf("Extension Activity"), ach: String(extensions.reduce((s, r) => s + r.noOfActivities, 0)) },
       "Number of Participants", extCaste),
     {
-      heading: "Other Extension Activities",
+      heading: "",
       parts: [
         {
           kind: "grid",
           noSerial: true,
+          titleBands: ["Other Extension Activities"],
           columns: [
             { key: "type", label: "Activity Type" },
             { key: "count", label: "Number of Activities" },
@@ -1922,9 +1939,17 @@ async function buildTechnicalAchievementSummary(scope: ReportScope): Promise<Cus
     },
   ];
 
-  for (const [cat, list] of groupInto(production, (r) => (r.productCategory ?? "").trim() || "Production")) {
+  // Product Category Master values already read "Production of Seed" etc.; only
+  // when a record has none do we build the label from its finer `category`.
+  const productionLabel = (r: { productCategory: string | null; category: string }) => {
+    const pc = r.productCategory?.trim();
+    if (pc) return pc.toLowerCase().startsWith("production") ? pc : `Production of ${pc}`;
+    const c = r.category?.trim();
+    return c ? `Production of ${c}` : "Production";
+  };
+  for (const [label, list] of groupInto(production, productionLabel)) {
     blocks.push(
-      oneRow(`Production of ${cat}`, `Production of ${cat}`, `Production of ${cat}`,
+      oneRow(label, "", label,
         [
           { key: "target", label: "Target" },
           { key: "qty", label: "Quantity" },
@@ -2002,11 +2027,14 @@ async function buildProductionAndSupply(scope: ReportScope): Promise<CustomTable
 
   const blocks: ReportBlock[] = categoryNames.map((cat, ci): ReportBlock => {
     const inCat = records.filter((r) => (r.productCategory ?? "") === cat);
+    // Product Category Master values already read "Production of Seed" etc.,
+    // so strip that prefix before the builder re-adds its own.
+    const catName = cat.replace(/^production of\s+/i, "");
 
     // View 1: state-wise total quantity
     const v1Cols: ReportColumn[] = [
       { key: "state", label: "States" },
-      { key: "prod", label: `Production of ${cat}` },
+      { key: "prod", label: `Production of ${catName}` },
     ];
     const v1Rows = stateNames.map((s) => ({ state: s, prod: String(qty(inCat.filter((r) => r.kvk.state.name === s))) }));
 
@@ -2026,7 +2054,7 @@ async function buildProductionAndSupply(scope: ReportScope): Promise<CustomTable
     }
 
     return {
-      heading: `${letters[ci] ?? String(ci + 1)}. Production of ${cat}`,
+      heading: `${letters[ci] ?? String(ci + 1)}. Production of ${catName}`,
       parts: [
         {
           kind: "grid",
@@ -2034,7 +2062,7 @@ async function buildProductionAndSupply(scope: ReportScope): Promise<CustomTable
           columns: v1Cols,
           rows: v1Rows,
           totalRow: { state: "Total", prod: String(qty(inCat)) },
-          caption: `1. State-wise details of Production of ${cat}`,
+          caption: `1. State-wise details of Production of ${catName}`,
         },
         {
           kind: "grid",
@@ -2521,7 +2549,17 @@ async function buildStaffQuarters(scope: ReportScope): Promise<CustomTableResult
     orderBy: { kvk: { name: "asc" } },
   });
 
-  const blocks: ReportBlock[] = records.map((rec) => {
+  // super-v2-prod.pdf prints this descriptive line once above the per-KVK blocks.
+  const blocks: ReportBlock[] = [
+    { heading: "Utilization of Staff Quarters Whether Staff Quarters has been Completed", parts: [] },
+  ];
+
+  // The Super Admin report carries the KVK name as the summary grid's first
+  // column (many KVKs on one page); the single-KVK report keeps it as the
+  // block heading, matching each reference PDF.
+  const perKvkColumn = !scope.kvkId;
+
+  for (const rec of records) {
     const maxQuarter = Math.max(
       rec.numberOfQuarters,
       0,
@@ -2530,12 +2568,14 @@ async function buildStaffQuarters(scope: ReportScope): Promise<CustomTableResult
     const summary: ReportGrid = {
       noSerial: true,
       columns: [
+        ...(perKvkColumn ? [{ key: "kvk", label: "KVK" }] : []),
         { key: "doc", label: "Date of Completion" },
         { key: "count", label: "No.of Staff Quarters" },
         { key: "occ", label: "Occupancy Details" },
       ],
       rows: [
         {
+          ...(perKvkColumn ? { kvk: rec.kvk?.name ?? "" } : {}),
           doc: stringifyValue(rec.dateOfCompletion),
           count: String(rec.numberOfQuarters),
           occ: rec.remark ?? "",
@@ -2561,8 +2601,8 @@ async function buildStaffQuarters(scope: ReportScope): Promise<CustomTableResult
       parts.push({ kind: "grid", noSerial: true, columns: gridColumns, rows: gridRows });
     }
 
-    return { heading: rec.kvk?.name ?? "", parts };
-  });
+    blocks.push({ heading: perKvkColumn ? "" : (rec.kvk?.name ?? ""), parts });
+  }
 
   return { blocks };
 }
@@ -2759,9 +2799,10 @@ async function buildBudgetDetails(scope: ReportScope): Promise<CustomTableResult
 /** 4.2.A "District Level Data" (super-v2-prod.pdf p.84-85) - four stacked grids: general items, crop productivity, monthly weather (no backing model yet - omitted, flagged), livestock products. */
 async function buildDistrictLevelData(scope: ReportScope): Promise<CustomTableResult> {
   const where = scope.kvkId ? { kvkId: scope.kvkId } : { zoneId: scope.zoneId };
-  const [items, crops, livestock] = await Promise.all([
+  const [items, crops, weather, livestock] = await Promise.all([
     prisma.districtLevelData.findMany({ where, select: { items: true, information: true } }),
     prisma.districtCropProductivity.findMany({ where, select: { season: true, type: true, cropName: true, areaHa: true, productionMt: true, productivityQha: true, remarks: true } }),
+    prisma.districtMonthlyWeather.findMany({ where, select: { month: true, rainfallMm: true, maxTempC: true, minTempC: true, maxRhPct: true, minRhPct: true, remarks: true } }),
     prisma.districtLivestockProduction.findMany({ where, select: { livestockName: true, number: true, remarks: true } }),
   ]);
   return {
@@ -2779,6 +2820,21 @@ async function buildDistrictLevelData(scope: ReportScope): Promise<CustomTableRe
             { key: "areaHa", label: "Area(Ha)" }, { key: "productionMt", label: "Production(MT)" }, { key: "productivityQha", label: "Productivity(q/ha)" }, { key: "remarks", label: "Remarks" },
           ],
           rows: crops.map((r) => ({ season: r.season, type: r.type, cropName: r.cropName, areaHa: stringifyValue(r.areaHa), productionMt: stringifyValue(r.productionMt), productivityQha: stringifyValue(r.productivityQha), remarks: r.remarks ?? "" })),
+        }],
+      },
+      {
+        heading: "2.a.2 Mean yearly temperature, rainfall, humidity of the district",
+        parts: [{
+          kind: "grid", noSerial: false,
+          columns: [
+            { key: "month", label: "Month" }, { key: "rain", label: "Rainfall(mm)" },
+            { key: "maxT", label: "Max. Temp. (0C)" }, { key: "minT", label: "Min. Temp. (0C)" },
+            { key: "maxRh", label: "Max. R.H. (%)" }, { key: "minRh", label: "Min. R.H. (%)" }, { key: "remarks", label: "Remarks" },
+          ],
+          rows: weather.map((r) => ({
+            month: r.month, rain: stringifyValue(r.rainfallMm), maxT: stringifyValue(r.maxTempC), minT: stringifyValue(r.minTempC),
+            maxRh: stringifyValue(r.maxRhPct), minRh: stringifyValue(r.minRhPct), remarks: r.remarks ?? "",
+          })),
         }],
       },
       {
@@ -3140,7 +3196,9 @@ const SECTION_456_BUILDERS: Record<string, (scope: ReportScope) => Promise<Custo
     columns: [
       { key: "startDate", label: "Start Date" }, { key: "endDate", label: "End Date" }, { key: "participants", label: "No of Participants" },
       { key: "statutoryMembers", label: "Total Statutory Members Present" }, { key: "recommendations", label: "Salient Recommendations" },
-      { key: "actionTaken", label: "Action Taken In Compliance" }, { key: "reason", label: "Reason" },
+      { key: "actionTaken", label: "Taken", groups: ["Action"] },
+      { key: "actionCompliance", label: "In Compliance", groups: ["Action"] },
+      { key: "reason", label: "Reason", groups: ["Action"] },
     ],
   }),
   otherMeeting: flatReportTable({
@@ -3200,7 +3258,7 @@ const MISCELLANEOUS_SECTION: Sec = {
       { code: "5.3.A", title: "RAWE/FET programme", model: "raweFetFitProgramme", scope: "direct" },
       { code: "5.3.B", title: "List of VIP visitors", model: "vipVisitor", scope: "direct" },
       { code: "5.3.C", title: "Details of Mobile App", model: "digitalMobileApp", scope: "direct" },
-      { code: "5.3.D", title: "Details of Web Portal", model: "digitalWebPortal", scope: "direct" },
+      { code: "5.3.D", title: "Details of KVK Portal", model: "digitalWebPortal", scope: "direct" },
       { code: "5.3.E", title: "Details of Kisan Sarathi", model: "digitalKisanSarathi", scope: "direct" },
       { code: "5.3.F", title: "Kisan Mobile Advisory Services/KMAS", model: "digitalKmas", scope: "direct" },
       { code: "5.3.G", title: "Details of messages sent through other channels", model: "digitalOtherChannel", scope: "direct" },
@@ -3362,7 +3420,7 @@ async function buildNicraConvergence(scope: ReportScope): Promise<CustomTableRes
 async function buildNicraDignitaries(scope: ReportScope): Promise<CustomTableResult> {
   const records = await prisma.nicraDignitaryVisit.findMany({
     where: scope.kvkId ? { kvkId: scope.kvkId } : { zoneId: scope.zoneId },
-    select: { vipExperts: true, name: true, dateOfVisit: true, kvk: { select: { name: true } } },
+    select: { vipExperts: true, name: true, dateOfVisit: true, remark: true, kvk: { select: { name: true } } },
     orderBy: [{ kvkId: "asc" }, { dateOfVisit: "asc" }],
   });
   if (records.length === 0) return {};
@@ -3371,9 +3429,10 @@ async function buildNicraDignitaries(scope: ReportScope): Promise<CustomTableRes
     { key: "date", label: "Date of Visit" },
     { key: "type", label: "Dignitary Type" },
     { key: "name", label: "Name" },
+    { key: "remark", label: "Remark" },
   ];
-  const rowOf = (r: R) => ({ date: stringifyValue(r.dateOfVisit), type: r.vipExperts, name: r.name });
-  const subtotalOf = (list: R[], label: string) => ({ date: `${label} (visits)`, type: "", name: String(list.length) });
+  const rowOf = (r: R) => ({ date: stringifyValue(r.dateOfVisit), type: r.vipExperts, name: r.name, remark: r.remark ?? "" });
+  const subtotalOf = (list: R[], label: string) => ({ date: `${label} (visits)`, type: "", name: "", remark: String(list.length) });
   return { blocks: kvkBlocksWithGrandTotal(records, columns, rowOf, subtotalOf) };
 }
 
@@ -3735,23 +3794,29 @@ async function buildAgriDroneIntroduction(scope: ReportScope): Promise<CustomTab
     orderBy: { year: "asc" },
   });
   if (records.length === 0) return {};
-  const blocks: ReportBlock[] = records.map((r) => ({
-    heading: r.centreName ?? "Agri Drone",
-    parts: [
-      {
-        kind: "grid" as const,
-        noSerial: true,
-        columns: [
-          { key: "param", label: "Name of parameter" },
-          { key: "detail", label: "Details of parameter" },
-        ],
-        rows: AGRI_DRONE_PARAMS.map((p, i) => ({
-          param: `${i + 1} ${p.label}`,
-          detail: p.key === "_companyModel" ? `${r.companyOfDrone ?? ""} and ${r.modelOfDrone ?? ""}` : stringifyValue(r[p.key]),
-        })),
-      },
-    ],
-  }));
+  const blocks: ReportBlock[] = [
+    { heading: "Information of Agri Drone project implementation by the different Institutions/KVK", align: "center", parts: [] },
+  ];
+  for (const r of records) {
+    blocks.push({
+      // super-v2-prod.pdf p.78-79 runs the per-PIC parameter tables back to
+      // back with a real S.No. column; the PIC name is row 1's value, not a heading.
+      heading: "",
+      parts: [
+        {
+          kind: "grid" as const,
+          columns: [
+            { key: "param", label: "Name of parameter" },
+            { key: "detail", label: "Details of parameter" },
+          ],
+          rows: AGRI_DRONE_PARAMS.map((p) => ({
+            param: p.label,
+            detail: p.key === "_companyModel" ? `${r.companyOfDrone ?? ""} and ${r.modelOfDrone ?? ""}` : stringifyValue(r[p.key]),
+          })),
+        },
+      ],
+    });
+  }
   return { blocks };
 }
 
@@ -4033,8 +4098,12 @@ async function buildCfldTechnicalParameter(scope: ReportScope): Promise<CustomTa
   const blocks: ReportBlock[] = [];
   [...groupInto(records, (r) => r.cropType ?? "Not Specified").entries()].forEach(([category, catRecords], ci) => {
     const byState = [...groupInto(catRecords, (r) => r.kvk.state?.name ?? "").entries()];
+    // super-v2-prod.pdf p.55: "1. Oilseed" is its own heading, then the
+    // "State wise details..." / "Cluster Front Line Demonstration on <season>"
+    // sub-tables follow without repeating the crop category in their titles.
+    blocks.push({ heading: `${ci + 1}. ${category}`, parts: [] });
     blocks.push({
-      heading: `${ci + 1}. ${category} - State wise details of Cluster Front Line Demonstration`,
+      heading: "State wise details of Cluster Front Line Demonstration",
       parts: [{
         kind: "grid" as const,
         columns: stateCols,
@@ -4045,7 +4114,7 @@ async function buildCfldTechnicalParameter(scope: ReportScope): Promise<CustomTa
     for (const [season, seasonRecords] of groupInto(catRecords, (r) => r.season || "Not Specified").entries()) {
       const byCropState = [...groupInto(seasonRecords, (r) => `${r.crop}||${r.kvk.state?.name ?? ""}`).entries()];
       blocks.push({
-        heading: `${category} - Cluster Front Line Demonstration on ${season}`,
+        heading: `Cluster Front Line Demonstration on ${season}`,
         parts: [{
           kind: "grid" as const,
           columns: seasonCols,

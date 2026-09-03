@@ -1,10 +1,11 @@
 "use client";
 
-import { Fragment } from "react";
-import { ArrowUp } from "lucide-react";
+import { Fragment, useState, type ReactNode } from "react";
+import { ArrowUp, ChevronLeft, ChevronRight } from "lucide-react";
 import {
   buildHeaderMatrix,
   isRedundantTableHeading,
+  splitNoteLabel,
   type ReportBlock,
   type ReportColumn,
   type ReportGrid,
@@ -32,10 +33,29 @@ const TH_BASE =
 const TD_BASE = "border-b border-l border-border px-2.5 py-1.5 align-top text-foreground";
 
 /** N-row grouped header for a grid, from the shared header matrix (super-v2-prod.pdf's pivots go up to ~6 levels). */
-function GridHead({ columns, serial }: { columns: ReportColumn[]; serial: boolean }) {
-  const matrix = buildHeaderMatrix(columns, serial ? "S.No." : undefined);
+function GridHead({
+  columns,
+  serial,
+  titleBands,
+}: {
+  columns: ReportColumn[];
+  serial: boolean;
+  titleBands?: string[];
+}) {
+  const matrix = buildHeaderMatrix(columns, serial ? "Sl. No." : undefined);
+  const totalCols = (serial ? 1 : 0) + columns.length;
   return (
     <thead>
+      {(titleBands ?? []).map((band, i) => (
+        <tr key={`band-${i}`}>
+          <th
+            colSpan={totalCols}
+            className={`${TH_BASE} border-l text-left ${i === 0 ? "bg-muted/60 font-bold" : "bg-muted/30 font-semibold"}`}
+          >
+            {band}
+          </th>
+        </tr>
+      ))}
       {matrix.map((row, r) => (
         <tr key={r} className="bg-muted/60 text-left">
           {row.map((cell, c) => (
@@ -85,7 +105,7 @@ function Grid({ grid }: { grid: ReportGrid }) {
       {grid.caption && <Caption text={grid.caption} />}
       <div className="overflow-x-auto rounded-md border border-border">
         <table className="w-full border-collapse text-sm">
-          <GridHead columns={grid.columns} serial={serial} />
+          <GridHead columns={grid.columns} serial={serial} titleBands={grid.titleBands} />
           <tbody>
             {grid.rows.map((row, rowIndex) => (
               <tr key={rowIndex} className="odd:bg-background even:bg-muted/20">
@@ -173,12 +193,20 @@ function CompositeBlock({ block }: { block: ReportBlock }) {
   }
   return (
     <div className="space-y-2">
-      <p className="text-sm font-semibold text-foreground">{block.heading}</p>
+      {block.heading && (
+        <p className="text-sm font-semibold text-foreground">{block.heading}</p>
+      )}
       {block.notes && block.notes.length > 0 && (
         <ul className="space-y-0.5 text-xs text-muted-foreground">
-          {block.notes.map((note, index) => (
-            <li key={index}>{note}</li>
-          ))}
+          {block.notes.map((note, index) => {
+            const { label, value } = splitNoteLabel(note);
+            return (
+              <li key={index}>
+                <span className="font-semibold text-foreground">{label}</span>
+                {value ? ` ${value}` : ""}
+              </li>
+            );
+          })}
         </ul>
       )}
       {block.parts.map((part, index) => (
@@ -232,9 +260,9 @@ function TocTableLines({ sub }: { sub: ReportSubsection }) {
   }
 
   return (
-    <ul className="mt-0.5 space-y-0.5">
+    <ul className="mt-1.5 space-y-1.5">
       {entries.map((entry) => (
-        <li key={entry.key} className="pl-4">
+        <li key={entry.key} className="border-l border-border/60 pl-4">
           <a
             href={entry.anchor}
             className="text-muted-foreground hover:text-foreground hover:underline"
@@ -251,24 +279,24 @@ function TableOfContents({ sections }: { sections: ReportSection[] }) {
   return (
     <nav
       aria-label="Report contents"
-      className="rounded-md border border-border bg-muted/20 p-4 text-sm"
+      className="rounded-md border border-border bg-muted/20 p-5 text-sm"
     >
-      <p className="mb-2 text-sm font-bold text-foreground">Table of Contents</p>
-      <ul className="space-y-1">
+      <p className="mb-3 text-base font-bold text-foreground">Table of Contents</p>
+      <ul className="space-y-5">
         {sections.map((section) => (
           <li key={section.num}>
             <a
               href={`#${anchorId("sec", section.num)}`}
-              className="font-semibold text-primary hover:underline"
+              className="block border-b border-primary/30 pb-1 font-semibold tracking-wide text-primary uppercase hover:underline"
             >
               {section.num}. {section.title}
             </a>
-            <ul className="mt-0.5 space-y-0.5">
+            <ul className="mt-2 space-y-3">
               {section.subsections.map((sub) => (
-                <li key={sub.num} className="pl-4">
+                <li key={sub.num}>
                   <a
                     href={`#${anchorId("sub", sub.num)}`}
-                    className="text-foreground hover:underline"
+                    className="font-medium text-foreground hover:underline"
                   >
                     {sub.num} {sub.title}
                   </a>
@@ -321,16 +349,30 @@ function SubsectionTables({ sub }: { sub: ReportSubsection }) {
       })}
 
       {sub.images && sub.images.length > 0 && (
-        <div className="space-y-1.5">
-          <p className="text-sm font-medium text-foreground">Module Images</p>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+        <div className="space-y-2 border-t border-border pt-3">
+          <p className="text-sm font-semibold text-foreground">
+            Photographs
+            <span className="ml-1 font-normal text-muted-foreground">({sub.images.length})</span>
+          </p>
+          <div className="grid gap-4 sm:grid-cols-2">
             {sub.images.map((img, i) => (
-              <figure key={i} className="space-y-1 rounded-md border border-border p-2">
+              <figure
+                key={i}
+                className="overflow-hidden rounded-md border border-border bg-muted/20"
+              >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={img.url} alt={img.caption} className="h-32 w-full rounded object-cover" />
-                <figcaption className="text-xs text-muted-foreground">
-                  {img.caption}
-                  {img.category ? <span className="block text-[10px] opacity-70">{img.category}{img.date ? ` · ${img.date}` : ""}</span> : null}
+                <img
+                  src={img.url}
+                  alt={img.caption}
+                  className="max-h-72 w-full bg-background object-contain"
+                />
+                <figcaption className="space-y-0.5 border-t border-border px-3 py-2 text-xs">
+                  <span className="block font-medium text-foreground">
+                    {img.caption || "Untitled"}
+                  </span>
+                  <span className="block text-[11px] text-muted-foreground">
+                    {[img.category, img.date].filter(Boolean).join(" · ")}
+                  </span>
                 </figcaption>
               </figure>
             ))}
@@ -341,6 +383,42 @@ function SubsectionTables({ sub }: { sub: ReportSubsection }) {
   );
 }
 
+/** Trims the leading section number word so the nav pills stay short ("Achievements", not "2. ACHIEVEMENTS"). */
+function shortSectionTitle(title: string) {
+  return title.replace(/^[0-9.]+\s*/, "");
+}
+
+function NavPill({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`rounded-full border px-3 py-1 text-xs font-medium whitespace-nowrap transition-colors ${
+        active
+          ? "border-primary bg-primary text-primary-foreground"
+          : "border-border bg-background text-muted-foreground hover:border-primary/40 hover:text-foreground"
+      }`}
+    >
+      {children}
+    </button>
+  );
+}
+
+/**
+ * On-screen preview. Rather than one endless scroll of every section, the
+ * reader moves through the report a section at a time (with an "All
+ * sections" option), a sticky section switcher up top and Previous/Next
+ * controls at the foot - the same tables/TOC as before, just paged so a
+ * 100+ table report stays readable.
+ */
 export function ReportPreviewDocument({
   zoneLabel,
   kvkNames,
@@ -350,12 +428,24 @@ export function ReportPreviewDocument({
   kvkNames: string[];
   sections: ReportSection[];
 }) {
+  const [view, setView] = useState<string>(sections[0]?.num ?? "all");
+
+  const goto = (next: string) => {
+    setView(next);
+    document.getElementById("report-top")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
+  const shown = view === "all" ? sections : sections.filter((s) => s.num === view);
+  const activeIndex = sections.findIndex((s) => s.num === view);
+  const prev = activeIndex > 0 ? sections[activeIndex - 1] : null;
+  const nextSection = activeIndex >= 0 && activeIndex < sections.length - 1 ? sections[activeIndex + 1] : null;
+
   return (
     <div
       id="report-top"
-      className="space-y-8 rounded-lg border border-border bg-card p-5 [&_[id^=report-]]:scroll-mt-4"
+      className="overflow-hidden rounded-lg border border-border bg-card [&_[id^=report-]]:scroll-mt-20"
     >
-      <header className="space-y-1 border-b border-border pb-4 text-center">
+      <header className="space-y-1 border-b border-border p-5 pb-4 text-center">
         <p className="text-sm font-semibold tracking-wide text-primary uppercase">
           {zoneLabel}
         </p>
@@ -368,31 +458,75 @@ export function ReportPreviewDocument({
         </p>
       </header>
 
-      <TableOfContents sections={sections} />
+      <div className="sticky top-0 z-10 flex gap-1.5 overflow-x-auto border-b border-border bg-card/95 px-4 py-2.5 backdrop-blur supports-[backdrop-filter]:bg-card/80">
+        <NavPill active={view === "all"} onClick={() => goto("all")}>
+          All sections
+        </NavPill>
+        {sections.map((section) => (
+          <NavPill key={section.num} active={view === section.num} onClick={() => goto(section.num)}>
+            {section.num}. {shortSectionTitle(section.title)}
+          </NavPill>
+        ))}
+      </div>
 
-      {sections.map((section) => (
-        <section key={section.num} className="space-y-5">
-          <h3
-            id={anchorId("sec", section.num)}
-            className="border-b-2 border-primary/30 pb-1 text-center text-base font-bold tracking-wide text-primary uppercase"
+      <div className="mx-auto max-w-4xl space-y-8 p-5">
+        {view === "all" && <TableOfContents sections={sections} />}
+
+        {shown.map((section) => (
+          <section key={section.num} className="space-y-5">
+            <h3
+              id={anchorId("sec", section.num)}
+              className="border-b-2 border-primary/30 pb-1 text-center text-base font-bold tracking-wide text-primary uppercase"
+            >
+              {section.num}. {section.title}
+            </h3>
+
+            {view !== "all" && <TableOfContents sections={[section]} />}
+
+            {section.subsections.map((sub) => (
+              <div
+                key={sub.num}
+                className="rounded-lg border border-border bg-background p-4 shadow-sm"
+              >
+                <SubsectionTables sub={sub} />
+              </div>
+            ))}
+          </section>
+        ))}
+
+        <div className="flex items-center justify-between gap-3 border-t border-border pt-3">
+          <div>
+            {view !== "all" && prev && (
+              <button
+                type="button"
+                onClick={() => goto(prev.num)}
+                className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+              >
+                <ChevronLeft className="size-3.5" />
+                {prev.num}. {shortSectionTitle(prev.title)}
+              </button>
+            )}
+          </div>
+          <a
+            href="#report-top"
+            className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground hover:underline"
           >
-            {section.num}. {section.title}
-          </h3>
-
-          {section.subsections.map((sub) => (
-            <SubsectionTables key={sub.num} sub={sub} />
-          ))}
-        </section>
-      ))}
-
-      <div className="border-t border-border pt-3">
-        <a
-          href="#report-top"
-          className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
-        >
-          <ArrowUp className="size-3.5" />
-          Back to top
-        </a>
+            <ArrowUp className="size-3.5" />
+            Top
+          </a>
+          <div className="text-right">
+            {view !== "all" && nextSection && (
+              <button
+                type="button"
+                onClick={() => goto(nextSection.num)}
+                className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+              >
+                {nextSection.num}. {shortSectionTitle(nextSection.title)}
+                <ChevronRight className="size-3.5" />
+              </button>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );

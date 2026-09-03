@@ -74,6 +74,8 @@ export type ReportGrid = {
   noSerial?: boolean;
   /** Render the header even with no rows, and skip the "No data available" note - super-v2-prod.pdf's empty "Table 2" result grids print as a bare header. */
   keepEmpty?: boolean;
+  /** Full-width bordered rows drawn inside the table, above the column header - super-v2-prod.pdf's 2.1.A boxes each sub-block ("OFT", then "No. of Technologies Tested") as banded rows joined to the grid rather than loose headings. */
+  titleBands?: string[];
 };
 
 export type ReportPairList = {
@@ -144,6 +146,19 @@ export function isRedundantTableHeading(
   table: { code: string; title: string },
 ) {
   return table.code === sub.num && table.title === sub.title;
+}
+
+/**
+ * A composite-block note like "• Thematic area: Horticulture" prints in
+ * super-v2-prod.pdf with the leading label ("• Thematic area:") bold and the
+ * value that follows in normal weight. Splits on the first colon so every
+ * renderer can bold the same span; a note with no colon has an empty `value`
+ * and renders whole.
+ */
+export function splitNoteLabel(note: string): { label: string; value: string } {
+  const i = note.indexOf(":");
+  if (i === -1) return { label: note, value: "" };
+  return { label: note.slice(0, i + 1), value: note.slice(i + 1).replace(/^\s+/, "") };
 }
 
 /**

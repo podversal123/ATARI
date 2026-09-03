@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireSession } from "@/lib/api-auth";
-import { LEAF_RECORD_REGISTRY } from "@/lib/leaf-record-registry";
+import { LEAF_RECORD_REGISTRY, syncLeafModuleImages } from "@/lib/leaf-record-registry";
 import { safeErrorMessage } from "@/lib/safe-error-message";
 
 export async function POST(request: Request) {
@@ -35,7 +35,20 @@ export async function POST(request: Request) {
   }
 
   try {
-    await create(values, { kvkId, zoneId: auth.session.zoneId });
+    const record = await create(values, { kvkId, zoneId: auth.session.zoneId });
+    const recordId = (record as { id?: string } | null)?.id;
+    if (recordId) {
+      // Every generic leaf form now carries an end-of-form Photographs (with
+      // caption) section; whatever is attached flows into Module Images ->
+      // Reports, keyed by this new record's id.
+      await syncLeafModuleImages(path, values.moduleImages, {
+        kvkId,
+        zoneId: auth.session.zoneId,
+        formRecordId: recordId,
+        values,
+        uploadedById: auth.session.sub,
+      });
+    }
     return NextResponse.json({ ok: true }, { status: 201 });
   } catch (error) {
     const message = safeErrorMessage(error, "Could not save this record.");

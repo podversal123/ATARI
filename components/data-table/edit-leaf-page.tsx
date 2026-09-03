@@ -64,6 +64,7 @@ export function EditLeafPage({
       setLoadError(true);
       return;
     }
+    let cancelled = false;
     try {
       const row = JSON.parse(raw) as Record<string, string>;
       const values: Record<string, string> = {};
@@ -79,10 +80,29 @@ export function EditLeafPage({
         values[column.key] = row[column.key] != null ? String(row[column.key]) : "";
       }
       setFormValues(values);
+
+      // The Photographs section isn't part of the list row - load this
+      // record's own Module Images so an edit reconciles against the real
+      // current set rather than wiping it on save.
+      const hasPhotos = columns.some((column) => column.fieldKind === "photos");
+      if (hasPhotos && recordKind === "form" && !values.moduleImages) {
+        fetch(`/api/leaf-record/module-images?recordId=${encodeURIComponent(id)}`)
+          .then((res) => (res.ok ? res.json() : { photos: [] }))
+          .then((data: { photos?: { url: string; caption: string }[] }) => {
+            if (cancelled || !data.photos?.length) return;
+            setFormValues((prev) =>
+              prev ? { ...prev, moduleImages: JSON.stringify(data.photos) } : prev,
+            );
+          })
+          .catch(() => {});
+      }
     } catch {
       setLoadError(true);
     }
-  }, [id, columns]);
+    return () => {
+      cancelled = true;
+    };
+  }, [id, columns, recordKind]);
 
   async function submit() {
     if (!formValues) return;

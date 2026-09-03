@@ -488,6 +488,7 @@ model Kvk {
   districtLevelData             DistrictLevelData[]
   districtCropProductivity      DistrictCropProductivity[]
   districtLivestockProduction   DistrictLivestockProduction[]
+  districtMonthlyWeather        DistrictMonthlyWeather[]
   operationalAreaDetails        OperationalAreaDetail[]
   villageAdoptionProgrammes     VillageAdoptionProgramme[]
   priorityThrustAreas           PriorityThrustArea[]
@@ -1970,6 +1971,8 @@ model NicraDignitaryVisit {
   vipExperts  String
   name        String
   dateOfVisit DateTime
+  /// super-v2-prod.pdf 3.3.G prints a Remark column alongside Date/Type/Name.
+  remark      String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -2893,6 +2896,28 @@ model DistrictLivestockProduction {
   @@index([kvkId])
 }
 
+/// "4.2.A District Level Data" -> "2.a.2 Mean yearly temperature, rainfall,
+/// humidity of the district" (super-v2-prod.pdf p.84): one row per month.
+model DistrictMonthlyWeather {
+  id         String   @id @default(cuid())
+  kvkId      String
+  kvk        Kvk      @relation(fields: [kvkId], references: [id])
+  zoneId     String
+  month      String
+  rainfallMm Decimal? @db.Decimal(10, 2)
+  maxTempC   Decimal? @db.Decimal(6, 2)
+  minTempC   Decimal? @db.Decimal(6, 2)
+  maxRhPct   Decimal? @db.Decimal(6, 2)
+  minRhPct   Decimal? @db.Decimal(6, 2)
+  remarks    String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([zoneId])
+  @@index([kvkId])
+}
+
 model OperationalAreaDetail {
   id            String  @id @default(cuid())
   kvkId         String
@@ -3229,6 +3254,8 @@ model SacMeeting {
   statutoryMembers Int
   recommendations  String?
   actionTaken      String?
+  /// super-v2-prod.pdf 6.1 splits Action into Taken / In Compliance / Reason.
+  actionCompliance String?
   reason           String?
   fileUrl          String?
 

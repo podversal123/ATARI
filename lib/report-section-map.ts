@@ -32,6 +32,7 @@ export const REPORT_SUBSECTION_BY_LEAF: Record<string, ReportSubsectionRef> = {
   "about-kvk/equipments/equipment-details": G(["1.5"], "Equipments Information", "Equipments Information"),
 
   // 2. Achievements
+  "achievements/technical-achievement": G(["2.1"], "Technical Achievement", "Technical Achievement"),
   "achievements/oft": G(["2.2"], "On Farm Trial", "On Farm Trial"),
   "achievements/front-line-demonstration/view-fld": G(["2.3"], "Front Line Demonstration", "Front Line Demonstration"),
   "achievements/front-line-demonstration/fld-extension-training": G(["2.3"], "Front Line Demonstration", "Front Line Demonstration"),
@@ -58,6 +59,7 @@ export const REPORT_SUBSECTION_BY_LEAF: Record<string, ReportSubsectionRef> = {
   "projects/cfld/technical-parameter": G(["3.1"], "CFLD", "CFLD"),
   "projects/cfld/extension-activity-cfld": G(["3.1"], "CFLD", "CFLD"),
   "projects/cfld/budget-utilization": G(["3.1"], "CFLD", "CFLD"),
+  "projects/cfld/crop-wise-images": G(["3.1"], "CFLD", "CFLD"),
   "projects/nicra/basic-information": G(["3.2"], "NICRA", "NICRA"),
   "projects/nicra/details": G(["3.2"], "NICRA", "NICRA"),
   "projects/nicra/training": G(["3.2"], "NICRA", "NICRA"),
@@ -113,12 +115,14 @@ export const REPORT_SUBSECTION_BY_LEAF: Record<string, ReportSubsectionRef> = {
   "performance/infrastructure-performance/instructional-farm-livestock": G(["4.3"], "Infrastructure Performance", "Infrastructure Performance"),
   "performance/infrastructure-performance/hostel-utilization": G(["4.3"], "Infrastructure Performance", "Infrastructure Performance"),
   "performance/infrastructure-performance/rain-water-harvesting": G(["4.3"], "Infrastructure Performance", "Infrastructure Performance"),
+  "performance/infrastructure-performance/staff-quarters-performance": G(["4.3"], "Infrastructure Performance", "Infrastructure Performance"),
   "performance/financial-performance/budget-details": G(["4.4"], "Financial Performance", "Financial Performance"),
   "performance/financial-performance/project-wise-budget-performance": G(["4.4"], "Financial Performance", "Financial Performance"),
   "performance/financial-performance/revolving-fund": G(["4.4"], "Financial Performance", "Financial Performance"),
   "performance/financial-performance/revenue-generation": G(["4.4"], "Financial Performance", "Financial Performance"),
   "performance/financial-performance/resource-generation": G(["4.4"], "Financial Performance", "Financial Performance"),
   "performance/linkages/functional-linkage": G(["4.5"], "Linkages", "Linkages"),
+  "performance/linkages/special-programmes": G(["4.5"], "Linkages", "Linkages"),
 
   // 5. Miscellaneous  (Super Admin and KVK trees number these differently - the
   // title match is tried first, so numbers are only a Super-Admin fallback)
