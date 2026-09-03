@@ -11,12 +11,9 @@ import { FileUploadField } from "./file-upload-field";
 import { MultiImageUploadField } from "./multi-image-upload-field";
 import { FormPhotosField, type FormPhoto } from "./form-photos-field";
 import { DemographicBreakdown, DemographicGrid, type DemographicValues } from "./demographic-breakdown";
-<<<<<<< HEAD
 import { NfParametersField } from "./nf-parameters-field";
-=======
 import { useCascadeOptions } from "./use-cascade-options";
 import { isNumericLabel } from "@/lib/numeric-field";
->>>>>>> 8c564673795263a76c44db3f89567bdc06a28aab
 import type { MasterColumn } from "@/lib/navigation";
 
 export const DEMOGRAPHIC_KEYS = [

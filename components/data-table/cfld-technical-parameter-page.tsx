@@ -357,7 +357,6 @@ export function CfldTechnicalParameterPage({
                   setTechnical((p) => ({ ...p, technologyDemonstrated: v })))}
               </div>
 
-<<<<<<< HEAD
               <div className="space-y-2 rounded-md border border-border p-3">
                 <p className="text-sm font-semibold text-primary">Target of CFLD Approved</p>
                 <div className="grid gap-4 sm:grid-cols-2">
@@ -368,10 +367,7 @@ export function CfldTechnicalParameterPage({
                 </div>
               </div>
 
-              <div className="grid gap-4 sm:grid-cols-2">
-=======
               <div className="grid grid-cols-[repeat(auto-fit,minmax(240px,320px))] gap-5">
->>>>>>> 8c564673795263a76c44db3f89567bdc06a28aab
                 {textField(
                   "cfld-existing-practice",
                   "Detail of existing farmer practice",
