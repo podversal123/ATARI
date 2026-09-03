@@ -89,8 +89,8 @@ export function FldResultFields({ fldId, backHref }: FldResultFieldsProps) {
   return (
     <div className="space-y-5">
       <div className="space-y-2">
-        <p className="text-sm font-semibold text-primary">Yield (q/ha)</p>
-        <div className="grid gap-4 sm:grid-cols-2">
+        <p className="text-lg font-semibold text-primary">Yield (q/ha)</p>
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(240px,320px))] gap-5">
           <div className="space-y-1.5">
             <Label htmlFor="fld-yield-demo">
               Demo <span className="text-destructive">*</span>
@@ -98,6 +98,7 @@ export function FldResultFields({ fldId, backHref }: FldResultFieldsProps) {
             <Input
               id="fld-yield-demo"
               type="number"
+              className="h-10"
               value={yieldDemoQha}
               onChange={(e) => setYieldDemoQha(e.target.value)}
             />
@@ -109,22 +110,23 @@ export function FldResultFields({ fldId, backHref }: FldResultFieldsProps) {
             <Input
               id="fld-yield-check"
               type="number"
+              className="h-10"
               value={yieldCheckQha}
               onChange={(e) => setYieldCheckQha(e.target.value)}
             />
           </div>
         </div>
-        <div className="space-y-1.5 sm:max-w-[calc(50%-0.5rem)]">
+        <div className="space-y-1.5 sm:max-w-[320px]">
           <Label htmlFor="fld-percent-increase">
             % Increase <span className="text-destructive">*</span>
           </Label>
-          <Input id="fld-percent-increase" value={percentIncrease} disabled />
+          <Input id="fld-percent-increase" className="h-10" value={percentIncrease} disabled />
         </div>
       </div>
 
       <div className="space-y-2">
-        <p className="text-sm font-semibold text-primary">Economics of demonstration (Rs./ha)</p>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <p className="text-lg font-semibold text-primary">Economics of demonstration (Rs./ha)</p>
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(240px,320px))] gap-5">
           <div className="space-y-1.5">
             <Label htmlFor="fld-gross-cost">
               Gross Cost <span className="text-destructive">*</span>
@@ -132,6 +134,7 @@ export function FldResultFields({ fldId, backHref }: FldResultFieldsProps) {
             <Input
               id="fld-gross-cost"
               type="number"
+              className="h-10"
               value={grossCostDemo}
               onChange={(e) => setGrossCostDemo(e.target.value)}
             />
@@ -143,17 +146,18 @@ export function FldResultFields({ fldId, backHref }: FldResultFieldsProps) {
             <Input
               id="fld-gross-return"
               type="number"
+              className="h-10"
               value={grossReturnDemo}
               onChange={(e) => setGrossReturnDemo(e.target.value)}
             />
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="fld-net-return">Net Return</Label>
-            <Input id="fld-net-return" value={netReturn} disabled />
+            <Input id="fld-net-return" className="h-10" value={netReturn} disabled />
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="fld-bcr">BCR</Label>
-            <Input id="fld-bcr" value={bcr} disabled />
+            <Input id="fld-bcr" className="h-10" value={bcr} disabled />
           </div>
         </div>
       </div>

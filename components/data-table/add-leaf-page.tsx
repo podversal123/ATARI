@@ -25,6 +25,8 @@ type AddLeafPageProps = {
   recordKind?: "form" | "master";
   /** Packs fields two-per-row instead of the default one-per-row - see lib/navigation.ts's NavLeaf.formColumns for when this is real vs guessed. */
   formColumns?: 2;
+  /** See lib/navigation.ts's NavLeaf.compactFields. */
+  compactFields?: boolean;
 };
 
 /**
@@ -46,6 +48,7 @@ export function AddLeafPage({
   recordPath,
   recordKind = "form",
   formColumns,
+  compactFields,
 }: AddLeafPageProps) {
   const router = useRouter();
   // Pre-fill any column with a confirmed real default (e.g. Vehicle/Equipment Present Status's Hide in Next Year -> "No") instead of starting every field blank.
@@ -94,16 +97,40 @@ export function AddLeafPage({
 
   return (
     <div>
-      <PageHeader
-        backHref={backHref}
-        trail={trail}
-        title={`${titlePrefix} ${title}`}
-      />
+      {/* Heading slides in from the left as the card (below) slides in from the right (client direction, 2026-09-03) - the two converge toward the middle instead of both entering the same way. */}
+      <div className="animate-in fade-in-0 slide-in-from-left-8 ease-out duration-300">
+        <PageHeader
+          backHref={backHref}
+          trail={trail}
+          title={`${titlePrefix} ${title}`}
+        />
+      </div>
 
-      {/* Fade/slide-in on mount (client report, 2026-08-31: "add new karne pe animation hai") - same animate-in vocabulary the app's own dialogs/dropdowns already use (see components/ui/dialog.tsx), so this Add page's own entrance matches the rest of the app's motion language instead of introducing a new one. */}
-      <div className="animate-in fade-in-0 slide-in-from-bottom-2 rounded-lg border border-border bg-card p-6 duration-300">
-        {/* One field per row by default (client report, 2026-08-31) - the real reference never packs these simple masters' fields side by side, confirmed against Zone (1 field)/State (2)/District (3)/Institute (4) Master's own Create screenshots, each stacked in a single column regardless of field count. `formColumns` opts a specific leaf into two-per-row when its own reference confirmed that instead (e.g. Vehicle/Equipment Present Status). */}
-        <div className={cn("grid grid-cols-1 gap-5", formColumns === 2 && "sm:grid-cols-2")}>
+      {/* Slide-in-from-the-right entrance (client direction, 2026-09-02 - the original bottom-slide-in-2, 2026-08-31, read as too small/subtle) - reads as "stepping into" this Add page, not just a settling card. Same animate-in vocabulary as everywhere else in the app (components/ui/dialog.tsx), just a bigger, more deliberate distance/duration than the old one. */}
+      <div className="animate-in fade-in-0 slide-in-from-right-8 ease-out rounded-lg border border-border bg-card p-6 duration-300">
+        {/*
+         * One field per row by default (client report, 2026-08-31) - the real
+         * reference never packed these simple masters' fields side by side.
+         * `formColumns` opts a specific leaf into two-per-row (e.g.
+         * Vehicle/Equipment Present Status).
+         *
+         * `compactFields` (client direction, 2026-09-02) replaces the
+         * full-width single column with a CSS grid `auto-fit` track: each
+         * field gets a natural 240-320px width and the grid wraps as many
+         * as fit per row on its own, so there's never a mismatched "3 then
+         * 2" row - every field is the same width, so however many fit is
+         * however many fit, consistently. Approved first on Zone Master,
+         * now the default for every All Masters leaf (see
+         * app/(dashboard)/masters/[...slug]/page.tsx).
+         */}
+        <div
+          className={cn(
+            "grid gap-5",
+            compactFields
+              ? "grid-cols-[repeat(auto-fit,minmax(240px,320px))]"
+              : cn("grid-cols-1", formColumns === 2 && "sm:grid-cols-2"),
+          )}
+        >
           <MasterFormFields
             columns={columns}
             cascadeType={cascadeType}
