@@ -74,3 +74,6 @@ prisma/*real-data*
 skills-lock.json
 
 .env*
+
+.vercel
+.env*

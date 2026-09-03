@@ -7,18 +7,27 @@ import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/layout/page-header";
 import { ReportHeaderBar } from "@/components/reports/report-header-bar";
 import { ReportPreviewCard } from "@/components/reports/report-preview-card";
+import { ReportPreviewDocument } from "@/components/reports/report-preview-document";
 import { DownloadReportButtons } from "@/components/reports/download-report-buttons";
 import { useReportPreview } from "@/components/reports/use-report-preview";
 import { formatDisplayDate } from "@/lib/reports";
 import { downloadBlob } from "@/lib/utils";
-import type { ReportSection } from "@/lib/report-data";
+import { reportTableRowCount, type ReportSection } from "@/lib/report-types";
+
+type ReportData = { zoneLabel: string; kvkNames: string[]; sections: ReportSection[] };
 
 /**
  * Generate Preview navigates here instead of updating the filter page
  * in-place - a real page/URL for the report, not just inline state, per
  * explicit direction. Reads the filters the previous screen already
  * validated (passed as query params) purely for display; it doesn't
- * re-validate or refetch anything itself.
+ * re-validate them itself.
+ *
+ * The full report (every section/subsection/table) is fetched once on load,
+ * held in state, rendered on screen for reading via ReportPreviewDocument,
+ * and reused by all three Download buttons - previously each button
+ * re-fetched the entire 100+ query report independently and the preview
+ * only ever showed a record count, never the report itself.
  */
 export default function ReportPreviewPage() {
   return (
@@ -35,17 +44,17 @@ function ReportPreviewContent() {
 
   const type = params.get("type") === "kvk" ? "kvk" : "admin";
   const backHref = "/reports";
+  const [report, setReport] = useState<ReportData | null>(null);
   const [pdfLoading, setPdfLoading] = useState(false);
   const [excelLoading, setExcelLoading] = useState(false);
   const [wordLoading, setWordLoading] = useState(false);
   const [downloadError, setDownloadError] = useState<string | null>(null);
 
-  async function fetchReportData() {
+  async function fetchReportData(): Promise<ReportData> {
     const kvkFilter = params.get("kvk");
     const query = kvkFilter ? `?kvk=${encodeURIComponent(kvkFilter)}` : "";
     const response = await fetch(`/api/reports/generate${query}`);
-    const data: { zoneLabel: string; kvkNames: string[]; sections: ReportSection[] } | { error: string } =
-      await response.json();
+    const data: ReportData | { error: string } = await response.json();
     if (!response.ok || "error" in data) {
       throw new Error("error" in data ? data.error : "Could not generate the report.");
     }
@@ -56,14 +65,22 @@ function ReportPreviewContent() {
     return sections
       .flatMap((s) => s.subsections)
       .flatMap((sub) => sub.tables)
-      .reduce((sum, table) => sum + table.rows.length, 0);
+      .reduce((sum, table) => sum + reportTableRowCount(table), 0);
   }
 
   useEffect(() => {
+    let cancelled = false;
     generate(
       () => null,
-      async () => countRecords((await fetchReportData()).sections),
+      async () => {
+        const data = await fetchReportData();
+        if (!cancelled) setReport(data);
+        return countRecords(data.sections);
+      },
     );
+    return () => {
+      cancelled = true;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -71,14 +88,18 @@ function ReportPreviewContent() {
     setDownloadError(null);
     setPdfLoading(true);
     try {
-      const data = await fetchReportData();
-      const { generateReportPdf } = await import("@/lib/report-pdf");
+      const data = report ?? (await fetchReportData());
+      const [{ generateReportPdf }, { prefetchReportImages }] = await Promise.all([
+        import("@/lib/report-pdf"),
+        import("@/lib/report-images"),
+      ]);
       const doc = generateReportPdf({
         title: "ATARI AMS REPORT",
         zoneLabel: data.zoneLabel,
         reportingYearLabel: "All Data",
         kvkNames: data.kvkNames,
         sections: data.sections,
+        images: await prefetchReportImages(data.sections),
       });
       doc.save(`ATARI-AMS-Report-${new Date().toISOString().slice(0, 10)}.pdf`);
     } catch (error) {
@@ -92,14 +113,18 @@ function ReportPreviewContent() {
     setDownloadError(null);
     setExcelLoading(true);
     try {
-      const data = await fetchReportData();
-      const { generateReportExcel } = await import("@/lib/report-excel");
+      const data = report ?? (await fetchReportData());
+      const [{ generateReportExcel }, { prefetchReportImages }] = await Promise.all([
+        import("@/lib/report-excel"),
+        import("@/lib/report-images"),
+      ]);
       const wb = await generateReportExcel({
         title: "ATARI AMS REPORT",
         zoneLabel: data.zoneLabel,
         reportingYearLabel: "All Data",
         kvkNames: data.kvkNames,
         sections: data.sections,
+        images: await prefetchReportImages(data.sections),
       });
       const buffer = await wb.xlsx.writeBuffer();
       downloadBlob(
@@ -117,14 +142,18 @@ function ReportPreviewContent() {
     setDownloadError(null);
     setWordLoading(true);
     try {
-      const data = await fetchReportData();
-      const { generateReportWord } = await import("@/lib/report-word");
+      const data = report ?? (await fetchReportData());
+      const [{ generateReportWord }, { prefetchReportImages }] = await Promise.all([
+        import("@/lib/report-word"),
+        import("@/lib/report-images"),
+      ]);
       const blob = await generateReportWord({
         title: "ATARI AMS REPORT",
         zoneLabel: data.zoneLabel,
         reportingYearLabel: "All Data",
         kvkNames: data.kvkNames,
         sections: data.sections,
+        images: await prefetchReportImages(data.sections),
       });
       downloadBlob(blob, `ATARI-AMS-Report-${new Date().toISOString().slice(0, 10)}.docx`);
     } catch (error) {
@@ -231,6 +260,14 @@ function ReportPreviewContent() {
           )}
         </div>
       </div>
+
+      {phase === "ready" && report && (
+        <ReportPreviewDocument
+          zoneLabel={report.zoneLabel}
+          kvkNames={report.kvkNames}
+          sections={report.sections}
+        />
+      )}
     </div>
   );
 }

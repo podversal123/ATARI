@@ -1,6 +1,13 @@
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
-import type { ReportSection } from "./report-data";
+import {
+  buildHeaderMatrix,
+  isRedundantTableHeading,
+  type ReportColumn,
+  type ReportGrid,
+  type ReportImage,
+  type ReportSection,
+} from "./report-types";
 
 export type ReportPdfOptions = {
   title: string; // "ATARI AMS REPORT"
@@ -8,6 +15,8 @@ export type ReportPdfOptions = {
   reportingYearLabel: string; // "All Data" or a specific year
   kvkNames: string[];
   sections: ReportSection[];
+  /** Module-Image url -> data-URL (pre-fetched by the caller, since the file proxy needs the browser session). */
+  images?: Map<string, string>;
 };
 
 const GREEN: [number, number, number] = [40, 108, 74];
@@ -26,20 +35,118 @@ function spaced(text: string) {
   return text.split("").join(" ");
 }
 
-/**
- * A subsection with exactly one table whose code/title exactly repeat the
- * subsection's own (e.g. "6.1 SAC Meetings" containing a single table also
- * titled "SAC Meetings") shouldn't get a second heading line - the real
- * reference's own TOC and body only print one line for these, not two.
- */
-function isRedundantTableHeading(sub: { num: string; title: string }, table: { code: string; title: string }) {
-  return table.code === sub.num && table.title === sub.title;
-}
-
 function docId() {
   const d = new Date();
   const pad = (n: number) => String(n).padStart(2, "0");
   return `ATARI-${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`;
+}
+
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
+/** jspdf-autotable `head` from the shared N-row header matrix (super-v2-prod.pdf's pivots go up to ~6 levels). */
+function buildHead(columns: ReportColumn[], serial: boolean): any[] {
+  return buildHeaderMatrix(columns, serial ? "S.No." : undefined).map((row) =>
+    row.map((cell) => ({
+      content: cell.text,
+      colSpan: cell.colSpan,
+      rowSpan: cell.rowSpan,
+      styles: cell.colSpan > 1 ? { halign: "center" } : {},
+    })),
+  );
+}
+
+const GRID_STYLES = {
+  fontSize: 7,
+  cellPadding: 1.2,
+  lineColor: [140, 140, 140] as [number, number, number],
+  lineWidth: 0.1,
+  textColor: [0, 0, 0] as [number, number, number],
+};
+const HEAD_STYLES = {
+  fillColor: [242, 242, 242] as [number, number, number],
+  textColor: [0, 0, 0] as [number, number, number],
+  fontStyle: "bold" as const,
+  lineColor: [120, 120, 120] as [number, number, number],
+  lineWidth: 0.1,
+};
+
+/** Renders one grid (main table body, or a part inside a composite block) and returns the Y to continue at. */
+function renderGrid(doc: jsPDF, grid: ReportGrid, startY: number): number {
+  const serial = !grid.noSerial;
+  if (grid.rows.length === 0 && !grid.totalRow && !grid.keepEmpty) {
+    doc.setFont("helvetica", "italic");
+    doc.setFontSize(9);
+    doc.setTextColor(140, 140, 140);
+    doc.text("No data available in table", MARGIN + 2, startY);
+    return startY + 8;
+  }
+
+  const head = buildHead(grid.columns, serial);
+  const body: any[] = grid.rows.map((row, i) => [
+    ...(serial ? [String(i + 1)] : []),
+    ...grid.columns.map((c) => row[c.key] ?? ""),
+  ]);
+  if (grid.totalRow) {
+    body.push([
+      ...(serial ? [""] : []),
+      ...grid.columns.map((c) => grid.totalRow![c.key] ?? ""),
+    ]);
+  }
+  const totalRowIndex = grid.totalRow ? body.length - 1 : -1;
+
+  autoTable(doc, {
+    startY,
+    margin: { left: MARGIN, right: MARGIN },
+    head,
+    body,
+    styles: GRID_STYLES,
+    headStyles: HEAD_STYLES,
+    theme: "grid",
+    didParseCell: (data: any) => {
+      if (data.section === "body" && data.row.index === totalRowIndex) {
+        data.cell.styles.fontStyle = "bold";
+        data.cell.styles.fillColor = [235, 235, 235];
+      }
+    },
+  });
+  return (doc as any).lastAutoTable.finalY + 6;
+}
+
+/** Renders a numbered label/value list (the 18-point OFT detail layout) as a borderless two-column table, or, when `flow`, as wrapped "label value" lines (2.2.C "Result:" / "Remark:"). */
+function renderPairs(
+  doc: jsPDF,
+  pairs: { num?: string; label: string; value: string }[],
+  startY: number,
+  pageW: number,
+  flow?: boolean,
+): number {
+  if (flow) {
+    let y = startY;
+    const contentW = pageW - MARGIN * 2;
+    for (const p of pairs) {
+      doc.setFont("helvetica", "bolditalic");
+      doc.setFontSize(8.5);
+      doc.setTextColor(0, 0, 0);
+      const labelW = doc.getTextWidth(p.label + " ");
+      doc.text(p.label, MARGIN, y);
+      doc.setFont("helvetica", "normal");
+      const wrapped = doc.splitTextToSize(p.value, contentW - labelW);
+      doc.text(wrapped, MARGIN + labelW, y);
+      y += Math.max(wrapped.length, 1) * 3.9 + 2;
+    }
+    return y + 4;
+  }
+  autoTable(doc, {
+    startY,
+    margin: { left: MARGIN, right: MARGIN },
+    body: pairs.map((p) => [p.num ? `${p.num} ${p.label}` : p.label, p.value]),
+    columnStyles: {
+      0: { cellWidth: (pageW - MARGIN * 2) * 0.42, fontStyle: "bold" },
+    },
+    styles: { ...GRID_STYLES, fontSize: 8, cellPadding: 1.4 },
+    theme: "grid",
+  });
+  return (doc as any).lastAutoTable.finalY + 6;
 }
 
 type TocLine = {
@@ -58,9 +165,9 @@ type TocLine = {
  * (b) each line's exact page/x/y - all before any content page exists. This
  * lets the real render pass below pre-reserve the right number of blank TOC
  * pages, render content after them, and then go back and draw the TOC with
- * real internal `doc.link()` navigation to the page each entry landed on -
- * the "clickable TOC" the client's own report PDF has (confirmed via the
- * real super-v2-prod.pdf's own link annotations, page 2).
+ * real internal `doc.link()` navigation to the page each entry landed on.
+ * The TOC stops at the `1.1.A` grouping level: a run of sub-tables sharing a
+ * `groupCode` contributes one line (the group), not one per sub-table.
  */
 function layoutToc(sections: ReportSection[], pageH: number): { pageCount: number; lines: TocLine[] } {
   const lines: TocLine[] = [];
@@ -84,8 +191,19 @@ function layoutToc(sections: ReportSection[], pageH: number): { pageCount: numbe
       lines.push({ pageIndex, y, level: "subsection", text: `${sub.num}   ${sub.title}`, x: MARGIN + 6, rowHeight: SUB_ROW_H, targetKey: `sub-${sub.num}` });
       y += SUB_ROW_H;
 
+      let lastGroupCode: string | null = null;
       for (const table of sub.tables) {
         if (isRedundantTableHeading(sub, table)) continue;
+        if (table.groupCode) {
+          if (table.groupCode !== lastGroupCode) {
+            breakIfNeeded();
+            lines.push({ pageIndex, y, level: "table", text: `${table.groupCode}   ${table.groupTitle ?? ""}`, x: MARGIN + 12, rowHeight: TABLE_ROW_H, targetKey: `grp-${table.groupCode}` });
+            y += TABLE_ROW_H;
+            lastGroupCode = table.groupCode;
+          }
+          continue;
+        }
+        lastGroupCode = null;
         breakIfNeeded();
         lines.push({ pageIndex, y, level: "table", text: `${table.code}   ${table.title}`, x: MARGIN + 12, rowHeight: TABLE_ROW_H, targetKey: `tab-${table.code}` });
         y += TABLE_ROW_H;
@@ -99,13 +217,13 @@ function layoutToc(sections: ReportSection[], pageH: number): { pageCount: numbe
 
 /**
  * Real multi-section PDF matching the client's own "ATARI AMS REPORT" export
- * (super-v2-prod.pdf / kvk-report...pdf) - cover page with the KVKS INCLUDED
- * list, a Table of Contents whose every row is a real clickable internal
- * link jumping to that section/subsection/table's actual page (matches the
- * reference PDF's own link annotations exactly, not decoration), then one
- * autotable per confirmed sub-subsection with an S.No. lead column like the
- * reference. Tables with no rows print "No data available in table" (the
- * client's own reference report shows the same thing for unfilled sections).
+ * (super-v2-prod.pdf) - cover page with the KVKS INCLUDED list, a Table of
+ * Contents whose every row is a real clickable internal link jumping to that
+ * section/subsection/table's actual page, then the section bodies: grids get
+ * an S.No. lead column and optional grouped headers / total row; composite
+ * tables repeat a heading + parts per entity; pair tables render as a
+ * numbered label/value list. Empty grids print "No data available in table",
+ * the same as the reference.
  */
 export function generateReportPdf(opts: ReportPdfOptions) {
   const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
@@ -186,11 +304,15 @@ export function generateReportPdf(opts: ReportPdfOptions) {
     doc.text(section.title, pageW / 2, 16, { align: "center" });
     let cursorY = 26;
 
-    for (const sub of section.subsections) {
-      if (cursorY > pageH - 25) {
+    const ensureSpace = (needed: number) => {
+      if (cursorY > pageH - needed) {
         doc.addPage();
         cursorY = 16;
       }
+    };
+
+    for (const sub of section.subsections) {
+      ensureSpace(25);
       targetPageByKey[`sub-${sub.num}`] = doc.getNumberOfPages();
       doc.setFont("helvetica", "bold");
       doc.setFontSize(12);
@@ -201,11 +323,21 @@ export function generateReportPdf(opts: ReportPdfOptions) {
       doc.line(MARGIN, cursorY + 1.5, pageW - MARGIN, cursorY + 1.5);
       cursorY += 8;
 
+      let lastGroupCode: string | null = null;
       for (const table of sub.tables) {
-        if (cursorY > pageH - 20) {
-          doc.addPage();
-          cursorY = 16;
+        ensureSpace(24);
+
+        if (table.groupCode && table.groupCode !== lastGroupCode) {
+          targetPageByKey[`grp-${table.groupCode}`] = doc.getNumberOfPages();
+          doc.setFont("helvetica", "bold");
+          doc.setFontSize(11);
+          doc.setTextColor(20, 20, 20);
+          doc.text(`${table.groupCode}  ${table.groupTitle ?? ""}`, MARGIN, cursorY);
+          cursorY += 6.5;
+          lastGroupCode = table.groupCode;
         }
+        if (!table.groupCode) lastGroupCode = null;
+
         targetPageByKey[`tab-${table.code}`] = doc.getNumberOfPages();
         if (!isRedundantTableHeading(sub, table)) {
           doc.setFont("helvetica", "bold");
@@ -215,26 +347,97 @@ export function generateReportPdf(opts: ReportPdfOptions) {
           cursorY += 5;
         }
 
-        if (table.rows.length === 0) {
-          doc.setFont("helvetica", "italic");
-          doc.setFontSize(9);
-          doc.setTextColor(140, 140, 140);
-          doc.text("No data available in table", MARGIN + 2, cursorY);
-          cursorY += 8;
+        if (table.blocks) {
+          for (const block of table.blocks) {
+            ensureSpace(20);
+            const centered = block.align === "center" && block.parts.length === 0;
+            doc.setFont("helvetica", "bold");
+            doc.setFontSize(centered ? 12 : 10.5);
+            doc.setTextColor(0, 0, 0);
+            if (centered) {
+              doc.text(block.heading, pageW / 2, cursorY + 1, { align: "center" });
+              cursorY += 8;
+            } else {
+              doc.text(block.heading, MARGIN, cursorY);
+              cursorY += 5.5;
+            }
+
+            for (const note of block.notes ?? []) {
+              doc.setFont("helvetica", "normal");
+              doc.setFontSize(8);
+              doc.setTextColor(60, 60, 60);
+              const wrapped = doc.splitTextToSize(note, contentW);
+              doc.text(wrapped, MARGIN + 2, cursorY);
+              cursorY += wrapped.length * 3.8 + 1;
+            }
+
+            for (const part of block.parts) {
+              ensureSpace(18);
+              if (part.caption) {
+                doc.setFont("helvetica", "bold");
+                doc.setFontSize(9);
+                doc.setTextColor(0, 0, 0);
+                for (const line of part.caption.split("\n")) {
+                  doc.text(line, MARGIN, cursorY);
+                  cursorY += 4.5;
+                }
+              }
+              cursorY =
+                part.kind === "grid"
+                  ? renderGrid(doc, part, cursorY)
+                  : renderPairs(doc, part.pairs, cursorY, pageW, part.flow);
+            }
+            cursorY += 3;
+          }
           continue;
         }
 
-        autoTable(doc, {
-          startY: cursorY,
-          margin: { left: MARGIN, right: MARGIN },
-          head: [["S.No.", ...table.columns.map((c) => c.label)]],
-          body: table.rows.map((row, i) => [String(i + 1), ...table.columns.map((c) => row[c.key] ?? "")]),
-          styles: { fontSize: 7, cellPadding: 1.2, lineColor: [140, 140, 140], lineWidth: 0.1, textColor: [0, 0, 0] },
-          headStyles: { fillColor: [242, 242, 242], textColor: [0, 0, 0], fontStyle: "bold", lineColor: [120, 120, 120], lineWidth: 0.1 },
-          theme: "grid",
-        });
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        cursorY = (doc as any).lastAutoTable.finalY + 8;
+        if (table.pairs) {
+          cursorY = renderPairs(doc, table.pairs, cursorY, pageW);
+          continue;
+        }
+
+        cursorY = renderGrid(doc, table, cursorY);
+      }
+
+      // --- Module Images for this subsection ---
+      const imgs = (sub.images ?? []).filter((im: ReportImage) => opts.images?.has(im.url));
+      if (imgs.length > 0) {
+        ensureSpace(22);
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(9);
+        doc.setTextColor(20, 20, 20);
+        doc.text("Module Images", MARGIN, cursorY);
+        cursorY += 5;
+        const perRow = 3;
+        const gap = 4;
+        const cw = (contentW - gap * (perRow - 1)) / perRow;
+        const ch = cw * 0.62;
+        let col = 0;
+        for (const im of imgs) {
+          if (col === 0) ensureSpace(ch + 12);
+          const x = MARGIN + col * (cw + gap);
+          try {
+            const data = opts.images!.get(im.url)!;
+            const fmt = /^data:image\/(png|jpe?g|webp)/i.exec(data)?.[1]?.toUpperCase().replace("JPG", "JPEG") ?? "JPEG";
+            doc.addImage(data, fmt, x, cursorY, cw, ch);
+          } catch {
+            doc.setDrawColor(...BORDER_GRAY);
+            doc.rect(x, cursorY, cw, ch);
+          }
+          doc.setFont("helvetica", "normal");
+          doc.setFontSize(6.5);
+          doc.setTextColor(70, 70, 70);
+          const cap = doc.splitTextToSize(im.caption + (im.date ? ` (${im.date})` : ""), cw);
+          doc.text(cap.slice(0, 2), x, cursorY + ch + 3);
+          col++;
+          if (col === perRow) {
+            col = 0;
+            cursorY += ch + 10;
+          }
+        }
+        if (col !== 0) cursorY += ch + 10;
+        cursorY += 2;
       }
     }
   }

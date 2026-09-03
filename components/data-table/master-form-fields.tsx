@@ -11,6 +11,7 @@ import { FileUploadField } from "./file-upload-field";
 import { MultiImageUploadField } from "./multi-image-upload-field";
 import { FormPhotosField, type FormPhoto } from "./form-photos-field";
 import { DemographicBreakdown, DemographicGrid, type DemographicValues } from "./demographic-breakdown";
+import { NfParametersField } from "./nf-parameters-field";
 import { useCascadeOptions } from "./use-cascade-options";
 import { isNumericLabel } from "@/lib/numeric-field";
 import type { MasterColumn } from "@/lib/navigation";
@@ -316,6 +317,18 @@ export function MasterFormFields({
                 label={column.formLabel ?? column.label}
                 value={photos}
                 onChange={(next) => onChange({ ...formValues, [column.key]: JSON.stringify(next) })}
+              />
+            </div>
+          );
+        }
+
+        if (column.fieldKind === "nf-parameters") {
+          return (
+            <div key={column.key} className="space-y-2 sm:col-span-2 lg:col-span-3">
+              <p className="text-sm font-semibold text-primary">{column.formLabel ?? column.label}</p>
+              <NfParametersField
+                value={formValues[column.key] ?? ""}
+                onChange={(next) => onChange({ ...formValues, [column.key]: next })}
               />
             </div>
           );

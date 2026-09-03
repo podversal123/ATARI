@@ -79,7 +79,7 @@ export function ReportPreviewCard({
             <CheckCircle2 className="size-5 text-primary" />
             <p className="text-sm font-medium text-foreground">Report generated successfully.</p>
             <p className="text-xs text-muted-foreground">
-              Use the Download Report buttons below to get the PDF, Excel, or Word file.
+              The full report is shown below for review. Use the Download Report buttons to save it as PDF, Excel, or Word.
             </p>
           </div>
         )}

@@ -65,6 +65,8 @@ export async function POST(request: Request) {
       cropDemonstrated: reqStr(technical.crop),
       variety: str(technical.variety),
       areaHa: reqDec(technical.areaHa),
+      targetAreaHa: dec(technical.targetAreaHa),
+      targetDemonstrations: technical.targetDemonstrations?.trim() ? parseInt(technical.targetDemonstrations, 10) : undefined,
       numberOfFarmers: reqInt(technical.numberOfFarmers),
       farmersByCategory: demographics,
       detailOfTechnologyDemonstrated: reqStr(technical.technologyDemonstrated),

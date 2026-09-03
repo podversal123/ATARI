@@ -59,9 +59,10 @@ export type MasterColumn = {
    */
   /** "date" renders a real native date-picker input (`<input type="date">`) instead of a plain text box - audit finding, 2026-09-02: every date-valued field across the generic Achievement forms (Extension Activities' Start/End Date, Celebration Days' Event Date, World Soil Day's Reporting Year, Poshan Maaha's Datewise activity, Production & Supply's Reporting Date, Soil/Water/Plant Analysis' Start/End Date, Publications' Year, Awards' Reporting Date, HRD's Start/End Date, Swachhta Sewa/Pakhwada's Date/Duration of Observation, Budget Expenditure's Reporting Year, Technology Week Celebration's Start/End Date) is confirmed live as a real date picker in the reference, but the generic form's default branch had no date-type rendering at all - every one silently fell back to a plain text input. */
   /** "photos" renders FormPhotosField (the real end-of-form Upload Photograph(s)+Caption section, client PDF "Module Image workflow", 2026-09-02) - feeds Module Images automatically on save, no separate upload flow. */
+  /** "nf-parameters" renders NfParametersField - the fixed "Without / With NF Practice" comparison grid (NF_COMPARISON_PARAMETERS), stored as one JSON string on the record's `parameters` column. Used by Natural Farming's Demonstration Information (3.5.C) and Farmers Practicing (3.5.D). */
   /** "calculated" renders a disabled, muted input showing the field's current (server-computed) value - unlike a plain `readonly` column (which is dropped from the form entirely), the real reference still *shows* some computed totals, just not editable (e.g. Poshan Maaha's own "Total Participants", confirmed live 2026-09-03: "Auto-calculated: sum of all participant categories" reads directly under a real, visible, disabled field). Pair with `helperText` for that caption. Always set `readonly: true` alongside it too, so required-field validation still skips it. */
   /** "section-heading" renders just a bold heading line (no input) spanning the full row - for a real section break the reference shows (e.g. Poshan Maaha's own "No. of participants" above its Girls/Farm Woman/... fields) that doesn't correspond to any real demographic-breakdown block or other grouped field kind. `label` is the heading text. */
-  fieldKind?: "checkbox" | "demographic-breakdown" | "multi-image" | "date" | "photos" | "calculated" | "section-heading";
+  fieldKind?: "checkbox" | "demographic-breakdown" | "multi-image" | "date" | "photos" | "nf-parameters" | "calculated" | "section-heading";
   /** "calculated" only - the explanatory caption shown under the disabled field (e.g. "Auto-calculated: sum of all participant categories"). */
   helperText?: string;
   /** demographic-breakdown only - prepended to DemographicBreakdown's own key convention (e.g. "farmers" -> "farmersGeneralMale") so one form can hold two independent blocks (Farmers + Extension Officials). Omit for a single block. */
@@ -158,6 +159,18 @@ export type SidebarIconName =
   | "reports";
 
 const GENERIC_MASTER_COLUMNS: MasterColumn[] = [{ key: "name", label: "Name" }];
+
+/** NARI models keep `male`/`female` as the General pair; kvk-report 3.7 also needs the OBC/SC/ST split. */
+const NARI_CASTE_COLUMNS: MasterColumn[] = [
+  { key: "male", label: "General - Male" },
+  { key: "female", label: "General - Female" },
+  { key: "obcMale", label: "OBC - Male" },
+  { key: "obcFemale", label: "OBC - Female" },
+  { key: "scMale", label: "SC - Male" },
+  { key: "scFemale", label: "SC - Female" },
+  { key: "stMale", label: "ST - Male" },
+  { key: "stFemale", label: "ST - Female" },
+];
 
 /** General/OBC/SC/ST x Male/Female flat fields for leaves whose real report table needs the farmersByCategory breakdown but uses the generic AddLeafPage form (not a bespoke dialog like CFLD's DemographicBreakdown) - the API assembles these 8 fields into one JSON object on save. */
 const DEMOGRAPHIC_COLUMNS: MasterColumn[] = [
@@ -906,6 +919,7 @@ const aboutKvk = group(
         { key: "plinthAreaSqM", label: "Plinth Area (Sq M)" },
         { key: "underUse", label: "Under Use" },
         { key: "sourceOfFunding", label: "Source of Funding" },
+        { key: "fundingAgencyName", label: "Funding Agency Name" },
       ]),
       leaf("land-details", "Land Details", [
         { key: "kvk", label: "KVK" },
@@ -926,6 +940,7 @@ const aboutKvk = group(
         "view-vehicles",
         "View Vehicles",
         [
+          { key: "vehicleType", label: "Vehicle Type" },
           { key: "vehicleName", label: "Vehicle Name" },
           { key: "registrationNo", label: "Registration No" },
           { key: "yearOfPurchase", label: "Year of Purchase" },
@@ -948,6 +963,7 @@ const aboutKvk = group(
         "View Equipments",
         [
           { key: "kvk", label: "KVK" },
+          { key: "equipmentType", label: "Equipment Type" },
           { key: "equipmentName", label: "Equipment Name" },
           { key: "companyBrandModel", label: "Company / Brand / Model" },
           { key: "yearOfPurchase", label: "Year of Purchase" },
@@ -1464,6 +1480,11 @@ const achievements = group("achievements", "Achievements", [
     { key: "authorName", label: "Author Name", required: true },
     /** Real form label is "Name Of Publisher" (audit finding, 2026-09-02), not "Journal Name" - same underlying field, corrected label only. */
     { key: "journalName", label: "Name Of Publisher", required: true },
+    /** Report 2.10.A prints item-type-specific columns - Publisher Name + ISBN for book chapters, Page Number + NAAS Rating for research papers (added 2026-09-03). */
+    { key: "publisherName", label: "Publisher Name" },
+    { key: "isbnNumber", label: "ISBN Number" },
+    { key: "pageNumber", label: "Page Number" },
+    { key: "naasRating", label: "NAAS Rating" },
   ]),
   /** 6 real columns confirmed 2026-08-22. Real H1 is hyphenated and singular; the landing card uses the longer plural form. */
   leaf(
@@ -1612,6 +1633,20 @@ const projects = group(
         { key: "crop", label: "Crop", required: true },
         { key: "season", label: "Season", required: true },
         { key: "overallFundAllocation", label: "Overall Fund Allocation", required: true },
+        { key: "areaAllotedHa", label: "Area (ha) alloted" },
+        { key: "areaAchievedHa", label: "Area (ha) achieved" },
+        { key: "criticalInputReceived", label: "Critical Input - Budget Received (Rs.)" },
+        { key: "criticalInputUtilization", label: "Critical Input - Budget Utilization (Rs.)" },
+        { key: "criticalInputBalance", label: "Critical Input - Balance (Rs.)" },
+        { key: "extensionReceived", label: "Extension Activities - Budget Received (Rs.)" },
+        { key: "extensionUtilization", label: "Extension Activities - Budget Utilization (Rs.)" },
+        { key: "extensionBalance", label: "Extension Activities - Balance (Rs.)" },
+        { key: "publicationReceived", label: "Publication - Budget Received (Rs.)" },
+        { key: "publicationUtilization", label: "Publication - Budget Utilization (Rs.)" },
+        { key: "publicationBalance", label: "Publication - Balance (Rs.)" },
+        { key: "taDaReceived", label: "TA/DA - Budget Received (Rs.)" },
+        { key: "taDaUtilization", label: "TA/DA - Budget Utilization (Rs.)" },
+        { key: "taDaBalance", label: "TA/DA - Balance (Rs.)" },
       ]),
       /** New leaf, confirmed against the client's own "Crop wise Photographs" screenshot (AMS User Manual p.27) - not present before this pass. */
       leaf("crop-wise-images", "Crop Wise Images", [
@@ -1635,6 +1670,18 @@ const projects = group(
         { key: "rfDistrictReceived", label: "RF (mm) district Received", required: true },
         { key: "maxTemperature", label: "Max. Temperature 0C", required: true },
         { key: "minTemperature", label: "Min. Temperature 0C", required: true },
+        /** Report 3.2.A "Basic Information" columns - dry spell / drought bands, NICRA-adopted-village count, flood averages (added 2026-09-03). */
+        { key: "drySpell10Days", label: "Dry spell > 10 days" },
+        { key: "drySpell15Days", label: "Dry spell > 15 days" },
+        { key: "drySpell20Days", label: "Dry spell > 20 days" },
+        { key: "nicraAdoptedVillages", label: "NICRA Adopted village" },
+        { key: "floodIntensiveRainMm", label: "Flood - Intensive rain > 60 mm" },
+        { key: "floodWaterDepthCm", label: "Flood - Water depth (cm)" },
+        { key: "floodDurationDays", label: "Flood - Duration (days)" },
+        /** KVK report 3.2.A "Period" trio (added 2026-09-03). */
+        { key: "reportingDate", label: "Reporting Date", fieldKind: "date" },
+        { key: "startDate", label: "Start Date", fieldKind: "date" },
+        { key: "endDate", label: "End Date", fieldKind: "date" },
       ]),
       leaf("details", "Details", [
         { key: "kvk", label: "KVK", readonly: true },
@@ -1642,6 +1689,18 @@ const projects = group(
         { key: "seasonName", label: "Season Name", required: true },
         { key: "technologyDemonstration", label: "Technology demonstration", required: true },
         { key: "noOfFarmers", label: "No. of farmers", required: true },
+        /** Report 3.2.B "Details" columns - Category / Sub-category pivot with Area/Unit and Net return (added 2026-09-03). */
+        { key: "category", label: "Category" },
+        { key: "subCategory", label: "Sub-category" },
+        { key: "areaOrUnit", label: "Area/Unit" },
+        { key: "netReturn", label: "Net return" },
+        /** KVK report 3.2.B per-record detail columns (added 2026-09-03). */
+        { key: "month", label: "Month" },
+        { key: "yield", label: "Yield" },
+        { key: "grossCost", label: "Gross cost" },
+        { key: "grossReturn", label: "Gross return" },
+        { key: "bcr", label: "BCR" },
+        ...DEMOGRAPHIC_COLUMNS,
       ]),
       leaf("training", "Training", [
         { key: "kvk", label: "KVK Name", readonly: true },
@@ -1649,6 +1708,10 @@ const projects = group(
         { key: "startDate", label: "Start Date", fieldKind: "date", required: true },
         { key: "endDate", label: "End Date", fieldKind: "date", required: true },
         { key: "farmersAttended", label: "Number of farmers attended", required: true },
+        /** KVK report 3.2.C columns (added 2026-09-03). */
+        { key: "duration", label: "Duration" },
+        { key: "trainingType", label: "Training Type" },
+        ...DEMOGRAPHIC_COLUMNS,
       ]),
       leaf("extension-activity-nicra", "Extension Activity (NICRA)", [
         { key: "kvk", label: "KVK Name", readonly: true },
@@ -1657,7 +1720,7 @@ const projects = group(
         { key: "startDate", label: "Start Date", fieldKind: "date", required: true },
         { key: "endDate", label: "End Date", fieldKind: "date", required: true },
         { key: "farmersAttended", label: "Number of farmers attended", required: true },
-      ]),
+        ...DEMOGRAPHIC_COLUMNS,
       group("others", "Others", [
         leaf("intervention", "Intervention", [
           { key: "kvk", label: "KVK Name", readonly: true },
@@ -1705,6 +1768,7 @@ const projects = group(
               label: "Expenditure incurred on repairing (Rs.)",
               required: true,
             },
+            ...DEMOGRAPHIC_COLUMNS,
           ],
         ),
         leaf("village-wise-vcrmc", "Village wise VCRMC", [
@@ -1712,6 +1776,8 @@ const projects = group(
           { key: "villageName", label: "Village name", required: true },
           { key: "constitutionDate", label: "VCRMC Constitution date", fieldKind: "date", required: true },
           { key: "members", label: "VCRMC members (no.)", required: true },
+          { key: "membersMale", label: "VCRMC members - Male" },
+          { key: "membersFemale", label: "VCRMC members - Female" },
           {
             key: "meetingsOrganized",
             label: "Meetings organized by VCRMC (no.)",
@@ -1719,6 +1785,8 @@ const projects = group(
           },
           { key: "meetingDate", label: "Date of VCRMC meeting", fieldKind: "date", required: true },
           { key: "secretaryName", label: "Name of Secretary", required: true },
+          { key: "presidentName", label: "Name of President" },
+          { key: "majorDecision", label: "Major decision taken" },
         ]),
         leaf(
           "soil-health-card",
@@ -1739,6 +1807,7 @@ const projects = group(
               label: "No. of farmers benefitted",
               required: true,
             },
+            ...DEMOGRAPHIC_COLUMNS,
           ],
         ),
         leaf("convergence-programme", "Convergence Programme", [
@@ -1779,6 +1848,18 @@ const projects = group(
         { key: "endDate", label: "End Date", fieldKind: "date", required: true },
         { key: "groupsFormed", label: "No. of Groups Formed", required: true },
         { key: "groupsActive", label: "No. of Groups active", required: true },
+        /** Report 3.4.A "Current Year Details" per-enterprise economics columns (added 2026-09-03). */
+        { key: "trainingsConducted", label: "No. of Training conducted" },
+        { key: "unitsEstablished", label: "No. of entrepreneurial units established (Progressive)" },
+        { key: "ruralYouthMale", label: "Rural youth trained - Male" },
+        { key: "ruralYouthFemale", label: "Rural youth trained - Female" },
+        { key: "avgUnitSize", label: "Average size of each entrepreneurial unit" },
+        { key: "productionPerUnit", label: "Total Production/unit/year" },
+        { key: "costPerUnit", label: "Per unit cost of Production" },
+        { key: "saleValue", label: "Sale value of produce" },
+        { key: "economicGainsPerUnit", label: "Economic Gains / unit" },
+        { key: "employmentMandaysMale", label: "Employment generated (mandays) - Male" },
+        { key: "employmentMandaysFemale", label: "Employment generated (mandays) - Female" },
       ]),
       leaf("arya-safal-previous-year", "Previous Year Evaluation", [
         { key: "kvk", label: "KVK Name", readonly: true },
@@ -1787,6 +1868,21 @@ const projects = group(
         { key: "closingDate", label: "Closing Date", fieldKind: "date", required: true },
         { key: "totalRestarted", label: "Total Restarted", required: true },
         { key: "restartedDate", label: "Restarted date", fieldKind: "date", required: true },
+        /** Report 3.4.B "Previous Year Evaluation" ~17-column grid (added 2026-09-03). */
+        { key: "unitsEstablishedProgressive", label: "No. of entrepreneurial units established (up to previous year progressive)" },
+        { key: "sizeMale", label: "Unit Size - Male" },
+        { key: "sizeFemale", label: "Unit Size - Female" },
+        { key: "sizeNoOfUnit", label: "Unit Size - No. of Unit" },
+        { key: "sizeUnitCapacity", label: "Unit Size - Unit capacity" },
+        { key: "costFixed", label: "Establishment Cost - Fixed cost" },
+        { key: "costVariable", label: "Establishment Cost - Variable cost" },
+        { key: "totalProductionPerUnitYear", label: "Total production/unit/year" },
+        { key: "grossCostPerUnitYear", label: "Gross cost of production/unit/year" },
+        { key: "grossReturnPerUnitYear", label: "Gross return per unit/year" },
+        { key: "netBenefitPerUnitYear", label: "Net benefit / unit/year" },
+        { key: "employmentFamily", label: "Employment generated/year - Family" },
+        { key: "employmentOtherThanFamily", label: "Employment generated/year - Other than Family" },
+        { key: "personsVisited", label: "No. of persons visited entrepreneur unit" },
       ]),
     ], { cardLabel: "ARYA / SAFAL" }),
     /** Real group label confirmed live: "Out-scaling of Natural Farming" (in-page title); card label on the Projects landing page is the short "Natural Farming" (confirmed live, 2026-08-29 "project over" reference). */
@@ -1816,6 +1912,9 @@ const projects = group(
         { key: "trainingDate", label: "Date of Training", fieldKind: "date", required: true },
         { key: "venue", label: "Venue of programme", required: true },
         { key: "participants", label: "Participants", required: true },
+        /** Report 3.5.B "Physical Information" caste M/F participant grid + remark (added 2026-09-03). */
+        ...DEMOGRAPHIC_COLUMNS,
+        { key: "remarks", label: "Remarks/Observation/Feedback Recorded" },
       ]),
       leaf("nf-demonstration", "Demonstration Information", [
         { key: "kvk", label: "KVK Name", readonly: true },
@@ -1835,6 +1934,8 @@ const projects = group(
         { key: "areaHa", label: "Area (ha) in NF Practice", required: true },
         { key: "farmerPracticeDetail", label: "Detail of Farmer Practice", required: true },
         { key: "farmerFeedback", label: "Farmer Feedback", required: true },
+        /** Report 3.5.C - fixed Without/With NF parameter comparison grid, stored as JSON (added 2026-09-03). */
+        { key: "parameters", label: "Performance parameters (Without / With NF Practice)", fieldKind: "nf-parameters", formOnly: true },
       ]),
       leaf(
         "nf-already-practicing",
@@ -1855,6 +1956,8 @@ const projects = group(
           { key: "technologyDemonstrated", label: "NF Component/Technology Demonstrated", required: true },
           { key: "areaHa", label: "Area (ha) in NF Practice", required: true },
           { key: "farmerFeedback", label: "Farmer Feedback", required: true },
+          /** Report 3.5.D - fixed Without/With NF parameter comparison grid, stored as JSON (added 2026-09-03). */
+          { key: "parameters", label: "Performance parameters (Without / With NF Practice)", fieldKind: "nf-parameters", formOnly: true },
         ],
       ),
       leaf("nf-beneficiaries", "Details of Beneficiaries", [
@@ -1867,6 +1970,11 @@ const projects = group(
           label: "No. of farmers influenced to adopt Natural Farming",
           required: true,
         },
+        /** Report 3.5.E "Beneficiaries" columns - reporting year, all/one-season engaged farmers, remark (added 2026-09-03). */
+        { key: "reportingYear", label: "Reporting year" },
+        { key: "farmersEngagedAllSeason", label: "No. of farmers engaged all season" },
+        { key: "farmersEngagedOneSeason", label: "No. of farmers engaged in 1 season" },
+        { key: "remarks", label: "Remarks" },
       ]),
       leaf("nf-soil-data", "Soil Data information", [
         { key: "kvk", label: "KVK Name", readonly: true },
@@ -1876,9 +1984,18 @@ const projects = group(
         { key: "beforePh", label: "Before pH", required: true },
         { key: "beforeEc", label: "Before EC (dS/m)", required: true },
         { key: "beforeEcOc", label: "Before EC OC (%)", required: true },
+        /** Report 3.5.F "Soil Data" - N/P/K/Microbes for the before/after grids (added 2026-09-03). */
+        { key: "beforeN", label: "Before N (Kg/ha)" },
+        { key: "beforeP", label: "Before P (Kg/ha)" },
+        { key: "beforeK", label: "Before K (Kg/ha)" },
+        { key: "beforeMicrobes", label: "Before Soil Microbes (cfu)" },
         { key: "afterPh", label: "After pH", required: true },
         { key: "afterEc", label: "After EC (dS/m)", required: true },
         { key: "afterEcOc", label: "After EC OC (%)", required: true },
+        { key: "afterN", label: "After N (Kg/ha)" },
+        { key: "afterP", label: "After P (Kg/ha)" },
+        { key: "afterK", label: "After K (Kg/ha)" },
+        { key: "afterMicrobes", label: "After Soil Microbes (cfu)" },
       ]),
       leaf("nf-budget-expenditure", "Budget Expenditure", [
         { key: "kvk", label: "KVK Name", readonly: true },
@@ -1901,6 +2018,9 @@ const projects = group(
         { key: "activities", label: "Activities", required: true, sourceMaster: { master: "tsp-scsp-activity", optionKey: "name" } },
         { key: "noOfTraining", label: "No of Training", required: true },
         { key: "beneficiaries", label: "No. of beneficiaries", required: true },
+        /** KVK report 3.6 also carries a per-plan Fund received (Rs. in lakh) and a physical-outcome note (added 2026-09-03). */
+        { key: "fundReceivedLakh", label: "Fund received (Rs. in lakh)" },
+        { key: "physicalOutcomeNote", label: "Physical outcome note" },
       ]),
     ]),
     /**
@@ -1925,8 +2045,7 @@ const projects = group(
           { key: "numbers", label: "Numbers", required: true },
           { key: "areaSqm", label: "Area (sqm)", required: true },
           { key: "activity", label: "Activity", required: true, sourceMaster: { master: "nari-activity", optionKey: "name" } },
-          { key: "male", label: "Male", required: true },
-          { key: "female", label: "Female", required: true },
+          ...NARI_CASTE_COLUMNS,
         ],
       ),
       leaf(
@@ -1939,8 +2058,11 @@ const projects = group(
           { key: "activity", label: "Activity", required: true, sourceMaster: { master: "nari-activity", optionKey: "name" } },
           { key: "categoryOfCrop", label: "Category of crop", required: true, sourceMaster: { master: "nari-crop-category", optionKey: "name" } },
           { key: "numberOfCrops", label: "No. of Crops", required: true },
-          { key: "male", label: "Male", required: true },
-          { key: "female", label: "Female", required: true },
+          /** KVK report 3.7.B per-record columns (added 2026-09-03). */
+          { key: "cropName", label: "Name of Crop" },
+          { key: "variety", label: "Variety" },
+          { key: "areaHa", label: "Area (ha)" },
+          ...NARI_CASTE_COLUMNS,
         ],
       ),
       leaf(
@@ -1953,8 +2075,7 @@ const projects = group(
           { key: "valueAddedProduct", label: "Name of Value-added product", required: true },
           { key: "activity", label: "Activity", required: true, sourceMaster: { master: "nari-activity", optionKey: "name" } },
           { key: "numberOfProducts", label: "No. of Products", required: true },
-          { key: "male", label: "Male", required: true },
-          { key: "female", label: "Female", required: true },
+          ...NARI_CASTE_COLUMNS,
         ],
       ),
       leaf("nari-training", "Training programmes in Nutri-Smart village", [
@@ -1964,8 +2085,10 @@ const projects = group(
         { key: "activity", label: "Activity", required: true },
         { key: "titleOfTraining", label: "Title of Training", required: true },
         { key: "numberOfCourses", label: "No. of Courses", required: true },
-        { key: "male", label: "Male", required: true },
-        { key: "female", label: "Female", required: true },
+        /** KVK report 3.7.D columns (added 2026-09-03). */
+        { key: "onOffCampus", label: "On Campus/Off Campus" },
+        { key: "venue", label: "Venue" },
+        ...NARI_CASTE_COLUMNS,
       ]),
       leaf("nari-extension", "Extension activities under NARI Project", [
         { key: "kvk", label: "KVK Name", readonly: true },
@@ -1973,8 +2096,7 @@ const projects = group(
         { key: "activity", label: "Activity", required: true },
         { key: "nameOfActivity", label: "Name of Activity", required: true },
         { key: "noOfActivities", label: "No of Activities", required: true },
-        { key: "male", label: "Male", required: true },
-        { key: "female", label: "Female", required: true },
+        ...NARI_CASTE_COLUMNS,
       ]),
     ]),
     group("agri-drone", "Agri-Drone", [
@@ -2007,6 +2129,8 @@ const projects = group(
         { key: "noOfDemos", label: "No. of demos", required: true },
         { key: "areaCovered", label: "Area covered under demos.", required: true },
         { key: "noOfFarmers", label: "No of farmers", required: true },
+        /** Report 3.8.B "Demonstration" caste M/F participant grid (added 2026-09-03). */
+        ...DEMOGRAPHIC_COLUMNS,
       ]),
     ]),
     group("fpo-cbbo", "FPO and CBBO", [
@@ -2030,6 +2154,14 @@ const projects = group(
           required: true,
         },
         { key: "noOfFposDoingBusiness", label: "No. of FPOs Doing Business", required: true },
+        /** Report 3.9.A "Details FPO and CBBO" - the remaining ~8 columns the Add form always collected but the model never stored (added 2026-09-03). */
+        { key: "avgMembersPerFpo", label: "Average no of members per FPO" },
+        { key: "noOfFpoManagementCost", label: "No. of FPO received management cost" },
+        { key: "noOfFpoEquityGrant", label: "No. of FPO received equity grant" },
+        { key: "techBackstoppingFpos", label: "Tech. backstopping provided to no. of FPOs" },
+        { key: "noOfTrainingProgrammes", label: "No. of training programme organized for FPOs as CBBO" },
+        { key: "assistanceEconomicActivities", label: "Assistance to no. of FPOs in economic activities" },
+        { key: "businessPlanWithoutCbbo", label: "Is Business Plan Prepared for FPOs as without CBBOs" },
       ]),
       /** Columns confirmed against the client's own "Details of commodity-based organizations/farmers cooperative society/FPO formed/Associated with KVK under NCDC funding" screenshot (AMS User Manual p.34). */
       leaf("fpo-management", "FPO Management", [
@@ -2216,6 +2348,10 @@ const performanceIndicators = group(
         { key: "farmersBenefitted", label: "No. of Farmers Benefitted" },
         { key: "horizontalSpread", label: "Horizontal Spread (in area/no.)" },
         { key: "adoptionPercent", label: "% of Adoption" },
+        { key: "impactSubjective", label: "Impact of the technology in subjective terms" },
+        { key: "impactObjective", label: "Impact of the technology in objective terms" },
+        { key: "incomeBefore", label: "Income Before" },
+        { key: "incomeAfter", label: "Income After" },
       ]),
       leaf("entrepreneurship-details", "Details of Entrepreneurship", [
         { key: "kvk", label: "KVK Name" },
@@ -2224,11 +2360,13 @@ const performanceIndicators = group(
           label: "Name of the Entrepreneur/Name of the Enterprise/Firm",
         },
         { key: "enterpriseType", label: "Type of Enterprise", sourceMaster: { master: "type-of-enterprise", optionKey: "name" } },
+        { key: "yearOfEstablishment", label: "Year of establishment" },
         { key: "membersAssociated", label: "No of Members Associated" },
         {
           key: "annualIncome",
           label: "Annual Income/Revenue of the Enterprise",
         },
+        { key: "technicalComponents", label: "Technical components" },
       ]),
       leaf("success-stories", "Success Stories", [
         { key: "kvk", label: "KVK Name" },
@@ -2242,6 +2380,9 @@ const performanceIndicators = group(
           key: "storyTitle",
           label: "Title of the Success Story / Case Study",
         },
+        { key: "enterprise", label: "Enterprise" },
+        { key: "netIncome", label: "Net Income" },
+        { key: "costBenefitRatio", label: "Cost-Benefit Ratio" },
       ]),
     ]),
     group("district-village-performance", "District and Village Performance", [
@@ -2291,6 +2432,8 @@ const performanceIndicators = group(
         { key: "kvk", label: "KVK" },
         { key: "reportingYear", label: "Reporting Year" },
         { key: "thrustArea", label: "Thrust Area" },
+        { key: "majorFocus", label: "Major Focus" },
+        { key: "achievement", label: "Achievement" },
       ]),
     ]),
     group("infrastructure-performance", "Infrastructure Performance", [
@@ -2601,6 +2744,7 @@ const miscellaneous = group("miscellaneous", "Miscellaneous", [
     ]),
     leaf("digital-web-portal", "Details of Web Portal", [
       { key: "kvk", label: "KVK Name" },
+      { key: "portalName", label: "Name of Web portal" },
       { key: "visitors", label: "No. of Visitors Visited the Portal" },
       {
         key: "farmersRegistered",

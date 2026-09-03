@@ -357,6 +357,16 @@ export function CfldTechnicalParameterPage({
                   setTechnical((p) => ({ ...p, technologyDemonstrated: v })))}
               </div>
 
+              <div className="space-y-2 rounded-md border border-border p-3">
+                <p className="text-sm font-semibold text-primary">Target of CFLD Approved</p>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  {textField("cfld-target-area", "Area (ha)", technical.targetAreaHa ?? "", (v) =>
+                    setTechnical((p) => ({ ...p, targetAreaHa: v })), "number")}
+                  {textField("cfld-target-demos", "No. of Demonstration", technical.targetDemonstrations ?? "", (v) =>
+                    setTechnical((p) => ({ ...p, targetDemonstrations: v })), "number")}
+                </div>
+              </div>
+
               <div className="grid grid-cols-[repeat(auto-fit,minmax(240px,320px))] gap-5">
                 {textField(
                   "cfld-existing-practice",

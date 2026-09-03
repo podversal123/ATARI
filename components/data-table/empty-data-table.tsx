@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 import type { SidebarIconName } from "@/lib/navigation";
 import { SIDEBAR_ICONS } from "@/components/layout/sidebar-icons";
+import { reportSubsectionForLeaf } from "@/lib/report-section-map";
 import { cn, downloadBlob } from "@/lib/utils";
 import { useSession } from "@/lib/session";
 import { Input } from "@/components/ui/input";
@@ -223,6 +224,14 @@ export function EmptyDataTable({
   /** `columns` includes any `formOnly` entries (demographic-breakdown blocks) needed by the Add/Edit form below - the list table itself only ever renders real, single-value columns, so every table concern (header, rows, colSpan, exports) uses this filtered list instead. */
   const tableColumns = columns.filter((c) => !c.formOnly);
   const Icon = icon ? SIDEBAR_ICONS[icon] : undefined;
+  /**
+   * When this is a Form Management leaf that maps to a big-report subsection
+   * (lib/report-section-map.ts), the PDF/Excel/Word buttons produce that
+   * subsection's whole subtree - the same slice the Super Admin report shows
+   * for this part - instead of a flat one-table export of the list's rows.
+   */
+  const reportRef = recordKind === "form" ? reportSubsectionForLeaf(recordPath) : undefined;
+  const [reportExport, setReportExport] = useState<null | "pdf" | "excel" | "word">(null);
   /** Unique per instance - a page can render more than one EmptyDataTable (e.g. Notifications' Received + Sent tables), and duplicate ids break label association. */
   const instanceId = useId();
   const fromDateId = `${instanceId}-from-date`;
@@ -582,6 +591,68 @@ export function EmptyDataTable({
     return next;
   }, [rows, columnFilters, search, columns, reportingYearFilter, reportingYear, hasActiveDates, dateColumnKeys, fromDate, toDate]);
 
+  /** Flat one-table export - used for Masters, and as the fallback when a mapped Form Management leaf turns out to have no report subsection for the current scope. */
+  async function downloadFlat(format: "pdf" | "excel" | "word") {
+    if (format === "pdf") {
+      const { downloadTablePdf } = await import("@/lib/table-pdf");
+      downloadTablePdf(title, tableColumns, filteredRows);
+    } else if (format === "excel") {
+      const { generateTableExcel } = await import("@/lib/table-excel");
+      const wb = await generateTableExcel(title, tableColumns, filteredRows);
+      const buffer = await wb.xlsx.writeBuffer();
+      downloadBlob(new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }), `${title}.xlsx`);
+    } else {
+      const { generateTableWord } = await import("@/lib/table-word");
+      downloadBlob(await generateTableWord(title, tableColumns, filteredRows), `${title}.docx`);
+    }
+  }
+
+  /**
+   * The big-report subsection subtree for a mapped Form Management leaf,
+   * rendered exactly like the Super Admin report (headings, grouped tables,
+   * clickable contents) via the shared report renderers.
+   */
+  async function downloadReportSubtree(format: "pdf" | "excel" | "word") {
+    if (!reportRef || !recordPath) return;
+    setReportExport(format);
+    try {
+      const res = await fetch(`/api/reports/generate?subsection=${encodeURIComponent(recordPath)}`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error ?? "Could not build the report.");
+      if (data.matched === false || !data.sections?.length) {
+        await downloadFlat(format);
+        return;
+      }
+      const stamp = new Date().toISOString().slice(0, 10);
+      const fileBase = `${reportRef.label.replace(/[^\w]+/g, "-")}-Report-${stamp}`;
+      const { prefetchReportImages } = await import("@/lib/report-images");
+      const common = {
+        title: `${reportRef.label} - ATARI AMS Report`,
+        zoneLabel: data.zoneLabel as string,
+        reportingYearLabel: "All Data",
+        kvkNames: (data.kvkNames ?? []) as string[],
+        sections: data.sections,
+        images: await prefetchReportImages(data.sections),
+      };
+      if (format === "pdf") {
+        const { generateReportPdf } = await import("@/lib/report-pdf");
+        generateReportPdf(common).save(`${fileBase}.pdf`);
+      } else if (format === "excel") {
+        const { generateReportExcel } = await import("@/lib/report-excel");
+        const wb = await generateReportExcel(common);
+        const buffer = await wb.xlsx.writeBuffer();
+        downloadBlob(new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }), `${fileBase}.xlsx`);
+      } else {
+        const { generateReportWord } = await import("@/lib/report-word");
+        downloadBlob(await generateReportWord(common), `${fileBase}.docx`);
+      }
+    } catch {
+      // Best-effort, same as the flat export handlers - buttons re-enable so the user can retry.
+    } finally {
+      setReportExport(null);
+    }
+  }
+
   /**
    * 10 rows per page, matching the reference's own "Showing 1-10 of N"
    * footer - resets to page 1 whenever the *filter criteria themselves*
@@ -670,9 +741,15 @@ export function EmptyDataTable({
             )}
           </div>
           <div className="flex items-center gap-2">
+            {reportRef && (
+              <span className="mr-1 hidden text-xs text-muted-foreground sm:inline">
+                Downloads section {reportRef.label}
+              </span>
+            )}
             <Button
               variant="outline"
               size="lg"
+              disabled={reportExport !== null}
               onClick={async () => {
                 // Lazy-loaded: jsPDF + autotable are large and only needed by
                 // the handful of visits that actually click this button -
@@ -681,40 +758,38 @@ export function EmptyDataTable({
                 // every filtered row, not just the current on-screen page
                 // (`displayedRows` is a pagination slice of `filteredRows` -
                 // exporting that silently dropped every row past page 1).
-                const { downloadTablePdf } = await import("@/lib/table-pdf");
-                downloadTablePdf(title, tableColumns, filteredRows);
+                // For a mapped Form Management leaf it instead produces that
+                // part's whole big-report subsection (report-section-map.ts).
+                if (reportRef) return downloadReportSubtree("pdf");
+                await downloadFlat("pdf");
               }}
             >
               <FileDown className="size-3.5" />
-              PDF
+              {reportExport === "pdf" ? "Preparing..." : "PDF"}
             </Button>
             <Button
               variant="outline"
               size="lg"
+              disabled={reportExport !== null}
               onClick={async () => {
-                const { generateTableExcel } = await import("@/lib/table-excel");
-                const wb = await generateTableExcel(title, tableColumns, filteredRows);
-                const buffer = await wb.xlsx.writeBuffer();
-                downloadBlob(
-                  new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }),
-                  `${title}.xlsx`,
-                );
+                if (reportRef) return downloadReportSubtree("excel");
+                await downloadFlat("excel");
               }}
             >
               <FileSpreadsheet className="size-3.5" />
-              Excel
+              {reportExport === "excel" ? "Preparing..." : "Excel"}
             </Button>
             <Button
               variant="outline"
               size="lg"
+              disabled={reportExport !== null}
               onClick={async () => {
-                const { generateTableWord } = await import("@/lib/table-word");
-                const blob = await generateTableWord(title, tableColumns, filteredRows);
-                downloadBlob(blob, `${title}.docx`);
+                if (reportRef) return downloadReportSubtree("word");
+                await downloadFlat("word");
               }}
             >
               <FileType className="size-3.5" />
-              Word
+              {reportExport === "word" ? "Preparing..." : "Word"}
             </Button>
             {hideAddNew ? null : addNewHref ? (
               <Link
