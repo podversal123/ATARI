@@ -35,7 +35,8 @@ const PERCEPTION_FIELDS = [
   { key: "likingsPreference", label: "Likings (Preference)" },
   { key: "affordability", label: "Affordability" },
   { key: "negativeEffect", label: "Any negative effect" },
-  { key: "acceptableToAll", label: "Is Technology acceptable to all in the group/village" },
+  // Shortened from "Is Technology acceptable to all in the group/village" (client report, 2026-09-03) - wrapped to 2 lines in its ~320px track, misaligning it against its row's other single-line fields.
+  { key: "acceptableToAll", label: "Acceptable to all in the village" },
   { key: "suggestions", label: "Suggestions, for change/improvement, if any" },
 ] as const;
 
@@ -226,7 +227,7 @@ export function CfldTechnicalParameterPage({
         <Label htmlFor={idAttr}>
           {label} <span className="text-destructive">*</span>
         </Label>
-        <Input id={idAttr} type={type} value={value} onChange={(e) => onChange(e.target.value)} />
+        <Input id={idAttr} type={type} className="h-10" value={value} onChange={(e) => onChange(e.target.value)} />
       </div>
     );
   }
@@ -234,8 +235,10 @@ export function CfldTechnicalParameterPage({
   function calculatedField(idAttr: string, label: string, value: string) {
     return (
       <div className="space-y-1.5">
-        <Label htmlFor={idAttr}>{label}</Label>
-        <Input id={idAttr} disabled value={value} placeholder="Auto-calculated" className="bg-muted" />
+        <Label htmlFor={idAttr}>
+          {label} <span className="text-destructive">*</span>
+        </Label>
+        <Input id={idAttr} disabled value={value} placeholder="Auto-calculated" className="h-10 bg-muted" />
       </div>
     );
   }
@@ -244,9 +247,12 @@ export function CfldTechnicalParameterPage({
 
   return (
     <div>
-      <PageHeader backHref={backHref} trail={trail} title={id ? "Edit Technical Parameter" : "Add Technical Parameter"} />
+      {/* Heading slides in from the left as the card (below) slides in from the right (client direction, 2026-09-03) - the two converge toward the middle instead of both entering the same way. */}
+      <div className="animate-in fade-in-0 slide-in-from-left-8 ease-out duration-300">
+        <PageHeader backHref={backHref} trail={trail} title={id ? "Edit Technical Parameter" : "Add Technical Parameter"} />
+      </div>
 
-      <div className="animate-in fade-in-0 slide-in-from-bottom-2 rounded-lg border border-border bg-card p-5 duration-300">
+      <div className="animate-in fade-in-0 slide-in-from-right-8 ease-out rounded-lg border border-border bg-card p-5 duration-300">
         {loading && <p className="mb-4 text-sm text-muted-foreground">Loading record…</p>}
 
         <div className="mb-5 flex overflow-hidden rounded-full bg-primary p-1">
@@ -270,7 +276,7 @@ export function CfldTechnicalParameterPage({
         <div className="space-y-4">
           {activeTab === "Technical Parameter" && (
             <div className="space-y-4">
-              <div className="grid gap-4 sm:grid-cols-4">
+              <div className="grid grid-cols-[repeat(auto-fit,minmax(240px,320px))] gap-5">
                 <div className="space-y-1.5">
                   <Label htmlFor="cfld-reporting-date">
                     Reporting Year <span className="text-destructive">*</span>
@@ -278,6 +284,7 @@ export function CfldTechnicalParameterPage({
                   <Input
                     id="cfld-reporting-date"
                     type="date"
+                    className="h-10"
                     value={technical.reportingDate ?? ""}
                     onChange={(e) => setTechnical((p) => ({ ...p, reportingDate: e.target.value }))}
                   />
@@ -293,6 +300,7 @@ export function CfldTechnicalParameterPage({
                       "January", "February", "March", "April", "May", "June",
                       "July", "August", "September", "October", "November", "December",
                     ].map((m) => ({ value: m, label: m }))}
+                    className="h-10"
                   />
                 </div>
                 <div className="space-y-1.5">
@@ -307,6 +315,7 @@ export function CfldTechnicalParameterPage({
                     }
                     placeholder="Select One"
                     options={seasonOptions.map((s) => ({ value: s, label: s }))}
+                    className="h-10"
                   />
                 </div>
                 <div className="space-y-1.5">
@@ -320,11 +329,12 @@ export function CfldTechnicalParameterPage({
                     placeholder={cropTypeOptions.length === 0 ? "No crop types available for selection" : "Select One"}
                     disabled={cropTypeOptions.length === 0}
                     options={cropTypeOptions.map((t) => ({ value: t, label: t }))}
+                    className="h-10"
                   />
                 </div>
               </div>
 
-              <div className="grid gap-4 sm:grid-cols-4">
+              <div className="grid grid-cols-[repeat(auto-fit,minmax(240px,320px))] gap-5">
                 <div className="space-y-1.5">
                   <Label htmlFor="cfld-crop">
                     CFLD Crop <span className="text-destructive">*</span>
@@ -336,6 +346,7 @@ export function CfldTechnicalParameterPage({
                     placeholder={cropNameOptions.length === 0 ? "No crops available for selection" : "Select One"}
                     disabled={cropNameOptions.length === 0}
                     options={cropNameOptions.map((c) => ({ value: c, label: c }))}
+                    className="h-10"
                   />
                 </div>
                 {textField("cfld-variety", "Name of Variety", technical.variety ?? "", (v) =>
@@ -346,6 +357,7 @@ export function CfldTechnicalParameterPage({
                   setTechnical((p) => ({ ...p, technologyDemonstrated: v })))}
               </div>
 
+<<<<<<< HEAD
               <div className="space-y-2 rounded-md border border-border p-3">
                 <p className="text-sm font-semibold text-primary">Target of CFLD Approved</p>
                 <div className="grid gap-4 sm:grid-cols-2">
@@ -357,6 +369,9 @@ export function CfldTechnicalParameterPage({
               </div>
 
               <div className="grid gap-4 sm:grid-cols-2">
+=======
+              <div className="grid grid-cols-[repeat(auto-fit,minmax(240px,320px))] gap-5">
+>>>>>>> 8c564673795263a76c44db3f89567bdc06a28aab
                 {textField(
                   "cfld-existing-practice",
                   "Detail of existing farmer practice",
@@ -373,14 +388,14 @@ export function CfldTechnicalParameterPage({
               </div>
 
               <div className="space-y-2 rounded-md border border-border p-3">
-                <p className="text-sm font-semibold text-primary">Yield obtained in demonstration (q/ha)</p>
-                <div className="grid gap-4 sm:grid-cols-2">
+                <p className="text-lg font-semibold text-primary">Yield obtained in demonstration (q/ha)</p>
+                <div className="grid grid-cols-[repeat(auto-fit,minmax(240px,320px))] gap-5">
                   {textField("cfld-yield-min", "Minimum", technical.demoYieldMin ?? "", (v) =>
                     setTechnical((p) => ({ ...p, demoYieldMin: v })), "number")}
                   {textField("cfld-yield-max", "Maximum", technical.demoYieldMax ?? "", (v) =>
                     setTechnical((p) => ({ ...p, demoYieldMax: v })), "number")}
                 </div>
-                <div className="grid gap-4 sm:grid-cols-2">
+                <div className="grid grid-cols-[repeat(auto-fit,minmax(240px,320px))] gap-5">
                   {textField("cfld-yield-avg", "Average", technical.demoYieldAvg ?? "", (v) =>
                     setTechnical((p) => ({ ...p, demoYieldAvg: v })), "number")}
                   {calculatedField("cfld-yield-increase", "% increase in yield", percentIncrease)}
@@ -388,8 +403,8 @@ export function CfldTechnicalParameterPage({
               </div>
 
               <div className="space-y-2 rounded-md border border-border p-3">
-                <p className="text-sm font-semibold text-primary">Yield gap (q/ha)</p>
-                <div className="grid gap-4 sm:grid-cols-3">
+                <p className="text-lg font-semibold text-primary">Yield gap (q/ha)</p>
+                <div className="grid grid-cols-[repeat(auto-fit,minmax(240px,320px))] gap-5">
                   {textField("cfld-district-yield", "District yield (D)", technical.districtYield ?? "", (v) =>
                     setTechnical((p) => ({ ...p, districtYield: v })), "number")}
                   {textField("cfld-state-yield", "State yield (S)", technical.stateYield ?? "", (v) =>
@@ -400,8 +415,8 @@ export function CfldTechnicalParameterPage({
               </div>
 
               <div className="space-y-2 rounded-md border border-border p-3">
-                <p className="text-sm font-semibold text-primary">Yield gap minimized (%)</p>
-                <div className="grid gap-4 sm:grid-cols-3">
+                <p className="text-lg font-semibold text-primary">Yield gap minimized (%)</p>
+                <div className="grid grid-cols-[repeat(auto-fit,minmax(240px,320px))] gap-5">
                   {calculatedField("cfld-gap-district", "District yield (D)", gapDistrict)}
                   {calculatedField("cfld-gap-state", "State yield (S)", gapState)}
                   {calculatedField("cfld-gap-potential", "Potential yield (P)", gapPotential)}
@@ -409,14 +424,15 @@ export function CfldTechnicalParameterPage({
               </div>
 
               <div className="space-y-3 border-t border-border pt-4">
-                <p className="text-sm font-semibold text-primary">Farmers Details</p>
+                <p className="text-lg font-semibold text-primary">Farmers Details</p>
                 <DemographicGrid
                   values={demographics}
                   onChange={(key, value) => setDemographics((p) => ({ ...p, [key]: value }))}
                 />
               </div>
 
-              <div className="grid gap-4 border-t border-border pt-4 sm:grid-cols-2">
+              {/* Photo upload cards get a wider bound than a text field's 240-320px (icon+text needs more room) - same pattern as EmployeeDetailsAddForm's own Photo/Resume cards. */}
+              <div className="grid grid-cols-[repeat(auto-fit,minmax(260px,380px))] gap-5 border-t border-border pt-4">
                 <MultiImageUploadField
                   label="Farmers' Training Photographs"
                   uploadKind="cfld-training-photo"
@@ -436,35 +452,35 @@ export function CfldTechnicalParameterPage({
           {activeTab === "Economic Parameters" && (
             <div className="space-y-5">
               <div className="space-y-3">
-                <p className="text-sm font-semibold text-primary">Farmer&apos;s Existing plot</p>
-                <div className="grid gap-4 sm:grid-cols-2">
+                <p className="text-lg font-semibold text-primary">Farmer&apos;s Existing plot</p>
+                <div className="grid grid-cols-[repeat(auto-fit,minmax(240px,320px))] gap-5">
                   {textField("cfld-econ-costFarmer", ECONOMIC_FIELDS[0].label, economic.costFarmer ?? "", (v) =>
                     setEconomic((p) => ({ ...p, costFarmer: v })), "number")}
                   {textField("cfld-econ-grossReturnFarmer", ECONOMIC_FIELDS[1].label, economic.grossReturnFarmer ?? "", (v) =>
                     setEconomic((p) => ({ ...p, grossReturnFarmer: v })), "number")}
                 </div>
-                <div className="grid gap-4 sm:grid-cols-2">
+                <div className="grid grid-cols-[repeat(auto-fit,minmax(240px,320px))] gap-5">
                   {calculatedField("cfld-econ-netReturnFarmer", "Net Return (Rs/ha)", farmerNetReturn)}
                   {calculatedField("cfld-econ-bcRatioFarmer", "B:C ratio", farmerBcRatio)}
                 </div>
               </div>
 
               <div className="space-y-3 border-t border-border pt-4">
-                <p className="text-sm font-semibold text-primary">Demonstration plot</p>
-                <div className="grid gap-4 sm:grid-cols-2">
+                <p className="text-lg font-semibold text-primary">Demonstration plot</p>
+                <div className="grid grid-cols-[repeat(auto-fit,minmax(240px,320px))] gap-5">
                   {textField("cfld-econ-costDemo", "Gross Cost (Rs/ha)", economic.costDemo ?? "", (v) =>
                     setEconomic((p) => ({ ...p, costDemo: v })), "number")}
                   {textField("cfld-econ-grossReturnDemo", "Gross return (Rs/ha)", economic.grossReturnDemo ?? "", (v) =>
                     setEconomic((p) => ({ ...p, grossReturnDemo: v })), "number")}
                 </div>
-                <div className="grid gap-4 sm:grid-cols-2">
+                <div className="grid grid-cols-[repeat(auto-fit,minmax(240px,320px))] gap-5">
                   {calculatedField("cfld-econ-netReturnDemo", "Net Return (Rs/ha)", demoNetReturn)}
                   {calculatedField("cfld-econ-bcRatioDemo", "B:C ratio", demoBcRatio)}
                 </div>
               </div>
 
               <div className="space-y-3 border-t border-border pt-4">
-                <p className="text-sm font-semibold text-primary">Additional income</p>
+                <p className="text-lg font-semibold text-primary">Additional income</p>
                 {textField(
                   "cfld-econ-additionalIncome",
                   "Additional Income (Rs/ha)",
@@ -478,23 +494,25 @@ export function CfldTechnicalParameterPage({
 
           {activeTab === "Socio Economic Parameters" && (
             <div className="space-y-3">
-              <p className="text-sm font-semibold text-primary">Socio Economic Parameters</p>
-              <div className="grid gap-4 sm:grid-cols-2">
+              <p className="text-lg font-semibold text-primary">Socio Economic Parameters</p>
+              <div className="grid grid-cols-[repeat(auto-fit,minmax(240px,320px))] gap-5">
                 {SOCIO_ECONOMIC_FIELDS.map((field) =>
                   textField(`cfld-socio-${field.key}`, field.label, socioEconomic[field.key] ?? "", (v) =>
                     setSocioEconomic((p) => ({ ...p, [field.key]: v })), "number"),
                 )}
+                {/* Shortened from "Purpose for which income gained was utilized" (client report, 2026-09-03) - wrapped to 2 lines in its ~320px track, pushing its own input down out of alignment with the row's other fields. */}
                 {textField(
                   "cfld-socio-purpose",
-                  "Purpose for which income gained was utilized",
+                  "Purpose of income utilized",
                   socioEconomic.purposeOfIncomeUtilized ?? "",
                   (v) => setSocioEconomic((p) => ({ ...p, purposeOfIncomeUtilized: v })),
                 )}
               </div>
-              <div className="grid gap-4 sm:grid-cols-2">
+              <div className="grid grid-cols-[repeat(auto-fit,minmax(240px,320px))] gap-5">
+                {/* Shortened from "Employment Generated (Mandays/ house hold)" (client report, 2026-09-03) - same wrapping issue. */}
                 {textField(
                   "cfld-socio-employment",
-                  "Employment Generated (Mandays/ house hold)",
+                  "Employment Generated (Mandays/hh)",
                   socioEconomic.employmentGeneratedMandays ?? "",
                   (v) => setSocioEconomic((p) => ({ ...p, employmentGeneratedMandays: v })),
                   "number",
@@ -505,14 +523,14 @@ export function CfldTechnicalParameterPage({
 
           {activeTab === "Farmers Perception" && (
             <div className="space-y-3">
-              <p className="text-sm font-semibold text-primary">Farmers Perception Parameters</p>
-              <div className="grid gap-4 sm:grid-cols-2">
+              <p className="text-lg font-semibold text-primary">Farmers Perception Parameters</p>
+              <div className="grid grid-cols-[repeat(auto-fit,minmax(240px,320px))] gap-5">
                 {PERCEPTION_FIELDS.map((field) =>
                   textField(`cfld-perception-${field.key}`, field.label, perception[field.key] ?? "", (v) =>
                     setPerception((p) => ({ ...p, [field.key]: v }))),
                 )}
               </div>
-              <div className="grid gap-4 sm:grid-cols-2">
+              <div className="grid grid-cols-[repeat(auto-fit,minmax(240px,320px))] gap-5">
                 {textField("cfld-perception-farmerFeedback", "Farmer feedback", perception.farmerFeedback ?? "", (v) =>
                   setPerception((p) => ({ ...p, farmerFeedback: v })))}
               </div>

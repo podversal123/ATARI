@@ -530,10 +530,6 @@ export const LEAF_RECORD_REGISTRY: Record<string, CreateFn> = {
         stFemale: int(v.stFemale) ?? 0,
       },
     }),
-  "achievements/soil-water/soil-testing-equipment": (v, ctx) =>
-    prisma.soilTestingEquipment.create({
-      data: { ...ctx, analysis: reqStr(v.analysis), equipmentName: reqStr(v.equipmentName), quantity: reqInt(v.quantity) },
-    }),
   "achievements/soil-water/soil-water-testing": (v, ctx) =>
     prisma.soilWaterPlantAnalysis.create({
       data: {
@@ -1286,7 +1282,6 @@ export const LEAF_DELETE_REGISTRY: Record<string, DeleteFn> = {
   "achievements/swachhta-bharat-abhiyaan/budget-expenditure": (id, ctx) => prisma.swachhtaBudgetExpenditure.deleteMany({ where: { id, ...kvkScope(ctx) } }),
   "achievements/special-days/poshan-maaha": (id, ctx) => prisma.poshanMaaha.deleteMany({ where: { id, ...kvkScope(ctx) } }),
   "achievements/production-supply": (id, ctx) => prisma.technologyProductProduction.deleteMany({ where: { id, ...kvkScope(ctx) } }),
-  "achievements/soil-water/soil-testing-equipment": (id, ctx) => prisma.soilTestingEquipment.deleteMany({ where: { id, ...kvkScope(ctx) } }),
   "achievements/soil-water/soil-water-testing": (id, ctx) => prisma.soilWaterPlantAnalysis.deleteMany({ where: { id, ...kvkScope(ctx) } }),
   "achievements/publications": (id, ctx) => prisma.publication.deleteMany({ where: { id, ...kvkScope(ctx) } }),
   "achievements/hrd": (id, ctx) => prisma.humanResourceDevelopment.deleteMany({ where: { id, ...kvkScope(ctx) } }),
@@ -1766,8 +1761,6 @@ export const LEAF_UPDATE_REGISTRY: Record<string, UpdateFn> = {
         stFemale: int(v.stFemale) ?? 0,
       },
     }),
-  "achievements/soil-water/soil-testing-equipment": (id, v, ctx) =>
-    prisma.soilTestingEquipment.updateMany({ where: { id, ...kvkScope(ctx) }, data: { analysis: reqStr(v.analysis), equipmentName: reqStr(v.equipmentName), quantity: reqInt(v.quantity) } }),
   "achievements/soil-water/soil-water-testing": (id, v, ctx) =>
     prisma.soilWaterPlantAnalysis.updateMany({
       where: { id, ...kvkScope(ctx) },

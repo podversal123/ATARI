@@ -103,13 +103,17 @@ export function EmployeeDetailsAddForm({
 
   return (
     <div>
-      <PageHeader backHref={backHref} trail={trail} title="Add Staff" />
+      {/* Heading slides in from the left as the card (below) slides in from the right (client direction, 2026-09-03) - the two converge toward the middle instead of both entering the same way. */}
+      <div className="animate-in fade-in-0 slide-in-from-left-8 ease-out duration-300">
+        <PageHeader backHref={backHref} trail={trail} title="Add Staff" />
+      </div>
 
-      <div className="animate-in fade-in-0 slide-in-from-bottom-2 rounded-lg border border-border bg-card p-5 duration-300">
-        <p className="mb-3 text-sm font-semibold text-primary">
+      <div className="animate-in fade-in-0 slide-in-from-right-8 ease-out rounded-lg border border-border bg-card p-5 duration-300">
+        <p className="mb-3 text-lg font-semibold text-primary">
           Staff Position
         </p>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {/* Same compact auto-fit field grid as every other Add/Edit page (KVK, Bank Account, ...) - this form's old 3-column grid stretched full width on wide screens instead of leaving fields their natural size (client report, 2026-09-03). */}
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(240px,320px))] gap-5">
           <div className="space-y-1.5">
             <Label htmlFor="sanctioned-post">
               Sanctioned Post <span className="text-destructive">*</span>
@@ -120,7 +124,7 @@ export function EmployeeDetailsAddForm({
               onValueChange={setSanctionedPost}
               placeholder="Please Select"
               options={sanctionedPosts.map((post) => ({ value: post, label: post }))}
-              className="h-8"
+              className="h-10"
             />
           </div>
           <div className="space-y-1.5">
@@ -129,6 +133,7 @@ export function EmployeeDetailsAddForm({
             </Label>
             <Input
               id="staff-name"
+              className="h-10"
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Full name"
@@ -140,6 +145,7 @@ export function EmployeeDetailsAddForm({
             </Label>
             <Input
               id="staff-mobile"
+              className="h-10"
               value={mobile}
               onChange={(e) => setMobile(e.target.value)}
               placeholder="+91 Mobile number"
@@ -151,6 +157,7 @@ export function EmployeeDetailsAddForm({
             <Input
               id="staff-email"
               type="email"
+              className="h-10"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="Enter email address"
@@ -160,6 +167,7 @@ export function EmployeeDetailsAddForm({
             <Label htmlFor="staff-pay-band">Pay Band</Label>
             <Input
               id="staff-pay-band"
+              className="h-10"
               value={payBand}
               onChange={(e) => setPayBand(e.target.value)}
             />
@@ -172,7 +180,7 @@ export function EmployeeDetailsAddForm({
               onValueChange={setPayScale}
               placeholder="Please Select"
               options={payScales.map((scale) => ({ value: scale, label: scale }))}
-              className="h-8"
+              className="h-10"
             />
           </div>
 
@@ -182,6 +190,7 @@ export function EmployeeDetailsAddForm({
             </Label>
             <Input
               id="staff-discipline"
+              className="h-10"
               value={discipline}
               onChange={(e) => setDiscipline(e.target.value)}
               placeholder="e.g. Agronomy, Horticulture"
@@ -194,6 +203,7 @@ export function EmployeeDetailsAddForm({
             <Input
               id="staff-dob"
               type="date"
+              className="h-10"
               value={dateOfBirth}
               onChange={(e) => setDateOfBirth(e.target.value)}
             />
@@ -205,6 +215,7 @@ export function EmployeeDetailsAddForm({
             <Input
               id="staff-doj"
               type="date"
+              className="h-10"
               value={dateOfJoining}
               onChange={(e) => setDateOfJoining(e.target.value)}
             />
@@ -218,13 +229,14 @@ export function EmployeeDetailsAddForm({
               onValueChange={setJobType}
               placeholder="Please Select"
               options={jobTypes.map((type) => ({ value: type, label: type }))}
-              className="h-8"
+              className="h-10"
             />
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="staff-allowances">Details of allowances</Label>
             <Input
               id="staff-allowances"
+              className="h-10"
               value={allowances}
               onChange={(e) => setAllowances(e.target.value)}
             />
@@ -239,22 +251,39 @@ export function EmployeeDetailsAddForm({
               onValueChange={setCasteCategory}
               placeholder="Please Select"
               options={casteCategories.map((category) => ({ value: category, label: category }))}
-              className="h-8"
+              className="h-10"
             />
           </div>
 
-          <FileUploadField
-            column={PHOTO_COLUMN}
-            fieldId="staff-photo"
-            value={photo}
-            onChange={setPhoto}
-          />
-          <FileUploadField
-            column={RESUME_COLUMN}
-            fieldId="staff-resume"
-            value={resume}
-            onChange={setResume}
-          />
+          {/*
+           * Photo + Resume stay inside this same grid (not a separate
+           * section below it) so their column tracks are computed by the
+           * exact same grid instance as every text field above - the only
+           * way to guarantee they land pixel-aligned with it, which a
+           * second, independent grid can't promise even with matching
+           * classes (client report, 2026-09-03: Add and Edit looked
+           * different - Edit already did it this way via
+           * MasterFormFields' own fileKind-grouping, see that file's
+           * matching comment). `col-[1/-1]` spans the full row inside the
+           * outer auto-fit grid, then this inner auto-fit grid gives each
+           * card its own bounded 260-380px track (wider than a plain
+           * 240-320px text field, since the icon+text card needs more
+           * room) instead of splitting evenly or stretching to fill it.
+           */}
+          <div className="col-[1/-1] grid grid-cols-[repeat(auto-fit,minmax(260px,380px))] gap-5">
+            <FileUploadField
+              column={PHOTO_COLUMN}
+              fieldId="staff-photo"
+              value={photo}
+              onChange={setPhoto}
+            />
+            <FileUploadField
+              column={RESUME_COLUMN}
+              fieldId="staff-resume"
+              value={resume}
+              onChange={setResume}
+            />
+          </div>
         </div>
 
         {error && (

@@ -241,6 +241,7 @@ export function FldForm({ trail, backHref, id, initialView }: FldFormProps) {
           onValueChange={onChange}
           placeholder="Please Select"
           options={options.map((option) => ({ value: option, label: option }))}
+          className="h-10"
         />
       </div>
     );
@@ -262,6 +263,7 @@ export function FldForm({ trail, backHref, id, initialView }: FldFormProps) {
         <Input
           id={idAttr}
           type={type}
+          className="h-10"
           value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder={type === "text" ? `Enter ${label.toLowerCase()}` : undefined}
@@ -272,18 +274,20 @@ export function FldForm({ trail, backHref, id, initialView }: FldFormProps) {
 
   return (
     <div>
-      {/* Full page heading (as opposed to the short "Edit FLD"/"Add FLD" tab-pill label below) - real reference (2026-09-02) spells it out as "Edit Front Line Demonstrations (FLD)". */}
-      <PageHeader
-        backHref={backHref}
-        trail={trail}
-        title={
-          activeView === "result"
-            ? "Add FLD Result"
-            : id
-              ? "Edit Front Line Demonstrations (FLD)"
-              : "Add Front Line Demonstrations (FLD)"
-        }
-      />
+      {/* Full page heading (as opposed to the short "Edit FLD"/"Add FLD" tab-pill label below) - real reference (2026-09-02) spells it out as "Edit Front Line Demonstrations (FLD)". Slides in from the left as the card below slides in from the right (client direction, 2026-09-03) - the two converge toward the middle instead of both entering the same way. */}
+      <div className="animate-in fade-in-0 slide-in-from-left-8 ease-out duration-300">
+        <PageHeader
+          backHref={backHref}
+          trail={trail}
+          title={
+            activeView === "result"
+              ? "Add FLD Result"
+              : id
+                ? "Edit Front Line Demonstrations (FLD)"
+                : "Add Front Line Demonstrations (FLD)"
+          }
+        />
+      </div>
 
       {/* "Edit/Add FLD / Add Result" tab pill - shown on both Add and Edit (client direction, 2026-09-02: "add new pe bhi same flow hona chahiye jo action mein hai"), same pattern as OftForm's own toggle. Add Result switches this same page in place (client direction, 2026-09-02: keep it consistent with OFT's own full-page Edit Result instead of a popup) and stays disabled until the record actually exists - a result belongs to a saved trial, there's no fldId to attach it to yet on a blank Add page. Sits below the Back/breadcrumb header (audit finding, 2026-09-02 - was built above it, backwards from CFLD's own established real order). */}
       <div className="mb-4 flex w-fit overflow-hidden rounded-full bg-primary p-1">
@@ -312,34 +316,35 @@ export function FldForm({ trail, backHref, id, initialView }: FldFormProps) {
       </div>
 
       {activeView === "result" && id ? (
-        <div className="animate-in fade-in-0 slide-in-from-bottom-2 rounded-lg border border-border bg-card p-5 duration-300">
+        <div className="animate-in fade-in-0 slide-in-from-right-8 ease-out rounded-lg border border-border bg-card p-5 duration-300">
           <FldResultFields fldId={id} backHref={backHref} />
         </div>
       ) : (
-      <div className="animate-in fade-in-0 slide-in-from-bottom-2 rounded-lg border border-border bg-card p-5 duration-300">
+      <div className="animate-in fade-in-0 slide-in-from-right-8 ease-out rounded-lg border border-border bg-card p-5 duration-300">
         {loading && <p className="mb-4 text-sm text-muted-foreground">Loading record…</p>}
 
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(240px,320px))] gap-5">
           {textField("fld-start-date", "Start Date", startDate, setStartDate, true, "date")}
           {textField("fld-end-date", "Expected Completion Date", endDate, setEndDate, true, "date")}
           {selectField("fld-staff", "Name of SMS/KVK Head", staff, setStaff, staffOptions, true)}
           {selectField("fld-season", "Season", season, setSeason, seasonOptions, true)}
         </div>
 
-        <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mt-4 grid grid-cols-[repeat(auto-fit,minmax(240px,320px))] gap-5">
           {selectField("fld-sector", "Sector", sector, setSector, sectorOptions, true)}
           {selectField("fld-thematic-area", "Thematic Area", thematicArea, setThematicArea, thematicAreaOptions, true)}
           {selectField("fld-category", "Category", category, setCategory, categoryOptions, true)}
           {selectField("fld-sub-category", "Sub Category", subCategory, setSubCategory, subCategoryOptions, true)}
         </div>
 
-        <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mt-4 grid grid-cols-[repeat(auto-fit,minmax(240px,320px))] gap-5">
           {selectField("fld-crop", "Crop/Animal/Enterprise", cropAnimalEnterprise, setCropAnimalEnterprise, cropOptions, true)}
-          {textField("fld-technology", "Name of Technology Demonstrated (FLD Name)", technologyDemonstrated, setTechnologyDemonstrated, true)}
+          {/* Shortened from "Name of Technology Demonstrated (FLD Name)" (client report, 2026-09-03) - the full label wrapped to 2 lines in its ~320-380px grid track, pushing its own input down and breaking row alignment with the neighboring "No of demonstration" field. Same meaning, fits one line. */}
+          {textField("fld-technology", "Technology Demonstrated (FLD Name)", technologyDemonstrated, setTechnologyDemonstrated, true)}
           {textField("fld-no-of-demo", "No of demonstration", noOfDemonstration, setNoOfDemonstration, true, "number")}
         </div>
 
-        <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div className="mt-4 grid grid-cols-[repeat(auto-fit,minmax(240px,320px))] gap-5">
           {textField("fld-unit", "Unit", unit, setUnit, false)}
           {textField("fld-quantity", "Quantity", quantity, setQuantity, false, "number")}
         </div>
@@ -351,7 +356,7 @@ export function FldForm({ trail, backHref, id, initialView }: FldFormProps) {
         )}
 
         <div className="mt-5 space-y-2 border-t border-border pt-4">
-          <p className="text-sm font-semibold text-primary">Farmers Details</p>
+          <p className="text-lg font-semibold text-primary">Farmers Details</p>
           <DemographicGrid
             values={demographics}
             onChange={(key, value) => setDemographics((p) => ({ ...p, [key]: value }))}
