@@ -234,15 +234,18 @@ export function OftResultFields({ oftId, backHref }: OftResultFieldsProps) {
         <Textarea id="oft-remark" rows={4} value={remark} onChange={(e) => setRemark(e.target.value)} />
       </div>
 
+      {/* Real, prominent section headings here (confirmed live, 2026-09-03) - "Photographs" and "Supplementary Datasheets" render the same bold size as "Dynamic Result Tables" below, not a plain field-size label (client report, 2026-09-03: card sub-headings missing/too small in several places). */}
       <div className="mt-5 grid gap-4 border-t border-border pt-4 sm:grid-cols-2">
-        <MultiImageUploadField
-          label="Photographs"
-          uploadKind="oft-photograph"
-          value={photographUrls}
-          onChange={setPhotographUrls}
-        />
-        <div className="space-y-1.5">
-          <Label>Supplementary Datasheets</Label>
+        <div className="space-y-2">
+          <p className="text-lg font-semibold text-primary">Photographs</p>
+          <MultiImageUploadField
+            uploadKind="oft-photograph"
+            value={photographUrls}
+            onChange={setPhotographUrls}
+          />
+        </div>
+        <div className="space-y-2">
+          <p className="text-lg font-semibold text-primary">Supplementary Datasheets</p>
           <input
             type="file"
             id="oft-datasheet-input"
@@ -294,7 +297,7 @@ export function OftResultFields({ oftId, backHref }: OftResultFieldsProps) {
       </div>
 
       <div className="mt-5 space-y-4 border-t border-border pt-4">
-        <p className="text-sm font-semibold text-primary">Dynamic Result Tables</p>
+        <p className="text-lg font-semibold text-primary">Dynamic Result Tables</p>
         {resultTables.map((table, tableIndex) => (
           <div key={tableIndex} className="rounded-lg border border-border p-3">
             <div className="flex flex-wrap items-center gap-2">

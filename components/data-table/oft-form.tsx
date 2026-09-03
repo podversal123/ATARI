@@ -15,6 +15,7 @@ import {
   type DemographicValues,
 } from "./demographic-breakdown";
 import { FormPhotosField, type FormPhoto } from "./form-photos-field";
+import { TagInputField } from "./tag-input-field";
 import { OftResultFields } from "./oft-result-fields";
 
 type OftFormProps = {
@@ -278,6 +279,7 @@ export function OftForm({ trail, backHref, id, initialView }: OftFormProps) {
           onValueChange={onChange}
           placeholder={placeholder}
           options={options.map((option) => ({ value: option, label: option }))}
+          className="h-10"
         />
       </div>
     );
@@ -300,6 +302,7 @@ export function OftForm({ trail, backHref, id, initialView }: OftFormProps) {
         <Input
           id={idAttr}
           type={type}
+          className="h-10"
           value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder={placeholder ?? (type === "text" ? `Enter ${label.toLowerCase()}` : undefined)}
@@ -310,11 +313,14 @@ export function OftForm({ trail, backHref, id, initialView }: OftFormProps) {
 
   return (
     <div>
-      <PageHeader
-        backHref={backHref}
-        trail={trail}
-        title={activeView === "result" ? "Edit OFT Result" : id ? "Edit OFT" : "Add OFT"}
-      />
+      {/* Slides in from the left as the card below slides in from the right (client direction, 2026-09-03) - the two converge toward the middle instead of both entering the same way. */}
+      <div className="animate-in fade-in-0 slide-in-from-left-8 ease-out duration-300">
+        <PageHeader
+          backHref={backHref}
+          trail={trail}
+          title={activeView === "result" ? "Edit OFT Result" : id ? "Edit OFT" : "Add OFT"}
+        />
+      </div>
 
       {/* "Edit/Add OFT / Edit Result" tab pill - shown on both Add and Edit (client direction, 2026-09-02: "add new pe bhi same flow hona chahiye jo action mein hai"). Edit Result stays disabled until the record actually exists - a result belongs to a saved trial, there's no oftId to attach it to yet on a blank Add page. Switches views in place, same pattern CFLD Technical Parameter's own tab pill already uses, rather than a separate route. Sits below the Back/breadcrumb header (audit finding, 2026-09-02 - was built above it, backwards from CFLD's own established real order). */}
       <div className="mb-4 flex w-fit overflow-hidden rounded-full bg-primary p-1">
@@ -343,51 +349,50 @@ export function OftForm({ trail, backHref, id, initialView }: OftFormProps) {
       </div>
 
       {activeView === "result" && id ? (
-        <div className="animate-in fade-in-0 slide-in-from-bottom-2 rounded-lg border border-border bg-card p-5 duration-300">
+        <div className="animate-in fade-in-0 slide-in-from-right-8 ease-out rounded-lg border border-border bg-card p-5 duration-300">
           <OftResultFields oftId={id} backHref={backHref} />
         </div>
       ) : (
-      <div className={cn("animate-in fade-in-0 slide-in-from-bottom-2 rounded-lg border border-border bg-card p-5 duration-300")}>
+      <div className={cn("animate-in fade-in-0 slide-in-from-right-8 ease-out rounded-lg border border-border bg-card p-5 duration-300")}>
         {loading && <p className="mb-4 text-sm text-muted-foreground">Loading record…</p>}
 
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(240px,320px))] gap-5">
           {textField("oft-start-month", "OFT Start Date", startMonth, setStartMonth, true, undefined, "date")}
           {textField("oft-end-month", "Expected Completion Date", endMonth, setEndMonth, true, undefined, "date")}
           {selectField("oft-staff", "Name of SMS/KVK Head", staff, setStaff, staffOptions, true)}
           {selectField("oft-season", "Season", season, setSeason, seasonOptions, true)}
         </div>
 
-        <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mt-4 grid grid-cols-[repeat(auto-fit,minmax(240px,320px))] gap-5">
           {selectField("oft-subject", "OFT Subject", oftSubject, setOftSubject, subjectOptions, true)}
           {selectField("oft-thematic-area", "Thematic Area", thematicArea, setThematicArea, thematicAreaOptions, true)}
           {selectField("oft-discipline", "Discipline", discipline, setDiscipline, DISCIPLINES, true)}
           {textField("oft-title", "Title of On Farm Trial (OFT)", trialOnForm, setTrialOnForm, true)}
         </div>
 
-        <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div className="mt-4 grid grid-cols-[repeat(auto-fit,minmax(240px,320px))] gap-5">
           {textField("oft-problem", "Problem Diagnosed", problemDiagnosed, setProblemDiagnosed, true)}
           {selectField("oft-source", "Source of Technology (ICAR/SAU/Other)", sourceOfTechnology, setSourceOfTechnology, SOURCES, true)}
         </div>
 
-        <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div className="mt-4 grid grid-cols-[repeat(auto-fit,minmax(240px,320px))] gap-5">
           {selectField("oft-funding-source", "Source of Funding", sourceOfFunding, setSourceOfFunding, fundingSourceOptions, true)}
           {textField("oft-production-system", "Production System and Thematic Area", productionSystem, setProductionSystem, true)}
         </div>
 
+        {/* Real "type each value and press , or Enter to add as a tag" input (confirmed live, 2026-09-03) - was a plain multi-line textarea before, which doesn't match the reference's own pill/tag editor at all. */}
         <div className="mt-4">
-          <Label htmlFor="oft-performance-indicators">
-            Performance Indicators of the Technology <span className="text-destructive">*</span>
-          </Label>
-          <Textarea
+          <TagInputField
             id="oft-performance-indicators"
-            className="mt-1.5"
+            label="Performance Indicators of the Technology"
+            required
             value={performanceIndicators}
-            onChange={(e) => setPerformanceIndicators(e.target.value)}
+            onChange={setPerformanceIndicators}
           />
         </div>
 
         <div className="mt-5 space-y-3 border-t border-border pt-4">
-          <p className="text-sm font-semibold text-primary">
+          <p className="text-lg font-semibold text-primary">
             Details of technologies selected for assessment/refinement:
           </p>
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,2fr)_auto] sm:items-start">
@@ -423,14 +428,14 @@ export function OftForm({ trail, backHref, id, initialView }: OftFormProps) {
           </Button>
         </div>
 
-        <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mt-4 grid grid-cols-[repeat(auto-fit,minmax(240px,320px))] gap-5">
           {textField("oft-unit", "Unit", unit, setUnit, true, "e.g. ha, Kg")}
           {textField("oft-quantity", "Quantity", quantity, setQuantity, true, undefined, "number")}
           {textField("oft-location", "No. of location", noOfLocation, setNoOfLocation, true, undefined, "number")}
           {textField("oft-trials", "No. of Trial/Replication", noOfTrialReplicationFarmer, setNoOfTrialReplicationFarmer, true, undefined, "number")}
         </div>
 
-        <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div className="mt-4 grid grid-cols-[repeat(auto-fit,minmax(240px,320px))] gap-5">
           {textField("oft-critical-input", "Critical Input", criticalInput, setCriticalInput, true)}
           {textField("oft-cost", "Cost of OFT", costOfOft, setCostOfOft, true, undefined, "number")}
         </div>
@@ -446,7 +451,7 @@ export function OftForm({ trail, backHref, id, initialView }: OftFormProps) {
         )}
 
         <div className="mt-5 space-y-2 border-t border-border pt-4">
-          <p className="text-sm font-semibold text-primary">Farmers Details</p>
+          <p className="text-lg font-semibold text-primary">Farmers Details</p>
           <DemographicGrid
             values={demographics}
             onChange={(key, value) => setDemographics((p) => ({ ...p, [key]: value }))}
