@@ -191,6 +191,23 @@ export function ProgressChartCard({
   const chartScrollRef = useRef<HTMLDivElement>(null);
 
   /**
+   * Reset pagination / "Show all" whenever the filter changes the set of
+   * rows (real bug: apply a filter, page to 3, then clear both filters back
+   * to "All" - the row set grows back to every KVK but `page` stayed at 3,
+   * and since rows are sorted busiest-first, page 3 was nothing but
+   * zero-value KVKs, so every bar "disappeared"). Keyed on the row ids, not
+   * the array reference, so the ~20s poll refresh (same KVKs, new array)
+   * doesn't yank a browsing user back to page 0.
+   */
+  const rowsKey = useMemo(() => rows.map((r) => r.id).join("|"), [rows]);
+  const [prevRowsKey, setPrevRowsKey] = useState(rowsKey);
+  if (rowsKey !== prevRowsKey) {
+    setPrevRowsKey(rowsKey);
+    setPage(0);
+    setShowAll(false);
+  }
+
+  /**
    * Axis ceiling gets real headroom above the tallest bar's own value
    * (standard chart-domain padding, same idea every charting library
    * defaults to) rather than exactly equalling it. Without this, a single

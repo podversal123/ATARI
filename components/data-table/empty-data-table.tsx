@@ -870,7 +870,14 @@ export function EmptyDataTable({
   }, [filteredRows, currentPage]);
 
   const rowCount = displayedRows?.length ?? 0;
-  const total = totalCount ?? filteredCount;
+  /**
+   * "Showing 1-10 of N" - N is the grand total when nothing is filtered
+   * (so `totalCount` can still cover a server-truncated first page), but the
+   * *filtered* count the moment any search / column filter / date range
+   * narrows the list, so it never reads "1-9 of 628" while showing 9 rows.
+   */
+  const isNarrowed = filteredCount !== (rows?.length ?? 0);
+  const total = isNarrowed ? filteredCount : totalCount ?? filteredCount;
   const rangeStart = filteredCount === 0 ? 0 : (currentPage - 1) * PAGE_SIZE + 1;
   const rangeEnd = filteredCount === 0 ? 0 : rangeStart + rowCount - 1;
 

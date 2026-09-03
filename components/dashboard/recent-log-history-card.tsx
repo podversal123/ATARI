@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useSession } from "@/lib/session";
+import { usePolling } from "@/lib/use-polling";
 
 type LogRow = {
   id: string;
@@ -33,7 +34,7 @@ export function RecentLogHistoryCard() {
 
   const [rows, setRows] = useState<LogRow[]>([]);
 
-  useEffect(() => {
+  const load = useCallback(() => {
     let cancelled = false;
     fetch("/api/log-history?limit=6")
       .then((res) => (res.ok ? res.json() : null))
@@ -45,6 +46,11 @@ export function RecentLogHistoryCard() {
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => load(), [load]);
+  // Keep the dashboard's "recent" list in step with the ~20s refresh the
+  // stat cards and progress charts already run on.
+  usePolling(load);
 
   return (
     <div className="flex h-[450px] flex-col rounded-lg border border-border bg-card p-5">
