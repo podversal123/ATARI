@@ -1721,6 +1721,7 @@ const projects = group(
         { key: "endDate", label: "End Date", fieldKind: "date", required: true },
         { key: "farmersAttended", label: "Number of farmers attended", required: true },
         ...DEMOGRAPHIC_COLUMNS,
+      ]),
       group("others", "Others", [
         leaf("intervention", "Intervention", [
           { key: "kvk", label: "KVK Name", readonly: true },
