@@ -13,19 +13,21 @@
  */
 
 const EXCLUDE_WORDS = new Set([
-  // "no"/"crop"/"system"/"practice" deliberately left OUT despite being
-  // identifier-ish in isolation (Registration No., Crop, Farming System) -
-  // they also show up as plain modifiers inside real numeric labels ("No. of
-  // Farmer", "Crop Yield (q/ha)", "System Productivity (q/ha)", "Yield Under
-  // Farmer Practice"), and EXCLUDE always wins over INCLUDE below, so keeping
-  // them here silently turned those back into plain text fields (audit
-  // finding, 2026-09-03, live-checked against CRA Details' own Add form).
+  // "no"/"crop"/"system"/"practice"/"activity"/"activities" deliberately
+  // left OUT despite being identifier-ish in isolation (Registration No.,
+  // Crop, Farming System, Activity Name) - they also show up as plain
+  // modifiers inside real numeric labels ("No. of Farmer", "Crop Yield
+  // (q/ha)", "System Productivity (q/ha)", "Yield Under Farmer Practice",
+  // "No. of activities conducted"), and EXCLUDE always wins over INCLUDE
+  // below, so keeping them here silently turned those back into plain text
+  // fields (audit finding, 2026-09-03, live-checked against CRA Details and
+  // Poshan Maaha's own Add forms).
   "name", "code", "id", "ifsc", "email", "mobile", "phone", "contact",
   "registration", "account", "aadhar", "aadhaar", "pin", "pincode",
   "address", "remark", "remarks", "detail", "details", "description",
   "feedback", "purpose", "title", "venue", "village", "block", "taluk",
   "district", "zone", "state", "kvk", "variety", "season",
-  "activity", "activities", "technology", "situation",
+  "technology", "situation",
   "situations", "staff", "organization", "organisation", "agency",
   "scheme", "programme", "program", "project", "source", "sources",
   "sponsor", "sponsoring", "bank", "type", "category", "status", "kind",
@@ -52,6 +54,14 @@ const INCLUDE_WORDS = new Set([
   "demonstrations", "visits", "courses", "products", "crops", "villages",
   "blocks", "groups", "drones", "installments", "installment", "return",
   "returns", "net", "gross", "margin", "rs",
+  // Demographic/participant-category words - real Add form fields shorten
+  // "Participants - Girls" down to just "Girls" as the visible formLabel
+  // (Poshan Maaha, audit finding 2026-09-03), so these need to be
+  // recognized even standing completely alone, not just as part of a
+  // longer "No. of X" phrase.
+  "girls", "boys", "women", "woman", "workers", "officials",
+  "representatives", "anganwadi", "beneficiaries", "beneficiary",
+  "children", "adults", "youth", "farmwoman", "labourers", "labour",
 ]);
 
 /**
@@ -64,8 +74,27 @@ const INCLUDE_WORDS = new Set([
  */
 const UNIT_MARKER_PATTERN = /%|₹|rs\.?\/|\brs\.?\)|\/ha\b|\/mt\b|\bha\)|\bkg\b|\bq\/ha\b|\bsq\.?\s?mt\b/i;
 
-export function isNumericLabel(label: string): boolean {
-  const words = label
+/**
+ * "No. of X" / "No of X" / "Number of X" is the single most common numeric
+ * phrasing across this schema (No. of Farmer, No of Activities, No. of
+ * soil samples collected, ...) and the noun after "of" is unpredictable, so
+ * this catches the phrase itself rather than trying to enumerate every noun
+ * that could follow it.
+ */
+const NO_OF_PATTERN = /\bno\.?\s+of\b|\bnumber\s+of\b/i;
+
+/**
+ * Whether ANY of a field's own label texts (its list-column `label`, and its
+ * separate, often-shortened Add/Edit `formLabel` when the two differ) reads
+ * as numeric - checked as a union rather than either string alone, since a
+ * real field's full context sometimes lives only in the longer one (e.g.
+ * Poshan Maaha's `label: "Participants - Girls"` carries the word
+ * "Participants" that its own shortened `formLabel: "Girls"` alone does
+ * not).
+ */
+export function isNumericLabel(...labels: (string | undefined)[]): boolean {
+  const text = labels.filter(Boolean).join(" ");
+  const words = text
     .toLowerCase()
     .replace(/[^a-z\s]/g, " ")
     .split(/\s+/)
@@ -73,5 +102,5 @@ export function isNumericLabel(label: string): boolean {
   if (words.length === 0) return false;
   if (words.some((word) => EXCLUDE_WORDS.has(word))) return false;
   if (words.some((word) => INCLUDE_WORDS.has(word))) return true;
-  return UNIT_MARKER_PATTERN.test(label);
+  return UNIT_MARKER_PATTERN.test(text) || NO_OF_PATTERN.test(text);
 }

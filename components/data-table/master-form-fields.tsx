@@ -458,7 +458,7 @@ export function MasterFormFields({
               type={
                 column.fieldKind === "date"
                   ? "date"
-                  : isNumericLabel(column.formLabel ?? column.label)
+                  : isNumericLabel(column.label, column.formLabel)
                     ? "number"
                     : undefined
               }
