@@ -171,7 +171,10 @@ function LoginForm() {
 
           <div className="mt-6 space-y-1 text-center text-sm">
             <a
-              href="#"
+              href="/AMS_User_Manual.pdf"
+              target="_blank"
+              rel="noopener noreferrer"
+              download
               className="block text-[#034541] underline underline-offset-2"
             >
               Download User Manual
