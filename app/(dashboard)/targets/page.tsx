@@ -63,7 +63,8 @@ export default function TargetsPage() {
 
   const years = reportingYearOptions();
   const [reportingYear, setReportingYear] = useState(years[1]);
-  const [kvk, setKvk] = useState(KVKS[0]?.name ?? "");
+  /** Super Admin can tick one or many KVKs and set the same target for all of them in one save (client request, 2026-09-04). */
+  const [kvkSet, setKvkSet] = useState<Set<string>>(new Set());
   const [category, setCategory] = useState(CATEGORIES[0]);
   const [targetValue, setTargetValue] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -102,7 +103,7 @@ export default function TargetsPage() {
           reportingYear: Number(reportingYear),
           category,
           targetValue: Number(targetValue),
-          kvkName: isKvk ? undefined : kvk,
+          kvkNames: isKvk ? undefined : Array.from(kvkSet),
         }),
       });
       const data = await response.json();
@@ -111,6 +112,7 @@ export default function TargetsPage() {
         return;
       }
       setTargetValue("");
+      setKvkSet(new Set());
       loadTargets();
     } catch {
       setFormError("Could not reach the server. Please try again.");
@@ -164,13 +166,12 @@ export default function TargetsPage() {
           {!isKvk && (
             <div>
               <label className="text-xs font-medium text-muted-foreground">
-                KVK
+                KVK{kvkSet.size > 0 ? ` (${kvkSet.size} selected)` : ""}
               </label>
-              <SimpleSelect
-                value={kvk}
-                onValueChange={setKvk}
-                options={KVKS.map((k) => ({ value: k.name, label: k.name }))}
-                className="mt-1"
+              <SelectOrgKvksDropdown
+                kvks={KVKS.map((k) => k.name)}
+                selected={kvkSet}
+                onChange={setKvkSet}
               />
             </div>
           )}
@@ -205,9 +206,17 @@ export default function TargetsPage() {
           </p>
         )}
         <div className="mt-3 flex justify-end">
-          <Button size="sm" disabled={!targetValue || submitting} onClick={submitTarget}>
+          <Button
+            size="sm"
+            disabled={!targetValue || submitting || (!isKvk && kvkSet.size === 0)}
+            onClick={submitTarget}
+          >
             <TargetIcon className="size-3.5" />
-            {submitting ? "Saving…" : "Save Target"}
+            {submitting
+              ? "Saving…"
+              : !isKvk && kvkSet.size > 1
+                ? `Save Target for ${kvkSet.size} KVKs`
+                : "Save Target"}
           </Button>
         </div>
       </div>

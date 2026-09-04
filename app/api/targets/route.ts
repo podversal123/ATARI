@@ -63,34 +63,52 @@ export async function POST(request: Request) {
   const reportingYear = Number(body?.reportingYear);
   const category = typeof body?.category === "string" ? body.category : "";
   const targetValue = Number(body?.targetValue);
-  const kvkName = typeof body?.kvkName === "string" ? body.kvkName : "";
+  /**
+   * Super Admin picks one or more KVKs from a checklist (client request,
+   * 2026-09-04: "dropdown mai multiple checkbox jaise report mai") - the
+   * same target value is then set for every checked KVK in one save.
+   * `kvkName` (single string) is still accepted for older callers.
+   */
+  const kvkNames: string[] = Array.isArray(body?.kvkNames)
+    ? body.kvkNames.filter((n: unknown): n is string => typeof n === "string" && n.trim() !== "")
+    : typeof body?.kvkName === "string" && body.kvkName.trim() !== ""
+      ? [body.kvkName]
+      : [];
 
   if (!reportingYear || !CATEGORIES.includes(category as Category) || !targetValue || targetValue <= 0) {
     return NextResponse.json({ error: "Reporting year, category and a positive target value are required." }, { status: 400 });
-  }
-
-  // KVK Admin/User can only ever set their own KVK's target; Super Admin must name one.
-  let kvkId = auth.session.kvkId;
-  if (auth.session.role === "SUPER_ADMIN") {
-    if (!kvkName) return NextResponse.json({ error: "KVK is required." }, { status: 400 });
-    const kvk = await prisma.kvk.findFirst({ where: { zoneId: auth.session.zoneId, name: kvkName } });
-    if (!kvk) return NextResponse.json({ error: `Unknown KVK: ${kvkName}` }, { status: 400 });
-    kvkId = kvk.id;
-  }
-  if (!kvkId) {
-    return NextResponse.json({ error: "No KVK to assign this target to." }, { status: 400 });
   }
   if (!auth.session.roleId) {
     return NextResponse.json({ error: "Your account has no assigned role." }, { status: 403 });
   }
 
-  const target = await prisma.target.upsert({
-    where: { kvkId_reportingYear_category: { kvkId, reportingYear, category } },
-    create: { kvkId, zoneId: auth.session.zoneId, reportingYear, category, targetValue, roleId: auth.session.roleId },
-    update: { targetValue, roleId: auth.session.roleId },
-  });
+  // KVK Admin/User can only ever set their own KVK's target; Super Admin picks the KVK(s).
+  let kvkIds: string[];
+  if (auth.session.role === "SUPER_ADMIN") {
+    if (kvkNames.length === 0) return NextResponse.json({ error: "Select at least one KVK." }, { status: 400 });
+    const kvks = await prisma.kvk.findMany({
+      where: { zoneId: auth.session.zoneId, name: { in: kvkNames } },
+      select: { id: true, name: true },
+    });
+    const missing = kvkNames.filter((n) => !kvks.some((k) => k.name === n));
+    if (missing.length > 0) return NextResponse.json({ error: `Unknown KVK: ${missing.join(", ")}` }, { status: 400 });
+    kvkIds = kvks.map((k) => k.id);
+  } else {
+    if (!auth.session.kvkId) return NextResponse.json({ error: "No KVK to assign this target to." }, { status: 400 });
+    kvkIds = [auth.session.kvkId];
+  }
 
-  /** Real auto-notification to the target KVK (client-confirmed 2026-08-29) - only a Super Admin setting/updating another KVK's target triggers this; a KVK Admin/User setting their own target has no one to notify. */
+  const targets = await Promise.all(
+    kvkIds.map((kvkId) =>
+      prisma.target.upsert({
+        where: { kvkId_reportingYear_category: { kvkId, reportingYear, category } },
+        create: { kvkId, zoneId: auth.session.zoneId, reportingYear, category, targetValue, roleId: auth.session.roleId! },
+        update: { targetValue, roleId: auth.session.roleId! },
+      }),
+    ),
+  );
+
+  /** Real auto-notification to each target KVK (client-confirmed 2026-08-29) - only a Super Admin setting/updating another KVK's target triggers this; a KVK Admin/User setting their own target has no one to notify. */
   if (auth.session.role === "SUPER_ADMIN") {
     const senderUser = await prisma.user.findUnique({ where: { id: auth.session.sub }, select: { name: true, username: true } });
     await prisma.notification.create({
@@ -101,13 +119,13 @@ export async function POST(request: Request) {
         senderId: auth.session.sub,
         senderName: senderUser?.name ?? senderUser?.username ?? "Super Admin",
         senderRole: "SUPER_ADMIN",
-        recipientKvkIds: [kvkId],
+        recipientKvkIds: kvkIds,
         source: "TARGET",
       },
     });
   }
 
-  return NextResponse.json({ ok: true, id: target.id }, { status: 201 });
+  return NextResponse.json({ ok: true, count: targets.length }, { status: 201 });
 }
 
 export async function DELETE(request: Request) {
