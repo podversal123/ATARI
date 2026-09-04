@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { EmptyDataTable } from "@/components/data-table/empty-data-table";
 import { SimpleSelect } from "@/components/ui/simple-select";
+import { SelectOrgKvksDropdown } from "@/components/reports/select-org-kvks-dropdown";
 import { useSession } from "@/lib/session";
 import { KVKS } from "@/lib/rbac";
 
@@ -68,6 +69,16 @@ export default function TargetsPage() {
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [rows, setRows] = useState<TargetRow[]>();
+  /**
+   * Same collective/selective KVK checklist the Reports page uses (client
+   * request, 2026-09-04: "Reports page pe checkboxes hain wo Targets pe bhi
+   * lagao") - `null` means every KVK is in scope (the default "collective"
+   * view); a Set is an explicit selection, so the list and its PDF/Excel/
+   * Word exports narrow to just those KVKs (an empty Set shows none, matching
+   * the Reports dropdown). Super Admin only; a KVK Admin/User already sees
+   * only their own rows.
+   */
+  const [kvkFilter, setKvkFilter] = useState<Set<string> | null>(null);
 
   function loadTargets() {
     fetch("/api/targets")
@@ -107,6 +118,17 @@ export default function TargetsPage() {
       setSubmitting(false);
     }
   }
+
+  const kvkOptions = Array.from(
+    new Set([
+      ...KVKS.map((k) => k.name),
+      ...(rows ?? []).map((r) => r.kvk),
+    ]),
+  ).sort();
+  const visibleRows =
+    isKvk || kvkFilter === null
+      ? rows
+      : rows?.filter((r) => kvkFilter.has(r.kvk));
 
   return (
     <div>
@@ -190,6 +212,28 @@ export default function TargetsPage() {
         </div>
       </div>
 
+      {!isKvk && (
+        <div className="mb-4 flex flex-wrap items-center gap-3 rounded-lg border border-border bg-card p-4">
+          <span className="text-xs font-semibold tracking-wide text-primary uppercase">
+            KVKs
+          </span>
+          <div className="w-72">
+            <SelectOrgKvksDropdown
+              kvks={kvkOptions}
+              selected={kvkFilter ?? new Set(kvkOptions)}
+              onChange={(next) =>
+                setKvkFilter(next.size === kvkOptions.length ? null : next)
+              }
+            />
+          </div>
+          <span className="text-xs text-muted-foreground">
+            {kvkFilter === null
+              ? "Showing all KVKs — untick any to scope the list and its exports"
+              : `Scoped to ${kvkFilter.size} of ${kvkOptions.length} KVKs`}
+          </span>
+        </div>
+      )}
+
       <EmptyDataTable
         title="Targets"
         icon="targets"
@@ -199,8 +243,8 @@ export default function TargetsPage() {
             : "Targets assigned across all KVKs, tracked against what each KVK reports"
         }
         columns={isKvk ? KVK_COLUMNS : SUPER_ADMIN_COLUMNS}
-        rows={rows}
-        totalCount={rows?.length}
+        rows={visibleRows}
+        totalCount={visibleRows?.length}
         hideAddNew
       />
     </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import {
   LayoutGrid,
@@ -38,6 +38,8 @@ type FormSummaryData = {
   totalPossible: number;
   overallProgressPercent: number;
   byKvk: KvkSummary[];
+  years: number[];
+  year: number | null;
 };
 
 type ViewMode = "kvk" | "matrix";
@@ -74,12 +76,21 @@ export default function FormSummaryPage() {
   const [search, setSearch] = useState("");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  /**
+   * Reporting-year scope for every count on this page - `""` is the
+   * "All Years" (all-time) view, which stays the default so the headline
+   * numbers don't shift on load; the dropdown now also offers each real
+   * year present in the data instead of the single dead "current year"
+   * option it used to show (client report, 2026-09-04).
+   */
+  const [year, setYear] = useState<string>("");
 
   const matrixScrollRef = useRef<HTMLDivElement>(null);
 
-  function loadSummary() {
+  const loadSummary = useCallback(() => {
     let cancelled = false;
-    fetch("/api/form-summary")
+    const query = year ? `?year=${year}` : "";
+    fetch(`/api/form-summary${query}`)
       .then((res) => (res.ok ? res.json() : null))
       .then((json: FormSummaryData | null) => {
         if (!cancelled) setData(json);
@@ -91,10 +102,13 @@ export default function FormSummaryPage() {
     return () => {
       cancelled = true;
     };
-  }
+  }, [year]);
 
-  useEffect(loadSummary, []);
+  useEffect(loadSummary, [loadSummary]);
   usePolling(loadSummary);
+
+  const ALL_YEARS = "All Years";
+  const yearOptions = [ALL_YEARS, ...(data?.years ?? []).map(String)];
 
   const filteredSorted = useMemo(() => {
     if (!data) return [];
@@ -133,8 +147,9 @@ export default function FormSummaryPage() {
         </div>
         <FilterSelect
           label="Reporting year"
-          value={String(new Date().getFullYear())}
-          options={[String(new Date().getFullYear())]}
+          value={year || ALL_YEARS}
+          options={yearOptions}
+          onChange={(next) => setYear(next === ALL_YEARS ? "" : next)}
         />
       </div>
 

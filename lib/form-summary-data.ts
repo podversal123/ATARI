@@ -10,7 +10,99 @@ export type TrackedLeaf = {
   extraWhere?: Record<string, string>;
   /** StaffTransfer's own per-KVK column is `toKvkId`, not `kvkId` (confirmed in lib/leaf-record-registry.ts's own delete handler for this leaf) - every other leaf here groups by `kvkId`. */
   kvkField?: "kvkId" | "toKvkId";
+  /**
+   * How this leaf's model carries a reporting year, so the Form Summary's
+   * "Reporting year" filter can actually scope the per-KVK counts (it was a
+   * dead single-option control before). `int` = a plain year column
+   * (`reportingYear`/`year`/`practicingYear`); `date` = a DateTime the year
+   * is read off. Omitted for the ~38 models with neither (roster tables like
+   * bank/land/staff, and a few detail tables) - those legitimately have no
+   * year to scope by, so they count all-time in every year's view.
+   * Field names mechanically verified against prisma/schema.prisma.
+   */
+  yearField?: { field: string; kind: "int" | "date" };
 };
+
+const MODEL_YEAR_FIELD: Record<string, { field: string; kind: "int" | "date" }> = {
+  // Plain year columns
+  oft: { field: "reportingYear", kind: "int" },
+  fld: { field: "reportingYear", kind: "int" },
+  training: { field: "reportingYear", kind: "int" },
+  extensionActivity: { field: "reportingYear", kind: "int" },
+  otherExtensionActivity: { field: "reportingYear", kind: "int" },
+  swachhtaBudgetExpenditure: { field: "reportingYear", kind: "int" },
+  worldSoilDay: { field: "reportingYear", kind: "int" },
+  cfldTechnicalParameter: { field: "reportingYear", kind: "int" },
+  nicraRevenueGenerated: { field: "year", kind: "int" },
+  nfAlreadyPracticing: { field: "practicingYear", kind: "int" },
+  nfBeneficiary: { field: "reportingYear", kind: "int" },
+  agriDroneIntroduction: { field: "year", kind: "int" },
+  kvkActivityImpact: { field: "reportingYear", kind: "int" },
+  entrepreneurshipDetail: { field: "reportingYear", kind: "int" },
+  successStory: { field: "reportingYear", kind: "int" },
+  districtLevelData: { field: "reportingYear", kind: "int" },
+  operationalAreaDetail: { field: "reportingYear", kind: "int" },
+  villageAdoptionProgramme: { field: "reportingYear", kind: "int" },
+  priorityThrustArea: { field: "reportingYear", kind: "int" },
+  demonstrationUnit: { field: "reportingYear", kind: "int" },
+  instructionalFarmCrop: { field: "reportingYear", kind: "int" },
+  productionUnit: { field: "reportingYear", kind: "int" },
+  instructionalFarmLivestock: { field: "reportingYear", kind: "int" },
+  hostelUtilization: { field: "reportingYear", kind: "int" },
+  revolvingFund: { field: "reportingYear", kind: "int" },
+  functionalLinkage: { field: "reportingYear", kind: "int" },
+  specialProgramme: { field: "reportingYear", kind: "int" },
+  ppvFraFarmerDetail: { field: "year", kind: "int" },
+  vehicleStatus: { field: "reportingYear", kind: "int" },
+  equipmentStatus: { field: "reportingYear", kind: "int" },
+  soilTestingEquipment: { field: "reportingYear", kind: "int" },
+  // Year read off a DateTime
+  celebrationDay: { field: "eventDate", kind: "date" },
+  poshanMaaha: { field: "activityDate", kind: "date" },
+  technologyProductProduction: { field: "reportingDate", kind: "date" },
+  soilWaterPlantAnalysis: { field: "startDate", kind: "date" },
+  publication: { field: "reportingDate", kind: "date" },
+  kvkAward: { field: "reportingDate", kind: "date" },
+  scientistAward: { field: "reportingDate", kind: "date" },
+  farmerAward: { field: "reportingDate", kind: "date" },
+  technologyWeekCelebration: { field: "startDate", kind: "date" },
+  cfldExtensionActivity: { field: "date", kind: "date" },
+  nicraBasicInformation: { field: "reportingDate", kind: "date" },
+  nicraTraining: { field: "startDate", kind: "date" },
+  nicraExtensionActivity: { field: "startDate", kind: "date" },
+  nicraIntervention: { field: "startDate", kind: "date" },
+  nicraSoilHealthCard: { field: "startDate", kind: "date" },
+  nicraConvergenceProgramme: { field: "startDate", kind: "date" },
+  nicraDignitaryVisit: { field: "dateOfVisit", kind: "date" },
+  nicraPiCoPi: { field: "startDate", kind: "date" },
+  aryaCurrentYearDetail: { field: "startDate", kind: "date" },
+  nfGeographicalInfo: { field: "startDate", kind: "date" },
+  agriDroneDemonstration: { field: "dateOfDemos", kind: "date" },
+  drmrActivity: { field: "startDate", kind: "date" },
+  craExtensionActivity: { field: "startDate", kind: "date" },
+  otherProgramme: { field: "programmeDate", kind: "date" },
+  sacMeeting: { field: "startDate", kind: "date" },
+  otherMeeting: { field: "date", kind: "date" },
+  prevalentDiseaseCrop: { field: "outbreakDate", kind: "date" },
+  prevalentDiseaseLivestock: { field: "outbreakDate", kind: "date" },
+  nykTraining: { field: "startDate", kind: "date" },
+  ppvFraTrainingProgramme: { field: "date", kind: "date" },
+  raweFetFitProgramme: { field: "startDate", kind: "date" },
+  vipVisitor: { field: "visitDate", kind: "date" },
+};
+
+/** Prisma `where` fragment scoping a model's rows to one reporting year, or `{}` if the model has no year to scope by. */
+export function yearWhereFor(model: string, year: number): Record<string, unknown> {
+  const y = MODEL_YEAR_FIELD[model];
+  if (!y) return {};
+  if (y.kind === "int") return { [y.field]: year };
+  return {
+    [y.field]: {
+      gte: new Date(Date.UTC(year, 0, 1)),
+      lt: new Date(Date.UTC(year + 1, 0, 1)),
+    },
+  };
+}
 
 /**
  * path -> Prisma model name, mechanically extracted from every real
