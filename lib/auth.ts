@@ -8,6 +8,8 @@ import { getSecretKey } from "@/lib/auth-secret";
 
 const COOKIE_NAME = "ams_session";
 const SESSION_DURATION_SECONDS = 60 * 60 * 12; // 12h - re-login daily, not a silent-forever session
+/** "Remember me" at login: keep the session alive across browser restarts for 30 days instead of the 12h default. */
+const REMEMBER_DURATION_SECONDS = 60 * 60 * 24 * 30;
 
 /**
  * `role` stays the real enforcement level every existing check in this app
@@ -39,11 +41,12 @@ export async function verifyPassword(password: string, hash: string) {
   return bcrypt.compare(password, hash);
 }
 
-export async function createSessionCookie(payload: SessionPayload) {
+export async function createSessionCookie(payload: SessionPayload, remember = false) {
+  const durationSeconds = remember ? REMEMBER_DURATION_SECONDS : SESSION_DURATION_SECONDS;
   const token = await new SignJWT({ ...payload })
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
-    .setExpirationTime(`${SESSION_DURATION_SECONDS}s`)
+    .setExpirationTime(`${durationSeconds}s`)
     .sign(getSecretKey());
 
   const cookieStore = await cookies();
@@ -52,7 +55,7 @@ export async function createSessionCookie(payload: SessionPayload) {
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
     path: "/",
-    maxAge: SESSION_DURATION_SECONDS,
+    maxAge: durationSeconds,
   });
 }
 

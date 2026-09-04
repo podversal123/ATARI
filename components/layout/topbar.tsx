@@ -205,9 +205,18 @@ export function Topbar() {
             <DropdownMenuSeparator />
             <DropdownMenuItem
               onClick={() => {
+                /**
+                 * Hard navigation, not router.push: a soft nav keeps this
+                 * dashboard shell mounted for a beat, and clearSession()
+                 * makes useSession() fall back to its Super Admin default in
+                 * the meantime - so a KVK Admin logging out saw a flash of
+                 * Super Admin chrome. A full page load tears everything down
+                 * at once, no in-between render. `replace` so Back doesn't
+                 * return to the now-logged-out dashboard.
+                 */
                 fetch("/api/auth/logout", { method: "POST" }).finally(() => {
                   clearSession();
-                  router.push("/login");
+                  window.location.replace("/login");
                 });
               }}
             >

@@ -15,6 +15,7 @@ export async function POST(request: Request) {
   const body = await request.json().catch(() => null);
   const username = typeof body?.username === "string" ? body.username.trim() : "";
   const password = typeof body?.password === "string" ? body.password : "";
+  const remember = body?.remember === true;
 
   if (!username || !password) {
     return NextResponse.json(
@@ -51,18 +52,21 @@ export async function POST(request: Request) {
 
   clearLoginAttempts(username, ip);
 
-  await createSessionCookie({
-    sub: user.id,
-    role: user.role,
-    roleId: user.roleId,
-    roleSlug: user.assignedRole?.slug ?? null,
-    roleScope: user.assignedRole?.scope ?? null,
-    zoneId: user.zoneId,
-    kvkId: user.kvkId,
-    stateId: user.stateId,
-    districtId: user.districtId,
-    hostOrgId: user.hostOrgId,
-  });
+  await createSessionCookie(
+    {
+      sub: user.id,
+      role: user.role,
+      roleId: user.roleId,
+      roleSlug: user.assignedRole?.slug ?? null,
+      roleScope: user.assignedRole?.scope ?? null,
+      zoneId: user.zoneId,
+      kvkId: user.kvkId,
+      stateId: user.stateId,
+      districtId: user.districtId,
+      hostOrgId: user.hostOrgId,
+    },
+    remember,
+  );
 
   // Fire-and-forget: a slow/failed audit write must never block or fail a real login.
   prisma.loginActivity

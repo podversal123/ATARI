@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Eye, EyeOff } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { persistSession } from "@/lib/session";
 
 /** Only redirect back to a same-origin app path - never follow an absolute/external `from` value. */
@@ -24,6 +25,7 @@ function LoginForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [remember, setRemember] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -89,7 +91,7 @@ function LoginForm() {
                 const response = await fetch("/api/auth/login", {
                   method: "POST",
                   headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ username, password }),
+                  body: JSON.stringify({ username, password, remember }),
                 });
                 const data = await response.json();
                 if (!response.ok) {
@@ -153,6 +155,14 @@ function LoginForm() {
                 </button>
               </div>
             </div>
+
+            <label className="flex cursor-pointer items-center gap-2 text-sm text-[#034541] select-none">
+              <Checkbox
+                checked={remember}
+                onCheckedChange={(value) => setRemember(value === true)}
+              />
+              Remember me on this device
+            </label>
 
             {error && (
               <p role="alert" className="text-sm font-medium text-destructive">
