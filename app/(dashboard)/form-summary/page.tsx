@@ -42,15 +42,17 @@ type FormSummaryData = {
 };
 
 /**
- * Fixed descending year range for the "Reporting year" filter - same shape
- * the Form Management leaf pages and Dashboard already show. Built on the
- * client so the dropdown is populated instantly (no extra round-trip just
- * to know which years to list).
+ * Fixed descending year range for the "Reporting year" filter - the current
+ * year down to 2021. Built on the client so the dropdown is populated
+ * instantly (no extra round-trip just to know which years to list). No
+ * next-year entry: Form Summary only ever reports on data already entered,
+ * so a future year would just show every count as zero (client report,
+ * 2026-09-04: 2027 was listed but had no data).
  */
 function reportingYearOptions(): string[] {
   const current = new Date().getFullYear();
   const list: string[] = [];
-  for (let y = current + 1; y >= 2021; y -= 1) list.push(String(y));
+  for (let y = current; y >= 2021; y -= 1) list.push(String(y));
   return list;
 }
 

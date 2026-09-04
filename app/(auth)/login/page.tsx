@@ -156,10 +156,14 @@ function LoginForm() {
               </div>
             </div>
 
-            <label className="flex cursor-pointer items-center gap-2 text-sm text-[#034541] select-none">
+            <label className="flex cursor-pointer items-center gap-2 text-sm font-medium text-[#034541] select-none">
               <Checkbox
                 checked={remember}
                 onCheckedChange={(value) => setRemember(value === true)}
+                /* Login page sits on a pale cream background - the default light
+                   border is nearly invisible there, so force the brand dark
+                   green outline and fill. */
+                className="size-4.5 border-2 border-[#034541] data-checked:border-[#034541] data-checked:bg-[#034541] data-checked:text-white"
               />
               Remember me on this device
             </label>
