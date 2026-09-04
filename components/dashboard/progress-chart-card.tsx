@@ -230,12 +230,24 @@ export function ProgressChartCard({
     const rawMax = Math.max(1, ...rows.map((r) => r.ongoing + r.completed));
     return Math.max(rawMax + 1, Math.ceil(rawMax * 1.2));
   }, [rows]);
-  const pageCount = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
+  /**
+   * Bar / List pages walk only the KVKs that actually have entries. In a zone
+   * where most KVKs haven't started, the old behaviour paginated through page
+   * after page of nothing-but-zero-stub bars - which read as "the bars
+   * disappeared" (client report). "Show all" and the Area view still plot
+   * every KVK (the "N not started" count already lives in the summary line).
+   * Falls back to all rows if none have entries, so the chart never goes
+   * completely blank.
+   */
+  const activeRows = useMemo(() => rows.filter((r) => r.ongoing + r.completed > 0), [rows]);
+  const baseRows = showAll || view === "area" || activeRows.length === 0 ? rows : activeRows;
+  const pageCount = Math.max(1, Math.ceil(baseRows.length / PAGE_SIZE));
   /** A single page (e.g. one KVK selected) has nothing left for "Show all"/Prev/Next to do - same page 1 either way - so it's treated as always-shown, same as Area, instead of showing pagination controls with nothing to paginate (client report 2026-08-30). */
   const allShown = view === "area" || showAll || pageCount <= 1;
   const currentPage = Math.min(page, pageCount - 1);
-  const pageRows =
-    allShown ? rows : rows.slice(currentPage * PAGE_SIZE, currentPage * PAGE_SIZE + PAGE_SIZE);
+  const pageRows = allShown
+    ? baseRows
+    : baseRows.slice(currentPage * PAGE_SIZE, currentPage * PAGE_SIZE + PAGE_SIZE);
   /** Only "Show all" on a wide KVK list needs the horizontal-scroll treatment below - the ordinary paginated/short case renders exactly as before, so its bar-hover tooltip isn't affected by the scroll wrapper's clipping. */
   const needsScroll =
     (view === "bar" && pageRows.length > 12) || (view === "area" && rows.length > 12);
@@ -748,8 +760,8 @@ export function ProgressChartCard({
         <span>
           {footer ??
             (allShown
-              ? `Showing all ${rows.length}`
-              : `Showing ${pageRows.length === 0 ? 0 : currentPage * PAGE_SIZE + 1}-${currentPage * PAGE_SIZE + pageRows.length} of ${rows.length || totalCount}`)}
+              ? `Showing all ${baseRows.length || totalCount}`
+              : `Showing ${pageRows.length === 0 ? 0 : currentPage * PAGE_SIZE + 1}-${currentPage * PAGE_SIZE + pageRows.length} of ${baseRows.length}`)}
         </span>
         <div className="flex items-center gap-2">
           <Button

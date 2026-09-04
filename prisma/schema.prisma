@@ -417,6 +417,7 @@ model Kvk {
   staffQuarters     StaffQuarters[]
   vehicles          Vehicle[]
   equipments        Equipment[]
+  farmImplements    FarmImplement[]
 
   technicalAchievementEntries  TechnicalAchievementSummaryEntry[]
   ofts                         Oft[]
@@ -757,6 +758,27 @@ model Equipment {
   cost           Decimal @db.Decimal(12, 2)
 
   statuses EquipmentStatus[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([zoneId])
+  @@index([kvkId])
+}
+
+/// "Farm Implement Details" - a standalone About-KVK leaf on atariams.org
+/// (/view-implement, /create-implement). Same shape as Equipment (name / year
+/// / cost) plus a free-text present status and source of fund.
+model FarmImplement {
+  id             String  @id @default(cuid())
+  kvkId          String
+  kvk            Kvk     @relation(fields: [kvkId], references: [id])
+  zoneId         String
+  name           String
+  yearOfPurchase Int?
+  totalCost      Decimal? @db.Decimal(12, 2)
+  presentStatus  String?
+  sourceOfFund   String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1313,6 +1335,7 @@ model SoilTestingEquipment {
   kvkId         String
   kvk           Kvk    @relation(fields: [kvkId], references: [id])
   zoneId        String
+  reportingYear Int?
   analysis      String
   equipmentName String
   quantity      Int

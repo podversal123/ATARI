@@ -181,7 +181,7 @@ export function ColumnFilterMenu({
         <div
           onPointerDown={startDrag}
           className={cn(
-            "mb-2 -mt-1 -mx-1 flex items-center justify-center gap-1 rounded-md py-1 text-muted-foreground/60 hover:bg-accent hover:text-muted-foreground",
+            "mb-2 -mt-1 -mx-1 flex items-center justify-center gap-1 rounded-md py-1 text-muted-foreground/60 hover:bg-primary hover:text-primary-foreground",
             dragging ? "cursor-grabbing" : "cursor-grab",
           )}
           title="Drag to move"
@@ -253,7 +253,7 @@ export function ColumnFilterMenu({
               return (
                 <label
                   key={v.value}
-                  className="flex items-center justify-between gap-2 py-0.5 text-xs"
+                  className="flex items-center justify-between gap-2 rounded-md px-1.5 py-1 text-xs hover:bg-primary hover:text-primary-foreground"
                 >
                   <span className="flex min-w-0 items-center gap-2">
                     <Checkbox

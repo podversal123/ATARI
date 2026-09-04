@@ -578,6 +578,24 @@ export default async function FormsPage({ params, searchParams }: FormsPageProps
       })),
       totalCount: rows.length,
     };
+  } else if (user && node.type === "leaf" && node.slug === "farm-implement-details") {
+    const rows = await prisma.farmImplement.findMany({
+      where: kvkScope,
+      include: { kvk: true },
+      orderBy: { createdAt: "desc" },
+    });
+    formData = {
+      rows: rows.map((r) => ({
+        id: r.id,
+        kvk: r.kvk.name,
+        name: r.name,
+        yearOfPurchase: r.yearOfPurchase != null ? String(r.yearOfPurchase) : "",
+        totalCost: r.totalCost != null ? String(r.totalCost) : "",
+        presentStatus: r.presentStatus ?? "",
+        sourceOfFund: r.sourceOfFund ?? "",
+      })),
+      totalCount: rows.length,
+    };
   } else if (user && node.type === "leaf" && node.slug === "oft") {
     const rows = await prisma.oft.findMany({
       where: kvkScope,
@@ -875,6 +893,23 @@ export default async function FormsPage({ params, searchParams }: FormsPageProps
         kvk: r.kvk.name,
         category: r.category,
         variety: r.variety,
+        quantity: String(r.quantity),
+      })),
+      totalCount: rows.length,
+    };
+  } else if (user && node.type === "leaf" && node.slug === "soil-testing-equipment") {
+    const rows = await prisma.soilTestingEquipment.findMany({
+      where: kvkScope,
+      include: { kvk: true },
+      orderBy: { createdAt: "desc" },
+    });
+    formData = {
+      rows: rows.map((r) => ({
+        id: r.id,
+        kvk: r.kvk.name,
+        reportingYear: r.reportingYear != null ? String(r.reportingYear) : "",
+        analysis: r.analysis,
+        equipmentName: r.equipmentName,
         quantity: String(r.quantity),
       })),
       totalCount: rows.length,

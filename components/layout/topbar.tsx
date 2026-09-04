@@ -3,7 +3,7 @@
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
-import { Bell, ChevronDown, Clock, KeyRound, LogOut, User } from "lucide-react";
+import { Bell, ChevronDown, KeyRound, LogOut, User } from "lucide-react";
 import { WavingFlag } from "./waving-flag";
 import { LiveClock } from "./live-clock";
 import {
@@ -92,37 +92,33 @@ export function Topbar() {
 
   return (
     <header className="flex h-16 shrink-0 items-center justify-between gap-4 border-b border-border bg-card px-6">
-      <div className="flex flex-1 items-center gap-3">
+      <div className="flex flex-1 items-center">
+        <LiveClock className="hidden whitespace-nowrap text-sm text-muted-foreground tabular-nums sm:block" />
+      </div>
+
+      <div className="flex shrink-0 items-center gap-3">
         <Image
           src="/brand/zone-seal-patna.png"
           alt="ATARI Zone IV Patna"
-          width={300}
-          height={300}
+          width={120}
+          height={120}
           priority
-          className="size-12 rounded-full"
+          className="size-11 shrink-0 rounded-full"
         />
-        <span className="hidden items-center gap-1.5 rounded-full border border-border bg-muted/40 px-2.5 py-1 lg:inline-flex">
-          <Clock className="size-3.5 shrink-0 text-muted-foreground" />
-          <LiveClock className="whitespace-nowrap text-xs font-medium tabular-nums text-foreground/80" />
-        </span>
-      </div>
-
-      <p className="shrink-0 text-center text-base font-bold tracking-tight text-primary sm:text-xl">
-        AMS - ATARI Zone (IV) Patna
-      </p>
-
-      <div className="flex flex-1 items-center justify-end gap-4">
+        <p className="whitespace-nowrap text-base font-semibold text-primary sm:text-lg">
+          AMS - ATARI Zone (IV) Patna
+        </p>
         <Image
           src="/brand/icar-logo.png"
           alt="ICAR"
-          width={225}
-          height={300}
+          width={90}
+          height={120}
           priority
-          className="hidden h-12 w-auto md:block"
+          className="h-11 w-auto shrink-0"
         />
-        <WavingFlag className="hidden h-10 w-[3.25rem] sm:inline-flex" />
-        <span aria-hidden className="hidden h-8 w-px bg-border md:block" />
+      </div>
 
+      <div className="flex flex-1 items-center justify-end gap-5">
         <DropdownMenu onOpenChange={(open) => { if (open && unreadCount > 0) markSeen(); }}>
           <DropdownMenuTrigger
             render={
@@ -158,7 +154,7 @@ export function Topbar() {
                       key={n.id}
                       type="button"
                       onClick={() => router.push("/notifications")}
-                      className="flex w-full flex-col gap-0.5 border-b border-border/60 px-2 py-2 text-left last:border-0 hover:bg-muted/50"
+                      className="flex w-full flex-col gap-0.5 border-b border-border/60 px-2 py-2 text-left last:border-0 hover:bg-primary hover:text-primary-foreground"
                     >
                       <span className="flex items-center gap-1.5 text-sm font-medium text-foreground">
                         {isUnread && <span className="size-1.5 shrink-0 rounded-full bg-destructive" />}
@@ -179,20 +175,22 @@ export function Topbar() {
           </DropdownMenuContent>
         </DropdownMenu>
 
+        <WavingFlag className="h-7 w-10" />
+
         <DropdownMenu>
           <DropdownMenuTrigger
             render={
               <button
                 type="button"
-                className="flex items-center gap-2.5 rounded-full border border-border bg-card py-1 pr-3 pl-1 outline-none transition-colors hover:bg-muted/50 data-popup-open:bg-muted/50"
+                className="flex items-center gap-2 outline-none"
               >
-                <span className="flex size-8 items-center justify-center rounded-full bg-gradient-to-br from-primary to-primary/75 text-primary-foreground ring-2 ring-primary/15">
+                <span className="flex size-8 items-center justify-center rounded-full bg-primary text-primary-foreground">
                   <User className="size-4.5" strokeWidth={1.75} />
                 </span>
-                <span className="hidden items-center gap-1 leading-tight sm:flex">
+                <span className="flex items-center gap-1 leading-tight">
                   <span className="text-left">
-                    <p className="text-sm font-semibold text-foreground">{displayName}</p>
-                    <p className="text-[11px] text-muted-foreground">{roleLabel}</p>
+                    <p className="text-sm font-medium">{displayName}</p>
+                    <p className="text-xs text-muted-foreground">{roleLabel}</p>
                   </span>
                   <ChevronDown className="size-4 text-muted-foreground" />
                 </span>

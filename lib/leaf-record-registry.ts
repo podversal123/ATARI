@@ -325,6 +325,17 @@ export const LEAF_RECORD_REGISTRY: Record<string, CreateFn> = {
       data: { equipmentId: equipment.id, zoneId: ctx.zoneId, reportingYear: reqInt(v.reportingYear), sourceOfFund: str(v.sourceOfFund) },
     });
   },
+  "about-kvk/equipments/farm-implement-details": (v, ctx) =>
+    prisma.farmImplement.create({
+      data: {
+        ...ctx,
+        name: reqStr(v.name),
+        yearOfPurchase: int(v.yearOfPurchase),
+        totalCost: dec(v.totalCost),
+        presentStatus: str(v.presentStatus),
+        sourceOfFund: str(v.sourceOfFund),
+      },
+    }),
 
   "about-kvk/employee/employee-details": (v, ctx) =>
     prisma.staff.create({
@@ -614,6 +625,16 @@ export const LEAF_RECORD_REGISTRY: Record<string, CreateFn> = {
         scFemale: int(v.scFemale) ?? 0,
         stMale: int(v.stMale) ?? 0,
         stFemale: int(v.stFemale) ?? 0,
+      },
+    }),
+  "achievements/soil-water/soil-testing-equipment": (v, ctx) =>
+    prisma.soilTestingEquipment.create({
+      data: {
+        ...ctx,
+        reportingYear: int(v.reportingYear),
+        analysis: reqStr(v.analysis),
+        equipmentName: reqStr(v.equipmentName),
+        quantity: reqInt(v.quantity),
       },
     }),
   "achievements/soil-water/soil-water-testing": (v, ctx) =>
@@ -1438,6 +1459,7 @@ export const LEAF_DELETE_REGISTRY: Record<string, DeleteFn> = {
   "about-kvk/vehicles/vehicle-details": (id, ctx) => prisma.vehicleStatus.deleteMany({ where: { id, vehicle: { ...kvkScope(ctx) } } }),
   "about-kvk/equipments/view-equipments": (id, ctx) => prisma.equipment.deleteMany({ where: { id, ...kvkScope(ctx) } }),
   "about-kvk/equipments/equipment-details": (id, ctx) => prisma.equipmentStatus.deleteMany({ where: { id, equipment: { ...kvkScope(ctx) } } }),
+  "about-kvk/equipments/farm-implement-details": (id, ctx) => prisma.farmImplement.deleteMany({ where: { id, ...kvkScope(ctx) } }),
   "about-kvk/employee/employee-details": (id, ctx) => prisma.staff.deleteMany({ where: { id, ...kvkScope(ctx) } }),
 
   /** Also clears this record's own Module Images (formRecordId) - otherwise deleting the record would leave orphaned photos behind, contradicting the real "images added/removed should reflect automatically" rule. */
@@ -1466,6 +1488,7 @@ export const LEAF_DELETE_REGISTRY: Record<string, DeleteFn> = {
   "achievements/swachhta-bharat-abhiyaan/budget-expenditure": (id, ctx) => prisma.swachhtaBudgetExpenditure.deleteMany({ where: { id, ...kvkScope(ctx) } }),
   "achievements/special-days/poshan-maaha": (id, ctx) => prisma.poshanMaaha.deleteMany({ where: { id, ...kvkScope(ctx) } }),
   "achievements/production-supply": (id, ctx) => prisma.technologyProductProduction.deleteMany({ where: { id, ...kvkScope(ctx) } }),
+  "achievements/soil-water/soil-testing-equipment": (id, ctx) => prisma.soilTestingEquipment.deleteMany({ where: { id, ...kvkScope(ctx) } }),
   "achievements/soil-water/soil-water-testing": (id, ctx) => prisma.soilWaterPlantAnalysis.deleteMany({ where: { id, ...kvkScope(ctx) } }),
   "achievements/publications": (id, ctx) => prisma.publication.deleteMany({ where: { id, ...kvkScope(ctx) } }),
   "achievements/hrd": (id, ctx) => prisma.humanResourceDevelopment.deleteMany({ where: { id, ...kvkScope(ctx) } }),
@@ -1650,6 +1673,17 @@ export const LEAF_UPDATE_REGISTRY: Record<string, UpdateFn> = {
     prisma.equipmentStatus.updateMany({
       where: { id, equipment: { ...kvkScope(ctx) } },
       data: { reportingYear: reqInt(v.reportingYear), sourceOfFund: str(v.sourceOfFund) },
+    }),
+  "about-kvk/equipments/farm-implement-details": (id, v, ctx) =>
+    prisma.farmImplement.updateMany({
+      where: { id, ...kvkScope(ctx) },
+      data: {
+        name: reqStr(v.name),
+        yearOfPurchase: int(v.yearOfPurchase),
+        totalCost: dec(v.totalCost),
+        presentStatus: str(v.presentStatus),
+        sourceOfFund: str(v.sourceOfFund),
+      },
     }),
   "about-kvk/employee/staff-transferred": (id, v, ctx) =>
     prisma.staffTransfer.updateMany({
@@ -1944,6 +1978,16 @@ export const LEAF_UPDATE_REGISTRY: Record<string, UpdateFn> = {
         scFemale: int(v.scFemale) ?? 0,
         stMale: int(v.stMale) ?? 0,
         stFemale: int(v.stFemale) ?? 0,
+      },
+    }),
+  "achievements/soil-water/soil-testing-equipment": (id, v, ctx) =>
+    prisma.soilTestingEquipment.updateMany({
+      where: { id, ...kvkScope(ctx) },
+      data: {
+        reportingYear: int(v.reportingYear),
+        analysis: reqStr(v.analysis),
+        equipmentName: reqStr(v.equipmentName),
+        quantity: reqInt(v.quantity),
       },
     }),
   "achievements/soil-water/soil-water-testing": (id, v, ctx) =>

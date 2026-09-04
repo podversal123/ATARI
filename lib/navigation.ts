@@ -983,6 +983,15 @@ const aboutKvk = group(
         { key: "companyBrandModel", label: "Company / Brand / Model" },
         { key: "sourceOfFund", label: "Source of Funding" },
       ]),
+      /** Standalone About-KVK leaf on atariams.org (/view-implement, /create-implement) - table columns and Add-form fields read live 2026-09-04. */
+      leaf("farm-implement-details", "Farm Implement Details", [
+        { key: "kvk", label: "KVK", readonly: true },
+        { key: "name", label: "Name of Implement", required: true },
+        { key: "yearOfPurchase", label: "Year of Purchase", required: true },
+        { key: "totalCost", label: "Total Cost (Rs.)", required: true },
+        { key: "presentStatus", label: "Present Status", required: true },
+        { key: "sourceOfFund", label: "Source of fund", required: true },
+      ]),
     ]),
   ],
   {
@@ -1437,6 +1446,24 @@ const achievements = group("achievements", "Achievements", [
    * actually live" conclusion no longer holds against this newer evidence.
    */
   group("soil-water", "Soil and Water Testing", [
+    /** atariams.org "Equipment Details" leaf (/soil-water-testing/equipment-details) - list + Add form read live 2026-09-04. Slug avoids colliding with About KVK's own "equipment-details". */
+    leaf(
+      "soil-testing-equipment",
+      "Equipment Details",
+      [
+        { key: "kvk", label: "KVK Name", readonly: true },
+        { key: "reportingYear", label: "Reporting Year", required: true },
+        {
+          key: "analysis",
+          label: "Analysis",
+          staticOptions: ["Soil", "Water", "Plant", "Fertilizers", "Manures", "Food", "Others (if any)"],
+          required: true,
+        },
+        { key: "equipmentName", label: "Name of the Equipment", required: true },
+        { key: "quantity", label: "Qty.", required: true },
+      ],
+      "Soil Testing Equipment Details",
+    ),
     leaf(
       "soil-water-testing",
       "Soil, Water and Plant analysis",
