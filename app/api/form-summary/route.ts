@@ -17,7 +17,18 @@ import { getTrackedLeaves, yearWhereFor } from "@/lib/form-summary-data";
  * nothing). Models with a real year/date field are filtered; the ~38 with
  * neither (roster tables etc.) count all-time in every year's view, which
  * is correct - there is no year to scope them by.
+ *
+ * ~109 groupBys is ~0.6-1s against the (Singapore) DB, so a short
+ * in-process TTL cache keyed by scope+year makes the page's own polling,
+ * rapid year toggling and multi-tab reloads land instantly instead of
+ * re-running the whole fan-out each time (client report, 2026-09-04:
+ * "thoda late render ho raha hai ... fast show hona chahie"). 20s is well
+ * under the page's 20s poll, so a genuinely new submission still shows up
+ * on the next tick.
  */
+const CACHE_TTL_MS = 20_000;
+const responseCache = new Map<string, { at: number; body: unknown }>();
+
 export async function GET(request: Request) {
   const auth = await requireSession();
   if (!auth.ok) return auth.response;
@@ -26,6 +37,12 @@ export async function GET(request: Request) {
 
   const yearParam = new URL(request.url).searchParams.get("year");
   const year = yearParam && /^\d{4}$/.test(yearParam) ? Number(yearParam) : undefined;
+
+  const cacheKey = `${auth.session.zoneId}:${kvkId ?? "all"}:${year ?? "all"}`;
+  const hit = responseCache.get(cacheKey);
+  if (hit && Date.now() - hit.at < CACHE_TTL_MS) {
+    return NextResponse.json(hit.body);
+  }
 
   const kvks = await prisma.kvk.findMany({
     where: kvkId ? { id: kvkId } : { zoneId: auth.session.zoneId },
@@ -89,34 +106,7 @@ export async function GET(request: Request) {
   const totalPossible = kvks.length * formsTracked;
   const totalFilled = byKvk.reduce((sum, k) => sum + k.filled, 0);
 
-  /**
-   * Real year list for the dropdown - distinct `reportingYear`s actually
-   * present across the busiest year-scoped models (OFT/FLD/Training/
-   * Extension), plus the current year so a fresh year is always pickable.
-   */
-  const currentYear = new Date().getFullYear();
-  const yearRows = await Promise.all(
-    (["oft", "fld", "training", "extensionActivity"] as const).map((model) =>
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (prisma as any)[model]
-        .findMany({
-          where: kvkId ? { kvkId } : { zoneId: auth.session.zoneId },
-          select: { reportingYear: true },
-          distinct: ["reportingYear"],
-        })
-        .catch(() => [] as { reportingYear: number }[]),
-    ),
-  );
-  const years = Array.from(
-    new Set<number>([
-      currentYear,
-      ...yearRows.flat().map((r: { reportingYear: number }) => r.reportingYear),
-    ]),
-  )
-    .filter((y) => y >= 2000 && y <= currentYear + 1)
-    .sort((a, b) => b - a);
-
-  return NextResponse.json({
+  const body = {
     kvks: kvks.map((k) => ({ id: k.id, name: k.name })),
     totalKvks: kvks.length,
     formsTracked,
@@ -124,7 +114,15 @@ export async function GET(request: Request) {
     totalPossible,
     overallProgressPercent: totalPossible === 0 ? 0 : Math.round((totalFilled / totalPossible) * 100),
     byKvk,
-    years,
     year: year ?? null,
-  });
+  };
+
+  responseCache.set(cacheKey, { at: Date.now(), body });
+  if (responseCache.size > 64) {
+    for (const [k, v] of responseCache) {
+      if (Date.now() - v.at >= CACHE_TTL_MS) responseCache.delete(k);
+    }
+  }
+
+  return NextResponse.json(body);
 }

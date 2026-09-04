@@ -38,9 +38,21 @@ type FormSummaryData = {
   totalPossible: number;
   overallProgressPercent: number;
   byKvk: KvkSummary[];
-  years: number[];
   year: number | null;
 };
+
+/**
+ * Fixed descending year range for the "Reporting year" filter - same shape
+ * the Form Management leaf pages and Dashboard already show. Built on the
+ * client so the dropdown is populated instantly (no extra round-trip just
+ * to know which years to list).
+ */
+function reportingYearOptions(): string[] {
+  const current = new Date().getFullYear();
+  const list: string[] = [];
+  for (let y = current + 1; y >= 2021; y -= 1) list.push(String(y));
+  return list;
+}
 
 type ViewMode = "kvk" | "matrix";
 type SortDir = "desc" | "asc";
@@ -108,7 +120,7 @@ export default function FormSummaryPage() {
   usePolling(loadSummary);
 
   const ALL_YEARS = "All Years";
-  const yearOptions = [ALL_YEARS, ...(data?.years ?? []).map(String)];
+  const yearOptions = [ALL_YEARS, ...reportingYearOptions()];
 
   const filteredSorted = useMemo(() => {
     if (!data) return [];
