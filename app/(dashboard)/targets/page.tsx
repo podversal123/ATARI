@@ -16,7 +16,10 @@ const CATEGORIES = ["OFT", "FLD", "Training", "Extension Activity"];
 
 function reportingYearOptions(): string[] {
   const currentYear = new Date().getFullYear();
-  return [currentYear + 1, currentYear, currentYear - 1, currentYear - 2].map(
+  // Current year down only - no future year (client report, 2026-09-04: there
+  // is no data for years beyond the current one, so they should never appear
+  // in any year dropdown).
+  return [currentYear, currentYear - 1, currentYear - 2, currentYear - 3].map(
     String,
   );
 }

@@ -299,9 +299,18 @@ export async function GET(request: Request) {
     prisma.institute.findMany({ where: { zoneId: auth.session.zoneId }, select: { name: true }, orderBy: { name: "asc" } }),
   ]);
 
+  /**
+   * Only keep sane calendar years - nothing past the current one (no data
+   * exists for a future year) and nothing before 2000 (a stray typo or an
+   * epoch/empty-date artifact keyed as e.g. "2030" or "1970" must never
+   * reach the Year dropdown) - client report, 2026-09-04.
+   */
+  const thisYear = new Date().getFullYear();
   const years = Array.from(
     new Set([...oftYears, ...fldYears, ...trainingYears, ...extensionYears].map((r) => r.reportingYear)),
-  ).sort((a, b) => b - a);
+  )
+    .filter((y) => y >= 2000 && y <= thisYear)
+    .sort((a, b) => b - a);
 
   const staffByRole = Object.fromEntries(
     staffByRoleGroups.map((g) => [g.sanctionedPost, g._count._all]),
