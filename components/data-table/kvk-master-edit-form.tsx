@@ -67,7 +67,8 @@ export function KvkMasterEditForm({ trail, backHref, id, title = "Edit KVK" }: K
       setSanctionYear(row.sanctionYear ?? "");
       setEmail(row.email ?? "");
       setMobile(row.mobile === "-" ? "" : (row.mobile ?? ""));
-      setFax(row.fax ?? "");
+      setLandline(row.landline ?? "");
+      setFax(row.fax === "-" ? "" : (row.fax ?? ""));
       setZone(row.zoneName ?? "");
       setState(row.stateName ?? "");
       setDistrict(row.districtName ?? "");
@@ -113,6 +114,7 @@ export function KvkMasterEditForm({ trail, backHref, id, title = "Edit KVK" }: K
           sanctionYear,
           email,
           mobile,
+          landline,
           fax,
           stateName: state,
           districtName: district,

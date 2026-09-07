@@ -13,6 +13,7 @@ import {
   ALL_HOST_ORG_DISTRICTS,
   ALL_STATES,
   REPORT_FORM_LEAVES,
+  REPORT_YEAR_LIST,
   REPORT_ZONE_OPTIONS,
   QUICK_SELECT_OPTIONS,
   districtsForHostOrgs,
@@ -21,6 +22,7 @@ import {
   resolveQuickSelectRange,
   type QuickSelectRange,
 } from "@/lib/reports";
+import { MultiFilterSelect } from "@/components/dashboard/multi-filter-select";
 import { ReportHeaderBar } from "./report-header-bar";
 import { SelectFormDropdown } from "./select-form-dropdown";
 import { SelectOrgKvksDropdown } from "./select-org-kvks-dropdown";
@@ -61,6 +63,8 @@ export function SuperAdminReportView() {
   const [selectedForms, setSelectedForms] = useState<Set<string>>(
     new Set(ALL_FORM_PATHS),
   );
+  /** "Reporting Year" checkbox multi-select - empty = use the Date Range below; any year checked = the report is scoped to exactly those calendar years (client request, 2026-09-07). */
+  const [selectedYears, setSelectedYears] = useState<Set<string>>(new Set());
   const [fromDate, setFromDate] = useState(firstOfYear());
   const [toDate, setToDate] = useState(today());
   const [quickSelect, setQuickSelect] = useState<QuickSelectRange>("this-year");
@@ -133,6 +137,8 @@ export function SuperAdminReportView() {
     }
     setValidationError(null);
 
+    const yearsCsv = Array.from(selectedYears).join(",");
+
     const stateLabel =
       selectedStates.size === ALL_STATES.length ? "All States" : Array.from(selectedStates).join(", ");
     const hostOrgLabel =
@@ -157,6 +163,16 @@ export function SuperAdminReportView() {
       from: fromDate,
       to: toDate,
     });
+    // "Reporting Year" checkbox multi-select - when any year is checked the
+    // report is scoped to exactly those calendar years (server prefers this
+    // over from/to). Omitted when nothing is checked = use the Date Range.
+    if (yearsCsv) query.set("years", yearsCsv);
+    // The actual leaf paths behind "Select Form" - so the preview/download
+    // is scoped to exactly the checked forms, not the whole report (client
+    // report, 2026-09-07). Omitted when everything is selected (= no filter).
+    if (selectedForms.size > 0 && selectedForms.size < ALL_FORM_PATHS.size) {
+      query.set("forms", Array.from(selectedForms).join(","));
+    }
     router.push(`/reports/preview?${query.toString()}`);
   }
 
@@ -167,6 +183,7 @@ export function SuperAdminReportView() {
     setSelectedDistricts(new Set(ALL_HOST_ORG_DISTRICTS));
     setSelectedKvks(new Set(kvksForHostOrgsAndDistricts(ALL_HOST_ORGS, ALL_HOST_ORG_DISTRICTS)));
     setSelectedForms(new Set(ALL_FORM_PATHS));
+    setSelectedYears(new Set());
     setFromDate(firstOfYear());
     setToDate(today());
     setQuickSelect("this-year");
@@ -302,11 +319,30 @@ export function SuperAdminReportView() {
               <Input
                 type="date"
                 value={toDate}
+                min={fromDate || undefined}
                 onChange={(e) => onDateInput(setToDate, e.target.value)}
                 className="mt-1"
               />
             </div>
+            <div className="w-44 shrink-0">
+              <label className="text-xs font-medium text-muted-foreground">
+                Reporting Year
+              </label>
+              <MultiFilterSelect
+                label="Reporting Year"
+                hideLabel
+                options={REPORT_YEAR_LIST}
+                selected={selectedYears}
+                onChange={setSelectedYears}
+                triggerClassName="mt-1 h-9"
+              />
+            </div>
           </div>
+          {selectedYears.size > 0 && (
+            <p className="mt-2 text-xs text-muted-foreground">
+              Year filter active - the report covers {Array.from(selectedYears).sort().join(", ")} (the Date Range above is ignored).
+            </p>
+          )}
 
           <div className="mt-3">
             <label className="text-xs font-medium text-muted-foreground">

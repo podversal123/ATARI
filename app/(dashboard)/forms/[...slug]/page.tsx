@@ -204,6 +204,16 @@ export default async function FormsPage({ params, searchParams }: FormsPageProps
 
   if (isAddPage) {
     if (node.type !== "leaf" || CUSTOM_FORM_SLUGS.has(node.slug)) notFound();
+    // These leaves add a record to one specific KVK, and only the KVK's own
+    // login carries that KVK. A Super Admin has no KVK, so /api/leaf-record
+    // rejects the add anyway (and the real reference shows no "Add" to a
+    // Super Admin here either) - don't route them to a form that can't
+    // submit. "view-kvks" is the exception: its own /api/kvks route is a
+    // real Super Admin create flow.
+    if (node.slug !== "view-kvks") {
+      const addUser = await getCurrentUser();
+      if (!addUser?.kvkId) notFound();
+    }
     const addTrail: Crumb[] = [{ label: "Form Management", href: "/forms" }];
     trail.forEach((item, index) => {
       if (
@@ -355,6 +365,7 @@ export default async function FormsPage({ params, searchParams }: FormsPageProps
         districtName: kvk.district.name,
         kvk: kvk.name,
         mobile: kvk.officePhone ?? "-",
+        landline: kvk.landline ?? "",
         fax: kvk.fax ?? "",
         email: kvk.email ?? "",
         address: kvk.address ?? "",
@@ -1060,8 +1071,8 @@ export default async function FormsPage({ params, searchParams }: FormsPageProps
         amount: String(r.amount),
         achievement: r.achievement ?? "",
         conferringAuthority: r.conferringAuthority ?? "",
-        // formOnly field - Edit needs the existing photos preloaded, same JSON-array-in-a-string convention as OFT's technologyOptions.
-        photo: JSON.stringify(r.photoUrls),
+        // Photographs (fieldKind "photos", key "moduleImages") load on Edit from
+        // /api/leaf-record/module-images, not off the list row.
       })),
       totalCount: rows.length,
     };
@@ -1939,7 +1950,6 @@ export default async function FormsPage({ params, searchParams }: FormsPageProps
         resultsOutput: r.resultsOutput ?? "",
         impactOutcome: r.impactOutcome ?? "",
         futurePlans: r.futurePlans ?? "",
-        supportingImageUrls: JSON.stringify(r.supportingImageUrls ?? []),
         enterprise: r.enterprise ?? "",
         grossIncome: r.grossIncome != null ? String(r.grossIncome) : "",
         netIncome: r.netIncome != null ? String(r.netIncome) : "",
@@ -2455,7 +2465,6 @@ export default async function FormsPage({ params, searchParams }: FormsPageProps
         mobileNo: r.mobileNo ?? "",
         village: r.village ?? "",
         characteristics: r.characteristics ?? "",
-        images: JSON.stringify(r.images),
       })),
       totalCount: rows.length,
     };
@@ -2648,6 +2657,12 @@ export default async function FormsPage({ params, searchParams }: FormsPageProps
           rows={formData?.rows}
           totalCount={formData?.totalCount}
           recordPath={slug.join("/")}
+          // A Super Admin can't add a KVK-owned record (no KVK of their own -
+          // /api/leaf-record needs the session's kvkId), and the real
+          // reference shows no "Add" to a Super Admin on these leaves either.
+          // "view-kvks" is the exception - its own /api/kvks route is a real
+          // Super Admin create flow.
+          hideAddNew={node.slug !== "view-kvks" && !user?.kvkId}
           addNewHref={
             CUSTOM_FORM_SLUGS.has(node.slug)
               ? undefined

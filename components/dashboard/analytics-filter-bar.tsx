@@ -32,6 +32,20 @@ export const EMPTY_ANALYTICS_FILTERS: AnalyticsFilters = {
   breakdown: "",
 };
 
+/** The real "Group By" dimensions - an empty selection keeps the chart's default one-row-per-KVK view. */
+export const GROUP_BY_OPTIONS = [
+  { value: "zone", label: "Zone" },
+  { value: "state", label: "State" },
+  { value: "district", label: "District" },
+  { value: "institute", label: "Institute" },
+  { value: "kvk", label: "KVK" },
+] as const;
+
+/** Chart-title suffix for the current "Group By" - the empty default buckets one row per KVK, so it reads as "by KVK". */
+export function chartGroupingLabel(groupBy: string): string {
+  return GROUP_BY_OPTIONS.find((o) => o.value === groupBy)?.label ?? "KVK";
+}
+
 type AnalyticsFilterBarProps = {
   filters: AnalyticsFilters;
   onChange: (filters: AnalyticsFilters) => void;
@@ -152,13 +166,7 @@ export function AnalyticsFilterBar({
             value={filters.groupBy}
             onValueChange={(v) => set("groupBy", v)}
             placeholder="Select"
-            options={[
-              { value: "zone", label: "Zone" },
-              { value: "state", label: "State" },
-              { value: "district", label: "District" },
-              { value: "institute", label: "Institute" },
-              { value: "kvk", label: "KVK" },
-            ]}
+            options={GROUP_BY_OPTIONS.map((o) => ({ ...o }))}
             className="mt-1 h-8"
           />
         </div>

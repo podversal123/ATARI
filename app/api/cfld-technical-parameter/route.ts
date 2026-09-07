@@ -2,6 +2,11 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/api-auth";
 import { percentIncreaseInYield, yieldGapMinimizedPercent } from "@/lib/cfld-formulas";
+import { leafCategoryLabel, syncModuleImages } from "@/lib/leaf-record-registry";
+
+const CFLD_LEAF_PATH = "projects/cfld/technical-parameter";
+const CFLD_TRAINING_SLOT = "cfld-training";
+const CFLD_ACTION_SLOT = "cfld-action";
 
 const str = (v: string | undefined) => (v?.trim() ? v.trim() : undefined);
 const reqStr = (v: string | undefined) => v?.trim() ?? "";
@@ -46,12 +51,6 @@ export async function POST(request: Request) {
   const stateYield = dec(technical.stateYield);
   const potentialYield = dec(technical.potentialYield);
   const reportingDate = str(technical.reportingDate) ? new Date(technical.reportingDate) : undefined;
-  const trainingPhotoUrls = Array.isArray(technical.trainingPhotoUrls)
-    ? technical.trainingPhotoUrls.filter((v: unknown): v is string => typeof v === "string")
-    : [];
-  const actionPhotoUrls = Array.isArray(technical.actionPhotoUrls)
-    ? technical.actionPhotoUrls.filter((v: unknown): v is string => typeof v === "string")
-    : [];
 
   const record = await prisma.cfldTechnicalParameter.create({
     data: {
@@ -82,11 +81,26 @@ export async function POST(request: Request) {
       yieldGapMinimizedPercentDistrict: yieldGapMinimizedPercent(districtYield, demoYieldAvg),
       yieldGapMinimizedPercentState: yieldGapMinimizedPercent(stateYield, demoYieldAvg),
       yieldGapMinimizedPercentPotential: yieldGapMinimizedPercent(potentialYield, demoYieldAvg),
-      trainingPhotoUrls,
-      actionPhotoUrls,
       status,
     },
   });
+
+  {
+    const photoYear = reportingDate ? reportingDate.getFullYear() : reqInt(technical.reportingYear) || new Date().getFullYear();
+    const photoBase = {
+      kvkId: auth.session.kvkId,
+      zoneId: auth.session.zoneId,
+      categoryPath: CFLD_LEAF_PATH,
+      categoryLabel: leafCategoryLabel(CFLD_LEAF_PATH),
+      reportingYear: photoYear,
+      activityDate: reportingDate ?? new Date(),
+      formRecordId: record.id,
+      uploadedById: auth.session.sub,
+    };
+    const asJson = (v: unknown) => (typeof v === "string" ? v : JSON.stringify(v ?? []));
+    await syncModuleImages(asJson(body?.trainingPhotos), { ...photoBase, slot: CFLD_TRAINING_SLOT });
+    await syncModuleImages(asJson(body?.actionPhotos), { ...photoBase, slot: CFLD_ACTION_SLOT });
+  }
 
   const hasEconomic = Object.values(economic).some((v) => v !== "" && v != null);
   if (hasEconomic) {

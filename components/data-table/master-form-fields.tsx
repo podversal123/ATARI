@@ -8,7 +8,6 @@ import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { SimpleSelect } from "@/components/ui/simple-select";
 import { FileUploadField } from "./file-upload-field";
-import { MultiImageUploadField } from "./multi-image-upload-field";
 import { FormPhotosField, type FormPhoto } from "./form-photos-field";
 import { DemographicBreakdown, DemographicGrid, type DemographicValues } from "./demographic-breakdown";
 import { NfParametersField } from "./nf-parameters-field";
@@ -26,6 +25,42 @@ export const DEMOGRAPHIC_KEYS = [
 /** "farmers" + "generalMale" -> "farmersGeneralMale" (real Prisma column name) - no prefix leaves the bare suffix untouched. Shared by every reader/writer of a prefixed demographic-breakdown block (this file, EmptyDataTable's openEdit, leaf-record-registry.ts) so they can never drift out of sync on casing. */
 export function prefixedDemographicKey(prefix: string, suffix: string): string {
   return prefix ? `${prefix}${suffix[0].toUpperCase()}${suffix.slice(1)}` : suffix;
+}
+
+/**
+ * Any column that holds a calendar date renders as a native date picker,
+ * whether or not it was explicitly tagged `fieldKind: "date"` - the key
+ * ends in "date"/"Date" (startDate, endDate, dateOfJoining, outbreakDate,
+ * ...) or the label reads as a date (client request, 2026-09-07: "jaha
+ * bhi date hai waha calendar dalo"). Same key/label heuristic the list's
+ * own date-range filter already uses.
+ */
+function isDateColumn(column: { key: string; label: string; fieldKind?: string }): boolean {
+  return (
+    column.fieldKind === "date" ||
+    column.key === "date" ||
+    /date$/i.test(column.key) ||
+    /\bdate\b/i.test(column.label)
+  );
+}
+
+/** An end/completion date column - its picker gets a `min` of the form's own start date so a range can't run backwards (client request, 2026-09-07). */
+function isEndDateColumn(column: { key: string; label: string }): boolean {
+  return (
+    /^(end|to|completion)/i.test(column.key) ||
+    /end date|completion date|to date/i.test(column.label)
+  ) && isDateColumn(column);
+}
+
+/** The matching start date's current value, so an end-date picker can use it as `min`. */
+function startDateValue(formValues: Record<string, string>): string | undefined {
+  for (const key of ["startDate", "fromDate", "dateOfStart", "commencementDate"]) {
+    if (formValues[key]?.trim()) return formValues[key];
+  }
+  const startKey = Object.keys(formValues).find(
+    (k) => /^(start|from)/i.test(k) && /date$/i.test(k) && formValues[k]?.trim(),
+  );
+  return startKey ? formValues[startKey] : undefined;
 }
 
 /**
@@ -222,6 +257,12 @@ export function MasterFormFields({
   }
 
   function renderColumn(column: MasterColumn) {
+        // The "KVK" / "KVK Name" column is a list-only display column - a
+        // Form Management record's KVK always comes from the logged-in KVK's
+        // own session (the server uses ctx.kvkId, never a value from the
+        // form), so there is nothing to pick and a KVK user shouldn't see a
+        // field for it (client request, 2026-09-07).
+        if (column.key === "kvk" || column.key === "kvkName") return null;
         // "calculated" is a real-but-disabled form field (has a value, just
         // not editable) - the opposite of what plain `readonly` means here
         // (dropped from the form entirely), so it has to bypass that check.
@@ -270,34 +311,6 @@ export function MasterFormFields({
               ) : (
                 <DemographicBreakdown values={demoValues} onChange={demoOnChange} />
               )}
-            </div>
-          );
-        }
-
-        if (column.fieldKind === "multi-image" && column.uploadKind) {
-          let value: string[] = [];
-          try {
-            const parsed = JSON.parse(formValues[column.key] || "[]");
-            if (Array.isArray(parsed)) value = parsed.filter((v): v is string => typeof v === "string");
-          } catch {
-            // Leave value empty on malformed JSON rather than throwing.
-          }
-          // Full width (`col-[1/-1]`, works in both the compact auto-fit
-          // grid and the plain numbered one) with its own real section
-          // heading above the dropzone instead of MultiImageUploadField's
-          // own small field-size label - matches the "Photographs" heading
-          // size everywhere else this same section recurs (FormPhotosField,
-          // OftResultFields), confirmed live 2026-09-03 (Award and
-          // Recognition's own Farmer leaf).
-          return (
-            <div key={column.key} className="col-[1/-1] space-y-2">
-              <p className="text-lg font-semibold text-primary">{column.formLabel ?? column.label}</p>
-              <MultiImageUploadField
-                uploadKind={column.uploadKind}
-                value={value}
-                onChange={(urls) => onChange({ ...formValues, [column.key]: JSON.stringify(urls) })}
-                maxSizeMb={column.uploadKind === "success-story-image" ? 2 : undefined}
-              />
             </div>
           );
         }
@@ -484,16 +497,17 @@ export function MasterFormFields({
             <Input
               id={fieldId}
               type={
-                column.fieldKind === "date"
+                isDateColumn(column)
                   ? "date"
                   : column.numeric !== false && isNumericLabel(column.label, column.formLabel)
                     ? "number"
                     : undefined
               }
+              min={isEndDateColumn(column) ? startDateValue(formValues) : undefined}
               className="h-10"
               value={formValues[column.key] ?? ""}
               placeholder={
-                column.fieldKind === "date"
+                isDateColumn(column)
                   ? undefined
                   : (column.placeholder ?? `Enter ${compactPlaceholder(column.formLabel ?? column.label).toLowerCase()}`)
               }

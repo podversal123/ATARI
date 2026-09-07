@@ -389,6 +389,8 @@ model Kvk {
   name         String
   address      String?
   officePhone  String?
+  /// Separate from officePhone (the "Mobile Number" on the Edit KVK form) - the reference's own Edit KVK form has a distinct "Landline" text field (client report, 2026-09-04: entering a Landline and saving did nothing, because this had no column to save to).
+  landline     String?
   fax          String?
   email        String?
   sanctionYear Int?
@@ -884,8 +886,7 @@ model Oft {
   costOfOft                   Decimal?    @db.Decimal(12, 2)
   fundingAgency               String?
   resultSummary               String?
-  /// Real reference (atari-client.vercel.app, 2026-09-02): "Photographs" (images only) and "Supplementary Datasheets" (PDF/Image/Excel/Word) upload fields on the Edit OFT Result page, each multi-file - same upload-on-select convention as CFLD's own multi-photo fields.
-  photographUrls              String[] @default([])
+  /// Real reference (atari-client.vercel.app, 2026-09-02): "Photographs" (images only) and "Supplementary Datasheets" (PDF/Image/Excel/Word) upload fields on the Edit OFT Result page, each multi-file. The Photographs section now stores through ModuleImage (slot "oft-result") so every photo carries a caption and flows to Module Images + Reports like every other form's photos; Supplementary Datasheets (documents, not images) stay a plain URL list here.
   supplementaryDatasheetUrls  String[] @default([])
   /// "Dynamic Result Tables" on the same page - a user-defined set of tables, each with its own editable column names and rows (not a fixed schema, confirmed against the real reference: "Add Table"/"Add Column"/"Add Row" all freely add to this structure). Stored as JSON since the table shape itself is user-defined, not a fixed set of columns - see lib/oft-result-tables.ts for the parsed shape.
   resultTablesJson            String?
@@ -1505,8 +1506,7 @@ model FarmerAward {
   amount              Decimal @db.Decimal(14, 2)
   achievement         String?
   conferringAuthority String?
-  /// Real "Photographs" upload field (atari-client.vercel.app, confirmed 2026-09-02) - a real multi-file upload ("Hold Ctrl/Cmd... to select multiple"), not single - was missing entirely before.
-  photoUrls           String[] @default([])
+  /// Real "Photographs" upload field (atari-client.vercel.app, confirmed 2026-09-02) - a multi-file upload. Stored through ModuleImage (slot "") like every other form's Photographs section, so each photo carries a caption and flows to Module Images + Reports.
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1570,9 +1570,7 @@ model CfldTechnicalParameter {
   districtYield                     Decimal?           @db.Decimal(10, 2)
   stateYield                        Decimal?           @db.Decimal(10, 2)
   potentialYield                    Decimal?           @db.Decimal(10, 2)
-  /// Real fields confirmed against the reference (2026-09-01) - "Farmers' Training Photographs" and "Quality Action Photographs (field visits / technology demos)", each a real multi-file upload (private Vercel Blob URLs), on the Technical Parameter tab itself (not Socio-Economic, where the old dialog's own demographic breakdown was wrongly placed too).
-  trainingPhotoUrls                 String[]           @default([])
-  actionPhotoUrls                   String[]           @default([])
+  /// Real fields confirmed against the reference (2026-09-01) - "Farmers' Training Photographs" and "Quality Action Photographs (field visits / technology demos)", each a multi-file upload, on the Technical Parameter tab. Both now store through ModuleImage (slots "cfld-training" / "cfld-action") so each photo carries a caption and flows to Module Images + Reports.
   status                            ProjectTrialStatus
 
   economicParameters   CfldEconomicParameter[]
@@ -2895,7 +2893,7 @@ model SuccessStory {
   resultsOutput          String?
   impactOutcome          String?
   futurePlans            String?
-  supportingImageUrls    String[] @default([])
+  /// "Supporting Images" multi-file upload. Stored through ModuleImage (slot "") like every other form's Photographs section - each image carries a caption and flows to Module Images + Reports.
   grossIncome            Decimal? @db.Decimal(14, 2)
 
   createdAt DateTime @default(now())
@@ -3490,8 +3488,7 @@ model PpvFraFarmerDetail {
   mobileNo        String?
   village         String?
   characteristics String?
-  /// Real Add form field confirmed live (atariams.org/sensitization-farmer-details/create, 2026-09-04) - a multi-file "Images" upload, missing entirely before.
-  images          String[] @default([])
+  /// Real Add form field confirmed live (atariams.org/sensitization-farmer-details/create, 2026-09-04) - a multi-file "Images" upload. Stored through ModuleImage (slot "") like every other form's Photographs section - each image carries a caption and flows to Module Images + Reports.
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -4024,6 +4021,14 @@ model ModuleImage {
   uploadedBy    User?    @relation(fields: [uploadedById], references: [id])
   /// Real source, 2026-09-02: images now attach at the end of the owning form itself (OFT/FLD/Training/Extension Activities to start) rather than only through the standalone Add Images page - this ties a row back to that specific form record so an edit/delete there can reconcile its own images without touching another record's. Null for the older standalone-upload rows, which have no owning record.
   formRecordId  String?
+  /// Which photo section of the owning record this row belongs to. "" is the
+  /// primary end-of-form "Photographs" section (main OFT/FLD/Training/Extension
+  /// forms + every generic leaf). A record can also carry other captioned
+  /// photo sections keyed by their own slot: "oft-result" (Edit OFT Result's
+  /// Photographs), "cfld-training" / "cfld-action" (the two CFLD Technical
+  /// Parameter photo cards). Reconciliation on save is scoped by
+  /// (formRecordId, slot) so one section's save never wipes another's.
+  slot          String   @default("")
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
@@ -4031,4 +4036,5 @@ model ModuleImage {
   @@index([kvkId, reportingYear])
   @@index([categoryPath])
   @@index([formRecordId])
+  @@index([formRecordId, slot])
 }

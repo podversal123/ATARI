@@ -173,7 +173,7 @@ export default async function MastersPage({ params }: MastersPageProps) {
     if (user) {
       const kvks = await prisma.kvk.findMany({
         where: { zoneId: user.zoneId },
-        include: { state: true, district: true, hostOrg: true, zone: true },
+        include: { state: true, district: true, hostOrg: true, zone: true, institute: true },
         orderBy: { name: "asc" },
       });
       const rows = kvks.map((kvk) => ({
@@ -182,8 +182,10 @@ export default async function MastersPage({ params }: MastersPageProps) {
         stateName: kvk.state.name,
         hostOrg: kvk.hostOrg.name,
         districtName: kvk.district.name,
+        instituteName: kvk.institute?.name ?? "",
         kvk: kvk.name,
         mobile: kvk.officePhone ?? "-",
+        landline: kvk.landline ?? "",
         fax: kvk.fax ?? "-",
         email: kvk.email ?? "",
         address: kvk.address ?? "",

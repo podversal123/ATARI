@@ -114,6 +114,7 @@ export function UserManagementView() {
   const session = useSession();
   const isSuperAdmin = session.role === "super-admin";
   const [search, setSearch] = useState("");
+  const [page, setPage] = useState(0);
   const [users, setUsers] = useState<UserRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [listError, setListError] = useState<string | null>(null);
@@ -151,6 +152,12 @@ export function UserManagementView() {
       u.name.toLowerCase().includes(search.toLowerCase()) ||
       u.email.toLowerCase().includes(search.toLowerCase()),
   );
+
+  /** 10 rows per page, matching the reference "View Users" table. */
+  const PAGE_SIZE = 10;
+  const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const currentPage = Math.min(page, pageCount - 1);
+  const pageRows = filtered.slice(currentPage * PAGE_SIZE, currentPage * PAGE_SIZE + PAGE_SIZE);
 
   function openEdit(user: UserRow) {
     setEditUser(user);
@@ -243,7 +250,10 @@ export function UserManagementView() {
           <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             value={search}
-            onChange={(event) => setSearch(event.target.value)}
+            onChange={(event) => {
+              setSearch(event.target.value);
+              setPage(0);
+            }}
             placeholder="Search by name or email..."
             className="h-10 w-96 pl-9"
           />
@@ -286,7 +296,7 @@ export function UserManagementView() {
               </TableCell>
             </TableRow>
           ) : (
-            filtered.map((user) => (
+            pageRows.map((user) => (
               <TableRow key={user.id}>
                 <TableCell className="px-4 py-3 font-medium text-foreground">{user.name}</TableCell>
                 <TableCell className="px-4 py-3 text-muted-foreground">{user.email || "-"}</TableCell>
@@ -333,13 +343,24 @@ export function UserManagementView() {
 
       <div className="flex items-center justify-between border-t border-border px-4 py-3 text-sm text-muted-foreground">
         <span>
-          Showing {filtered.length === 0 ? 0 : 1} to {filtered.length} of {filtered.length} entries
+          Showing {filtered.length === 0 ? 0 : currentPage * PAGE_SIZE + 1} to{" "}
+          {currentPage * PAGE_SIZE + pageRows.length} of {filtered.length} entries
         </span>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" disabled>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={currentPage === 0}
+            onClick={() => setPage((p) => Math.max(0, p - 1))}
+          >
             Previous
           </Button>
-          <Button variant="outline" size="sm" disabled>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={currentPage >= pageCount - 1}
+            onClick={() => setPage((p) => Math.min(pageCount - 1, p + 1))}
+          >
             Next
           </Button>
         </div>

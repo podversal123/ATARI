@@ -4,7 +4,8 @@ import { requireSession } from "@/lib/api-auth";
 import { buildReportSections } from "@/lib/report-data";
 import { zoneReportLabel } from "@/lib/reports";
 import { reportPeriodLabel } from "@/lib/report-types";
-import { pruneToSubsection, reportSubsectionForLeaf } from "@/lib/report-section-map";
+import { pruneToLeafPaths, pruneToSubsection, reportSubsectionForLeaf } from "@/lib/report-section-map";
+import { leafModelFor } from "@/lib/form-summary-data";
 
 /**
  * Real report data for the "Download Report" PDF - the exact section tree
@@ -27,10 +28,26 @@ export async function GET(request: Request) {
   const url = new URL(request.url);
   const kvkNameFilter = url.searchParams.get("kvk");
   const subsectionLeaf = url.searchParams.get("subsection");
-  /** Inclusive YYYY-MM-DD reporting-period bounds - the Reports filter's own From/To, and the Form Management list's date range / reporting-year. Ignored unless well-formed. */
+  /** The Reports screen's "Select Form" checklist - a comma list of Form Management leaf paths. When present, the report is scoped to just those forms' subsections/tables. */
+  const formPaths = (url.searchParams.get("forms") ?? "")
+    .split(",")
+    .map((p) => p.trim())
+    .filter(Boolean);
+  /** Inclusive YYYY-MM-DD reporting-period bounds - the Reports filter's own From/To, and the Form Management list's date range. Ignored unless well-formed. */
   const isoDate = (v: string | null) => (v && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : undefined);
   const fromDate = isoDate(url.searchParams.get("from"));
   const toDate = isoDate(url.searchParams.get("to"));
+  /** "Reporting Year" checkbox multi-select - a comma list of 4-digit years, possibly non-contiguous. Wins over from/to when present (client request, 2026-09-07). */
+  const years = Array.from(
+    new Set(
+      (url.searchParams.get("years") ?? "")
+        .split(",")
+        .map((v) => v.trim())
+        .filter((v) => /^\d{4}$/.test(v))
+        .map(Number),
+    ),
+  ).sort((a, b) => a - b);
+  const yearsArg = years.length > 0 ? years : undefined;
   const isKvkScoped = auth.session.role !== "SUPER_ADMIN";
 
   let kvkId: string | undefined = isKvkScoped ? auth.session.kvkId ?? undefined : undefined;
@@ -51,24 +68,35 @@ export async function GET(request: Request) {
     }),
   ]);
 
-  let sections = await buildReportSections({ kvkId, zoneId: auth.session.zoneId, fromDate, toDate });
+  let sections = await buildReportSections({
+    kvkId,
+    zoneId: auth.session.zoneId,
+    fromDate,
+    toDate,
+    years: yearsArg,
+  });
 
   let matched: boolean | undefined;
   if (subsectionLeaf) {
     const ref = reportSubsectionForLeaf(subsectionLeaf);
     if (ref) {
-      const pruned = pruneToSubsection(sections, ref);
+      const pruned = pruneToSubsection(sections, ref, leafModelFor(subsectionLeaf));
       matched = pruned.length > 0;
       if (matched) sections = pruned;
     } else {
       matched = false;
     }
+  } else if (formPaths.length > 0) {
+    // "Select Form" checklist on the Reports screen - keep only the checked
+    // forms' subsections, each narrowed to its own table(s).
+    const pruned = pruneToLeafPaths(sections, formPaths, reportSubsectionForLeaf, leafModelFor);
+    if (pruned.length > 0) sections = pruned;
   }
 
   return NextResponse.json({
     zoneLabel: zone?.name ? zoneReportLabel(zone.name) : "ATARI",
     kvkNames: kvks.map((k) => k.name),
-    periodLabel: reportPeriodLabel(fromDate, toDate),
+    periodLabel: reportPeriodLabel(fromDate, toDate, yearsArg),
     sections,
     ...(matched === undefined ? {} : { matched }),
   });

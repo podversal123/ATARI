@@ -64,7 +64,12 @@ export function AddLeafPage({
   async function submit() {
     setError(null);
     const missing = columns.filter(
-      (column) => column.required && !column.readonly && !formValues[column.key]?.trim(),
+      (column) =>
+        column.required &&
+        !column.readonly &&
+        column.key !== "kvk" &&
+        column.key !== "kvkName" &&
+        !formValues[column.key]?.trim(),
     );
     if (missing.length > 0) {
       setError("Please fill all required fields.");

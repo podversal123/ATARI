@@ -11,9 +11,11 @@ import {
   ALL_FORM_PATHS,
   QUICK_SELECT_OPTIONS,
   REPORT_FORM_LEAVES,
+  REPORT_YEAR_LIST,
   resolveQuickSelectRange,
   type QuickSelectRange,
 } from "@/lib/reports";
+import { MultiFilterSelect } from "@/components/dashboard/multi-filter-select";
 import { ReportHeaderBar } from "./report-header-bar";
 import { SelectFormDropdown } from "./select-form-dropdown";
 
@@ -52,6 +54,8 @@ export function KvkReportView({ kvkName }: KvkReportViewProps) {
   const [selectedForms, setSelectedForms] = useState<Set<string>>(
     new Set(ALL_FORM_PATHS),
   );
+  /** "Reporting Year" checkbox multi-select - empty = use the Date Range; any year checked scopes the report to exactly those calendar years (client request, 2026-09-07). */
+  const [selectedYears, setSelectedYears] = useState<Set<string>>(new Set());
   const [fromDate, setFromDate] = useState(firstOfYear());
   const [toDate, setToDate] = useState(today());
   const [quickSelect, setQuickSelect] = useState<QuickSelectRange>("this-year");
@@ -83,6 +87,7 @@ export function KvkReportView({ kvkName }: KvkReportViewProps) {
 
   function resetFilters() {
     setSelectedForms(new Set(ALL_FORM_PATHS));
+    setSelectedYears(new Set());
     setFromDate(firstOfYear());
     setToDate(today());
     setQuickSelect("this-year");
@@ -107,6 +112,15 @@ export function KvkReportView({ kvkName }: KvkReportViewProps) {
       from: fromDate,
       to: toDate,
     });
+    // "Reporting Year" checkbox multi-select - any year checked scopes the
+    // report to exactly those calendar years (server prefers it over from/to).
+    const yearsCsv = Array.from(selectedYears).join(",");
+    if (yearsCsv) query.set("years", yearsCsv);
+    // Actual leaf paths behind "Select Form" so the report is scoped to the
+    // checked forms only (client report, 2026-09-07). Omitted when all selected.
+    if (selectedForms.size > 0 && selectedForms.size < ALL_FORM_PATHS.size) {
+      query.set("forms", Array.from(selectedForms).join(","));
+    }
     router.push(`/reports/preview?${query.toString()}`);
   }
 
@@ -171,11 +185,30 @@ export function KvkReportView({ kvkName }: KvkReportViewProps) {
               <Input
                 type="date"
                 value={toDate}
+                min={fromDate || undefined}
                 onChange={(e) => onDateInput(setToDate, e.target.value)}
                 className="mt-1"
               />
             </div>
+            <div className="w-44 shrink-0">
+              <label className="text-xs font-medium text-muted-foreground">
+                Reporting Year
+              </label>
+              <MultiFilterSelect
+                label="Reporting Year"
+                hideLabel
+                options={REPORT_YEAR_LIST}
+                selected={selectedYears}
+                onChange={setSelectedYears}
+                triggerClassName="mt-1 h-9"
+              />
+            </div>
           </div>
+          {selectedYears.size > 0 && (
+            <p className="mt-2 text-xs text-muted-foreground">
+              Year filter active - the report covers {Array.from(selectedYears).sort().join(", ")} (the Date Range above is ignored).
+            </p>
+          )}
 
           <div className="mt-3">
             <label className="text-xs font-medium text-muted-foreground">

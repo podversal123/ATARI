@@ -14,12 +14,11 @@ type FormPhotosFieldProps = {
 };
 
 /**
- * Real "Upload Photograph(s) + Caption" section every form gets at the end
- * (client PDF, "Module Image workflow", 2026-09-02) - each photo carries its
- * own caption, unlike MultiImageUploadField's bare URL list. Feeds Module
- * Images automatically on save (leaf-record-registry.ts's syncModuleImages)
- * rather than the old standalone Add Images page - there is no separate
- * upload flow for this data anymore.
+ * Real "Upload Photograph(s) + Caption" section every form's photo upload
+ * uses (client PDF, "Module Image workflow", 2026-09-02) - each photo carries
+ * its own caption. Feeds Module Images automatically on save
+ * (leaf-record-registry.ts's syncModuleImages) rather than the old standalone
+ * Add Images page - there is no separate upload flow for this data anymore.
  */
 export function FormPhotosField({ label = "Photographs", value, onChange }: FormPhotosFieldProps) {
   const inputRef = useRef<HTMLInputElement>(null);

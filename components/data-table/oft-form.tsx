@@ -294,6 +294,8 @@ export function OftForm({ trail, backHref, id, initialView }: OftFormProps) {
     required?: boolean,
     placeholder?: string,
     type: "text" | "number" | "date" = "text",
+    /** For a completion/end date - can't be before this date. */
+    min?: string,
   ) {
     return (
       <div className="space-y-1.5">
@@ -303,6 +305,7 @@ export function OftForm({ trail, backHref, id, initialView }: OftFormProps) {
         <Input
           id={idAttr}
           type={type}
+          min={type === "date" ? min : undefined}
           className="h-10"
           value={value}
           onChange={(e) => onChange(e.target.value)}
@@ -359,7 +362,7 @@ export function OftForm({ trail, backHref, id, initialView }: OftFormProps) {
 
         <div className="grid grid-cols-[repeat(auto-fit,minmax(240px,320px))] gap-5">
           {textField("oft-start-month", "OFT Start Date", startMonth, setStartMonth, true, undefined, "date")}
-          {textField("oft-end-month", "Expected Completion Date", endMonth, setEndMonth, true, undefined, "date")}
+          {textField("oft-end-month", "Expected Completion Date", endMonth, setEndMonth, true, undefined, "date", startMonth || undefined)}
           {selectField("oft-staff", "Name of SMS/KVK Head", staff, setStaff, staffOptions, true)}
           {selectField("oft-season", "Season", season, setSeason, seasonOptions, true)}
         </div>

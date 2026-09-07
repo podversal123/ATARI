@@ -2,13 +2,13 @@
 
 import Link from "next/link";
 import { ChevronLeft } from "lucide-react";
-import { AnalyticsFilterBar } from "@/components/dashboard/analytics-filter-bar";
+import { AnalyticsFilterBar, chartGroupingLabel } from "@/components/dashboard/analytics-filter-bar";
 import { MetricCard } from "@/components/dashboard/metric-card";
 import { ProgressChartCard, type ProgressChartRow } from "@/components/dashboard/progress-chart-card";
 import { useAnalyticsFilters, type AnalyticsData } from "@/lib/use-analytics-filters";
 
 type OftData = AnalyticsData & {
-  oft: { total: number; quantity: number; cost: number; replications: number; farmersCovered: number };
+  oft: { total: number; quantity: number; cost: number; locations: number; replications: number; farmersCovered: number };
   charts: { oft: ProgressChartRow[] };
 };
 
@@ -16,21 +16,20 @@ type OftData = AnalyticsData & {
  * Real data (was a static `value: 0` placeholder for every metric and an
  * empty chart - never wired to /api/dashboard-stats, unlike the main
  * Dashboard). Farmers Covered is the real "Farmers Details" demographic sum
- * (General/OBC/SC/ST x M/F, added to Oft this session) - "Locations" still
- * has no confidently-matching field anywhere in the Oft schema, shown as
- * "-" rather than a guessed number. Year/State/District/KVK/Group By filters
- * are real now too (2026-08-27) - see lib/use-analytics-filters.ts.
+ * (General/OBC/SC/ST x M/F). Locations is the sum of Oft.noOfLocation ("No.
+ * of location" on the real Add OFT form). Year/State/District/KVK/Group By
+ * filters are real too (2026-08-27) - see lib/use-analytics-filters.ts.
  */
 export default function OftDetailedAnalyticsPage() {
   const { filters, setFilters, data: raw } = useAnalyticsFilters("oft");
   const data = raw as unknown as OftData | null;
-  const stats = data?.oft ?? { total: 0, quantity: 0, cost: 0, replications: 0, farmersCovered: 0 };
+  const stats = data?.oft ?? { total: 0, quantity: 0, cost: 0, locations: 0, replications: 0, farmersCovered: 0 };
   const rows = data?.charts.oft ?? [];
 
   const metrics = [
     { label: "Trials", value: stats.total },
     { label: "Farmers Covered", value: stats.farmersCovered },
-    { label: "Locations", value: "-" },
+    { label: "Locations", value: stats.locations },
     { label: "Replications", value: stats.replications },
     { label: "Cost of OFT", value: stats.cost.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) },
     { label: "Quantity", value: stats.quantity.toLocaleString("en-IN", { maximumFractionDigits: 2 }) },
@@ -79,7 +78,7 @@ export default function OftDetailedAnalyticsPage() {
 
       <div className="mt-4">
         <ProgressChartCard
-          title="OFT by Zone"
+          title={`OFT by ${chartGroupingLabel(filters.groupBy)}`}
           description="Status"
           totalCount={stats.total}
           rows={rows}

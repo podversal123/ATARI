@@ -22,7 +22,7 @@ export async function GET(
   }
 
   const moduleImages = await prisma.moduleImage.findMany({
-    where: { formRecordId: id },
+    where: { formRecordId: id, slot: "" },
     orderBy: { createdAt: "asc" },
   });
 

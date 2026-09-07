@@ -21,7 +21,9 @@ export async function GET(request: Request) {
     : { zoneId: auth.session.zoneId };
 
   const rows = await prisma.moduleImage.findMany({
-    where: { formRecordId: recordId, ...scope },
+    // slot "" is the primary end-of-form Photographs section every generic
+    // leaf uses; other slots ("oft-result", "cfld-*") belong to bespoke forms.
+    where: { formRecordId: recordId, slot: "", ...scope },
     orderBy: { createdAt: "asc" },
     select: { imageUrl: true, caption: true },
   });

@@ -28,6 +28,7 @@ export async function PATCH(request: Request, { params }: RouteParams) {
   const address = typeof body?.address === "string" ? body.address : "";
   const email = typeof body?.email === "string" ? body.email : "";
   const mobile = typeof body?.mobile === "string" ? body.mobile : "";
+  const landline = typeof body?.landline === "string" ? body.landline : "";
   const fax = typeof body?.fax === "string" ? body.fax : "";
   const sanctionYear = Number.isFinite(Number(body?.sanctionYear))
     ? Number(body.sanctionYear)
@@ -85,6 +86,7 @@ export async function PATCH(request: Request, { params }: RouteParams) {
       address,
       email,
       officePhone: mobile,
+      landline: landline || null,
       fax: fax || null,
       sanctionYear,
       stateId: state.id,

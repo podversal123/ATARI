@@ -119,6 +119,23 @@ export async function GET(request: Request) {
   const scope = reportingYearFilter !== undefined ? { ...baseScope, reportingYear: reportingYearFilter } : baseScope;
 
   /**
+   * The OFT/FLD stat-card aggregates (Cost/Quantity/Farmers Covered/
+   * Locations/Replications/Demonstrations) honour the "Breakdown" status
+   * filter exactly the way the status chart already does: "Ongoing" keeps
+   * ONGOING rows only, "Completed" keeps COMPLETED + TRANSFERRED (the same
+   * "anything not ongoing" rule buildStatusRows/filterGroupsByBreakdown
+   * use), and "Not Started" means those KVKs have no OFT/FLD row at all -
+   * so every sum is 0 and the aggregate query is skipped entirely below.
+   */
+  const breakdownStatusWhere: Record<string, unknown> =
+    breakdown === "ongoing"
+      ? { status: "ONGOING" }
+      : breakdown === "completed"
+        ? { status: { not: "ONGOING" } }
+        : {};
+  const aggScope = { ...scope, ...breakdownStatusWhere };
+
+  /**
    * Real per-card filters on the Dashboard's own Training Progress /
    * Extension Activities Progress charts (client request, 2026-08-30) -
    * `training-clientele` and Training's own real `onCampusOffCampus` field
@@ -147,24 +164,6 @@ export async function GET(request: Request) {
     ...scope,
     ...(extensionNatureValues.length > 0 ? { natureOfExtensionActivity: { in: extensionNatureValues } } : {}),
   };
-  /** FldDemonstrationDetail carries its own `zoneId` directly but no `kvkId`/`stateId`/`districtId`/`instituteId` of its own - only reachable through the parent `fld` relation. Zone-only case keeps the original flat-`zoneId` fast path; any KVK-level filter (KVK/State/District/Institute) routes through `fld` instead. */
-  const fldDemoScope = kvkId || filterKvkIdFilter !== undefined || hasLocationFilter
-    ? {
-        fld: {
-          ...(kvkId || filterKvkIdFilter !== undefined
-            ? { kvkId: kvkId ?? filterKvkIdFilter }
-            : {
-                kvk: {
-                  zoneId: auth.session.zoneId,
-                  ...(filterStateIdFilter !== undefined ? { stateId: filterStateIdFilter } : {}),
-                  ...(filterDistrictIdFilter !== undefined ? { districtId: filterDistrictIdFilter } : {}),
-                  ...(filterInstituteIdFilter !== undefined ? { instituteId: filterInstituteIdFilter } : {}),
-                },
-              }),
-          ...(reportingYearFilter !== undefined ? { reportingYear: reportingYearFilter } : {}),
-        },
-      }
-    : { zoneId: auth.session.zoneId, ...(reportingYearFilter !== undefined ? { fld: { reportingYear: reportingYearFilter } } : {}) };
   /** `kvks` (row-building, narrowed by every active filter including the selected KVK(s)) vs `kvkOptions` (the KVK dropdown's own option list - narrowed by State/District/Institute so picking Bihar only lists Bihar's KVKs, but never by the currently-selected KVK itself, otherwise picking one KVK would hide every other KVK from the dropdown). */
   const kvkListWhere = {
     ...(kvkId
@@ -194,7 +193,7 @@ export async function GET(request: Request) {
     otherExtensionByKvk,
     staffByRoleGroups,
     oftAgg,
-    fldDemoAgg,
+    fldAgg,
     oftYears,
     fldYears,
     trainingYears,
@@ -242,13 +241,14 @@ export async function GET(request: Request) {
               : { zoneId: auth.session.zoneId },
           _count: { _all: true },
         }),
-    /** Real per-OFT fields (not just the ongoing/completed status split) for the "OFT - detailed analytics" page's Cost/Quantity/Replications stat cards. */
-    needs("oft")
+    /** Real per-OFT fields (not just the ongoing/completed status split) for the "OFT - detailed analytics" page's Cost/Quantity/Replications stat cards. Scoped by the Breakdown status filter too (see aggScope); "Not Started" has no rows, so the query is skipped and every sum falls back to 0. */
+    needs("oft") && breakdown !== "notStarted"
       ? prisma.oft.aggregate({
-          where: scope,
+          where: aggScope,
           _sum: {
             quantity: true,
             costOfOft: true,
+            noOfLocation: true,
             noOfTrialReplicationFarmer: true,
             generalMale: true,
             generalFemale: true,
@@ -264,6 +264,7 @@ export async function GET(request: Request) {
           _sum: {
             quantity: null,
             costOfOft: null,
+            noOfLocation: null,
             noOfTrialReplicationFarmer: null,
             generalMale: null,
             generalFemale: null,
@@ -275,10 +276,46 @@ export async function GET(request: Request) {
             stFemale: null,
           },
         }),
-    /** FLD's own model has no quantity/farmer/demonstration fields - those live on the child FldDemonstrationDetail rows, scoped via the parent FLD's kvkId since the child itself only carries zoneId. */
-    needs("fld")
-      ? prisma.fldDemonstrationDetail.aggregate({ where: fldDemoScope, _sum: { noOfDemonstrations: true, noOfFarmers: true } })
-      : Promise.resolve({ _sum: { noOfDemonstrations: null, noOfFarmers: null } }),
+    /**
+     * Real per-FLD fields for the "FLD - detailed analytics" page's
+     * Demonstrations / Farmers Covered / Quantity cards. These live directly
+     * on the Fld row (noOfDemonstration, quantity, and the same General/OBC/
+     * SC/ST x M/F breakdown Oft carries) - the child FldDemonstrationDetail
+     * model exists only for the Form Summary report's per-crop breakdown and
+     * is not populated in the operational dataset, so aggregating it here
+     * left all three cards reading zero. Mirrors the oftAgg block above,
+     * Breakdown status scoping included.
+     */
+    needs("fld") && breakdown !== "notStarted"
+      ? prisma.fld.aggregate({
+          where: aggScope,
+          _sum: {
+            noOfDemonstration: true,
+            quantity: true,
+            generalMale: true,
+            generalFemale: true,
+            obcMale: true,
+            obcFemale: true,
+            scMale: true,
+            scFemale: true,
+            stMale: true,
+            stFemale: true,
+          },
+        })
+      : Promise.resolve({
+          _sum: {
+            noOfDemonstration: null,
+            quantity: null,
+            generalMale: null,
+            generalFemale: null,
+            obcMale: null,
+            obcFemale: null,
+            scMale: null,
+            scFemale: null,
+            stMale: null,
+            stFemale: null,
+          },
+        }),
     /**
      * Real distinct reporting years for the Year filter dropdown - merged
      * across the 4 models that carry one, rather than guessing a static
@@ -432,6 +469,7 @@ export async function GET(request: Request) {
       ...oft,
       quantity: Number(oftAgg._sum.quantity ?? 0),
       cost: Number(oftAgg._sum.costOfOft ?? 0),
+      locations: oftAgg._sum.noOfLocation ?? 0,
       replications: oftAgg._sum.noOfTrialReplicationFarmer ?? 0,
       /** Real "Farmers Details" breakdown (General/OBC/SC/ST x M/F) summed - the field the "OFT - detailed analytics" page's Farmers Covered card was missing before those columns existed on Oft. */
       farmersCovered:
@@ -446,8 +484,18 @@ export async function GET(request: Request) {
     },
     fld: {
       ...fld,
-      demonstrations: fldDemoAgg._sum.noOfDemonstrations ?? 0,
-      farmersCovered: fldDemoAgg._sum.noOfFarmers ?? 0,
+      demonstrations: fldAgg._sum.noOfDemonstration ?? 0,
+      quantity: Number(fldAgg._sum.quantity ?? 0),
+      /** Same "Farmers Details" breakdown sum as OFT above - the field the FLD detail page's Farmers Covered card reads. */
+      farmersCovered:
+        (fldAgg._sum.generalMale ?? 0) +
+        (fldAgg._sum.generalFemale ?? 0) +
+        (fldAgg._sum.obcMale ?? 0) +
+        (fldAgg._sum.obcFemale ?? 0) +
+        (fldAgg._sum.scMale ?? 0) +
+        (fldAgg._sum.scFemale ?? 0) +
+        (fldAgg._sum.stMale ?? 0) +
+        (fldAgg._sum.stFemale ?? 0),
     },
     training,
     extension,

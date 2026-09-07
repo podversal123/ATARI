@@ -63,7 +63,7 @@ export type MasterColumn = {
   /** "calculated" renders a disabled, muted input showing the field's current (server-computed) value - unlike a plain `readonly` column (which is dropped from the form entirely), the real reference still *shows* some computed totals, just not editable (e.g. Poshan Maaha's own "Total Participants", confirmed live 2026-09-03: "Auto-calculated: sum of all participant categories" reads directly under a real, visible, disabled field). Pair with `helperText` for that caption. Always set `readonly: true` alongside it too, so required-field validation still skips it. */
   /** "section-heading" renders just a bold heading line (no input) spanning the full row - for a real section break the reference shows (e.g. Poshan Maaha's own "No. of participants" above its Girls/Farm Woman/... fields) that doesn't correspond to any real demographic-breakdown block or other grouped field kind. `label` is the heading text. */
   /** "month-quarter-grid" renders MonthQuarterGridField - the real Jan-Dec x Quarter 1-6 Yes/No completion matrix (72 cells) confirmed live on Staff Quarters' own Create form (atariams.org/infra-performance/staff-quaters/create, 2026-09-04), stored as one JSON-string value on this column's key (parsed into a Prisma `Json?` column by the leaf's registry entry). */
-  fieldKind?: "checkbox" | "demographic-breakdown" | "multi-image" | "date" | "photos" | "nf-parameters" | "calculated" | "section-heading" | "month-quarter-grid";
+  fieldKind?: "checkbox" | "demographic-breakdown" | "date" | "photos" | "nf-parameters" | "calculated" | "section-heading" | "month-quarter-grid";
   /** "calculated" only - the explanatory caption shown under the disabled field (e.g. "Auto-calculated: sum of all participant categories"). */
   helperText?: string;
   /** demographic-breakdown only - prepended to DemographicBreakdown's own key convention (e.g. "farmers" -> "farmersGeneralMale") so one form can hold two independent blocks (Farmers + Extension Officials). Omit for a single block. */
@@ -656,7 +656,9 @@ const oftFldMasters = group(
         { key: "cropName", label: "Crop Name", required: true },
         { key: "unit", label: "Unit" },
         { key: "quantityDataType", label: "Quantity Data Type" },
-        { key: "quantityRequired", label: "Quantity required in forms", fieldKind: "checkbox" },
+        // "Quantity required in forms" dropped from the list/form/report per
+        // client request 2026-09-04 ("CFLD Masters: Remove 'Quantity Required
+        // in Forms'"). The DB column stays; it's just no longer shown.
       ], undefined, true),
       /** Real reference: Create Activity has no "Mark as Other" checkbox, unlike every other single-Name master in this group. */
       leaf("activity", "Activity Master", [
@@ -738,9 +740,11 @@ const productionProjects = group(
             },
           },
           { key: "productName", label: "Product Name", required: true },
-          { key: "unit", label: "Unit" },
-          { key: "quantityDataType", label: "Quantity Data Type" },
-          { key: "quantityRequired", label: "Quantity required in forms", fieldKind: "checkbox" },
+          // Unit / Quantity Data Type / Quantity required in forms dropped
+          // from the list, Add/Edit form and the report per client request
+          // 2026-09-04 ("Product Master Report: Remove the fields Unit,
+          // Quantity Data Type, and Quantity Required in Forms"). The DB
+          // columns stay; they're just no longer shown anywhere.
         ], undefined, true),
       ],
     ),
@@ -911,16 +915,23 @@ const aboutKvk = group(
       ),
     ]),
     group("land-infrastructure", "Land & Infrastructure Information", [
+      /**
+       * The 6 status fields are real Yes/No values (confirmed live on
+       * atariams.org/view-infra - "Yes"/"No" in every cell), stored as
+       * booleans via the leaf registry's own `bool()` helper. They render
+       * as Yes/No dropdowns, not free-text inputs (client request,
+       * 2026-09-04) - same `staticOptions` pattern already used elsewhere.
+       */
       leaf("infrastructure-details", "Infrastructure Details", [
         { key: "kvk", label: "KVK" },
         { key: "infraMasterName", label: "Infra Master Name" },
-        { key: "notYetStarted", label: "Not Yet Started" },
-        { key: "completedPlinthLevel", label: "Completed Plinth Level" },
-        { key: "completedLintelLevel", label: "Completed Lintel Level" },
-        { key: "completedRoofLevel", label: "Completed Roof Level" },
-        { key: "totallyCompleted", label: "Totally Completed" },
+        { key: "notYetStarted", label: "Not Yet Started", staticOptions: ["Yes", "No"], defaultValue: "No" },
+        { key: "completedPlinthLevel", label: "Completed Plinth Level", staticOptions: ["Yes", "No"], defaultValue: "No" },
+        { key: "completedLintelLevel", label: "Completed Lintel Level", staticOptions: ["Yes", "No"], defaultValue: "No" },
+        { key: "completedRoofLevel", label: "Completed Roof Level", staticOptions: ["Yes", "No"], defaultValue: "No" },
+        { key: "totallyCompleted", label: "Totally Completed", staticOptions: ["Yes", "No"], defaultValue: "No" },
         { key: "plinthAreaSqM", label: "Plinth Area (Sq M)" },
-        { key: "underUse", label: "Under Use" },
+        { key: "underUse", label: "Under Use", staticOptions: ["Yes", "No"], defaultValue: "No" },
         { key: "sourceOfFunding", label: "Source of Funding" },
         { key: "fundingAgencyName", label: "Funding Agency Name" },
       ]),
@@ -1586,7 +1597,7 @@ const achievements = group("achievements", "Achievements", [
       { key: "achievement", label: "Achievement", formOrder: 7, required: true },
       { key: "conferringAuthority", label: "Conferring Authority", formOrder: 8, required: true },
       /** Real field, confirmed missing entirely before (atari-client.vercel.app, 2026-09-02) - a real multi-file upload ("Hold Ctrl/Cmd in the file picker to select multiple"), not single. */
-      { key: "photo", label: "Photographs", fieldKind: "multi-image", uploadKind: "farmer-award-photo", formOnly: true },
+      { key: "moduleImages", label: "Photographs", fieldKind: "photos", formOnly: true },
     ]),
   ]),
   ],
@@ -2492,7 +2503,7 @@ const performanceIndicators = group(
         { key: "impactOutcome", label: "Impact/Outcome", required: true, formOnly: true },
         { key: "futurePlans", label: "Future Plans", required: true, formOnly: true },
         // Not required on the reference (no asterisk) - the one upload field in this leaf.
-        { key: "supportingImageUrls", label: "Supporting Images", fieldKind: "multi-image", uploadKind: "success-story-image", formOnly: true },
+        { key: "moduleImages", label: "Supporting Images", fieldKind: "photos", formOnly: true },
         { key: "economicInfoSectionHeading", label: "Economic Information", fieldKind: "section-heading", formOnly: true },
         { key: "enterprise", label: "Enterprise", required: true, formOnly: true },
         { key: "grossIncome", label: "Gross Income (annual)", required: true, formOnly: true },
@@ -2911,7 +2922,7 @@ const miscellaneous = group("miscellaneous", "Miscellaneous", [
       { key: "village", label: "Village", required: true, formOnly: true },
       { key: "characteristics", label: "Characteristics", required: true, formOnly: true },
       // Real Add form field confirmed live (2026-09-04) - a multi-file upload, missing entirely before, not required (no asterisk), not a table column.
-      { key: "images", label: "Images", fieldKind: "multi-image", uploadKind: "ppv-fra-farmer-image", formOnly: true },
+      { key: "moduleImages", label: "Images", fieldKind: "photos", formOnly: true },
     ]),
   ]),
   leaf("rawe-fet-fit-programme", "RAWE/FET/FIT Programme", [

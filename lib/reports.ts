@@ -57,13 +57,26 @@ export const REPORT_TABLE_COLUMNS = [
   "Status",
 ] as const;
 
+/**
+ * `year:2025` stays a valid quick-select value (older links, and
+ * resolveQuickSelectRange still maps it) but the report screens now offer a
+ * real "Reporting Year" checkbox multi-select instead of one year pill per
+ * year (client request, 2026-09-07) - see REPORT_YEAR_LIST + the `years`
+ * query param on /api/reports/generate.
+ */
 export type QuickSelectRange =
   | "today"
   | "this-week"
   | "this-month"
   | "last-month"
   | "this-year"
+  | `year:${number}`
   | "custom";
+
+/** Checkbox options for the Reports / Form Management "Reporting Year" multi-select - the current year down to 5 years back, newest first. */
+export const REPORT_YEAR_LIST: string[] = Array.from({ length: 6 }, (_, i) =>
+  String(new Date().getFullYear() - i),
+);
 
 export const QUICK_SELECT_OPTIONS: {
   value: QuickSelectRange;
@@ -116,6 +129,13 @@ export function resolveQuickSelectRange(
     case "custom":
       return null;
   }
+  // A specific calendar year: `year:2025` -> 2025-01-01 .. 2025-12-31.
+  const yearMatch = /^year:(\d{4})$/.exec(range);
+  if (yearMatch) {
+    const y = Number(yearMatch[1]);
+    return { from: `${y}-01-01`, to: `${y}-12-31` };
+  }
+  return null;
 }
 
 /** Zones available to the Zone dropdown - currently just the one real zone this deployment covers. */

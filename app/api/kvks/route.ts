@@ -19,6 +19,7 @@ export async function GET() {
     districtName: kvk.district.name,
     kvk: kvk.name,
     mobile: kvk.officePhone ?? "-",
+    landline: kvk.landline ?? "",
     fax: kvk.fax ?? "-",
     email: kvk.email ?? "",
     address: kvk.address ?? "",
@@ -41,6 +42,7 @@ export async function POST(request: Request) {
   const address = typeof body?.address === "string" ? body.address : "";
   const email = typeof body?.email === "string" ? body.email : "";
   const mobile = typeof body?.mobile === "string" ? body.mobile : "";
+  const landline = typeof body?.landline === "string" ? body.landline : "";
   const fax = typeof body?.fax === "string" ? body.fax : "";
   const sanctionYear = Number.isFinite(Number(body?.sanctionYear))
     ? Number(body.sanctionYear)
@@ -91,6 +93,7 @@ export async function POST(request: Request) {
       address,
       email,
       officePhone: mobile,
+      landline: landline || undefined,
       fax: fax || undefined,
       sanctionYear,
       zoneId,

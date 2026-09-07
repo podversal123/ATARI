@@ -35,17 +35,6 @@ const bool = (v: string | undefined) => v?.trim().toLowerCase() === "yes" || v?.
 /** Inclusive day count between two dates (e.g. 1st-3rd = 3 days stayed, not 2) - for a leaf whose real reference form has no separate "days stayed" input, just Start/End Date, with the duration shown read-only in the list table (e.g. RAWE/FET/FIT Programme). */
 const daysBetween = (start: Date, end: Date) => Math.max(1, Math.round((end.getTime() - start.getTime()) / 86_400_000) + 1);
 
-/** Any `fieldKind: "multi-image"` field (e.g. Farmer Award's Photographs) arrives as one JSON-stringified array of URLs (same convention as OFT's technologyOptions below), since this registry's values are otherwise flat strings. */
-function parsePhotoUrls(raw: string | undefined): string[] {
-  if (!raw) return [];
-  try {
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed.filter((v): v is string => typeof v === "string" && v.trim().length > 0) : [];
-  } catch {
-    return [];
-  }
-}
-
 /** `fieldKind: "nf-parameters"` arrives as one JSON-stringified `{ [key]: { without, with } }` object (NfParametersField) - kept as a plain object for the Json column, `{}` when absent/malformed. */
 function parseNfParameters(raw: string | undefined): Record<string, { without: string; with: string }> {
   if (!raw) return {};
@@ -63,7 +52,7 @@ function countVips(vipNames: string | undefined): number {
   return vipNames.split(",").map((v) => v.trim()).filter(Boolean).length;
 }
 
-/** FormPhotosField's own value shape (one JSON-stringified array field, same convention as parsePhotoUrls above) - each photo carries its own caption, unlike a bare URL list. */
+/** FormPhotosField's own value shape - one JSON-stringified array where each entry carries its own `{ url, caption }`. */
 function parseFormPhotos(raw: string | undefined): { url: string; caption: string }[] {
   if (!raw) return [];
   try {
@@ -87,7 +76,7 @@ function parseFormPhotos(raw: string | undefined): { url: string; caption: strin
  * Update is a delete-then-recreate (simplest correct reconciliation given
  * the client always submits the full current photo list, not a diff).
  */
-async function syncModuleImages(
+export async function syncModuleImages(
   raw: string | undefined,
   opts: {
     kvkId: string;
@@ -97,11 +86,14 @@ async function syncModuleImages(
     reportingYear: number;
     activityDate: Date;
     formRecordId: string;
+    /** Which photo section of the record this reconciles - "" (default) is the primary end-of-form Photographs; a form with more than one photo section (OFT Result, CFLD Technical Parameter) passes its own slot so its save never touches another section's rows. */
+    slot?: string;
     uploadedById?: string;
   },
 ) {
+  const slot = opts.slot ?? "";
   const photos = parseFormPhotos(raw);
-  await prisma.moduleImage.deleteMany({ where: { formRecordId: opts.formRecordId } });
+  await prisma.moduleImage.deleteMany({ where: { formRecordId: opts.formRecordId, slot } });
   if (photos.length === 0) return;
   await prisma.moduleImage.createMany({
     data: photos.map((p) => ({
@@ -116,6 +108,7 @@ async function syncModuleImages(
       published: true,
       uploadedById: opts.uploadedById,
       formRecordId: opts.formRecordId,
+      slot,
     })),
   });
 }
@@ -144,6 +137,11 @@ const LEAF_LABEL_BY_PATH = new Map(
     `${l.groupLabel} - ${l.label}`,
   ]),
 );
+
+/** The "<group> - <leaf>" Module Images category label for a Form Management leaf path - so the bespoke OFT-Result / CFLD forms file their photos under the same label a generic leaf would. */
+export function leafCategoryLabel(path: string): string {
+  return LEAF_LABEL_BY_PATH.get(path) ?? path;
+}
 
 /**
  * Generic Module-Images reconciliation for ANY Form Management leaf, called
@@ -342,7 +340,8 @@ export const LEAF_RECORD_REGISTRY: Record<string, CreateFn> = {
       data: {
         ...ctx,
         sanctionedPost: reqStr(v.sanctionedPost),
-        name: reqStr(v.name),
+        name: reqStr(v.name ?? v.staffName),
+        position: str(v.position),
         mobile: str(v.mobile),
         email: str(v.email),
         payScale: str(v.payScale),
@@ -351,7 +350,7 @@ export const LEAF_RECORD_REGISTRY: Record<string, CreateFn> = {
         dateOfJoining: date(v.dateOfJoining),
         jobType: str(v.jobType),
         allowances: str(v.allowances),
-        category: str(v.casteCategory),
+        category: str(v.casteCategory ?? v.category),
         photoUrl: str(v.photo),
         resumeUrl: str(v.resume),
       },
@@ -680,7 +679,7 @@ export const LEAF_RECORD_REGISTRY: Record<string, CreateFn> = {
     }),
   "achievements/awards/farmer": (v, ctx) =>
     prisma.farmerAward.create({
-      data: { ...ctx, reportingDate: date(v.reportingDate), farmerName: reqStr(v.farmerName), address: str(v.address), contactNumber: str(v.contactNumber), award: reqStr(v.award), amount: reqDec(v.amount), achievement: str(v.achievement), conferringAuthority: str(v.conferringAuthority), photoUrls: parsePhotoUrls(v.photo) },
+      data: { ...ctx, reportingDate: date(v.reportingDate), farmerName: reqStr(v.farmerName), address: str(v.address), contactNumber: str(v.contactNumber), award: reqStr(v.award), amount: reqDec(v.amount), achievement: str(v.achievement), conferringAuthority: str(v.conferringAuthority) },
     }),
 
   // --- Projects ---
@@ -1125,7 +1124,6 @@ export const LEAF_RECORD_REGISTRY: Record<string, CreateFn> = {
         resultsOutput: str(v.resultsOutput),
         impactOutcome: str(v.impactOutcome),
         futurePlans: str(v.futurePlans),
-        supportingImageUrls: parsePhotoUrls(v.supportingImageUrls),
         enterprise: str(v.enterprise),
         grossIncome: dec(v.grossIncome),
         netIncome: dec(v.netIncome),
@@ -1370,7 +1368,6 @@ export const LEAF_RECORD_REGISTRY: Record<string, CreateFn> = {
         mobileNo: reqStr(v.mobileNo),
         village: reqStr(v.village),
         characteristics: reqStr(v.characteristics),
-        images: parsePhotoUrls(v.images),
       },
     }),
   "miscellaneous/rawe-fet-fit-programme": (v, ctx) => {
@@ -1613,12 +1610,18 @@ export const LEAF_UPDATE_REGISTRY: Record<string, UpdateFn> = {
       where: { id, ...kvkScope(ctx) },
       data: { accountType: reqStr(v.accountType), accountName: reqStr(v.accountName), bankName: reqStr(v.bankName), location: str(v.location), accountNumber: reqStr(v.accountNumber) },
     }),
+  // The bespoke Add form (EmployeeDetailsAddForm) submits `name`/`casteCategory`;
+  // the generic Edit form submits the list-column keys `staffName`/`category`.
+  // Accept either so an edit doesn't blank the name or drop Position/Category
+  // (client report, 2026-09-04: "after entering a Position, the position data
+  // is not showing").
   "about-kvk/employee/employee-details": (id, v, ctx) =>
     prisma.staff.updateMany({
       where: { id, ...kvkScope(ctx) },
       data: {
         sanctionedPost: reqStr(v.sanctionedPost),
-        name: reqStr(v.name),
+        name: reqStr(v.name ?? v.staffName),
+        position: str(v.position),
         mobile: str(v.mobile),
         email: str(v.email),
         payScale: str(v.payScale),
@@ -1627,7 +1630,8 @@ export const LEAF_UPDATE_REGISTRY: Record<string, UpdateFn> = {
         dateOfJoining: date(v.dateOfJoining),
         jobType: str(v.jobType),
         allowances: str(v.allowances),
-        category: str(v.casteCategory),
+        category: str(v.casteCategory ?? v.category),
+        transferStatus: str(v.transferStatus),
         photoUrl: str(v.photo),
         resumeUrl: str(v.resume),
       },
@@ -2023,7 +2027,7 @@ export const LEAF_UPDATE_REGISTRY: Record<string, UpdateFn> = {
   "achievements/awards/scientist": (id, v, ctx) =>
     prisma.scientistAward.updateMany({ where: { id, ...kvkScope(ctx) }, data: { reportingDate: date(v.reportingDate), headScientist: reqStr(v.headScientist), award: reqStr(v.award), amount: reqDec(v.amount), achievement: str(v.achievement), conferringAuthority: str(v.conferringAuthority) } }),
   "achievements/awards/farmer": (id, v, ctx) =>
-    prisma.farmerAward.updateMany({ where: { id, ...kvkScope(ctx) }, data: { reportingDate: date(v.reportingDate), farmerName: reqStr(v.farmerName), address: str(v.address), contactNumber: str(v.contactNumber), award: reqStr(v.award), amount: reqDec(v.amount), achievement: str(v.achievement), conferringAuthority: str(v.conferringAuthority), photoUrls: parsePhotoUrls(v.photo) } }),
+    prisma.farmerAward.updateMany({ where: { id, ...kvkScope(ctx) }, data: { reportingDate: date(v.reportingDate), farmerName: reqStr(v.farmerName), address: str(v.address), contactNumber: str(v.contactNumber), award: reqStr(v.award), amount: reqDec(v.amount), achievement: str(v.achievement), conferringAuthority: str(v.conferringAuthority) } }),
 
   "projects/cfld/extension-activity-cfld": (id, v, ctx) =>
     prisma.cfldExtensionActivity.updateMany({
@@ -2348,7 +2352,6 @@ export const LEAF_UPDATE_REGISTRY: Record<string, UpdateFn> = {
         resultsOutput: str(v.resultsOutput),
         impactOutcome: str(v.impactOutcome),
         futurePlans: str(v.futurePlans),
-        supportingImageUrls: parsePhotoUrls(v.supportingImageUrls),
         enterprise: str(v.enterprise),
         grossIncome: dec(v.grossIncome),
         netIncome: dec(v.netIncome),
@@ -2559,7 +2562,6 @@ export const LEAF_UPDATE_REGISTRY: Record<string, UpdateFn> = {
         mobileNo: reqStr(v.mobileNo),
         village: reqStr(v.village),
         characteristics: reqStr(v.characteristics),
-        images: parsePhotoUrls(v.images),
       },
     }),
   "miscellaneous/rawe-fet-fit-programme": (id, v, ctx) => {

@@ -23,7 +23,9 @@ export async function GET(
   }
 
   const moduleImages = await prisma.moduleImage.findMany({
-    where: { formRecordId: id },
+    // slot "" is this form's own end-of-form Photographs section; the OFT
+    // Result tab keeps its photos under slot "oft-result" on the same record.
+    where: { formRecordId: id, slot: "" },
     orderBy: { createdAt: "asc" },
   });
 

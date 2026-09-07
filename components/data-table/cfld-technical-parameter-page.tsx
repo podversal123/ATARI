@@ -13,7 +13,7 @@ import {
   DemographicGrid,
   type DemographicValues,
 } from "./demographic-breakdown";
-import { MultiImageUploadField } from "./multi-image-upload-field";
+import { FormPhotosField, type FormPhoto } from "./form-photos-field";
 import { percentIncreaseInYield, yieldGapMinimizedPercent } from "@/lib/cfld-formulas";
 import { CFLD_TABS as TABS, cfldTabDisplayLabel, type CfldTabName } from "@/lib/cfld-technical-parameter-tabs";
 
@@ -79,8 +79,8 @@ export function CfldTechnicalParameterPage({
   const [demographics, setDemographics] = useState<DemographicValues>({});
   const [socioEconomic, setSocioEconomic] = useState<Record<string, string>>({});
   const [perception, setPerception] = useState<Record<string, string>>({});
-  const [trainingPhotoUrls, setTrainingPhotoUrls] = useState<string[]>([]);
-  const [actionPhotoUrls, setActionPhotoUrls] = useState<string[]>([]);
+  const [trainingPhotos, setTrainingPhotos] = useState<FormPhoto[]>([]);
+  const [actionPhotos, setActionPhotos] = useState<FormPhoto[]>([]);
   const [cropRows, setCropRows] = useState<CropMasterRow[]>([]);
   const [seasonOptions, setSeasonOptions] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -175,8 +175,8 @@ export function CfldTechnicalParameterPage({
         setDemographics(data.demographics ?? {});
         setSocioEconomic(data.socioEconomic ?? {});
         setPerception(data.perception ?? {});
-        setTrainingPhotoUrls(data.technical?.trainingPhotoUrls ?? []);
-        setActionPhotoUrls(data.technical?.actionPhotoUrls ?? []);
+        setTrainingPhotos(Array.isArray(data.trainingPhotos) ? data.trainingPhotos : []);
+        setActionPhotos(Array.isArray(data.actionPhotos) ? data.actionPhotos : []);
       })
       .catch(() => setError("Could not load this record."))
       .finally(() => setLoading(false));
@@ -192,7 +192,9 @@ export function CfldTechnicalParameterPage({
           method: id ? "PUT" : "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            technical: { ...technical, trainingPhotoUrls, actionPhotoUrls },
+            technical,
+            trainingPhotos: JSON.stringify(trainingPhotos),
+            actionPhotos: JSON.stringify(actionPhotos),
             economic,
             demographics,
             socioEconomic,
@@ -429,18 +431,16 @@ export function CfldTechnicalParameterPage({
 
               {/* Photo upload cards get a wider bound than a text field's 240-320px (icon+text needs more room) - same pattern as EmployeeDetailsAddForm's own Photo/Resume cards. */}
               <div className="grid grid-cols-[repeat(auto-fit,minmax(260px,380px))] gap-5 border-t border-border pt-4">
-                <MultiImageUploadField
+                <FormPhotosField
                   label="Farmers' Training Photographs"
-                  uploadKind="cfld-training-photo"
-                  value={trainingPhotoUrls}
-                  onChange={setTrainingPhotoUrls}
+                  value={trainingPhotos}
+                  onChange={setTrainingPhotos}
                 />
-                <MultiImageUploadField
+                <FormPhotosField
                   // Shortened from "Quality Action Photographs (field visits / technology demos)" (audit finding, 2026-09-04) - the full label wrapped to 2 lines in its ~half-width card, pushing its own dropzone down out of alignment with the "Farmers' Training Photographs" card beside it (which stays 1 line). Same meaning, fits one line.
                   label="Quality Action Photographs"
-                  uploadKind="cfld-action-photo"
-                  value={actionPhotoUrls}
-                  onChange={setActionPhotoUrls}
+                  value={actionPhotos}
+                  onChange={setActionPhotos}
                 />
               </div>
             </div>

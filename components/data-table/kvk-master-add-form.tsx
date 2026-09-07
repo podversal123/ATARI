@@ -72,6 +72,7 @@ export function KvkMasterAddForm({ trail, backHref, title = "Create KVK" }: KvkM
           sanctionYear,
           email,
           mobile,
+          landline,
           fax,
           stateName: state,
           districtName: district,

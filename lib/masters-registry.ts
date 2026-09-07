@@ -299,6 +299,7 @@ const dedicated: Record<string, MasterLeafEntry> = {
         instituteName: k.institute?.name ?? "",
         kvk: k.name,
         mobile: k.officePhone ?? "-",
+        landline: k.landline ?? "",
         fax: k.fax ?? "-",
         email: k.email ?? "",
         address: k.address ?? "",
@@ -507,12 +508,12 @@ const dedicated: Record<string, MasterLeafEntry> = {
       if (!subCategory) throw new Error(`Unknown sub category: ${v.subCategoryName}`);
       const name = reqStr(v.cropName);
       if (!name) throw new Error("Crop name is required.");
+      // quantityRequired dropped from the form/list/report (client 2026-09-04) - not written here anymore so an edit can't clobber an existing value; new rows take the schema default (false).
       return prisma.cropMaster.create({
         data: {
           name,
           subCategoryId: subCategory.id,
           zoneId,
-          quantityRequired: bool(v.quantityRequired),
         },
       });
     },
@@ -530,7 +531,6 @@ const dedicated: Record<string, MasterLeafEntry> = {
         data: {
           name,
           subCategoryId: subCategory.id,
-          quantityRequired: bool(v.quantityRequired),
         },
       });
     },
@@ -653,12 +653,12 @@ const dedicated: Record<string, MasterLeafEntry> = {
       if (!type) throw new Error(`Unknown product type: ${v.productCategoryName} / ${v.productCategoryType}`);
       const name = reqStr(v.productName);
       if (!name) throw new Error("Product name is required.");
+      // Unit / Quantity Data Type were never persisted; quantityRequired dropped from the form/list/report (client 2026-09-04) - not written here anymore.
       return prisma.productMaster.create({
         data: {
           name,
           productTypeMasterId: type.id,
           zoneId,
-          quantityRequired: bool(v.quantityRequired),
         },
       });
     },
@@ -674,7 +674,6 @@ const dedicated: Record<string, MasterLeafEntry> = {
         data: {
           name,
           productTypeMasterId: type.id,
-          quantityRequired: bool(v.quantityRequired),
         },
       });
     },

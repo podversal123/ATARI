@@ -272,9 +272,30 @@ function yearsInRange(fromDate?: string, toDate?: string): number[] {
  * master tables just return their full contents, as the reference does).
  */
 function periodClause(scope: ReportScope, model: string): Record<string, unknown> {
+  const yearField = MODEL_PERIOD_YEAR_FIELD[model];
+  const dateFields = MODEL_PERIOD_DATE_FIELDS[model];
+
+  // "Reporting Year" checkbox multi-select - an explicit, possibly
+  // non-contiguous set of calendar years. Wins over fromDate/toDate.
+  if (scope.years && scope.years.length > 0) {
+    const years = scope.years;
+    if (yearField) {
+      return years.length === 1 ? { [yearField]: years[0] } : { [yearField]: { in: years } };
+    }
+    if (!dateFields || dateFields.length === 0) return {};
+    const ors = years.flatMap((y) =>
+      dateFields.map((f) => ({
+        [f]: {
+          gte: new Date(`${y}-01-01T00:00:00.000Z`),
+          lte: new Date(`${y}-12-31T23:59:59.999Z`),
+        },
+      })),
+    );
+    return ors.length === 1 ? ors[0] : { OR: ors };
+  }
+
   if (!scope.fromDate && !scope.toDate) return {};
 
-  const yearField = MODEL_PERIOD_YEAR_FIELD[model];
   if (yearField) {
     const years = yearsInRange(scope.fromDate, scope.toDate);
     if (years.length === 1) return { [yearField]: years[0] };
@@ -282,7 +303,6 @@ function periodClause(scope: ReportScope, model: string): Record<string, unknown
     return {};
   }
 
-  const dateFields = MODEL_PERIOD_DATE_FIELDS[model];
   if (!dateFields || dateFields.length === 0) return {};
   const range: Record<string, Date> = {};
   if (scope.fromDate) range.gte = new Date(`${scope.fromDate}T00:00:00.000Z`);
@@ -5505,7 +5525,17 @@ const KVK_TREE: Sec[] = [
           { key: "fundingAgencyName", label: "Funding Agency Name" },
           { key: "plinthAreaSqM", label: "Total Area (m²)" },
         ]) },
-        { code: "1.3.B", title: "Staff Quarters Details", model: "staffQuarters", scope: "direct", custom: buildStaffQuarters },
+        // "Land Details" was missing from the KVK tree entirely (it only
+        // existed in the Super Admin tree at 1.3.B), so a per-form report
+        // download from the Land Details leaf fell through to the whole 1.3
+        // subsection - it "showed another form instead" (client report,
+        // 2026-09-04, Bhagalpur). Mirrors the Super Admin 1.3.B table.
+        { code: "1.3.B", title: "Land Details", model: "land", scope: "direct", custom: kvkOwnedTable("land", [
+          { key: "item", label: "Item" },
+          { key: "description", label: "Description" },
+          { key: "areaHa", label: "Area (ha)" },
+        ], { totalField: "areaHa", totalLabel: "Total" }) },
+        { code: "1.3.C", title: "Staff Quarters Details", model: "staffQuarters", scope: "direct", custom: buildStaffQuarters },
       ]},
       { num: "1.4", title: "Vehicles Information", items: [
         { code: "1.4.A", title: "Vehicles Details", model: "vehicle", scope: "direct", custom: kvkOwnedTable("vehicle", [
@@ -5683,6 +5713,7 @@ async function fetchTable(entry: Entry, scope: ReportScope): Promise<ReportTable
   const base = {
     code: entry.code,
     title: entry.title,
+    model: entry.model,
     groupCode: entry.groupCode,
     groupTitle: entry.groupTitle,
   };

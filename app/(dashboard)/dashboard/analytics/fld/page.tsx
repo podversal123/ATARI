@@ -2,34 +2,44 @@
 
 import Link from "next/link";
 import { ChevronLeft } from "lucide-react";
-import { AnalyticsFilterBar } from "@/components/dashboard/analytics-filter-bar";
+import { AnalyticsFilterBar, chartGroupingLabel } from "@/components/dashboard/analytics-filter-bar";
 import { MetricCard } from "@/components/dashboard/metric-card";
 import { ProgressChartCard, type ProgressChartRow } from "@/components/dashboard/progress-chart-card";
 import { useAnalyticsFilters, type AnalyticsData } from "@/lib/use-analytics-filters";
 
 type FldData = AnalyticsData & {
-  fld: { total: number; demonstrations: number; farmersCovered: number };
+  fld: {
+    total: number;
+    demonstrations: number;
+    farmersCovered: number;
+    quantity: number;
+  };
   charts: { fld: ProgressChartRow[] };
 };
 
 /**
  * Real data (was a static `value: 0` placeholder for every metric and an
- * empty chart). "Quantity" has no matching field anywhere in Fld or
- * FldDemonstrationDetail's schema - shown as "-" rather than a guessed
- * number, same rule as OFT's Locations. Year/State/District/KVK/Group By
- * filters are real now too (2026-08-27) - see lib/use-analytics-filters.ts.
+ * empty chart). Demonstrations, Farmers Covered and Quantity all come off
+ * the Fld rows directly (noOfDemonstration, the General/OBC/SC/ST breakdown,
+ * and quantity) - same as OFT reads its own row. Year/State/District/KVK/
+ * Group By filters are real too (2026-08-27) - see lib/use-analytics-filters.ts.
  */
 export default function FldDetailedAnalyticsPage() {
   const { filters, setFilters, data: raw } = useAnalyticsFilters("fld");
   const data = raw as unknown as FldData | null;
-  const stats = data?.fld ?? { total: 0, demonstrations: 0, farmersCovered: 0 };
+  const stats = data?.fld ?? {
+    total: 0,
+    demonstrations: 0,
+    farmersCovered: 0,
+    quantity: 0,
+  };
   const rows = data?.charts.fld ?? [];
 
   const metrics = [
     { label: "FLDs", value: stats.total },
     { label: "Demonstrations", value: stats.demonstrations },
     { label: "Farmers Covered", value: stats.farmersCovered },
-    { label: "Quantity", value: "-" },
+    { label: "Quantity", value: stats.quantity.toLocaleString("en-IN", { maximumFractionDigits: 2 }) },
   ];
 
   return (
@@ -75,7 +85,7 @@ export default function FldDetailedAnalyticsPage() {
 
       <div className="mt-4">
         <ProgressChartCard
-          title="FLD by Zone"
+          title={`FLD by ${chartGroupingLabel(filters.groupBy)}`}
           description="Status"
           totalCount={stats.total}
           rows={rows}

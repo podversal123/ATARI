@@ -16,7 +16,7 @@ import {
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { FilterSelect } from "@/components/dashboard/filter-select";
+import { MultiFilterSelect } from "@/components/dashboard/multi-filter-select";
 import { useSession } from "@/lib/session";
 import { usePolling } from "@/lib/use-polling";
 
@@ -38,7 +38,7 @@ type FormSummaryData = {
   totalPossible: number;
   overallProgressPercent: number;
   byKvk: KvkSummary[];
-  year: number | null;
+  years: number[];
 };
 
 /**
@@ -91,19 +91,19 @@ export default function FormSummaryPage() {
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   /**
-   * Reporting-year scope for every count on this page - `""` is the
+   * Reporting-year scope for every count on this page - a checkbox
+   * multi-select (client request, 2026-09-06). An empty set is the
    * "All Years" (all-time) view, which stays the default so the headline
-   * numbers don't shift on load; the dropdown now also offers each real
-   * year present in the data instead of the single dead "current year"
-   * option it used to show (client report, 2026-09-04).
+   * numbers don't shift on load; selecting several years unions their
+   * counts.
    */
-  const [year, setYear] = useState<string>("");
+  const [years, setYears] = useState<Set<string>>(new Set());
 
   const matrixScrollRef = useRef<HTMLDivElement>(null);
 
   const loadSummary = useCallback(() => {
     let cancelled = false;
-    const query = year ? `?year=${year}` : "";
+    const query = years.size > 0 ? `?year=${Array.from(years).join(",")}` : "";
     fetch(`/api/form-summary${query}`)
       .then((res) => (res.ok ? res.json() : null))
       .then((json: FormSummaryData | null) => {
@@ -116,13 +116,10 @@ export default function FormSummaryPage() {
     return () => {
       cancelled = true;
     };
-  }, [year]);
+  }, [years]);
 
   useEffect(loadSummary, [loadSummary]);
   usePolling(loadSummary);
-
-  const ALL_YEARS = "All Years";
-  const yearOptions = [ALL_YEARS, ...reportingYearOptions()];
 
   const filteredSorted = useMemo(() => {
     if (!data) return [];
@@ -159,12 +156,19 @@ export default function FormSummaryPage() {
               : "Track which KVKs have submitted each form"}
           </p>
         </div>
-        <FilterSelect
-          label="Reporting year"
-          value={year || ALL_YEARS}
-          options={yearOptions}
-          onChange={(next) => setYear(next === ALL_YEARS ? "" : next)}
-        />
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+            Reporting year
+          </span>
+          <MultiFilterSelect
+            label="Reporting year"
+            hideLabel
+            options={reportingYearOptions()}
+            selected={years}
+            onChange={setYears}
+            triggerClassName="min-w-32"
+          />
+        </div>
       </div>
 
       {loading || !data ? (

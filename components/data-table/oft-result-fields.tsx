@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { MultiImageUploadField } from "./multi-image-upload-field";
+import { FormPhotosField, type FormPhoto } from "./form-photos-field";
 import {
   defaultResultTables,
   type OftResultTable,
@@ -31,7 +31,7 @@ export function OftResultFields({ oftId, backHref }: OftResultFieldsProps) {
   const [farmersParticipationProcess, setFarmersParticipationProcess] = useState("");
   const [resultSummary, setResultSummary] = useState("");
   const [remark, setRemark] = useState("");
-  const [photographUrls, setPhotographUrls] = useState<string[]>([]);
+  const [photographs, setPhotographs] = useState<FormPhoto[]>([]);
   const [datasheetUrls, setDatasheetUrls] = useState<string[]>([]);
   const [datasheetUploading, setDatasheetUploading] = useState(false);
   const [datasheetError, setDatasheetError] = useState<string | null>(null);
@@ -54,7 +54,7 @@ export function OftResultFields({ oftId, backHref }: OftResultFieldsProps) {
         setFarmersParticipationProcess(data.farmersParticipationProcess ?? "");
         setResultSummary(data.resultSummary ?? "");
         setRemark(data.remark ?? "");
-        setPhotographUrls(data.photographUrls ?? []);
+        setPhotographs(Array.isArray(data.photographs) ? data.photographs : []);
         setDatasheetUrls(data.supplementaryDatasheetUrls ?? []);
         setResultTables(
           Array.isArray(data.resultTables) && data.resultTables.length > 0
@@ -176,7 +176,7 @@ export function OftResultFields({ oftId, backHref }: OftResultFieldsProps) {
           farmersParticipationProcess,
           resultSummary,
           remark,
-          photographUrls,
+          photographs,
           supplementaryDatasheetUrls: datasheetUrls,
           resultTables,
           markCompleted,
@@ -237,12 +237,7 @@ export function OftResultFields({ oftId, backHref }: OftResultFieldsProps) {
       {/* Real, prominent section headings here (confirmed live, 2026-09-03) - "Photographs" and "Supplementary Datasheets" render the same bold size as "Dynamic Result Tables" below, not a plain field-size label (client report, 2026-09-03: card sub-headings missing/too small in several places). */}
       <div className="mt-5 grid gap-4 border-t border-border pt-4 sm:grid-cols-2">
         <div className="space-y-2">
-          <p className="text-lg font-semibold text-primary">Photographs</p>
-          <MultiImageUploadField
-            uploadKind="oft-photograph"
-            value={photographUrls}
-            onChange={setPhotographUrls}
-          />
+          <FormPhotosField value={photographs} onChange={setPhotographs} />
         </div>
         <div className="space-y-2">
           <p className="text-lg font-semibold text-primary">Supplementary Datasheets</p>

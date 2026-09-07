@@ -255,6 +255,8 @@ export function FldForm({ trail, backHref, id, initialView }: FldFormProps) {
     onChange: (v: string) => void,
     required?: boolean,
     type: "text" | "number" | "date" = "text",
+    /** For a completion/end date - can't be before this date. */
+    min?: string,
   ) {
     return (
       <div className="space-y-1.5">
@@ -264,6 +266,7 @@ export function FldForm({ trail, backHref, id, initialView }: FldFormProps) {
         <Input
           id={idAttr}
           type={type}
+          min={type === "date" ? min : undefined}
           className="h-10"
           value={value}
           onChange={(e) => onChange(e.target.value)}
@@ -326,7 +329,7 @@ export function FldForm({ trail, backHref, id, initialView }: FldFormProps) {
 
         <div className="grid grid-cols-[repeat(auto-fit,minmax(240px,320px))] gap-5">
           {textField("fld-start-date", "Start Date", startDate, setStartDate, true, "date")}
-          {textField("fld-end-date", "Expected Completion Date", endDate, setEndDate, true, "date")}
+          {textField("fld-end-date", "Expected Completion Date", endDate, setEndDate, true, "date", startDate || undefined)}
           {selectField("fld-staff", "Name of SMS/KVK Head", staff, setStaff, staffOptions, true)}
           {selectField("fld-season", "Season", season, setSeason, seasonOptions, true)}
         </div>

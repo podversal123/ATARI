@@ -2,6 +2,11 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/api-auth";
 import { parseResultTables, type OftResultTable } from "@/lib/oft-result-tables";
+import { leafCategoryLabel, syncModuleImages } from "@/lib/leaf-record-registry";
+
+/** The Edit OFT Result "Photographs" section stores through ModuleImage (like every other form's photos) under this slot, so each photo carries a caption and flows to Module Images + Reports without colliding with the main OFT form's own Photographs section (same formRecordId, slot ""). */
+const OFT_RESULT_PHOTO_SLOT = "oft-result";
+const OFT_LEAF_PATH = "achievements/oft";
 
 const str = (v: string | undefined) => (v?.trim() ? v.trim() : null);
 
@@ -27,13 +32,19 @@ export async function GET(
   });
   if (!record) return NextResponse.json({ error: "Record not found." }, { status: 404 });
 
+  const photos = await prisma.moduleImage.findMany({
+    where: { formRecordId: id, slot: OFT_RESULT_PHOTO_SLOT },
+    orderBy: { createdAt: "asc" },
+    select: { imageUrl: true, caption: true },
+  });
+
   return NextResponse.json({
     finalRecommendation: record.finalRecommendation ?? "",
     constraintsIdentified: record.constraintsIdentified ?? "",
     farmersParticipationProcess: record.farmersParticipationProcess ?? "",
     resultSummary: record.resultSummary ?? "",
     remark: record.remark ?? "",
-    photographUrls: record.photographUrls,
+    photographs: photos.map((p) => ({ url: p.imageUrl, caption: p.caption })),
     supplementaryDatasheetUrls: record.supplementaryDatasheetUrls,
     resultTables: parseResultTables(
       record.resultTablesJson,
@@ -55,25 +66,43 @@ export async function PUT(
   const body = await request.json().catch(() => null);
   const markCompleted = body?.markCompleted === true;
   const resultTables: OftResultTable[] = Array.isArray(body?.resultTables) ? body.resultTables : [];
-  const photographUrls: string[] = Array.isArray(body?.photographUrls) ? body.photographUrls : [];
   const supplementaryDatasheetUrls: string[] = Array.isArray(body?.supplementaryDatasheetUrls)
     ? body.supplementaryDatasheetUrls
     : [];
+  /** FormPhotosField's own value - a JSON-stringified `{ url, caption }[]`. */
+  const rawPhotographs = typeof body?.photographs === "string" ? body.photographs : JSON.stringify(body?.photographs ?? []);
 
-  const result = await prisma.oft.updateMany({
+  const record = await prisma.oft.findFirst({
     where: { id, ...kvkScope },
+    select: { id: true, kvkId: true, zoneId: true, reportingYear: true, startMonth: true },
+  });
+  if (!record) return NextResponse.json({ error: "Record not found." }, { status: 404 });
+
+  await prisma.oft.update({
+    where: { id: record.id },
     data: {
       finalRecommendation: str(body?.finalRecommendation),
       constraintsIdentified: str(body?.constraintsIdentified),
       farmersParticipationProcess: str(body?.farmersParticipationProcess),
       resultSummary: str(body?.resultSummary),
       remark: str(body?.remark),
-      photographUrls,
       supplementaryDatasheetUrls,
       resultTablesJson: resultTables.length > 0 ? JSON.stringify(resultTables) : null,
       ...(markCompleted ? { status: "COMPLETED" } : {}),
     },
   });
-  if (result.count === 0) return NextResponse.json({ error: "Record not found." }, { status: 404 });
+
+  await syncModuleImages(rawPhotographs, {
+    kvkId: record.kvkId,
+    zoneId: record.zoneId,
+    categoryPath: OFT_LEAF_PATH,
+    categoryLabel: leafCategoryLabel(OFT_LEAF_PATH),
+    reportingYear: record.reportingYear,
+    activityDate: record.startMonth ?? new Date(),
+    formRecordId: record.id,
+    slot: OFT_RESULT_PHOTO_SLOT,
+    uploadedById: auth.session.sub,
+  });
+
   return NextResponse.json({ ok: true });
 }

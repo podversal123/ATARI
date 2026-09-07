@@ -17,6 +17,10 @@ import {
   HOST_MASTER_ROWS,
   KVK_MASTER_ROWS,
 } from "../lib/masters";
+import {
+  INSTITUTE_CATEGORIES,
+  classifyHostOrgToInstitute,
+} from "../lib/institute-classification";
 
 const adapter = new PrismaNeon({ connectionString: process.env.DATABASE_URL });
 const prisma = new PrismaClient({ adapter });
@@ -39,6 +43,7 @@ async function main() {
   const stateIdByName = new Map<string, string>();
   const districtIdByKey = new Map<string, string>();
   const hostOrgIdByName = new Map<string, string>();
+  const instituteIdByName = new Map<string, string>();
 
   /**
    * District Master and Host Master are real, independent master lists -
@@ -83,6 +88,22 @@ async function main() {
         },
       }));
     hostOrgIdByName.set(row.hostName, hostOrg.id);
+  }
+
+  /**
+   * Institute Master (ICAR / CAU / SAU / NGO) - the standard ICAR
+   * host-organization taxonomy. Every KVK is linked to one below, derived
+   * from its host organization (see lib/institute-classification.ts), so
+   * "Group by Institute" and the Institute filter on the dashboard
+   * analytics pages have real buckets to work with.
+   */
+  for (const name of INSTITUTE_CATEGORIES) {
+    const existing = await prisma.institute.findFirst({
+      where: { zoneId: zone.id, name },
+    });
+    const institute =
+      existing ?? (await prisma.institute.create({ data: { name, zoneId: zone.id } }));
+    instituteIdByName.set(name, institute.id);
   }
 
   for (const row of KVK_MASTER_ROWS) {
@@ -168,6 +189,7 @@ async function main() {
         stateId,
         districtId,
         hostOrgId,
+        instituteId: instituteIdByName.get(classifyHostOrgToInstitute(row.hostOrg)),
       },
     });
 

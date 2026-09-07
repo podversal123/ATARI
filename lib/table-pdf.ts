@@ -5,17 +5,13 @@ import type { MasterColumn } from "./navigation";
 
 /**
  * Real PDF generated client-side from whatever rows are currently on
- * screen - no backend yet, so there is nothing to fetch a server-rendered
- * report from, but the "PDF" button itself should be a real, clickable
- * download rather than a decorative one (client request, 2026-08-24).
- *
- * Downloads directly via `doc.save(...)` with an explicit `${title}.pdf`
- * filename (changed 2026-08-31, real bug) - the earlier `window.open` +
- * blob-URL approach left the saved file's name up to the browser's own
- * guess (its PDF viewer's Download button doesn't reliably read the PDF's
- * /Title metadata for that), so the file the user actually got often
- * wasn't named after the table at all. `doc.save` is the same, already-
- * working pattern the Reports PDF and the Excel/Word exports below use.
+ * screen. The "PDF" button opens the generated document in a new browser
+ * tab for preview, and the user downloads from the PDF viewer there
+ * (client request, 2026-09-04 - it used to `doc.save()` straight to a
+ * file with no preview step). `doc.setProperties({ title })` below is what
+ * names both the preview tab and the viewer's Download button, since a
+ * blob URL carries no filename of its own. If the browser blocks the
+ * popup, fall back to a direct save so the button is never a dead end.
  */
 const BORDER_GRAY: [number, number, number] = [190, 190, 190];
 
@@ -34,11 +30,10 @@ export function downloadTablePdf(
   rows: Record<string, ReactNode>[] | undefined,
 ) {
   const doc = new jsPDF({ orientation: "landscape" });
-  // Without this, Chrome's PDF viewer tab shows the blob's own random UUID
-  // instead of a real name (real bug, 2026-08-31) - this is opened via a
-  // blob URL (see doc.output("bloburl") below), not a real file download,
-  // so there's no filename for the tab to fall back to; the PDF's own
-  // /Title metadata is what the viewer actually reads.
+  // Without this, the PDF viewer tab shows the blob's own random UUID
+  // instead of a real name - the blob URL opened below carries no
+  // filename, so the PDF's own /Title metadata is what the viewer reads
+  // for both the tab label and its Download button.
   doc.setProperties({ title });
   drawPageBorder(doc);
   doc.setFontSize(14);
@@ -65,5 +60,7 @@ export function downloadTablePdf(
     didDrawPage: () => drawPageBorder(doc),
   });
 
-  doc.save(`${title}.pdf`);
+  // Preview in a new tab; the viewer there has its own Download control.
+  const previewTab = window.open(doc.output("bloburl"), "_blank");
+  if (!previewTab) doc.save(`${title}.pdf`); // popup blocked - don't leave the button dead
 }

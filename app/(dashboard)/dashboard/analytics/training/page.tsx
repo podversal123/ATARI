@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { ChevronLeft } from "lucide-react";
-import { AnalyticsFilterBar } from "@/components/dashboard/analytics-filter-bar";
+import { AnalyticsFilterBar, chartGroupingLabel } from "@/components/dashboard/analytics-filter-bar";
 import { MetricCard } from "@/components/dashboard/metric-card";
 import { ProgressChartCard, type ProgressChartRow } from "@/components/dashboard/progress-chart-card";
 import { useAnalyticsFilters, type AnalyticsData } from "@/lib/use-analytics-filters";
@@ -64,7 +64,7 @@ export default function TrainingDetailedAnalyticsPage() {
       </div>
 
       <div className="mt-4">
-        <ProgressChartCard title="Training by Zone" description="Status" totalCount={total} rows={rows} mode="total" resetKey={JSON.stringify(filters)} />
+        <ProgressChartCard title={`Training by ${chartGroupingLabel(filters.groupBy)}`} description="Status" totalCount={total} rows={rows} mode="total" resetKey={JSON.stringify(filters)} />
       </div>
     </div>
   );

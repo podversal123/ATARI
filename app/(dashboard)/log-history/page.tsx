@@ -69,7 +69,7 @@ export default function LogHistoryPage() {
 
   useEffect(() => {
     let cancelled = false;
-    const params = new URLSearchParams({ limit: "500" });
+    const params = new URLSearchParams({ limit: "5000" });
     if (!isKvk && appliedKvkFilter !== "all") params.set("kvk", appliedKvkFilter);
     fetch(`/api/log-history?${params}`)
       .then((res) => (res.ok ? res.json() : null))

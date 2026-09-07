@@ -2,6 +2,12 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/api-auth";
 import { percentIncreaseInYield, yieldGapMinimizedPercent } from "@/lib/cfld-formulas";
+import { leafCategoryLabel, syncModuleImages } from "@/lib/leaf-record-registry";
+
+/** The two CFLD Technical Parameter photo cards each store through ModuleImage under their own slot, so every photo carries a caption and flows to Module Images + Reports. */
+const CFLD_LEAF_PATH = "projects/cfld/technical-parameter";
+const CFLD_TRAINING_SLOT = "cfld-training";
+const CFLD_ACTION_SLOT = "cfld-action";
 
 const str = (v: string | undefined) => (v?.trim() ? v.trim() : undefined);
 const reqStr = (v: string | undefined) => v?.trim() ?? "";
@@ -34,7 +40,17 @@ export async function GET(
   const socioEconomicImpact = record.socioEconomicImpacts[0];
   const demographics = (record.farmersByCategory as Record<string, string> | null) ?? {};
 
+  const photos = await prisma.moduleImage.findMany({
+    where: { formRecordId: id, slot: { in: [CFLD_TRAINING_SLOT, CFLD_ACTION_SLOT] } },
+    orderBy: { createdAt: "asc" },
+    select: { imageUrl: true, caption: true, slot: true },
+  });
+  const photosForSlot = (slot: string) =>
+    photos.filter((p) => p.slot === slot).map((p) => ({ url: p.imageUrl, caption: p.caption }));
+
   return NextResponse.json({
+    trainingPhotos: photosForSlot(CFLD_TRAINING_SLOT),
+    actionPhotos: photosForSlot(CFLD_ACTION_SLOT),
     technical: {
       reportingYear: numStr(record.reportingYear),
       reportingDate: dateStr(record.reportingDate),
@@ -56,8 +72,6 @@ export async function GET(
       stateYield: numStr(record.stateYield),
       potentialYield: numStr(record.potentialYield),
       numberOfFarmers: numStr(record.numberOfFarmers),
-      trainingPhotoUrls: record.trainingPhotoUrls,
-      actionPhotoUrls: record.actionPhotoUrls,
     },
     economic: economic
       ? {
@@ -134,13 +148,6 @@ export async function PUT(
   const potentialYield = dec(technical.potentialYield);
   const reportingDate = str(technical.reportingDate) ? new Date(technical.reportingDate) : undefined;
 
-  const trainingPhotoUrls = Array.isArray(technical.trainingPhotoUrls)
-    ? technical.trainingPhotoUrls.filter((v: unknown): v is string => typeof v === "string")
-    : undefined;
-  const actionPhotoUrls = Array.isArray(technical.actionPhotoUrls)
-    ? technical.actionPhotoUrls.filter((v: unknown): v is string => typeof v === "string")
-    : undefined;
-
   await prisma.cfldTechnicalParameter.update({
     where: { id },
     data: {
@@ -170,11 +177,25 @@ export async function PUT(
       yieldGapMinimizedPercentDistrict: yieldGapMinimizedPercent(districtYield, demoYieldAvg),
       yieldGapMinimizedPercentState: yieldGapMinimizedPercent(stateYield, demoYieldAvg),
       yieldGapMinimizedPercentPotential: yieldGapMinimizedPercent(potentialYield, demoYieldAvg),
-      ...(trainingPhotoUrls ? { trainingPhotoUrls } : {}),
-      ...(actionPhotoUrls ? { actionPhotoUrls } : {}),
       status,
     },
   });
+
+  const photoYear = reportingDate ? reportingDate.getFullYear() : reqInt(technical.reportingYear) || new Date().getFullYear();
+  const photoDate = reportingDate ?? new Date();
+  const photoBase = {
+    kvkId: existing.kvkId,
+    zoneId: auth.session.zoneId,
+    categoryPath: CFLD_LEAF_PATH,
+    categoryLabel: leafCategoryLabel(CFLD_LEAF_PATH),
+    reportingYear: photoYear,
+    activityDate: photoDate,
+    formRecordId: id,
+    uploadedById: auth.session.sub,
+  };
+  const asJson = (v: unknown) => (typeof v === "string" ? v : JSON.stringify(v ?? []));
+  await syncModuleImages(asJson(body?.trainingPhotos), { ...photoBase, slot: CFLD_TRAINING_SLOT });
+  await syncModuleImages(asJson(body?.actionPhotos), { ...photoBase, slot: CFLD_ACTION_SLOT });
 
   await prisma.cfldEconomicParameter.deleteMany({ where: { cfldTechnicalParameterId: id } });
   const hasEconomic = Object.values(economic).some((v) => v !== "" && v != null);

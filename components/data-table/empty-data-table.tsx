@@ -32,6 +32,7 @@ import { cn, downloadBlob } from "@/lib/utils";
 import { useSession } from "@/lib/session";
 import { Input } from "@/components/ui/input";
 import { SimpleSelect } from "@/components/ui/simple-select";
+import { MultiFilterSelect } from "@/components/dashboard/multi-filter-select";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import {
@@ -243,16 +244,22 @@ export function EmptyDataTable({
   const [search, setSearch] = useState("");
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
-  /** OFT/FLD only - defaults to the current year, per the client's "display current year's data first by default" note. */
-  const [reportingYear, setReportingYear] = useState(() =>
-    String(new Date().getFullYear()),
-  );
   const reportingYearOptions = useMemo(
     () =>
       Array.from({ length: 6 }, (_, index) =>
         String(new Date().getFullYear() - index),
       ),
     [],
+  );
+  /**
+   * "Reporting Year" checkbox multi-select next to the date range (client
+   * request, 2026-09-07) - was a single-value dropdown shown only for OFT/FLD.
+   * Empty = no year filter. OFT/FLD (`reportingYearFilter`) still start on the
+   * current year, per the "current year's data first" note; every other leaf
+   * starts with nothing checked.
+   */
+  const [reportingYears, setReportingYears] = useState<Set<string>>(() =>
+    reportingYearFilter ? new Set([String(new Date().getFullYear())]) : new Set(),
   );
   const [columnFilters, setColumnFilters] = useState<
     Record<string, ColumnFilterState>
@@ -618,7 +625,15 @@ export function EmptyDataTable({
         );
         if (!matches) return false;
       }
-      if (reportingYearFilter && String(row.reportingYear ?? "") !== reportingYear) return false;
+      if (reportingYears.size > 0) {
+        const ry = String(row.reportingYear ?? "");
+        const byYearCol = ry !== "" && reportingYears.has(ry);
+        const byDateCol = dateColumnKeys.some((key) => {
+          const raw = String(row[key] ?? "");
+          return raw.length >= 4 && reportingYears.has(raw.slice(0, 4));
+        });
+        if (!byYearCol && !byDateCol) return false;
+      }
       if (hasActiveDates) {
         const inRange = dateColumnKeys.some((key) => {
           const raw = String(row[key] ?? "");
@@ -646,7 +661,7 @@ export function EmptyDataTable({
       });
     }
     return next;
-  }, [rows, columnFilters, search, columns, reportingYearFilter, reportingYear, hasActiveDates, dateColumnKeys, fromDate, toDate]);
+  }, [rows, columnFilters, search, columns, reportingYears, hasActiveDates, dateColumnKeys, fromDate, toDate]);
 
   /** Flat one-table export - used for Masters, and as the fallback when a mapped Form Management leaf turns out to have no report subsection for the current scope. */
   async function downloadFlat(format: "pdf" | "excel" | "word") {
@@ -673,16 +688,25 @@ export function EmptyDataTable({
    * down to the server via ?kvk= so grouped/aggregated tables rebuild at that
    * scope. Report columns are matched to list columns by their shared label.
    */
+    // A list column and its report-table counterpart don't always share the
+    // exact label ("Landline" vs "Landline No.", "KVK" vs "KVK Name", ...) -
+    // normalise both sides so an active list filter actually scopes the
+    // downloaded report instead of being silently dropped (client report,
+    // 2026-09-07: filtered the list, downloaded, "sab aa gaya").
+    const normLabel = (l: string) => l.toLowerCase().replace(/[^a-z0-9]/g, "");
+
   function scopeReportSectionsToFilters(sections: ReportSection[]): ReportSection[] {
     const activeSelections = Object.entries(columnFilters)
       .filter(([, s]) => s.selected !== null)
       .map(([key, s]) => {
         const col = columns.find((c) => c.key === key);
-        return col ? { label: col.label, allowed: s.selected as Set<string> } : null;
+        return col
+          ? { key: col.key, label: col.label, allowed: s.selected as Set<string> }
+          : null;
       })
-      .filter((x): x is { label: string; allowed: Set<string> } => x !== null);
+      .filter((x): x is { key: string; label: string; allowed: Set<string> } => x !== null);
     const q = search.trim().toLowerCase();
-    const yearActive = Boolean(reportingYearFilter);
+    const yearActive = reportingYears.size > 0;
     const dateLabels = tableColumns
       .filter((c) => c.key === "date" || /Date$/.test(c.key))
       .map((c) => c.label);
@@ -699,14 +723,33 @@ export function EmptyDataTable({
       }
       const cols = table.columns;
       const keyByLabel = new Map(cols.map((c) => [c.label, c.key]));
+      // key -> key (report tables reuse the list's own column keys where they
+      // exist) and normalised-label -> key, so a filter matches even when the
+      // two sides spell the header slightly differently.
+      const keyByOwnKey = new Map(cols.map((c) => [c.key, c.key]));
+      const keyByNormLabel = new Map(cols.map((c) => [normLabel(c.label), c.key]));
+      const reportKeyFor = (sel: { key: string; label: string }) =>
+        keyByLabel.get(sel.label) ??
+        keyByOwnKey.get(sel.key) ??
+        keyByNormLabel.get(normLabel(sel.label));
       let rows = table.rows;
-      for (const { label, allowed } of activeSelections) {
-        const k = keyByLabel.get(label);
-        if (k) rows = rows.filter((r) => allowed.has(String(r[k] ?? "")));
+      for (const sel of activeSelections) {
+        const k = reportKeyFor(sel);
+        if (k) rows = rows.filter((r) => sel.allowed.has(String(r[k] ?? "")));
       }
       if (yearActive) {
-        const k = keyByLabel.get("Reporting Year") ?? keyByLabel.get("Year");
-        if (k) rows = rows.filter((r) => String(r[k] ?? "") === reportingYear);
+        const yk = keyByLabel.get("Reporting Year") ?? keyByLabel.get("Year");
+        const dks = dateLabels
+          .map((l) => keyByLabel.get(l))
+          .filter((k): k is string => Boolean(k));
+        rows = rows.filter((r) => {
+          const ry = yk ? String(r[yk] ?? "") : "";
+          if (ry !== "" && reportingYears.has(ry)) return true;
+          return dks.some((k) => {
+            const v = String(r[k] ?? "");
+            return v.length >= 4 && reportingYears.has(v.slice(0, 4));
+          });
+        });
       }
       if (hasActiveDates) {
         const dateKeys = dateLabels
@@ -767,13 +810,13 @@ export function EmptyDataTable({
       const query = new URLSearchParams({ subsection: recordPath });
       if (kvkSelected.length === 1) query.set("kvk", kvkSelected[0]);
       /**
-       * The list's reporting-period control (OFT's "Reporting Year" dropdown,
-       * or the From/To date range) is pushed to the server so the report is
-       * built for that period only - a year maps to its Jan-Dec span.
+       * The list's reporting-period control (the "Reporting Year" checkbox
+       * multi-select, or the From/To date range) is pushed to the server so
+       * the report is built for that period only. Years win over from/to
+       * (same rule as the Reports screen).
        */
-      if (reportingYearFilter && reportingYear) {
-        query.set("from", `${reportingYear}-01-01`);
-        query.set("to", `${reportingYear}-12-31`);
+      if (reportingYears.size > 0) {
+        query.set("years", Array.from(reportingYears).join(","));
       } else if (hasActiveDates) {
         if (fromDate) query.set("from", fromDate);
         if (toDate) query.set("to", toDate);
@@ -795,7 +838,9 @@ export function EmptyDataTable({
       const common = {
         title: `${reportRef.label} - ATARI AMS Report`,
         zoneLabel: data.zoneLabel as string,
-        reportingYearLabel: (data.periodLabel as string) || (reportingYearFilter ? reportingYear : "All Data"),
+        reportingYearLabel:
+          (data.periodLabel as string) ||
+          (reportingYears.size > 0 ? Array.from(reportingYears).sort().join(", ") : "All Data"),
         kvkNames,
         sections,
         images: await prefetchReportImages(sections),
@@ -844,13 +889,12 @@ export function EmptyDataTable({
             { selected: state.selected ? Array.from(state.selected).sort() : null, sort: state.sort },
           ]),
         ),
-        reportingYearFilter,
-        reportingYear,
+        reportingYears: Array.from(reportingYears).sort(),
         hasActiveDates,
         fromDate,
         toDate,
       }),
-    [search, columnFilters, reportingYearFilter, reportingYear, hasActiveDates, fromDate, toDate],
+    [search, columnFilters, reportingYears, hasActiveDates, fromDate, toDate],
   );
   const PAGE_SIZE = 10;
   const [page, setPage] = useState(1);
@@ -986,19 +1030,19 @@ export function EmptyDataTable({
               className="h-9 w-56 pl-8"
             />
           </div>
-          {reportingYearFilter && (
-            <div className="flex items-center gap-1.5">
-              <Label className="text-xs text-muted-foreground">
-                Reporting Year
-              </Label>
-              <SimpleSelect
-                value={reportingYear}
-                onValueChange={setReportingYear}
-                options={reportingYearOptions.map((year) => ({ value: year, label: year }))}
-                className="w-28"
-              />
-            </div>
-          )}
+          <div className="flex shrink-0 items-center gap-1.5">
+            <Label className="text-xs text-muted-foreground">
+              Reporting Year
+            </Label>
+            <MultiFilterSelect
+              label="Reporting Year"
+              hideLabel
+              options={reportingYearOptions}
+              selected={reportingYears}
+              onChange={setReportingYears}
+              triggerClassName="h-9 w-32"
+            />
+          </div>
           <div className="relative">
             <Input
               id={fromDateId}
@@ -1022,6 +1066,7 @@ export function EmptyDataTable({
               id={toDateId}
               type="date"
               value={toDate}
+              min={fromDate || undefined}
               onChange={(event) => setToDate(event.target.value)}
               aria-label="To date"
               className={cn(

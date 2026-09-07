@@ -58,6 +58,20 @@ function cellDate(v: unknown): Date | null {
   return Number.isNaN(d.getTime()) ? null : d;
 }
 
+/**
+ * Known misspellings in the client's staff export normalised to the
+ * standard sanctioned-post name. "SMS" is literally "Subject Matter
+ * Specialist" - the export has "Speaclist", which then never matched the
+ * Dashboard's Staff Summary card (it read 0 for the single largest post).
+ */
+const POST_ALIASES: Record<string, string> = {
+  "SMS (Subject Matter Speaclist)": "SMS (Subject Matter Specialist)",
+};
+
+function normalisePost(post: string): string {
+  return POST_ALIASES[post] ?? post;
+}
+
 async function readRows(xlsxPath: string): Promise<Row[]> {
   const workbook = new ExcelJS.Workbook();
   await workbook.xlsx.readFile(xlsxPath);
@@ -77,7 +91,7 @@ async function readRows(xlsxPath: string): Promise<Row[]> {
     rows.push({
       district,
       name,
-      sanctionedPost: cellText(v[6]) || "Not specified",
+      sanctionedPost: normalisePost(cellText(v[6]) || "Not specified"),
       dateOfBirth: cellDate(v[7]),
       mobile: cellText(v[8]),
       email: cellText(v[9]),

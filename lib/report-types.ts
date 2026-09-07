@@ -13,11 +13,25 @@
  * the "All Data" report. A model that has a real reporting-year column is
  * bounded by year; one with an activity date is bounded by that date; a
  * point-in-time roster (Staff, Land, ...) is never period-filtered.
+ *
+ * `years` is the Reports / Form Management "Reporting Year" checkbox
+ * multi-select (client request, 2026-09-07). When set it takes precedence
+ * over `fromDate`/`toDate` and scopes to exactly those calendar years -
+ * which need not be contiguous (2026 + 2024 but not 2025).
  */
-export type ReportScope = { kvkId?: string; zoneId: string; fromDate?: string; toDate?: string };
+export type ReportScope = {
+  kvkId?: string;
+  zoneId: string;
+  fromDate?: string;
+  toDate?: string;
+  years?: number[];
+};
 
-/** Human label for a reporting period - "2026" / "2024 - 2026" / "All Data". */
-export function reportPeriodLabel(fromDate?: string, toDate?: string): string {
+/** Human label for a reporting period - "2026" / "2024, 2026" / "2024 - 2026" / "All Data". */
+export function reportPeriodLabel(fromDate?: string, toDate?: string, years?: number[]): string {
+  if (years && years.length > 0) {
+    return [...years].sort((a, b) => a - b).join(", ");
+  }
   const y1 = fromDate ? fromDate.slice(0, 4) : "";
   const y2 = toDate ? toDate.slice(0, 4) : "";
   if (!y1 && !y2) return "All Data";
@@ -129,6 +143,8 @@ export type ReportBlock = {
 export type ReportTable = {
   code: string;
   title: string;
+  /** Prisma model this table is built from - lets a per-form report download narrow a shared subsection down to just the caller's own table (see pruneToSubsection). */
+  model?: string;
   groupCode?: string;
   groupTitle?: string;
   columns: ReportColumn[];

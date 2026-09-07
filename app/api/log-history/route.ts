@@ -14,8 +14,17 @@ export async function GET(request: Request) {
   if (!auth.ok) return auth.response;
 
   const { searchParams } = new URL(request.url);
+  /**
+   * The "View Users Log Activity" page loads the whole log and does its own
+   * search / sort / pagination client-side, so the cap has to clear the real
+   * row count or the page silently hides the oldest entries (an audit log
+   * must never truncate without saying so). 5000 covers this system's
+   * foreseeable login volume; a larger log would need real server-side
+   * pagination here and on the page. The Dashboard's Recent card asks for
+   * limit=6 and is unaffected.
+   */
   const limitParam = Number(searchParams.get("limit"));
-  const limit = Number.isFinite(limitParam) && limitParam > 0 ? Math.min(limitParam, 500) : 100;
+  const limit = Number.isFinite(limitParam) && limitParam > 0 ? Math.min(limitParam, 5000) : 100;
   const kvkFilter = searchParams.get("kvk");
 
   const isKvkScoped = auth.session.role !== "SUPER_ADMIN";

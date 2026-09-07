@@ -93,15 +93,29 @@ const MODEL_YEAR_FIELD: Record<string, { field: string; kind: "int" | "date" }> 
 
 /** Prisma `where` fragment scoping a model's rows to one reporting year, or `{}` if the model has no year to scope by. */
 export function yearWhereFor(model: string, year: number): Record<string, unknown> {
+  return yearsWhereFor(model, [year]);
+}
+
+/**
+ * Prisma `where` fragment scoping a model's rows to any of several
+ * reporting years (Form Summary's year filter is a checkbox multi-select -
+ * client request 2026-09-06), or `{}` if the model has no year to scope
+ * by. The years may be non-contiguous, so date-kind models get an `OR` of
+ * per-year ranges rather than one wide span.
+ */
+export function yearsWhereFor(model: string, years: number[]): Record<string, unknown> {
   const y = MODEL_YEAR_FIELD[model];
-  if (!y) return {};
-  if (y.kind === "int") return { [y.field]: year };
-  return {
+  if (!y || years.length === 0) return {};
+  if (y.kind === "int") {
+    return years.length === 1 ? { [y.field]: years[0] } : { [y.field]: { in: years } };
+  }
+  const ranges = years.map((year) => ({
     [y.field]: {
       gte: new Date(Date.UTC(year, 0, 1)),
       lt: new Date(Date.UTC(year + 1, 0, 1)),
     },
-  };
+  }));
+  return ranges.length === 1 ? ranges[0] : { OR: ranges };
 }
 
 /**
@@ -255,4 +269,14 @@ export function getTrackedLeaves(): TrackedLeaf[] {
     }
   }
   return out;
+}
+
+/**
+ * The Prisma model a Form Management leaf's records live in, keyed by its
+ * full recordPath (slug segments joined by "/"). Used by the per-form
+ * report download to narrow a shared report subsection down to just this
+ * leaf's own table(s) - see pruneToSubsection in lib/report-section-map.ts.
+ */
+export function leafModelFor(recordPath: string | undefined): string | undefined {
+  return recordPath ? LEAF_MODEL_MAP[recordPath]?.model : undefined;
 }

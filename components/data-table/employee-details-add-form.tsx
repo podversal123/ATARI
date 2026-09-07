@@ -56,6 +56,7 @@ export function EmployeeDetailsAddForm({
   const casteCategories = useMasterOptions("staff-category");
   const [sanctionedPost, setSanctionedPost] = useState("");
   const [name, setName] = useState("");
+  const [position, setPosition] = useState("");
   const [mobile, setMobile] = useState("");
   const [email, setEmail] = useState("");
   const [payBand, setPayBand] = useState("");
@@ -84,7 +85,7 @@ export function EmployeeDetailsAddForm({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           path: "about-kvk/employee/employee-details",
-          values: { sanctionedPost, name, mobile, email, payScale, discipline, dateOfBirth, dateOfJoining, jobType, allowances, casteCategory, photo, resume },
+          values: { sanctionedPost, name, position, mobile, email, payScale, discipline, dateOfBirth, dateOfJoining, jobType, allowances, casteCategory, photo, resume },
         }),
       });
       const data = await response.json();
@@ -137,6 +138,16 @@ export function EmployeeDetailsAddForm({
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Full name"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="staff-position">Position</Label>
+            <Input
+              id="staff-position"
+              className="h-10"
+              value={position}
+              onChange={(e) => setPosition(e.target.value)}
+              placeholder="e.g. 1, 2, 3"
             />
           </div>
           <div className="space-y-1.5">

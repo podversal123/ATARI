@@ -25,9 +25,14 @@ export const REPORT_SUBSECTION_BY_LEAF: Record<string, ReportSubsectionRef> = {
   "about-kvk/basic/bank-account-details": G(["1.1"], "Basic Information", "Basic Information"),
   "about-kvk/employee/employee-details": GT(["1.2"], "Employee Information", "Employee Information", "All KVK Staff"),
   "about-kvk/employee/staff-transferred": GT(["1.2"], "Employee Information", "Employee Information", "Staff Transferred"),
-  "about-kvk/land-infrastructure/infrastructure-details": G(["1.3"], "Infrastructure Information", "Land & Infrastructure Information"),
-  "about-kvk/land-infrastructure/land-details": G(["1.3"], "Infrastructure Information", "Land & Infrastructure Information"),
-  "about-kvk/land-infrastructure/staff-quarters": G(["1.3"], "Infrastructure Information", "Land & Infrastructure Information"),
+  // Each narrows to its own table inside subsection 1.3 - a download from
+  // one of these leaves used to dump the entire "Land & Infrastructure"
+  // subsection (Infrastructure + Land + Staff Quarters together), so e.g.
+  // the Land Details download "showed another form instead" (client report,
+  // 2026-09-04). Same GT pattern as Employee Details / Staff Transferred.
+  "about-kvk/land-infrastructure/infrastructure-details": GT(["1.3"], "Infrastructure Information", "Land & Infrastructure Information", "Infrastructure Details"),
+  "about-kvk/land-infrastructure/land-details": GT(["1.3"], "Infrastructure Information", "Land & Infrastructure Information", "Land Details"),
+  "about-kvk/land-infrastructure/staff-quarters": GT(["1.3"], "Infrastructure Information", "Land & Infrastructure Information", "Staff Quarters"),
   "about-kvk/vehicles/view-vehicles": G(["1.4"], "Vehicles Information", "Vehicles Information"),
   "about-kvk/vehicles/vehicle-details": G(["1.4"], "Vehicles Information", "Vehicles Information"),
   "about-kvk/equipments/view-equipments": G(["1.5"], "Equipments Information", "Equipments Information"),
@@ -149,7 +154,7 @@ export function reportSubsectionForLeaf(recordPath: string | undefined): ReportS
   return recordPath ? REPORT_SUBSECTION_BY_LEAF[recordPath] : undefined;
 }
 
-type SubLike = { num: string; title: string; tables?: { code: string; title: string }[] };
+type SubLike = { num: string; title: string; tables?: { code: string; title: string; model?: string }[] };
 type SecLike<S extends SubLike> = { subsections: S[] };
 
 /** True when a built subsection is (probably) the one `ref` points at - title match, else number match. Used to attach a leaf's Module Images to the right subsection. */
@@ -169,18 +174,38 @@ export function subsectionMatchesRef(ref: ReportSubsectionRef, sub: SubLike): bo
 export function pruneToSubsection<S extends SubLike, T extends SecLike<S>>(
   sections: T[],
   ref: ReportSubsectionRef,
+  /**
+   * The Prisma model of the leaf that asked for this download. When given
+   * (and the ref doesn't already name an explicit table), every table in
+   * the matched subsection that isn't built from this model is dropped -
+   * so a per-form report download from any leaf that shares a subsection
+   * with other forms produces only its own table(s), not the whole
+   * subsection (client report, 2026-09-07: "particular form ka report
+   * download properly nahi ho raha").
+   */
+  leafModel?: string,
 ): T[] {
   const byTitle = (sub: SubLike) =>
     !!ref.titleIncludes && sub.title.toLowerCase().includes(ref.titleIncludes.toLowerCase());
   const byNum = (sub: SubLike) => ref.nums.includes(sub.num);
-  // When the ref names a single table, keep only that one inside the matched subsection.
+  // Keep only the caller's own table(s) inside the matched subsection:
+  // an explicit `tableIncludes` wins (hand-tuned, most precise); otherwise
+  // fall back to matching the leaf's own model. Either narrowing is
+  // skipped gracefully if it would empty the subsection.
   const narrow = (sub: SubLike): SubLike => {
-    if (!ref.tableIncludes || !sub.tables) return sub;
-    const wanted = ref.tableIncludes.toLowerCase();
-    const tables = sub.tables.filter(
-      (t) => t.title.toLowerCase().includes(wanted) || t.code.toLowerCase() === wanted,
-    );
-    return tables.length > 0 ? { ...sub, tables } : sub;
+    if (!sub.tables) return sub;
+    if (ref.tableIncludes) {
+      const wanted = ref.tableIncludes.toLowerCase();
+      const tables = sub.tables.filter(
+        (t) => t.title.toLowerCase().includes(wanted) || t.code.toLowerCase() === wanted,
+      );
+      return tables.length > 0 ? { ...sub, tables } : sub;
+    }
+    if (leafModel) {
+      const tables = sub.tables.filter((t) => t.model === leafModel);
+      return tables.length > 0 ? { ...sub, tables } : sub;
+    }
+    return sub;
   };
   const keep = (predicate: (sub: SubLike) => boolean) =>
     sections
@@ -188,4 +213,84 @@ export function pruneToSubsection<S extends SubLike, T extends SecLike<S>>(
       .filter((sec) => sec.subsections.length > 0);
   const titled = keep(byTitle);
   return titled.length > 0 ? titled : keep(byNum);
+}
+
+/**
+ * Multi-leaf version of pruneToSubsection: given several Form Management
+ * leaf paths (the "Select Form" checklist on the Reports screen), keep only
+ * the subsections those leaves feed, each narrowed to just its own
+ * table(s). A subsection wanted by more than one leaf keeps the union of
+ * their tables. Leaves with no report subsection are ignored. Returns the
+ * original sections unchanged when `paths` is empty.
+ */
+export function pruneToLeafPaths<S extends SubLike, T extends SecLike<S>>(
+  sections: T[],
+  paths: string[],
+  refFor: (path: string) => ReportSubsectionRef | undefined,
+  modelFor: (path: string) => string | undefined,
+): T[] {
+  if (paths.length === 0) return sections;
+
+  // Which tables (by code) to keep inside each subsection, indexed by the
+  // normalised subsection title (matches across the Super-Admin / KVK trees).
+  const wantByTitle = new Map<string, Set<string>>();
+  const wantWholeByTitle = new Set<string>();
+  const titleKeys: { titleIncludes: string; nums: string[] }[] = [];
+
+  for (const path of paths) {
+    const ref = refFor(path);
+    if (!ref) continue;
+    titleKeys.push({ titleIncludes: ref.titleIncludes, nums: ref.nums });
+    const model = modelFor(path);
+    for (const sec of sections) {
+      for (const sub of sec.subsections) {
+        const matchesTitle =
+          !!ref.titleIncludes &&
+          sub.title.toLowerCase().includes(ref.titleIncludes.toLowerCase());
+        const matchesNum = ref.nums.includes(sub.num);
+        if (!matchesTitle && !matchesNum) continue;
+        const tkey = sub.title.toLowerCase();
+        if (!sub.tables) continue;
+        const picked = ref.tableIncludes
+          ? sub.tables.filter(
+              (t) =>
+                t.title.toLowerCase().includes(ref.tableIncludes!.toLowerCase()) ||
+                t.code.toLowerCase() === ref.tableIncludes!.toLowerCase(),
+            )
+          : model
+            ? sub.tables.filter((t) => t.model === model)
+            : [];
+        if (picked.length === 0) {
+          wantWholeByTitle.add(tkey);
+        } else {
+          const set = wantByTitle.get(tkey) ?? new Set<string>();
+          picked.forEach((t) => set.add(t.code));
+          wantByTitle.set(tkey, set);
+        }
+      }
+    }
+  }
+
+  const wantSub = (sub: SubLike) => {
+    const tkey = sub.title.toLowerCase();
+    if (wantWholeByTitle.has(tkey) || wantByTitle.has(tkey)) return true;
+    return titleKeys.some(
+      (k) =>
+        (!!k.titleIncludes && sub.title.toLowerCase().includes(k.titleIncludes.toLowerCase())) ||
+        k.nums.includes(sub.num),
+    );
+  };
+
+  return sections
+    .map((sec) => ({
+      ...sec,
+      subsections: sec.subsections.filter(wantSub).map((sub) => {
+        const tkey = sub.title.toLowerCase();
+        if (wantWholeByTitle.has(tkey) || !wantByTitle.has(tkey) || !sub.tables) return sub;
+        const codes = wantByTitle.get(tkey)!;
+        const tables = sub.tables.filter((t) => codes.has(t.code));
+        return tables.length > 0 ? { ...sub, tables } : sub;
+      }),
+    }))
+    .filter((sec) => sec.subsections.length > 0) as T[];
 }

@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/api-auth";
-import { getTrackedLeaves, yearWhereFor } from "@/lib/form-summary-data";
+import { getTrackedLeaves, yearsWhereFor } from "@/lib/form-summary-data";
 
 /**
- * Real per-KVK, per-form entry counts across every one of the app's 109
+ * Real per-KVK, per-form entry counts across every one of the app's ~108
  * real trackable Form Management leaves (see lib/form-summary-data.ts) -
  * was a 100% static placeholder page before this (every stat hardcoded to
  * 0, every row "Not filled"/"-"). One groupBy per tracked leaf's model,
@@ -35,10 +35,17 @@ export async function GET(request: Request) {
 
   const kvkId = auth.session.role === "SUPER_ADMIN" ? undefined : auth.session.kvkId ?? undefined;
 
+  // `?year=` accepts a single 4-digit year or a comma-separated list (the
+  // page's year filter is a checkbox multi-select). Empty/invalid = all-time.
   const yearParam = new URL(request.url).searchParams.get("year");
-  const year = yearParam && /^\d{4}$/.test(yearParam) ? Number(yearParam) : undefined;
+  const years = (yearParam ?? "")
+    .split(",")
+    .map((v) => v.trim())
+    .filter((v) => /^\d{4}$/.test(v))
+    .map(Number)
+    .sort((a, b) => a - b);
 
-  const cacheKey = `${auth.session.zoneId}:${kvkId ?? "all"}:${year ?? "all"}`;
+  const cacheKey = `${auth.session.zoneId}:${kvkId ?? "all"}:${years.length ? years.join("-") : "all"}`;
   const hit = responseCache.get(cacheKey);
   if (hit && Date.now() - hit.at < CACHE_TTL_MS) {
     return NextResponse.json(hit.body);
@@ -61,7 +68,7 @@ export async function GET(request: Request) {
         ? { [field]: kvkId }
         : { zoneId: auth.session.zoneId };
       if (leaf.extraWhere) Object.assign(where, leaf.extraWhere);
-      if (year !== undefined) Object.assign(where, yearWhereFor(leaf.model, year));
+      if (years.length > 0) Object.assign(where, yearsWhereFor(leaf.model, years));
       try {
         const groups: { [key: string]: unknown; _count: { _all: number } }[] = await delegate.groupBy({
           by: [field],
@@ -114,7 +121,7 @@ export async function GET(request: Request) {
     totalPossible,
     overallProgressPercent: totalPossible === 0 ? 0 : Math.round((totalFilled / totalPossible) * 100),
     byKvk,
-    year: year ?? null,
+    years,
   };
 
   responseCache.set(cacheKey, { at: Date.now(), body });

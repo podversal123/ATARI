@@ -21,8 +21,8 @@ type FileUploadFieldProps = {
  * need to know files are involved at all.
  *
  * Styled as the same full-width dashed drop-zone "card" as the app's own
- * multi-image upload fields (MultiImageUploadField - "Farmers' Training
- * Photographs" etc.) instead of the old cramped inline thumbnail/row layout
+ * captioned multi-photo field (FormPhotosField - "Photographs" etc.)
+ * instead of the old cramped inline thumbnail/row layout
  * (client report, 2026-09-03: Employee Details' Photo/Resume looked
  * noticeably smaller than every other field). Single-file, so there's no
  * thumbnail strip - the card itself flips into a "file attached" state with
