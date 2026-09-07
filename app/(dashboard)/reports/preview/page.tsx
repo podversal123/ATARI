@@ -181,18 +181,32 @@ function ReportPreviewContent() {
     .split(",")
     .map((v) => v.trim())
     .filter((v) => /^\d{4}$/.test(v));
+  const fromParam = params.get("from") ?? "";
+  const toParam = params.get("to") ?? "";
   const dateRows = yearsParam.length
     ? [{ label: "Reporting Year", value: yearsParam.sort().join(", ") }]
-    : [
-        { label: "From Date", value: formatDisplayDate(params.get("from") ?? "") },
-        { label: "To Date", value: formatDisplayDate(params.get("to") ?? "") },
-      ];
+    : !fromParam && !toParam
+      ? // No period bound at all - the report covers every reporting year.
+        [{ label: "Reporting Year", value: "All Data" }]
+      : [
+          { label: "From Date", value: formatDisplayDate(fromParam) },
+          { label: "To Date", value: formatDisplayDate(toParam) },
+        ];
+
+  // For a KVK Admin the report is scoped server-side to their own KVK, so the
+  // authoritative name is the one the generate route returns, not the query
+  // param (which is only a display hint and can be a neutral placeholder when
+  // the session has no KVK name).
+  const kvkNameForMeta =
+    (type === "kvk" ? report?.kvkNames?.[0] : undefined) ??
+    params.get("kvk") ??
+    "";
 
   const metaColumns =
     type === "kvk"
       ? [
           [
-            { label: "KVK Name", value: params.get("kvk") ?? "" },
+            { label: "KVK Name", value: kvkNameForMeta },
             { label: "Form", value: params.get("form") ?? "All Forms" },
           ],
           dateRows,

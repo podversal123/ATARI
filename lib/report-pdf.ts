@@ -36,10 +36,36 @@ function spaced(text: string) {
   return text.split("").join(" ");
 }
 
-function docId() {
-  const d = new Date();
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `ATARI-${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`;
+/** "4" -> "IV" etc, for the running-header zone segment (the client's export uses roman there even though the cover title uses the arabic form). */
+const ARABIC_TO_ROMAN: Record<string, string> = {
+  "1": "I", "2": "II", "3": "III", "4": "IV", "5": "V",
+  "6": "VI", "7": "VII", "8": "VIII", "9": "IX", "10": "X",
+};
+
+/** Uppercase, non-alphanumerics collapsed to single dashes, trimmed - "KVK Bhagalpur" -> "KVK-BHAGALPUR", "All Data" -> "ALL-DATA". */
+function headerToken(text: string): string {
+  return text
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+/**
+ * The running-header slug printed top-right on every page, matching the
+ * client's own export exactly: `ICAR-ATARI/ZONE-IV/KVK-BHAGALPUR/REPORT-ALL-DATA`.
+ * Zone comes from the "ATARI ZONE-4" cover label (arabic -> roman); the KVK
+ * segment is the single KVK when the report is scoped to one, else "ALL-KVKS";
+ * the period segment is the same "All Data" / year label the cover shows.
+ */
+function reportRunningHeader(opts: ReportPdfOptions): string {
+  const zoneNum = /(\d+)\s*$/.exec(opts.zoneLabel.trim())?.[1];
+  const zoneSeg = zoneNum
+    ? `ZONE-${ARABIC_TO_ROMAN[zoneNum] ?? zoneNum}`
+    : headerToken(opts.zoneLabel.replace(/^ATARI\s+/i, ""));
+  const kvkSeg =
+    opts.kvkNames.length === 1 ? headerToken(opts.kvkNames[0]) : "ALL-KVKS";
+  const periodSeg = headerToken(opts.reportingYearLabel || "All Data");
+  return `ICAR-ATARI/${zoneSeg}/${kvkSeg}/REPORT-${periodSeg}`;
 }
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -102,6 +128,22 @@ function renderGrid(doc: jsPDF, grid: ReportGrid, startY: number): number {
     ]);
   }
   const totalRowIndex = grid.totalRow ? body.length - 1 : -1;
+  /**
+   * "Group header" body rows - only the first data column has text, every
+   * other column is blank (the A-E sector labels in the OFT summary, the
+   * "Training Area" bands in 2.4.A, "Crop Production" in the FLD sector
+   * breakdown, ...). Builders push these straight into `rows`; without this
+   * they render as a confusing blank row. super-v2-prod.pdf shades + bolds
+   * them so they read as a heading. Skipped for 1-column tables.
+   */
+  const bandRowIdx = new Set<number>();
+  if (grid.columns.length >= 2) {
+    grid.rows.forEach((row, i) => {
+      const first = String(row[grid.columns[0].key] ?? "").trim();
+      const restBlank = grid.columns.slice(1).every((c) => String(row[c.key] ?? "").trim() === "");
+      if (first !== "" && restBlank) bandRowIdx.add(i);
+    });
+  }
   const contentW = doc.internal.pageSize.getWidth() - MARGIN * 2;
 
   autoTable(doc, {
@@ -117,9 +159,29 @@ function renderGrid(doc: jsPDF, grid: ReportGrid, startY: number): number {
     headStyles: { ...HEAD_STYLES, overflow: "linebreak", valign: "middle", halign: "center" },
     theme: "grid",
     didParseCell: (data: any) => {
-      if (data.section === "body" && data.row.index === totalRowIndex) {
+      if (data.section !== "body") return;
+      // The dedicated `totalRow`.
+      if (data.row.index === totalRowIndex) {
         data.cell.styles.fontStyle = "bold";
         data.cell.styles.fillColor = [235, 235, 235];
+        return;
+      }
+      // Any inline "Sub Total" / "Sub-total — X" / "Grand Total (F)" / "Total"
+      // row (the A-E sector matrices, FLD/Training consolidations, Production
+      // blocks, ... push these straight into `rows`, so they used to render
+      // as plain rows). super-v2-prod.pdf always bolds + shades them.
+      const cells: string[] = Array.isArray(data.row.raw) ? data.row.raw.map((c: unknown) => String(c ?? "")) : [];
+      if (cells.some((t) => /^\s*(sub[-\s]?total|subtotal|grand\s*total|total)\b/i.test(t))) {
+        data.cell.styles.fontStyle = "bold";
+        data.cell.styles.fillColor = [235, 235, 235];
+        return;
+      }
+      // Group-header band rows (only the first column has text).
+      if (bandRowIdx.has(data.row.index)) {
+        data.cell.styles.fontStyle = "bold";
+        data.cell.styles.fillColor = [244, 244, 244];
+        // Blank the auto serial number on a heading row.
+        if (serial && data.column.index === 0) data.cell.text = [""];
       }
     },
   });
@@ -250,11 +312,6 @@ export function generateReportPdf(opts: ReportPdfOptions) {
   doc.setDrawColor(...BORDER_GRAY);
   doc.setLineWidth(0.4);
   doc.rect(6, 6, pageW - 12, pageH - 12);
-
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(7);
-  doc.setTextColor(140, 140, 140);
-  doc.text(docId(), pageW - MARGIN, 14, { align: "right" });
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(20);
@@ -526,11 +583,17 @@ export function generateReportPdf(opts: ReportPdfOptions) {
     }
   }
 
-  // --- Footer on every page, including the cover, matching the reference's "PageXofY" format ---
+  // --- Running header + footer on every page (cover included), matching the
+  // reference's top-right "ICAR-ATARI/ZONE-IV/KVK-BHAGALPUR/REPORT-ALL-DATA"
+  // slug and bottom-right "PageXofY". ---
   const pageCount = doc.getNumberOfPages();
+  const runningHeader = reportRunningHeader(opts);
   for (let p = 1; p <= pageCount; p++) {
     doc.setPage(p);
     doc.setFont("helvetica", "normal");
+    doc.setFontSize(7);
+    doc.setTextColor(140, 140, 140);
+    doc.text(runningHeader, pageW - MARGIN, 10, { align: "right" });
     doc.setFontSize(8);
     doc.setTextColor(120, 120, 120);
     doc.text(`Page${p}of${pageCount}`, pageW - MARGIN, pageH - 6, { align: "right" });

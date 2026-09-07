@@ -3140,6 +3140,21 @@ export const SIDEBAR: SidebarSection[] = [
   { slug: "reports", label: "Reports", href: "/reports", icon: "reports" },
 ];
 
+/**
+ * Top-level sidebar/search slugs hidden for every non-Super-Admin role (KVK
+ * Admin and KVK User share one menu for now). All Masters is global reference
+ * data only Super Admin curates. Role Management and User Management are
+ * hidden for KVK roles per client direction (2026-09-07) until KVK-level user
+ * administration is actually needed - the pages themselves also bounce a KVK
+ * session back to the dashboard, and the Ctrl+K search drops these entries
+ * for the same roles.
+ */
+export const KVK_HIDDEN_SLUGS = new Set([
+  "masters",
+  "role-management",
+  "user-management",
+]);
+
 export type SearchResult = {
   label: string;
   href: string;

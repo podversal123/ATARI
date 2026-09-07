@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Search } from "lucide-react";
-import { SEARCH_INDEX } from "@/lib/navigation";
+import { SEARCH_INDEX, KVK_HIDDEN_SLUGS } from "@/lib/navigation";
+import { useSession, useSessionReady } from "@/lib/session";
 
 /** The sidebar's "Search... (Ctrl+K)" box - jumps to any page in the app by name. */
 export function SidebarSearch() {
@@ -11,6 +12,21 @@ export function SidebarSearch() {
   const [open, setOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const session = useSession();
+  const sessionReady = useSessionReady();
+  /** Fail closed to the smaller index until the real role is known - same rule the sidebar itself uses - so a KVK session never briefly searches into a hidden page. */
+  const isSuperAdmin = sessionReady && session.role === "super-admin";
+
+  /** Ctrl+K must not surface pages the sidebar hides for this role (All Masters, Role/User Management for KVK). */
+  const searchIndex = useMemo(
+    () =>
+      isSuperAdmin
+        ? SEARCH_INDEX
+        : SEARCH_INDEX.filter(
+            (item) => !KVK_HIDDEN_SLUGS.has(item.href.split("/")[1] ?? ""),
+          ),
+    [isSuperAdmin],
+  );
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
@@ -43,10 +59,10 @@ export function SidebarSearch() {
   const results = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return [];
-    return SEARCH_INDEX.filter((item) =>
-      item.label.toLowerCase().includes(q),
-    ).slice(0, 8);
-  }, [query]);
+    return searchIndex
+      .filter((item) => item.label.toLowerCase().includes(q))
+      .slice(0, 8);
+  }, [query, searchIndex]);
 
   return (
     <div ref={containerRef} className="relative">

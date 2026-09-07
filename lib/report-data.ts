@@ -465,14 +465,20 @@ async function buildOftTechnologySummary(scope: ReportScope): Promise<CustomTabl
     ...Object.fromEntries(Object.entries(acc).map(([k, v]) => [k, String(v)])),
   });
 
+  // The thematic-area master carries one placeholder row ("Others Thematic
+  // Area Upload By ATARI") that both reference PDFs print simply as "Others,
+  // if any".
+  const thematicLabel = (name: string) =>
+    name.trim() === "Others Thematic Area Upload By ATARI" ? "Others, if any" : name;
+
   const matrixRows: Record<string, string>[] = [];
   const grand: Record<string, number> = {};
   for (const { letter, db, title } of OFT_SUBJECTS) {
     const subject = subjects.find((s) => s.name === db);
-    matrixRows.push({ sector: singleKvk ? `${letter}) ${title}` : `${letter}) ${title}` });
+    matrixRows.push({ sector: `${letter}) ${title}` });
     const subTotal: Record<string, number> = {};
     for (const area of subject?.thematicAreas ?? []) {
-      const row = { sector: area.name, ...keysFor(oftRows.filter((r) => r.thematicArea === area.name)) };
+      const row = { sector: thematicLabel(area.name), ...keysFor(oftRows.filter((r) => r.thematicArea === area.name)) };
       matrixRows.push(row);
       addInto(subTotal, row);
       addInto(grand, row);
@@ -492,10 +498,14 @@ async function buildOftTechnologySummary(scope: ReportScope): Promise<CustomTabl
     { key: "sector", label: "Discipline" },
     ...OFT_METRIC_LABELS.map((label, mi) => ({ key: `Total|${mi}`, label })),
   ];
-  const disciplineRows = [...groupInto(oftRows, (r) => r.discipline).entries()].map(([discipline, rows]) => ({
-    sector: discipline,
-    ...Object.fromEntries(metricsFor(rows).map((v, mi) => [`Total|${mi}`, String(v)])),
-  }));
+  const disciplineRows = [...groupInto(oftRows, (r) => r.discipline).entries()]
+    // Drop rows for OFT records that never had a discipline set - they render
+    // as a stray blank/"0" row the reference never shows.
+    .filter(([discipline]) => discipline != null && String(discipline).trim() !== "" && String(discipline).trim() !== "0")
+    .map(([discipline, rows]) => ({
+      sector: discipline,
+      ...Object.fromEntries(metricsFor(rows).map((v, mi) => [`Total|${mi}`, String(v)])),
+    }));
 
   return {
     blocks: [
@@ -2187,11 +2197,26 @@ async function buildProductionAndSupply(scope: ReportScope): Promise<CustomTable
     return out;
   };
 
-  const categoryNames =
+  const rawCategoryNames =
     masterCats.length > 0
       ? masterCats.map((m) => m.name).filter((n) => records.some((r) => (r.productCategory ?? "") === n))
       : [...new Set(records.map((r) => (r.productCategory ?? "").trim()).filter(Boolean))];
-  const letters = ["A", "B", "C", "D", "E", "F", "G"];
+  /**
+   * super-v2-prod.pdf p.42-53 orders the categories A. Livestock and Fisheries
+   * Material, B. Bio Product, C. Seed (not alphabetically). Honour that order
+   * for those three; any other category our data carries follows, in name
+   * order.
+   */
+  const CATEGORY_ORDER = ["livestock and fisheries material", "bio product", "seed"];
+  const catRank = (n: string) => {
+    const k = n.replace(/^production of\s+/i, "").trim().toLowerCase();
+    const i = CATEGORY_ORDER.indexOf(k);
+    return i === -1 ? CATEGORY_ORDER.length : i;
+  };
+  const categoryNames = [...rawCategoryNames].sort(
+    (a, b) => catRank(a) - catRank(b) || a.localeCompare(b),
+  );
+  const letters = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J"];
 
   const blocks: ReportBlock[] = categoryNames.map((cat, ci): ReportBlock => {
     const inCat = records.filter((r) => (r.productCategory ?? "") === cat);
@@ -2717,15 +2742,14 @@ async function buildStaffQuarters(scope: ReportScope): Promise<CustomTableResult
     orderBy: { kvk: { name: "asc" } },
   });
 
-  // super-v2-prod.pdf prints this descriptive line once above the per-KVK blocks.
+  // super-v2-prod.pdf p.15-16 and the 50pg kvk-report both print this
+  // descriptive line once, then repeat per KVK: a summary grid whose FIRST
+  // column is "KVK" (the header row is reprinted for every KVK, verified
+  // against super-v2-prod.pdf's own text), immediately followed by that
+  // KVK's 12-month x N-quarter occupancy grid.
   const blocks: ReportBlock[] = [
     { heading: "Utilization of Staff Quarters Whether Staff Quarters has been Completed", parts: [] },
   ];
-
-  // The Super Admin report carries the KVK name as the summary grid's first
-  // column (many KVKs on one page); the single-KVK report keeps it as the
-  // block heading, matching each reference PDF.
-  const perKvkColumn = !scope.kvkId;
 
   for (const rec of records) {
     const maxQuarter = Math.max(
@@ -2736,14 +2760,14 @@ async function buildStaffQuarters(scope: ReportScope): Promise<CustomTableResult
     const summary: ReportGrid = {
       noSerial: true,
       columns: [
-        ...(perKvkColumn ? [{ key: "kvk", label: "KVK" }] : []),
+        { key: "kvk", label: "KVK" },
         { key: "doc", label: "Date of Completion" },
         { key: "count", label: "No.of Staff Quarters" },
         { key: "occ", label: "Occupancy Details" },
       ],
       rows: [
         {
-          ...(perKvkColumn ? { kvk: rec.kvk?.name ?? "" } : {}),
+          kvk: rec.kvk?.name ?? "",
           doc: stringifyValue(rec.dateOfCompletion),
           count: String(rec.numberOfQuarters),
           occ: rec.remark ?? "",
@@ -2769,7 +2793,7 @@ async function buildStaffQuarters(scope: ReportScope): Promise<CustomTableResult
       parts.push({ kind: "grid", noSerial: true, columns: gridColumns, rows: gridRows });
     }
 
-    blocks.push({ heading: perKvkColumn ? "" : (rec.kvk?.name ?? ""), parts });
+    blocks.push({ heading: "", parts });
   }
 
   return { blocks };
@@ -3429,10 +3453,12 @@ const MISCELLANEOUS_SECTION: Sec = {
       { code: "5.3.A", title: "RAWE/FET programme", model: "raweFetFitProgramme", scope: "direct" },
       { code: "5.3.B", title: "List of VIP visitors", model: "vipVisitor", scope: "direct" },
       { code: "5.3.C", title: "Details of Mobile App", model: "digitalMobileApp", scope: "direct" },
-      { code: "5.3.D", title: "Details of KVK Portal", model: "digitalWebPortal", scope: "direct" },
+      // super-v2-prod.pdf TOC p.8: "Details of Web Portal" / "messages send
+      // through other channels" (verbatim, including the "send" phrasing).
+      { code: "5.3.D", title: "Details of Web Portal", model: "digitalWebPortal", scope: "direct" },
       { code: "5.3.E", title: "Details of Kisan Sarathi", model: "digitalKisanSarathi", scope: "direct" },
       { code: "5.3.F", title: "Kisan Mobile Advisory Services/KMAS", model: "digitalKmas", scope: "direct" },
-      { code: "5.3.G", title: "Details of messages sent through other channels", model: "digitalOtherChannel", scope: "direct" },
+      { code: "5.3.G", title: "Details of messages send through other channels", model: "digitalOtherChannel", scope: "direct" },
     ]},
   ],
 };
@@ -5760,10 +5786,17 @@ async function fetchTable(entry: Entry, scope: ReportScope): Promise<ReportTable
  * All ~105 tables across every section/subsection are independent - fire
  * every query at once rather than section-by-section, since Promise.all
  * inside a sequential for-loop would otherwise still serialize
- * subsection-to-subsection. Uses the KVK_TREE numbering whenever the report
- * is scoped to exactly one KVK (matches the real 50pg "kvk-report" export's
- * own numbering), SUPER_ADMIN_TREE otherwise (the real 93pg "all data"
- * export's numbering) - the same split the client's own two source PDFs use.
+ * subsection-to-subsection.
+ *
+ * Two section trees, one per report the client asked for: a report scoped to
+ * exactly one KVK (KVK Admin, or a Super Admin who filtered to a single KVK)
+ * follows KVK_TREE, which matches the client's own single-KVK export
+ * (Atari_Management_System_Deviation_Report.pdf / kvk-report-*.pdf - "1.3
+ * Infrastructure Information", no State-Wise OFT/FLD tables, Prevalent
+ * Diseases at 4.2.E/F, section 5 = PPV/RAWE/Digital). Every other scope
+ * follows SUPER_ADMIN_TREE, which matches the 93pg "all data" export
+ * (super-v2-prod.pdf). The data inside every table is still scoped by
+ * `scope.kvkId` regardless of which tree is used.
  */
 export async function buildReportSections(scope: ReportScope): Promise<ReportSection[]> {
   const tree = scope.kvkId ? KVK_TREE : SUPER_ADMIN_TREE;

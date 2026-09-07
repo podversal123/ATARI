@@ -3,24 +3,13 @@
 import { useState } from "react";
 import { usePathname } from "next/navigation";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { SIDEBAR } from "@/lib/navigation";
+import { SIDEBAR, KVK_HIDDEN_SLUGS } from "@/lib/navigation";
 import { cn } from "@/lib/utils";
 import { useSession, useSessionReady } from "@/lib/session";
 import { NavTree } from "./sidebar-nav";
 import { SidebarTopLink } from "./sidebar-top-link";
 import { SidebarSectionLink } from "./sidebar-section-link";
 import { SidebarSearch } from "./sidebar-search";
-
-/**
- * Sidebar items hidden for a KVK Admin (and, per explicit direction, KVK
- * User too - its sidebar mirrors KVK Admin's one-for-one for now; real
- * per-role restriction is a backend/permissions concern for later, not
- * something to hand-restrict in the UI ahead of that). Every role except
- * Super Admin loses All Masters (global reference data only Super Admin
- * curates) - every other page is shared, scoped later to that KVK's own
- * data via the same pages, not a separate route tree.
- */
-const KVK_HIDDEN_SLUGS = new Set(["masters"]);
 
 /**
  * The fixed green Super Admin sidebar. Structure mirrors the reference

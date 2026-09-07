@@ -65,6 +65,7 @@ export const REPORT_TABLE_COLUMNS = [
  * query param on /api/reports/generate.
  */
 export type QuickSelectRange =
+  | "all-data"
   | "today"
   | "this-week"
   | "this-month"
@@ -82,6 +83,7 @@ export const QUICK_SELECT_OPTIONS: {
   value: QuickSelectRange;
   label: string;
 }[] = [
+  { value: "all-data", label: "All Data" },
   { value: "today", label: "Today" },
   { value: "this-week", label: "This Week" },
   { value: "this-month", label: "This Month" },
@@ -106,6 +108,10 @@ export function resolveQuickSelectRange(
   const today = toInputDate(now);
 
   switch (range) {
+    case "all-data":
+      // No period bound at all - the report/list covers every reporting
+      // year. Callers clear their From/To inputs on this.
+      return { from: "", to: "" };
     case "today":
       return { from: today, to: today };
     case "this-week": {

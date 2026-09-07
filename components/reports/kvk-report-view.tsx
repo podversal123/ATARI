@@ -6,7 +6,6 @@ import { CalendarDays, Eye, Filter, Info, RotateCcw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { KVK_MASTER_ROWS } from "@/lib/masters";
 import {
   ALL_FORM_PATHS,
   QUICK_SELECT_OPTIONS,
@@ -19,19 +18,15 @@ import { MultiFilterSelect } from "@/components/dashboard/multi-filter-select";
 import { ReportHeaderBar } from "./report-header-bar";
 import { SelectFormDropdown } from "./select-form-dropdown";
 
-/** `YYYY-MM-DD` from local parts - `toISOString()` would shift a day either side of UTC (1 Jan local -> 31 Dec in India). */
-function toLocalIso(d: Date): string {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
-function firstOfYear(): string {
-  return toLocalIso(new Date(new Date().getFullYear(), 0, 1));
-}
-function today(): string {
-  return toLocalIso(new Date());
-}
-
 type KvkReportViewProps = {
-  /** The logged-in KVK's name, from the mock session (lib/session.tsx) - falls back to the first real KVK row if the session has none. */
+  /**
+   * The logged-in KVK's name, from the session (lib/session.tsx), populated
+   * at login and re-synced by SessionGate from /api/auth/me. Only absent if
+   * the account has no KVK attached at all - in which case a neutral
+   * placeholder is shown rather than guessing a real (wrong) KVK. The
+   * generated report itself is always scoped server-side to the caller's own
+   * KVK regardless of what this label says.
+   */
   kvkName?: string;
 };
 
@@ -50,15 +45,16 @@ type KvkReportViewProps = {
  */
 export function KvkReportView({ kvkName }: KvkReportViewProps) {
   const router = useRouter();
-  const currentKvkName = kvkName ?? KVK_MASTER_ROWS[0].kvk;
+  const currentKvkName = kvkName ?? "Your KVK";
   const [selectedForms, setSelectedForms] = useState<Set<string>>(
     new Set(ALL_FORM_PATHS),
   );
   /** "Reporting Year" checkbox multi-select - empty = use the Date Range; any year checked scopes the report to exactly those calendar years (client request, 2026-09-07). */
   const [selectedYears, setSelectedYears] = useState<Set<string>>(new Set());
-  const [fromDate, setFromDate] = useState(firstOfYear());
-  const [toDate, setToDate] = useState(today());
-  const [quickSelect, setQuickSelect] = useState<QuickSelectRange>("this-year");
+  /** Empty From/To = no period bound = every reporting year ("All Data"), the default the reference export uses (client request, 2026-09-07). */
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
+  const [quickSelect, setQuickSelect] = useState<QuickSelectRange>("all-data");
   const [validationError, setValidationError] = useState<string | null>(null);
 
   const selectedFormLabel =
@@ -88,18 +84,18 @@ export function KvkReportView({ kvkName }: KvkReportViewProps) {
   function resetFilters() {
     setSelectedForms(new Set(ALL_FORM_PATHS));
     setSelectedYears(new Set());
-    setFromDate(firstOfYear());
-    setToDate(today());
-    setQuickSelect("this-year");
+    setFromDate("");
+    setToDate("");
+    setQuickSelect("all-data");
     setValidationError(null);
   }
 
   function handleGenerate() {
-    if (selectedForms.size === 0 || !fromDate || !toDate) {
+    if (selectedForms.size === 0) {
       setValidationError("Please select the required report filters.");
       return;
     }
-    if (fromDate > toDate) {
+    if (fromDate && toDate && fromDate > toDate) {
       setValidationError("To Date cannot be earlier than From Date.");
       return;
     }
@@ -109,9 +105,11 @@ export function KvkReportView({ kvkName }: KvkReportViewProps) {
       type: "kvk",
       kvk: currentKvkName,
       form: selectedFormLabel,
-      from: fromDate,
-      to: toDate,
     });
+    // From/To are omitted entirely when blank - the report then covers every
+    // reporting year ("All Data").
+    if (fromDate) query.set("from", fromDate);
+    if (toDate) query.set("to", toDate);
     // "Reporting Year" checkbox multi-select - any year checked scopes the
     // report to exactly those calendar years (server prefers it over from/to).
     const yearsCsv = Array.from(selectedYears).join(",");

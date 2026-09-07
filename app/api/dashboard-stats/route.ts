@@ -34,6 +34,15 @@ export async function GET(request: Request) {
   const isKvkAdmin = auth.session.role === "KVK_ADMIN";
   const kvkId = isKvkAdmin ? auth.session.kvkId ?? undefined : undefined;
 
+  /**
+   * A KVK Admin's payload must not carry zone-wide lists - their dashboard
+   * only ever shows their own KVK. `optionScope` narrows the "which years
+   * exist" dropdown queries (and the KVK count) to their own KVK; the
+   * State/District/Institute option lists are derived from their single
+   * scoped KVK row further down instead of a zone query.
+   */
+  const optionScope = kvkId ? { kvkId } : { zoneId: auth.session.zoneId };
+
   /** Super Admin's own Year/State/District/KVK filter dropdowns - real query params now instead of the always-"All" placeholder they used to be. A KVK Admin is already scoped to their own KVK, so none of these apply to them. Dropdowns show names (not internal ids), so each resolves the selected name back to an id via the real State/District/Kvk tables - no guessed slugs. */
   const yearParam = url.searchParams.get("year");
   /**
@@ -225,7 +234,9 @@ export async function GET(request: Request) {
       select: { id: true, name: true },
       orderBy: { name: "asc" },
     }),
-    scopeParam ? Promise.resolve(0) : prisma.kvk.count({ where: { zoneId: auth.session.zoneId } }),
+    scopeParam
+      ? Promise.resolve(0)
+      : prisma.kvk.count({ where: kvkId ? { id: kvkId } : { zoneId: auth.session.zoneId } }),
     needs("oft") ? prisma.oft.groupBy({ by: ["kvkId", "status"], where: scope, _count: { _all: true } }) : Promise.resolve([]),
     needs("fld") ? prisma.fld.groupBy({ by: ["kvkId", "status"], where: scope, _count: { _all: true } }) : Promise.resolve([]),
     needs("training") ? prisma.training.groupBy({ by: ["kvkId"], where: trainingScope, _count: { _all: true } }) : Promise.resolve([]),
@@ -319,21 +330,29 @@ export async function GET(request: Request) {
     /**
      * Real distinct reporting years for the Year filter dropdown - merged
      * across the 4 models that carry one, rather than guessing a static
-     * range. Unscoped by year/kvk (the dropdown itself must list every
-     * year regardless of what's currently selected). This used to skip
+     * range. Unscoped by year (the dropdown itself must list every year
+     * regardless of what's currently selected), but scoped to the caller's
+     * own KVK for a KVK Admin (`optionScope`) so their Year dropdown only
+     * offers years their KVK actually has data in. This used to skip
      * entirely for `?scope=` requests (the 4 analytics detail pages) -
      * real bug, since those pages' own Year dropdown needs exactly this
      * and was showing only "All" as a result.
      */
-    prisma.oft.findMany({ where: { zoneId: auth.session.zoneId }, select: { reportingYear: true }, distinct: ["reportingYear"] }),
-    prisma.fld.findMany({ where: { zoneId: auth.session.zoneId }, select: { reportingYear: true }, distinct: ["reportingYear"] }),
-    prisma.training.findMany({ where: { zoneId: auth.session.zoneId }, select: { reportingYear: true }, distinct: ["reportingYear"] }),
-    prisma.extensionActivity.findMany({ where: { zoneId: auth.session.zoneId }, select: { reportingYear: true }, distinct: ["reportingYear"] }),
-    /** Real Zone/State/District/Institute option lists for the analytics detail pages' filter bar - all scoped to the Super Admin's own zone (a session only ever belongs to one zone). Institute filters/groups real KVK-derived data via `Kvk.instituteId` (see `filterInstituteIdFilter` above). */
+    prisma.oft.findMany({ where: optionScope, select: { reportingYear: true }, distinct: ["reportingYear"] }),
+    prisma.fld.findMany({ where: optionScope, select: { reportingYear: true }, distinct: ["reportingYear"] }),
+    prisma.training.findMany({ where: optionScope, select: { reportingYear: true }, distinct: ["reportingYear"] }),
+    prisma.extensionActivity.findMany({ where: optionScope, select: { reportingYear: true }, distinct: ["reportingYear"] }),
+    /** Real Zone/State/District/Institute option lists for the analytics detail pages' filter bar - all scoped to the Super Admin's own zone (a session only ever belongs to one zone). A KVK Admin never sees these dropdowns, and their payload must not carry the whole zone's names, so the queries are skipped for that role and the response derives the single-KVK values from `kvks` instead. Institute filters/groups real KVK-derived data via `Kvk.instituteId` (see `filterInstituteIdFilter` above). */
     prisma.zone.findUnique({ where: { id: auth.session.zoneId }, select: { name: true } }),
-    prisma.state.findMany({ where: { zoneId: auth.session.zoneId }, select: { name: true }, orderBy: { name: "asc" } }),
-    prisma.district.findMany({ where: { zoneId: auth.session.zoneId }, select: { name: true }, orderBy: { name: "asc" } }),
-    prisma.institute.findMany({ where: { zoneId: auth.session.zoneId }, select: { name: true }, orderBy: { name: "asc" } }),
+    isKvkAdmin
+      ? Promise.resolve([])
+      : prisma.state.findMany({ where: { zoneId: auth.session.zoneId }, select: { name: true }, orderBy: { name: "asc" } }),
+    isKvkAdmin
+      ? Promise.resolve([])
+      : prisma.district.findMany({ where: { zoneId: auth.session.zoneId }, select: { name: true }, orderBy: { name: "asc" } }),
+    isKvkAdmin
+      ? Promise.resolve([])
+      : prisma.institute.findMany({ where: { zoneId: auth.session.zoneId }, select: { name: true }, orderBy: { name: "asc" } }),
   ]);
 
   /**
@@ -462,9 +481,16 @@ export async function GET(request: Request) {
     years,
     kvkOptions,
     zoneName: zone?.name ?? null,
-    stateOptions: states.map((s) => s.name),
-    districtOptions: districts.map((d) => d.name),
-    instituteOptions: institutes.map((i) => i.name),
+    /** A KVK Admin gets only their own KVK's State/District/Institute (from the single scoped `kvks` row); Super Admin gets the whole zone's list. */
+    stateOptions: isKvkAdmin
+      ? Array.from(new Set(kvks.map((k) => k.state.name)))
+      : states.map((s) => s.name),
+    districtOptions: isKvkAdmin
+      ? Array.from(new Set(kvks.map((k) => k.district.name)))
+      : districts.map((d) => d.name),
+    instituteOptions: isKvkAdmin
+      ? Array.from(new Set(kvks.map((k) => k.institute?.name).filter((n): n is string => Boolean(n))))
+      : institutes.map((i) => i.name),
     oft: {
       ...oft,
       quantity: Number(oftAgg._sum.quantity ?? 0),

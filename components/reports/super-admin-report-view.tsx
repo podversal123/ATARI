@@ -28,17 +28,6 @@ import { SelectFormDropdown } from "./select-form-dropdown";
 import { SelectOrgKvksDropdown } from "./select-org-kvks-dropdown";
 import { MultiSelectChecklist } from "./multi-select-checklist";
 
-/** `YYYY-MM-DD` from local parts - `toISOString()` would shift a day either side of UTC (1 Jan local -> 31 Dec in India). */
-function toLocalIso(d: Date): string {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
-function firstOfYear(): string {
-  return toLocalIso(new Date(new Date().getFullYear(), 0, 1));
-}
-function today(): string {
-  return toLocalIso(new Date());
-}
-
 /**
  * Super Admin / Admin Report screen. State, Host Organisation and District
  * are all checkbox multi-selects that cascade into each other, same
@@ -65,9 +54,10 @@ export function SuperAdminReportView() {
   );
   /** "Reporting Year" checkbox multi-select - empty = use the Date Range below; any year checked = the report is scoped to exactly those calendar years (client request, 2026-09-07). */
   const [selectedYears, setSelectedYears] = useState<Set<string>>(new Set());
-  const [fromDate, setFromDate] = useState(firstOfYear());
-  const [toDate, setToDate] = useState(today());
-  const [quickSelect, setQuickSelect] = useState<QuickSelectRange>("this-year");
+  /** Empty From/To = no period bound = every reporting year ("All Data"), the default the reference export uses (client request, 2026-09-07). */
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
+  const [quickSelect, setQuickSelect] = useState<QuickSelectRange>("all-data");
   const [validationError, setValidationError] = useState<string | null>(null);
 
   const hostOrgOptions = hostOrgsForStates(Array.from(selectedStates));
@@ -123,11 +113,11 @@ export function SuperAdminReportView() {
   }
 
   function handleGenerate() {
-    if (selectedForms.size === 0 || !fromDate || !toDate) {
+    if (selectedForms.size === 0) {
       setValidationError("Please select the required report filters.");
       return;
     }
-    if (fromDate > toDate) {
+    if (fromDate && toDate && fromDate > toDate) {
       setValidationError("To Date cannot be earlier than From Date.");
       return;
     }
@@ -160,9 +150,11 @@ export function SuperAdminReportView() {
       district: districtLabel,
       kvk: kvkLabel,
       form: selectedFormLabel,
-      from: fromDate,
-      to: toDate,
     });
+    // From/To are omitted entirely when blank - the report then covers every
+    // reporting year ("All Data").
+    if (fromDate) query.set("from", fromDate);
+    if (toDate) query.set("to", toDate);
     // "Reporting Year" checkbox multi-select - when any year is checked the
     // report is scoped to exactly those calendar years (server prefers this
     // over from/to). Omitted when nothing is checked = use the Date Range.
@@ -184,9 +176,9 @@ export function SuperAdminReportView() {
     setSelectedKvks(new Set(kvksForHostOrgsAndDistricts(ALL_HOST_ORGS, ALL_HOST_ORG_DISTRICTS)));
     setSelectedForms(new Set(ALL_FORM_PATHS));
     setSelectedYears(new Set());
-    setFromDate(firstOfYear());
-    setToDate(today());
-    setQuickSelect("this-year");
+    setFromDate("");
+    setToDate("");
+    setQuickSelect("all-data");
     setValidationError(null);
   }
 

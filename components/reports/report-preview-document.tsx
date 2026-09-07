@@ -107,20 +107,47 @@ function Grid({ grid }: { grid: ReportGrid }) {
         <table className="w-full border-collapse text-sm">
           <GridHead columns={grid.columns} serial={serial} titleBands={grid.titleBands} />
           <tbody>
-            {grid.rows.map((row, rowIndex) => (
-              <tr key={rowIndex} className="odd:bg-background even:bg-muted/20">
-                {serial && (
-                  <td className="border-b border-border px-2.5 py-1.5 text-muted-foreground">
-                    {rowIndex + 1}
-                  </td>
-                )}
-                {grid.columns.map((col) => (
-                  <td key={col.key} className={TD_BASE}>
-                    {row[col.key] ?? ""}
-                  </td>
-                ))}
-              </tr>
-            ))}
+            {grid.rows.map((row, rowIndex) => {
+              // Inline "Sub Total" / "Grand Total (F)" / "Total" rows (pushed
+              // straight into `rows` by the sector matrices, FLD/Training
+              // consolidations, Production blocks) get the same bold + shade
+              // the dedicated `totalRow` gets, matching super-v2-prod.pdf.
+              const isTotal = grid.columns.some((col) =>
+                /^\s*(sub[-\s]?total|subtotal|grand\s*total|total)\b/i.test(String(row[col.key] ?? "")),
+              );
+              // Group-header band row: only the first column has text (the
+              // OFT summary A-E labels, 2.4.A "Training Area" bands, ...).
+              const isBand =
+                !isTotal &&
+                grid.columns.length >= 2 &&
+                String(row[grid.columns[0].key] ?? "").trim() !== "" &&
+                grid.columns
+                  .slice(1)
+                  .every((col) => String(row[col.key] ?? "").trim() === "");
+              return (
+                <tr
+                  key={rowIndex}
+                  className={
+                    isTotal
+                      ? "bg-muted/50 font-semibold"
+                      : isBand
+                        ? "bg-muted/40 font-semibold"
+                        : "odd:bg-background even:bg-muted/20"
+                  }
+                >
+                  {serial && (
+                    <td className="border-b border-border px-2.5 py-1.5 text-muted-foreground">
+                      {isTotal || isBand ? "" : rowIndex + 1}
+                    </td>
+                  )}
+                  {grid.columns.map((col) => (
+                    <td key={col.key} className={TD_BASE}>
+                      {row[col.key] ?? ""}
+                    </td>
+                  ))}
+                </tr>
+              );
+            })}
             {grid.totalRow && (
               <tr className="bg-muted/50 font-semibold">
                 {serial && <td className="border-b border-border px-2.5 py-1.5" />}

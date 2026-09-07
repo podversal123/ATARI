@@ -35,7 +35,6 @@ import {
   type ModuleImageRecord,
 } from "@/lib/module-images";
 import { useSession } from "@/lib/session";
-import { KVK_MASTER_ROWS } from "@/lib/masters";
 import type { MasterColumn } from "@/lib/navigation";
 import { downloadBlob, downloadImageFile } from "@/lib/utils";
 import { MODULE_TREE } from "@/lib/module-tree";
@@ -56,9 +55,12 @@ const STATUS_OPTIONS = ["Published", "Not Published"];
  * Image page, and this list shows only their own KVK's uploads, filterable
  * by Reporting Year / Category / date range - no cross-KVK picker (data
  * isolation, same rule as Log History). The API itself already scopes to
- * the caller's own KVK (GET /api/module-images), so there's no client-side
- * KVK filter to apply on top - real backend wired 2026-08-28, replacing
- * the always-empty MODULE_IMAGE_ROWS this used to read from.
+ * the caller's own KVK (GET /api/module-images), so there is no client-side
+ * KVK filter on top - one used to be applied here against `currentKvkName`,
+ * which silently hid every row whenever the session had no `kvkName` and the
+ * label fell back to some other KVK; the API scope is the only thing needed.
+ * Real backend wired 2026-08-28, replacing the always-empty
+ * MODULE_IMAGE_ROWS this used to read from.
  *
  * "Bulk Download" now actually zips and downloads the currently filtered
  * rows (lib/module-images-zip.ts) - it used to be a disabled-looking button
@@ -66,7 +68,8 @@ const STATUS_OPTIONS = ["Published", "Not Published"];
  */
 export function KvkModuleImagesView() {
   const session = useSession();
-  const currentKvkName = session.kvkName ?? KVK_MASTER_ROWS[0].kvk;
+  /** Display only (export title). The row list is scoped to this KVK by the API, not by this string. */
+  const currentKvkName = session.kvkName ?? "your KVK";
 
   const [rows, setRows] = useState<ModuleImageRecord[]>([]);
   const [loading, setLoading] = useState(true);
@@ -127,7 +130,6 @@ export function KvkModuleImagesView() {
   const filteredRows = useMemo(() => {
     const query = search.trim().toLowerCase();
     return rows.filter((row) => {
-      if (row.kvk !== currentKvkName) return false;
       if (!selectedYears.has(row.reportingYear)) return false;
       if (!selectedCategories.has(row.categoryPath)) return false;
       if (!selectedStatuses.has(isPublished(row) ? "Published" : "Not Published")) return false;
@@ -146,7 +148,6 @@ export function KvkModuleImagesView() {
     });
   }, [
     rows,
-    currentKvkName,
     selectedYears,
     selectedCategories,
     selectedStatuses,
@@ -163,7 +164,6 @@ export function KvkModuleImagesView() {
 
   function countForLeaf(path: string) {
     return rows.filter((row) => {
-      if (row.kvk !== currentKvkName) return false;
       if (row.categoryPath !== path) return false;
       if (!selectedYears.has(row.reportingYear)) return false;
       if (!selectedStatuses.has(isPublished(row) ? "Published" : "Not Published")) return false;
