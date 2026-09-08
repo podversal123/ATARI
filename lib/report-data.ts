@@ -3262,15 +3262,29 @@ async function buildDistrictLevelData(scope: ReportScope): Promise<CustomTableRe
   };
 }
 
-/** Reads a `farmersByCategory` JSON blob ({generalMale, generalFemale, ...}) into the plain CasteRecord shape. */
+/**
+ * `farmersByCategory` is stored in two shapes depending on which form wrote
+ * it: the generic leaf registry writes flat keys
+ * (`{ generalMale, generalFemale, obcMale, ... }`), while the bespoke CFLD /
+ * NICRA / CRA forms write a nested one (`{ general: {m,f,t}, obc: {...}, ... }`).
+ * Read both so no report table silently shows a zero caste block.
+ */
 function casteFromJson(json: unknown): CasteRecord {
   const j = (json ?? {}) as Record<string, unknown>;
-  const n = (k: string) => Number(j[k] ?? 0);
+  const num = (v: unknown) => Number(v ?? 0) || 0;
+  const pick = (cat: string, sex: "Male" | "Female") => {
+    const flat = num(j[`${cat}${sex}`]);
+    if (flat) return flat;
+    const nested = j[cat];
+    return nested && typeof nested === "object"
+      ? num((nested as Record<string, unknown>)[sex === "Male" ? "m" : "f"])
+      : 0;
+  };
   return {
-    generalMale: n("generalMale"), generalFemale: n("generalFemale"),
-    obcMale: n("obcMale"), obcFemale: n("obcFemale"),
-    scMale: n("scMale"), scFemale: n("scFemale"),
-    stMale: n("stMale"), stFemale: n("stFemale"),
+    generalMale: pick("general", "Male"), generalFemale: pick("general", "Female"),
+    obcMale: pick("obc", "Male"), obcFemale: pick("obc", "Female"),
+    scMale: pick("sc", "Male"), scFemale: pick("sc", "Female"),
+    stMale: pick("st", "Male"), stFemale: pick("st", "Female"),
   };
 }
 
