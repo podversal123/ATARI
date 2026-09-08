@@ -443,7 +443,7 @@ async function buildOftTechnologySummary(scope: ReportScope): Promise<CustomTabl
         { key: "sector", label: "Sector wise Thematic Area" },
         { key: "Total|0", label: "No. of technologies assessed" },
         { key: "Total|1", label: "No. of Locations" },
-        { key: "Total|2", label: "No. of Trial / Replication / Farmer" },
+        { key: "Total|2", label: "No. of Trial/Replication/Farmer" },
       ]
     : [
         { key: "sector", label: "Sector wise Thematic Area" },
@@ -2213,29 +2213,30 @@ async function buildTechnicalAchievementSummary(scope: ReportScope): Promise<Cus
   const targetOf = (category: string) =>
     String(targets.filter((t) => t.category.toLowerCase() === category.toLowerCase()).reduce((s, t) => s + t.targetValue, 0));
 
-  const oneRow = (
+  // super-v2-prod.pdf p.19-21 / kvk-report p.11-12: one bold section heading
+  // ("OFT", "FLD", ...) above a single-row grid whose header groups the
+  // metrics (e.g. "No. of Technologies Tested" over Target/Achievement,
+  // "No. of OFTs" over Location/Trials) and nests the caste block under
+  // "<farmerGroup> > Achievement".
+  const miniGrid = (
     heading: string,
-    note: string,
-    metricGroup: string,
-    metricCols: { key: string; label: string }[],
-    metricVals: Record<string, string>,
+    metricGroups: { group: string; cols: { key: string; label: string }[] }[],
     farmerGroup: string,
+    withFarmerTarget: boolean,
+    metricVals: Record<string, string>,
     casteRecords: CasteRecord[],
   ): ReportBlock => ({
-    // super-v2-prod.pdf p.19-21 draws the "OFT" / "No. of Technologies Tested"
-    // labels as banded rows joined to the grid, not loose headings above it.
-    heading: "",
+    heading,
     parts: [
       {
         kind: "grid",
         noSerial: true,
-        titleBands: note ? [heading, note] : [heading],
         columns: [
-          ...metricCols.map((c) => ({ ...c, groups: [metricGroup] })),
-          { key: "farmerTarget", label: "Farmer Target", groups: [farmerGroup] },
+          ...metricGroups.flatMap((mg) => mg.cols.map((c) => ({ ...c, groups: [mg.group] }))),
+          ...(withFarmerTarget ? [{ key: "farmerTarget", label: "Farmer Target", groups: [farmerGroup] }] : []),
           ...casteMfTotalColumns(farmerGroup, "Achievement"),
         ],
-        rows: [{ ...metricVals, farmerTarget: "", ...casteMfTotalRow(casteRecords) }],
+        rows: [{ ...metricVals, ...(withFarmerTarget ? { farmerTarget: "" } : {}), ...casteMfTotalRow(casteRecords) }],
       },
     ],
   });
@@ -2246,29 +2247,38 @@ async function buildTechnicalAchievementSummary(scope: ReportScope): Promise<Cus
   ];
 
   const blocks: ReportBlock[] = [
-    oneRow("OFT", "No. of Technologies Tested", "No. of OFTs",
-      [{ key: "target", label: "Target" }, { key: "ach", label: "Achievement" }, { key: "loc", label: "No. of Location" }, { key: "trials", label: "No. of Trials" }],
+    miniGrid("OFT",
+      [
+        { group: "No. of Technologies Tested", cols: [{ key: "target", label: "Target" }, { key: "ach", label: "Achievement" }] },
+        { group: "No. of OFTs", cols: [{ key: "loc", label: "No. of Location" }, { key: "trials", label: "No. of Trials" }] },
+      ],
+      "No. of Farmers", true,
       { target: targetOf("OFT"), ach: String(ofts.length), loc: String(ofts.reduce((s, r) => s + (r.noOfLocation ?? 0), 0)), trials: String(ofts.reduce((s, r) => s + (r.noOfTrialReplicationFarmer ?? 0), 0)) },
-      "No. of Farmers", ofts),
-    oneRow("FLD", "No. of Technologies Demonstrated", "Number of FLDs",
-      [{ key: "target", label: "Target" }, { key: "ach", label: "Achievement" }, { key: "area", label: "Area" }],
+      ofts),
+    miniGrid("FLD",
+      [
+        { group: "No. of Technologies Demonstrated", cols: [{ key: "target", label: "Target" }, { key: "ach", label: "Achievement" }] },
+        { group: "Number of FLDs", cols: [{ key: "area", label: "Area" }] },
+      ],
+      "Number of Farmers", true,
       { target: targetOf("FLD"), ach: String(flds.length), area: fldArea.toFixed(2) },
-      "Number of Farmers", flds),
-    oneRow("Training", "Number of Courses", "Number of Courses",
-      [{ key: "target", label: "Target" }, { key: "ach", label: "Achievement" }],
+      flds),
+    miniGrid("Training",
+      [{ group: "Number of Courses", cols: [{ key: "target", label: "Target" }, { key: "ach", label: "Achievement" }] }],
+      "Number of Participants", true,
       { target: targetOf("Training"), ach: String(trainings.length) },
-      "Number of Participants", trainings),
-    oneRow("Extension Activities", "Number of Activities", "Number of Activities",
-      [{ key: "target", label: "Target" }, { key: "ach", label: "Achievement" }],
+      trainings),
+    miniGrid("Extension Activities",
+      [{ group: "Number of Activities", cols: [{ key: "target", label: "Target" }, { key: "ach", label: "Achievement" }] }],
+      "Number of Participants", true,
       { target: targetOf("Extension Activity"), ach: String(extensions.reduce((s, r) => s + r.noOfActivities, 0)) },
-      "Number of Participants", extCaste),
+      extCaste),
     {
-      heading: "",
+      heading: "Other Extension Activities",
       parts: [
         {
           kind: "grid",
           noSerial: true,
-          titleBands: ["Other Extension Activities"],
           columns: [
             { key: "type", label: "Activity Type" },
             { key: "count", label: "Number of Activities" },
@@ -2293,14 +2303,15 @@ async function buildTechnicalAchievementSummary(scope: ReportScope): Promise<Cus
   };
   for (const [label, list] of groupInto(production, productionLabel)) {
     blocks.push(
-      oneRow(label, "", label,
-        [
+      miniGrid(label,
+        [{ group: label, cols: [
           { key: "target", label: "Target" },
           { key: "qty", label: "Quantity" },
           { key: "val", label: "Value (Rs.)" },
-        ],
+        ] }],
+        "Number of Participants", false,
         { target: "", qty: String(list.reduce((s, r) => s + Number(r.quantity ?? 0), 0)), val: String(list.reduce((s, r) => s + Number(r.value ?? 0), 0)) },
-        "Number of Participants", list),
+        list),
     );
   }
 
@@ -4543,11 +4554,12 @@ async function buildCfldTechnicalParameterKvk(kvkId: string): Promise<CustomTabl
   );
 
   return {
+    caption: "PERFORMANCE OF THE DEMONSTRATION UNDER CFLD ON PULSE AND OILSEED CROPS (CFLD)\n(During Kharif, Rabi and Summer)",
     blocks: [
-      { heading: "1. Technical Parameters", parts: [{ kind: "grid", columns: p1cols, rows: p1rows, keepEmpty: true }] },
-      { heading: "2. Economic parameters", parts: [{ kind: "grid", columns: p2cols, rows: p2rows, keepEmpty: true }] },
-      { heading: "3. Socio-economic impact parameters", parts: [{ kind: "grid", columns: p3cols, rows: p3rows, keepEmpty: true }] },
-      { heading: "4. Pulses/Oilseed Farmers' perception of the intervention demonstrated", parts: [{ kind: "grid", columns: p4cols, rows: p4rows, keepEmpty: true }] },
+      { heading: "1. Technical Parameters:", parts: [{ kind: "grid", columns: p1cols, rows: p1rows, keepEmpty: true }] },
+      { heading: "2. Economic parameters:", parts: [{ kind: "grid", columns: p2cols, rows: p2rows, keepEmpty: true }] },
+      { heading: "3. Socio-economic impact parameters:", parts: [{ kind: "grid", columns: p3cols, rows: p3rows, keepEmpty: true }] },
+      { heading: "4. Pulses/Oilseed Farmers' perception of the intervention demonstrated:", parts: [{ kind: "grid", columns: p4cols, rows: p4rows, keepEmpty: true }] },
     ],
   };
 }
@@ -5495,18 +5507,19 @@ const SECTION_3_BUILDERS: Record<string, (scope: ReportScope) => Promise<CustomT
   csisaDetail: flatReportTable({
     model: "csisaDetail",
     lead: [KVK],
+    caption: "Details of Cereal Systems Initiative for South Asia (CSISA)",
     columns: [
       { key: "season", label: "Season" },
       { key: "villageCovered", label: "Village Covered" },
       { key: "blockCovered", label: "Block Covered" },
       { key: "districtCovered", label: "District Covered" },
       { key: "respondent", label: "Respondent" },
-      { key: "trailName", label: "Trail Name" },
-      { key: "areaCoveredHa", label: "Area Covered (ha)" },
+      { key: "trailName", label: "Trial Name" },
+      { key: "areaCoveredHa", label: "Area Covered(ha)" },
       { key: "cropName", label: "Name of Crop" },
       { key: "techOptions", label: "Tech. Options" },
       { key: "varietyName", label: "Variety Name" },
-      { key: "durationDays", label: "Duration (Days)" },
+      { key: "durationDays", label: "Duration(Days)" },
       { key: "sowingDate", label: "Sowing Date" },
       { key: "harvestingDate", label: "Harvesting Date" },
       { key: "maturityDays", label: "Maturity Days" },
@@ -5528,7 +5541,7 @@ const SECTION_3_BUILDERS: Record<string, (scope: ReportScope) => Promise<CustomT
       { key: "areaHa", label: "Crop and variety wise area (ha) covered under seed production" },
       { key: "yieldHa", label: "Crop and variety wise Yield (Q/ha)" },
       { key: "qtySeedProducedQ", label: "Crop and variety wise quantity of seed produced (Q)" },
-      { key: "qtySeedSaleOutQ", label: "Crop and variety wise sale out (Q)" },
+      { key: "qtySeedSaleOutQ", label: "Crop and variety wise quantity of seed sale out (Q)" },
       { key: "farmersPurchased", label: "Crop and variety wise number of farmers purchased seed from KVK" },
       { key: "qtySeedSaleOutToFarmersQ", label: "Quantity of seed sale out to farmers (Q)" },
       { key: "villagesCovered", label: "No of village covered through sale of seed" },

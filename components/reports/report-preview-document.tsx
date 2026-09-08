@@ -251,16 +251,26 @@ function CompositeBlock({ block }: { block: ReportBlock }) {
 }
 
 function TableBody({ table }: { table: ReportTable }) {
+  // A plain-grid table's caption is rendered inside <Grid>; a blocks/pairs
+  // table needs it drawn here, above the first block.
   if (table.blocks) {
     return (
       <div className="space-y-4">
+        {table.caption && <Caption text={table.caption} />}
         {table.blocks.map((block, index) => (
           <CompositeBlock key={index} block={block} />
         ))}
       </div>
     );
   }
-  if (table.pairs) return <PairList pairs={table.pairs} />;
+  if (table.pairs) {
+    return (
+      <div className="space-y-2">
+        {table.caption && <Caption text={table.caption} />}
+        <PairList pairs={table.pairs} />
+      </div>
+    );
+  }
   return <Grid grid={table} />;
 }
 

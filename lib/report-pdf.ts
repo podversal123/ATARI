@@ -437,6 +437,19 @@ export function generateReportPdf(opts: ReportPdfOptions) {
           cursorY += 5;
         }
 
+        // A plain-grid table's caption is drawn inside renderGrid; for a
+        // blocks/pairs table it has to be drawn here, above the first block.
+        if (table.caption && (table.blocks || table.pairs)) {
+          doc.setFont("helvetica", "bold");
+          doc.setFontSize(9);
+          doc.setTextColor(40, 40, 40);
+          for (const line of doc.splitTextToSize(table.caption, pageW - MARGIN * 2)) {
+            doc.text(line, MARGIN, cursorY);
+            cursorY += 5;
+          }
+          cursorY += 1;
+        }
+
         if (table.blocks) {
           for (const block of table.blocks) {
             ensureSpace(20);
