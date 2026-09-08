@@ -213,9 +213,15 @@ export function Topbar() {
                  * Super Admin chrome. A full page load tears everything down
                  * at once, no in-between render. `replace` so Back doesn't
                  * return to the now-logged-out dashboard.
+                 *
+                 * `silent: true` - even with the hard nav, a plain
+                 * clearSession() fires the store-change event and React
+                 * flushes one re-render (topbar -> "Super Administrator")
+                 * before the browser unloads. Skipping the event keeps the
+                 * real identity on screen right up until the page goes.
                  */
                 fetch("/api/auth/logout", { method: "POST" }).finally(() => {
-                  clearSession();
+                  clearSession({ silent: true });
                   window.location.replace("/login");
                 });
               }}

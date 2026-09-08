@@ -23,9 +23,15 @@ export function persistSession(session: Session) {
   window.dispatchEvent(new Event("atari-ams-session-change"));
 }
 
-export function clearSession() {
+/**
+ * `silent` skips the store-change event. Use it on logout: firing the event
+ * makes every `useSession()` reader fall back to the Super Admin default and
+ * repaint for a frame, which on a KVK Admin looked like "Super Admin ki
+ * jhalak" just before the hard navigation to /login tore the page down.
+ */
+export function clearSession(options?: { silent?: boolean }) {
   window.sessionStorage.removeItem(STORAGE_KEY);
-  window.dispatchEvent(new Event("atari-ams-session-change"));
+  if (!options?.silent) window.dispatchEvent(new Event("atari-ams-session-change"));
 }
 
 /** Whether this tab already has a cached session - false in a fresh tab, where the role must be fetched from the server before rendering role-dependent chrome. */
