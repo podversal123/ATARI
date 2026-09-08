@@ -3401,6 +3401,53 @@ async function buildDigitalOtherChannels(scope: ReportScope): Promise<CustomTabl
 }
 
 /**
+ * 3.11.B "CRA Extension Activity" (kvk-report 1.11.B) - one row per activity
+ * with a General/OBC/SC/ST x M/F "Number of farmers under exposure" block.
+ */
+async function buildCraExtension(scope: ReportScope): Promise<CustomTableResult> {
+  const records = await prisma.craExtensionActivity.findMany({
+    where: scopeAndPeriod(scope, "craExtensionActivity"),
+    select: {
+      extensionActivity: true, withinOrWithoutState: true, exposureVisits: true,
+      farmersUnderExposure: true, farmersByCategory: true, startDate: true, endDate: true,
+      kvk: { select: { name: true } },
+    },
+    orderBy: [{ kvkId: "asc" }, { startDate: "asc" }],
+  });
+  const columns: ReportColumn[] = [
+    { key: "kvk", label: "KVK" },
+    { key: "activity", label: "Name of Extension Activity" },
+    { key: "state", label: "Within State/Out of State" },
+    { key: "visits", label: "Exposure visit (no.)" },
+    { key: "start", label: "Start Date" },
+    { key: "end", label: "End Date" },
+    ...casteMftColumns("Number of farmers under exposure", { grandLabel: "Total" }),
+  ];
+  if (records.length === 0) return { columns, noSerial: true, keepEmpty: true };
+  return {
+    columns,
+    noSerial: true,
+    rows: records.map((r) => {
+      const caste = casteFromJson(r.farmersByCategory);
+      const anyCaste = CASTE_SUM_FIELDS.some((f) => caste[f] > 0);
+      const casteCells = casteMftRow([caste], "", true);
+      // Records entered before the caste block existed only have the single
+      // count - show it in the Grand Total cell rather than losing it.
+      if (!anyCaste && r.farmersUnderExposure) casteCells.grandT = String(r.farmersUnderExposure);
+      return {
+        kvk: r.kvk.name,
+        activity: r.extensionActivity,
+        state: r.withinOrWithoutState ?? "",
+        visits: String(r.exposureVisits),
+        start: stringifyValue(r.startDate),
+        end: stringifyValue(r.endDate),
+        ...casteCells,
+      };
+    }),
+  };
+}
+
+/**
  * Model-name -> builder for every flat/near-flat table in sections 4/5/6.
  * `fetchTable` consults this when a tree entry has no explicit `custom`, so
  * both SUPER_ADMIN_TREE and KVK_TREE pick these up automatically despite
@@ -3410,6 +3457,7 @@ const SECTION_456_BUILDERS: Record<string, (scope: ReportScope) => Promise<Custo
   kvkActivityImpact: flatReportTable({
     model: "kvkActivityImpact",
     lead: [STATE_LEAD, DISTRICT_LEAD],
+    caption: "Impact of KVK activities/ large-scale adoption of technology",
     columns: [
       { key: "specificArea", label: "Name of specific area" },
       { key: "briefDetails", label: "Brief details of the area" },
@@ -3424,6 +3472,7 @@ const SECTION_456_BUILDERS: Record<string, (scope: ReportScope) => Promise<Custo
   }),
   entrepreneurshipDetail: flatReportTable({
     model: "entrepreneurshipDetail",
+    caption: "Details of entrepreneurship/startup developed by KVK",
     columns: [
       { key: "entrepreneurOrEnterprise", label: "Name of the entrepreneur" },
       { key: "enterpriseType", label: "Type of Enterprise" },
@@ -3459,7 +3508,7 @@ const SECTION_456_BUILDERS: Record<string, (scope: ReportScope) => Promise<Custo
     model: "operationalAreaDetail",
     lead: [KVK],
     columns: [
-      { key: "taluk", label: "Name of Taluk" }, { key: "block", label: "Name of the block" }, { key: "village", label: "Name of the villages" },
+      { key: "taluk", label: "Name of Taluka" }, { key: "block", label: "Name of the block" }, { key: "village", label: "Name of the villages" },
       { key: "majorCrops", label: "Major crops" }, { key: "majorProblems", label: "Major problems identified (crop-wise)" }, { key: "thrustAreas", label: "Identified Thrust Areas" },
     ],
   }),
@@ -3578,6 +3627,7 @@ const SECTION_456_BUILDERS: Record<string, (scope: ReportScope) => Promise<Custo
   }),
   functionalLinkage: flatReportTable({
     model: "functionalLinkage",
+    caption: "Functional Linkage with Different Organisations",
     columns: [{ key: "organizationName", label: "Name of Organization" }, { key: "natureOfLinkage", label: "Nature of Linkage" }],
   }),
   prevalentDiseaseCrop: flatReportTable({
@@ -3591,9 +3641,11 @@ const SECTION_456_BUILDERS: Record<string, (scope: ReportScope) => Promise<Custo
   prevalentDiseaseLivestock: flatReportTable({
     model: "prevalentDiseaseLivestock",
     lead: [KVK],
+    // Distinct column set from the Crops table (kvk-report 1.2.C): Livestock
+    // Type / Mortality / animals treated, not area / commodity loss.
     columns: [
-      { key: "diseaseName", label: "Name of the Disease" }, { key: "speciesAffected", label: "Crop" }, { key: "outbreakDate", label: "Date of outbreak" },
-      { key: "areaAffected", label: "Area affected (in ha)" }, { key: "commodityLossPercent", label: "% Commodity loss" }, { key: "preventiveMeasures", label: "Preventive measures taken for area (in ha)" },
+      { key: "diseaseName", label: "Name of the Disease" }, { key: "speciesAffected", label: "Livestock Type" }, { key: "outbreakDate", label: "Date of outbreak" },
+      { key: "mortalityMorbidity", label: "Mortality (%)" }, { key: "animalsVaccinated", label: "No. of Animals Treated" }, { key: "preventiveMeasures", label: "Preventive Measures Taken" },
     ],
   }),
   ppvFraTrainingProgramme: buildPpvTraining,
@@ -5439,18 +5491,7 @@ const SECTION_3_BUILDERS: Record<string, (scope: ReportScope) => Promise<CustomT
     ],
     noSerial: true,
   }),
-  craExtensionActivity: flatReportTable({
-    model: "craExtensionActivity",
-    lead: [KVK],
-    columns: [
-      { key: "extensionActivity", label: "Extension Activity" },
-      { key: "startDate", label: "Start Date" },
-      { key: "endDate", label: "End Date" },
-      { key: "withinOrWithoutState", label: "Within/Without State" },
-      { key: "exposureVisits", label: "Exposure Visits" },
-      { key: "farmersUnderExposure", label: "Farmers Under Exposure" },
-    ],
-  }),
+  craExtensionActivity: buildCraExtension,
   csisaDetail: flatReportTable({
     model: "csisaDetail",
     lead: [KVK],

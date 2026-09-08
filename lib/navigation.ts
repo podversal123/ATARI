@@ -2332,6 +2332,8 @@ const projects = group(
           label: "Number of Farmers Under Exposure",
           required: true,
         },
+        // Report 3.11.B breaks "Number of farmers under exposure" down by General/OBC/SC/ST x M/F.
+        { key: "farmersDetails", label: "Number of farmers under exposure", fieldKind: "demographic-breakdown", demographicVariant: "grid", formOnly: true },
       ]),
     ]),
     group("csisa", "CSISA", [

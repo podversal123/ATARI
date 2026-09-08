@@ -2707,6 +2707,9 @@ model CraExtensionActivity {
   withinOrWithoutState String?
   exposureVisits       Int
   farmersUnderExposure Int
+  /// Report 3.11.B "Number of farmers under exposure" is a General/OBC/SC/ST x
+  /// M/F breakdown in the reference, not the single count `farmersUnderExposure` held.
+  farmersByCategory    Json?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
