@@ -198,6 +198,33 @@ function farmersByCategory(v: Record<string, string>) {
   return Object.fromEntries(demographicKeys.map((k) => [k, String(int(v[k]) ?? 0)]));
 }
 
+/** DRMR Activity Item/Activity dropdown label -> the stable `DrmrActivityItem.itemKey` report 3.10.B renders by. */
+const DRMR_ITEM_KEY: Record<string, string> = {
+  "Training (Capacity building /skill development etc)": "training",
+  "Area under FLDs": "areaUnderFlds",
+  "Awareness camps, exposure visit etc": "awarenessCamps",
+  "Seeds (Field Crops)": "seeds",
+  "Small equipments (Upto Rs.2000)": "smallEquipments",
+  "Large equipments (more than Rs.2000)": "largeEquipments",
+  "Fertilizers (NPK)/ Secondary/ Micro Fertilizers": "fertilizers",
+  "Plant Protection chemicals": "ppChemicals",
+  "Distribution of Literature": "distributionOfLiterature",
+  "Kisan Mela": "kisanMela",
+  "Any other (specify)": "anyOther",
+};
+function drmrItemData(v: Record<string, string>, zoneId: string) {
+  const key = DRMR_ITEM_KEY[(v.itemActivity ?? "").trim()];
+  if (!key) return null;
+  return {
+    zoneId,
+    itemKey: key,
+    nameSpecification: str(v.nameSpecification),
+    unit: str(v.unit),
+    quantity: dec(v.quantity),
+    farmersByCategory: farmersByCategory(v),
+  };
+}
+
 /** Parses MonthQuarterGridField's own JSON-string form value ({month: {quarter: "Yes"|"No"}}) into a real object for the Json column - undefined for a blank/empty grid so an untouched matrix doesn't store `{}`. */
 function quarterlyCompletion(raw: string | undefined) {
   if (!raw?.trim()) return undefined;
@@ -996,8 +1023,9 @@ export const LEAF_RECORD_REGISTRY: Record<string, CreateFn> = {
         bcRatioFp: dec(v.bcRatioFp),
       },
     }),
-  "projects/drmr/drmr-activity": (v, ctx) =>
-    prisma.drmrActivity.create({
+  "projects/drmr/drmr-activity": (v, ctx) => {
+    const item = drmrItemData(v, ctx.zoneId);
+    return prisma.drmrActivity.create({
       data: {
         ...ctx,
         startDate: reqDate(v.startDate),
@@ -1010,8 +1038,10 @@ export const LEAF_RECORD_REGISTRY: Record<string, CreateFn> = {
         unit: str(v.unit),
         quantity: dec(v.quantity),
         farmersByCategory: farmersByCategory(v),
+        ...(item ? { items: { create: item } } : {}),
       },
-    }),
+    });
+  },
   "projects/cra/cra-details": (v, ctx) =>
     prisma.craDetail.create({
       data: {
@@ -2232,8 +2262,8 @@ export const LEAF_UPDATE_REGISTRY: Record<string, UpdateFn> = {
         bcRatioFp: dec(v.bcRatioFp),
       },
     }),
-  "projects/drmr/drmr-activity": (id, v, ctx) =>
-    prisma.drmrActivity.updateMany({
+  "projects/drmr/drmr-activity": async (id, v, ctx) => {
+    const res = await prisma.drmrActivity.updateMany({
       where: { id, ...kvkScope(ctx) },
       data: {
         startDate: reqDate(v.startDate),
@@ -2247,7 +2277,15 @@ export const LEAF_UPDATE_REGISTRY: Record<string, UpdateFn> = {
         quantity: dec(v.quantity),
         farmersByCategory: farmersByCategory(v),
       },
-    }),
+    });
+    const item = drmrItemData(v, ctx.zoneId);
+    if (res.count > 0 && item) {
+      // Replace just this Item/Activity's row on the submission.
+      await prisma.drmrActivityItem.deleteMany({ where: { drmrActivityId: id, itemKey: item.itemKey } });
+      await prisma.drmrActivityItem.create({ data: { ...item, drmrActivityId: id } });
+    }
+    return res;
+  },
   "projects/cra/cra-details": (id, v, ctx) =>
     prisma.craDetail.updateMany({
       where: { id, ...kvkScope(ctx) },

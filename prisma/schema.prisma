@@ -2659,11 +2659,37 @@ model DrmrActivity {
   quantity                 Decimal? @db.Decimal(12, 2)
   farmersByCategory        Json?
 
+  /// Report 3.10.B renders ONE DRMR submission as a fixed list of Item/Activity
+  /// rows (Training / Area under FLDs / Awareness camps / Seeds / equipments /
+  /// Fertilizers / PP chemicals / Distribution of Literature / Kisan Mela /
+  /// Any other), each with its own Quantity + General/OBC/SC/ST x M/F block.
+  items DrmrActivityItem[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([zoneId])
   @@index([kvkId])
+}
+
+/// One Item/Activity line of a DRMR submission (report 3.10.B / kvk-report 1.10.A).
+model DrmrActivityItem {
+  id               String       @id @default(cuid())
+  drmrActivityId   String
+  drmrActivity     DrmrActivity @relation(fields: [drmrActivityId], references: [id], onDelete: Cascade)
+  zoneId           String
+  /// Stable key: training | areaUnderFlds | awarenessCamps | seeds | smallEquipments | largeEquipments | fertilizers | ppChemicals | distributionOfLiterature | kisanMela | anyOther
+  itemKey          String
+  nameSpecification String?
+  unit             String?
+  quantity         Decimal?     @db.Decimal(14, 2)
+  farmersByCategory Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([drmrActivityId])
+  @@index([zoneId])
 }
 
 // ---------------------------------------------------------------------------

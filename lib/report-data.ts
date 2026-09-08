@@ -2002,6 +2002,16 @@ async function buildWorldSoilDay(scope: ReportScope): Promise<CustomTableResult>
     participants: String(list.reduce((s, r) => s + r.totalParticipants, 0)),
   });
 
+  // Single-KVK report (kvk-report 1.6.B): one plain grid with a trailing
+  // "Total" row, no per-KVK band and no "all KVKs" grand total.
+  if (scope.kvkId) {
+    return {
+      columns,
+      noSerial: true,
+      rows: records.map((r, i) => rowOf(r, i)),
+      totalRow: totalOf(records, "Total"),
+    };
+  }
   return {
     blocks: [
       ...perKvkBlocks(records, columns, rowOf, (list) => totalOf(list, "Total")),
@@ -4362,38 +4372,74 @@ async function buildAgriDroneIntroduction(scope: ReportScope): Promise<CustomTab
   return { blocks };
 }
 
-/** 3.10.B "DRMR Activity" (super-v2-prod.pdf p.80-81) - per KVK, one row per item/activity with the caste participant block from `farmersByCategory`. */
+/**
+ * 3.10.B "DRMR Activity" (super-v2-prod.pdf p.80-81 / kvk-report 1.10.A) - a
+ * caption, then one "KVK <name> | Reporting Year: <date>" block per submission
+ * holding the fixed Item/Activity list (with the "Frontline demonstrations..."
+ * and "Input Distribution" band headers) and a General/OBC/SC/ST x M/F block
+ * per row. Rows come from `DrmrActivityItem`; unfilled rows show blank. The
+ * 50pg kvk-report carries an extra "Name/Specification" column the 93pg does not.
+ */
+const DRMR_ROWS: { band?: string; itemKey?: string; label: string; unit: string }[] = [
+  { itemKey: "training", label: "Training (Capacity building /skill development etc)", unit: "Days" },
+  { band: "Frontline demonstrations (FLDs) and other demonstrations", label: "" , unit: "" },
+  { itemKey: "areaUnderFlds", label: "Area under FLDs", unit: "Hectare" },
+  { itemKey: "awarenessCamps", label: "Awareness camps, exposure visit etc", unit: "No." },
+  { band: "Input Distribution", label: "", unit: "" },
+  { itemKey: "seeds", label: "Seeds (Field Crops)", unit: "Kg" },
+  { itemKey: "smallEquipments", label: "Small equipments (Upto Rs.2000)", unit: "Number" },
+  { itemKey: "largeEquipments", label: "Large equipments (more than Rs.2000)", unit: "Number" },
+  { itemKey: "fertilizers", label: "Fertilizers (NPK)/ Secondary/ Micro Fertilizers", unit: "Kg" },
+  { itemKey: "ppChemicals", label: "Plant Protection chemicals", unit: "Lit." },
+  { itemKey: "distributionOfLiterature", label: "Distribution of Literature", unit: "No." },
+  { itemKey: "kisanMela", label: "Kisan Mela", unit: "No." },
+  { itemKey: "anyOther", label: "Any other (specify)", unit: "" },
+];
+
 async function buildDrmrActivity(scope: ReportScope): Promise<CustomTableResult> {
   const records = await prisma.drmrActivity.findMany({
     where: scopeAndPeriod(scope, "drmrActivity"),
-    select: { itemActivity: true, unit: true, quantity: true, farmersByCategory: true, kvk: { select: { name: true } } },
-    orderBy: { kvk: { name: "asc" } },
+    select: {
+      startDate: true,
+      kvk: { select: { name: true } },
+      items: { select: { itemKey: true, nameSpecification: true, unit: true, quantity: true, farmersByCategory: true } },
+    },
+    orderBy: [{ kvk: { name: "asc" } }, { startDate: "asc" }],
   });
-  type R = (typeof records)[number];
+  const singleKvk = !!scope.kvkId;
+  const CAPTION =
+    "Details Augmenting Rapeseed- Mustard Production of Tribal Farmers of Following states for Sustainable Livelihood Security under Scheduled Tribe Component";
   const columns: ReportColumn[] = [
     { key: "item", label: "Item/Activity" },
+    ...(singleKvk ? [{ key: "nameSpec", label: "Name/Specification" }] : []),
     { key: "unit", label: "Unit" },
     { key: "qty", label: "Quantity" },
     ...casteMftColumns("No. of Participants", { grandLabel: "Grand Total" }),
   ];
-  if (records.length === 0) return { columns, noSerial: true, keepEmpty: true };
-  const blocks: ReportBlock[] = [...groupInto(records, (r) => r.kvk.name).entries()].map(([kvkName, list]) => ({
-    heading: kvkName,
-    parts: [
-      {
-        kind: "grid" as const,
-        noSerial: true,
-        columns,
-        rows: list.map((r: R) => ({
-          item: r.itemActivity ?? "",
-          unit: r.unit ?? "",
-          qty: r.quantity != null ? stringifyValue(r.quantity) : "",
-          ...jsonCasteRow(r.farmersByCategory),
-        })),
-      },
-    ],
+  type R = (typeof records)[number];
+  const blank = { item: "", nameSpec: "", unit: "", qty: "" } as Record<string, string>;
+  const rowsFor = (items: R["items"]) => {
+    const byKey = new Map(items.map((it) => [it.itemKey, it]));
+    return DRMR_ROWS.map((def) => {
+      if (def.band) return { ...blank, item: def.band };
+      const it = def.itemKey ? byKey.get(def.itemKey) : undefined;
+      return {
+        item: def.label,
+        nameSpec: it?.nameSpecification ?? "-",
+        unit: it?.unit ?? def.unit,
+        qty: it?.quantity != null ? stringifyValue(it.quantity) : "",
+        ...casteMftRow([casteFromJson(it?.farmersByCategory ?? null)], "", true),
+      };
+    });
+  };
+  if (records.length === 0) {
+    return { caption: CAPTION, columns, noSerial: true, keepEmpty: true, rows: rowsFor([]) };
+  }
+  const blocks: ReportBlock[] = records.map((r: R) => ({
+    heading: `${r.kvk.name} | Reporting Year: ${r.startDate ? stringifyValue(r.startDate) : "-"}`,
+    parts: [{ kind: "grid" as const, noSerial: true, columns, rows: rowsFor(r.items) }],
   }));
-  return { blocks };
+  return { caption: CAPTION, blocks };
 }
 
 /** 3.11.A "CRA Details" (super-v2-prod.pdf p.81) - one block per state ("A. State: Bihar" ...), a serial column, farming-system+crop merged, and the caste participant block from `farmersByCategory`. */
