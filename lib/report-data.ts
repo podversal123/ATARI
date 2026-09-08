@@ -627,7 +627,8 @@ function buildOftKvkWiseDetails(codePrefix: string) {
       { num: "10.", label: "Process of farmers participation and their reaction", value: text(oft.farmersParticipationProcess) },
       { num: "11.", label: "Quantity", value: num(oft.quantity != null ? stringifyValue(oft.quantity) : null) },
       { num: "12.", label: "Unit", value: text(oft.unit) },
-      { num: "13.", label: "No. of Trial/Replication", value: num(oft.noOfTrialReplicationFarmer) },
+      // 50pg kvk-report labels this "/Farmer"; super-v2-prod.pdf's 93pg does not.
+      { num: "13.", label: scope.kvkId ? "No. of Trial/Replication/Farmer" : "No. of Trial/Replication", value: num(oft.noOfTrialReplicationFarmer) },
       { num: "14.", label: "OFT Start on", value: monthYear(oft.startMonth) },
       { num: "15.", label: "OFT End on", value: monthYear(oft.endMonth) },
       { num: "16.", label: "Critical Input", value: text(oft.criticalInput) },
