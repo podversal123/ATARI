@@ -100,6 +100,17 @@ const HEAD_STYLES = {
 /** Renders one grid (main table body, or a part inside a composite block) and returns the Y to continue at. */
 function renderGrid(doc: jsPDF, grid: ReportGrid, startY: number): number {
   const serial = !grid.noSerial;
+  // A caption line above the grid (super-v2-prod.pdf's "Performance of ..." sub-headings).
+  if (grid.caption) {
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9);
+    doc.setTextColor(40, 40, 40);
+    for (const line of doc.splitTextToSize(grid.caption, doc.internal.pageSize.getWidth() - MARGIN * 2)) {
+      doc.text(line, MARGIN, startY);
+      startY += 5;
+    }
+    startY += 1;
+  }
   if (grid.rows.length === 0 && !grid.totalRow && !grid.keepEmpty) {
     doc.setFont("helvetica", "italic");
     doc.setFontSize(9);
@@ -454,7 +465,8 @@ export function generateReportPdf(opts: ReportPdfOptions) {
 
             for (const part of block.parts) {
               ensureSpace(18);
-              if (part.caption) {
+              // Grid captions are drawn inside renderGrid; pairs captions still need drawing here.
+              if (part.caption && part.kind !== "grid") {
                 doc.setFont("helvetica", "bold");
                 doc.setFontSize(9);
                 doc.setTextColor(0, 0, 0);

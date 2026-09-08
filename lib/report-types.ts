@@ -151,6 +151,10 @@ export type ReportTable = {
   rows: ReportCell[];
   totalRow?: ReportCell;
   noSerial?: boolean;
+  /** Draw the column header even with no data rows (skips the "No data available" note) so a tester can see the exact structure before any data is entered. */
+  keepEmpty?: boolean;
+  /** A sub-heading line printed directly above the grid (super-v2-prod.pdf's "Performance of ..." captions). */
+  caption?: string;
   blocks?: ReportBlock[];
   pairs?: ReportPairList["pairs"];
 };

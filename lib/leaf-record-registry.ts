@@ -1185,6 +1185,7 @@ export const LEAF_RECORD_REGISTRY: Record<string, CreateFn> = {
         costOfInputs: reqDec(v.costOfInputs),
         grossIncome: reqDec(v.grossIncome),
         remarks: reqStr(v.remarks),
+        status: str(v.status),
       },
     }),
   "performance/infrastructure-performance/instructional-farm-crops": (v, ctx) =>
@@ -2400,6 +2401,7 @@ export const LEAF_UPDATE_REGISTRY: Record<string, UpdateFn> = {
         costOfInputs: reqDec(v.costOfInputs),
         grossIncome: reqDec(v.grossIncome),
         remarks: reqStr(v.remarks),
+        status: str(v.status),
       },
     }),
   "performance/infrastructure-performance/instructional-farm-crops": (id, v, ctx) =>

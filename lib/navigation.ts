@@ -2608,6 +2608,8 @@ const performanceIndicators = group(
         { key: "costOfInputs", label: "Cost of Inputs", required: true, formOnly: true },
         { key: "grossIncome", label: "Gross Income", required: true, formOnly: true },
         { key: "remarks", label: "Remarks", required: true, formOnly: true },
+        // Single-KVK report prints a "Status" column (Functional / Non-functional); not on atariams.org's own list table, so form-only here too.
+        { key: "status", label: "Status", formOnly: true },
       ], "Demonstration Units", undefined, "Demonstration Units", undefined, "Demonstration Units"),
       leaf("instructional-farm-crops", "Performance of Instructional Farm(crops)", [
         { key: "kvk", label: "KVK Name", readonly: true },

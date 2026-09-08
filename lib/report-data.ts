@@ -345,6 +345,8 @@ type CustomTableResult = {
   rows?: Record<string, string>[];
   totalRow?: Record<string, string>;
   noSerial?: boolean;
+  keepEmpty?: boolean;
+  caption?: string;
   blocks?: ReportBlock[];
   pairs?: { num?: string; label: string; value: string }[];
 };
@@ -776,7 +778,6 @@ async function buildSoilWaterAnalysis(scope: ReportScope): Promise<CustomTableRe
       },
       orderBy: { startDate: "asc" },
     });
-    if (rows.length === 0) return {};
     const columns: ReportColumn[] = [
       { key: "kvk", label: "KVK" },
       { key: "analysis", label: "Analysis" },
@@ -788,6 +789,7 @@ async function buildSoilWaterAnalysis(scope: ReportScope): Promise<CustomTableRe
       { key: "start", label: "Start date" },
       { key: "end", label: "End date" },
     ];
+    if (rows.length === 0) return { columns, keepEmpty: true, caption: "Detail of Soil, Water and Plant analysis" };
     const rowOf = (r: (typeof rows)[number]) => ({
       kvk: r.kvk.name,
       analysis: r.analysis,
@@ -802,6 +804,7 @@ async function buildSoilWaterAnalysis(scope: ReportScope): Promise<CustomTableRe
     return {
       columns,
       noSerial: false,
+      caption: "Detail of Soil, Water and Plant analysis",
       rows: rows.map(rowOf),
       totalRow: {
         kvk: "Grand Total", analysis: "", through: "",
@@ -894,6 +897,7 @@ async function buildSoilWaterAnalysis(scope: ReportScope): Promise<CustomTableRe
     columns,
     rows: out,
     noSerial: true,
+    caption: "Detail of Soil, Water and Plant analysis",
     totalRow: {
       analysis: "Grand Total",
       samples: String(grand.samples),
@@ -959,21 +963,23 @@ async function buildHrd(scope: ReportScope): Promise<CustomTableResult> {
     const days = Math.round((new Date(b).getTime() - new Date(a).getTime()) / 86_400_000) + 1;
     return days > 0 ? String(days) : "";
   };
+  const hrdColumns: ReportColumn[] = [
+    { key: "staff", label: "Name of Staff and designation" },
+    { key: "course", label: "Name of course/training program attended" },
+    { key: "start", label: "Start Date" },
+    { key: "end", label: "End Date" },
+    { key: "duration", label: "Duration" },
+    { key: "organizer", label: "Organizer" },
+    { key: "venue", label: "Venue" },
+  ];
+  if (rows.length === 0) return { columns: hrdColumns, keepEmpty: true };
   const blocks: ReportBlock[] = [...groupInto(rows, (r) => r.kvk?.name ?? "").entries()].map(
     ([kvkName, recs]) => ({
       heading: kvkName,
       parts: [
         {
           kind: "grid" as const,
-          columns: [
-            { key: "staff", label: "Name of Staff and designation" },
-            { key: "course", label: "Name of course/training program attended" },
-            { key: "start", label: "Start Date" },
-            { key: "end", label: "End Date" },
-            { key: "duration", label: "Duration" },
-            { key: "organizer", label: "Organizer" },
-            { key: "venue", label: "Venue" },
-          ],
+          columns: hrdColumns,
           rows: recs.map((r) => ({
             staff: r.staff,
             course: r.course,
@@ -1212,10 +1218,18 @@ const FLD_ECON_DEMO_GROUP = "Economics of demonstration (Rs./ha)";
 const FLD_ECON_CHECK_GROUP = "Economics of check (Rs./ha)";
 const FLD_OTHER_PARAMS_GROUP = "Other Parameters";
 
-function fldDetailColumns(isImplements: boolean): ReportColumn[] {
+function fldDetailColumns(isImplements: boolean, singleKvk = false): ReportColumn[] {
   const base: ReportColumn[] = [
     { key: "crop", label: "Crop" },
-    { key: "state", label: "States" },
+    // Single-KVK report (50pg kvk-report p.18-19): "Thematic Area" + "Name of
+    // the technology demonstrated" instead of a per-state split (client,
+    // 2026-09-08).
+    ...(singleKvk
+      ? [
+          { key: "thematic", label: "Thematic Area" },
+          { key: "tech", label: "Name of the technology demonstrated" },
+        ]
+      : [{ key: "state", label: "States" }]),
     { key: "demos", label: "No. of Demonstration" },
     { key: "farmers", label: "No. of Farmers" },
     { key: "area", label: "Area(ha)" },
@@ -1253,7 +1267,7 @@ function buildFldDetailsSubTable(sectorKey: string) {
         ...(scope.kvkId ? { fld: { kvkId: scope.kvkId } } : { zoneId: scope.zoneId }),
       },
       select: {
-        cropOrItem: true, thematicArea: true, noOfDemonstrations: true, noOfFarmers: true, areaHa: true,
+        cropOrItem: true, thematicArea: true, technologyDemonstrated: true, noOfDemonstrations: true, noOfFarmers: true, areaHa: true,
         yieldDemoQha: true, yieldCheckQha: true, percentIncrease: true,
         grossCostDemo: true, grossReturnDemo: true, netReturnDemo: true, bcrDemo: true,
         grossCostCheck: true, grossReturnCheck: true, netReturnCheck: true, bcrCheck: true,
@@ -1270,7 +1284,9 @@ function buildFldDetailsSubTable(sectorKey: string) {
       }),
       reportStates(scope.zoneId),
     ]);
-    if (details.length === 0) return {};
+    if (details.length === 0) {
+      return { columns: fldDetailColumns(isImplements, !!scope.kvkId), noSerial: true, keepEmpty: true };
+    }
 
     type Row = (typeof details)[number];
     const wavg = (rows: Row[], get: (d: Row) => unknown): number | null => {
@@ -1287,7 +1303,8 @@ function buildFldDetailsSubTable(sectorKey: string) {
     };
     const dash = (n: number | null) => (n === null ? "-" : n.toFixed(2));
 
-    const columns = fldDetailColumns(isImplements);
+    const singleKvk = !!scope.kvkId;
+    const columns = fldDetailColumns(isImplements, singleKvk);
     /** The crop-type level of the sub-heading ("Cereals of Crop Production") is the FLD's own Category (Sector -> Category -> Sub Category -> Crop cascade), falling back to Sub Category then Thematic Area. */
     const groupLabelOf = (d: Row) => d.fld.category?.trim() || d.fld.subCategory?.trim() || d.thematicArea?.trim() || "";
     const blocks: ReportBlock[] = [...groupInto(details, groupLabelOf).entries()].map(
@@ -1295,13 +1312,19 @@ function buildFldDetailsSubTable(sectorKey: string) {
         const crops = [...new Set(groupRows.map((d) => d.cropOrItem))];
         const gridRows: Record<string, string>[] = [];
         for (const crop of crops) {
-          stateNames.forEach((state, stateIndex) => {
+          // Single-KVK: one aggregated row per crop, no per-state split.
+          const iters: { state: string; stateIndex: number }[] = singleKvk
+            ? [{ state: "", stateIndex: 0 }]
+            : stateNames.map((state, stateIndex) => ({ state, stateIndex }));
+          iters.forEach(({ state, stateIndex }) => {
             const match = groupRows.filter(
-              (d) => d.cropOrItem === crop && d.fld.kvk.state.name === state,
+              (d) => d.cropOrItem === crop && (singleKvk || d.fld.kvk.state.name === state),
             );
             const row: Record<string, string> = {
               crop: stateIndex === 0 ? crop : "",
               state,
+              thematic: match[0]?.thematicArea ?? "",
+              tech: match[0]?.technologyDemonstrated ?? "",
               demos: String(match.reduce((s, d) => s + d.noOfDemonstrations, 0)),
               farmers: String(match.reduce((s, d) => s + d.noOfFarmers, 0)),
               area: match.reduce((s, d) => s + Number(d.areaHa), 0).toFixed(2),
@@ -1430,6 +1453,7 @@ async function buildTrainings(scope: ReportScope): Promise<CustomTableResult> {
       select: {
         ...CASTE_SELECT,
         clientele: true, trainingType: true, trainingArea: true, thematicArea: true,
+        onCampusOffCampus: true, title: true, program: true, startDate: true, endDate: true, fundingAgencyName: true,
         kvk: { select: { state: { select: { name: true } } } },
       },
     }),
@@ -1479,20 +1503,131 @@ async function buildTrainings(scope: ReportScope): Promise<CustomTableResult> {
     return blocks;
   };
 
+  // --- 2.4.B "Separate On Campus and Off Campus" (50pg kvk-report p.20-27):
+  // same clientele -> Training Area -> Thematic grouping as 2.4.A, but each
+  // row split into an ON CAMPUS and an OFF CAMPUS column set. ---
+  const isOn = (t: T) => /on[\s-]*campus/i.test(t.onCampusOffCampus ?? "");
+  const campusCols = (prefix: string, campusLabel: string): ReportColumn[] => [
+    { key: `${prefix}courses`, label: "No. of Courses", groups: [campusLabel] },
+    ...CASTE_GROUPS.flatMap((caste) =>
+      (["M", "F", "T"] as const).map((g) => ({
+        key: `${prefix}${CASTE_PREFIX[caste]}${g}`,
+        label: g,
+        groups: [campusLabel, "No. of Participants", caste],
+      })),
+    ),
+    ...(["M", "F", "T"] as const).map((g) => ({ key: `${prefix}tot${g}`, label: g, groups: [campusLabel, "TOTAL"] })),
+  ];
+  const campusCells = (list: T[], prefix: string) => {
+    const m = list.reduce((a, t) => a + t.generalMale + t.obcMale + t.scMale + t.stMale, 0);
+    const f = list.reduce((a, t) => a + t.generalFemale + t.obcFemale + t.scFemale + t.stFemale, 0);
+    return {
+      [`${prefix}courses`]: String(list.length),
+      ...casteMftRow(list, prefix, false),
+      [`${prefix}totM`]: String(m),
+      [`${prefix}totF`]: String(f),
+      [`${prefix}totT`]: String(m + f),
+    };
+  };
+  const separateCampusBlocks = (): ReportBlock[] => {
+    const cols: ReportColumn[] = [
+      { key: "row", label: "Training Area with Thematic Area" },
+      ...campusCols("on", "ON CAMPUS"),
+      ...campusCols("off", "OFF CAMPUS"),
+    ];
+    const rowFor = (list: T[]) => ({ ...campusCells(list.filter(isOn), "on"), ...campusCells(list.filter((t) => !isOn(t)), "off") });
+    const blocks: ReportBlock[] = [];
+    for (const [outer, outerRows] of groupInto(trainings, (t) => label(t.trainingType))) {
+      const rows: Record<string, string>[] = [];
+      for (const [area, areaRows] of groupInto(outerRows, (t) => label(t.trainingArea))) {
+        rows.push({ row: area });
+        for (const [thematic, tRows] of groupInto(areaRows, (t) => label(t.thematicArea))) {
+          rows.push({ row: thematic, ...rowFor(tRows) });
+        }
+        rows.push({ row: "Sub Total", ...rowFor(areaRows) });
+      }
+      blocks.push({ heading: outer, parts: [{ kind: "grid", noSerial: true, keepEmpty: true, columns: cols, rows }] });
+    }
+    return blocks;
+  };
+
+  // --- 2.4.C (50pg) "Sponsored Training Programmes" - one row per training
+  // that has a sponsoring agency. ---
+  const MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const sponsoredPart = (): ReportBlockPart => {
+    const sponsored = trainings.filter((t) => (t.fundingAgencyName ?? "").trim() !== "");
+    const columns: ReportColumn[] = [
+      { key: "title", label: "Training title" },
+      { key: "thematic", label: "Thematic area" },
+      { key: "month", label: "Month" },
+      { key: "duration", label: "Duration (Days)" },
+      { key: "client", label: "Client(PF/RY/EF)" },
+      { key: "courses", label: "No. Of Courses" },
+      ...casteMftColumns("No. of Participants", { grandLabel: "Grand Total" }),
+      { key: "agency", label: "Sponsoring Agency" },
+    ];
+    return {
+      kind: "grid",
+      keepEmpty: true,
+      columns,
+      rows: sponsored.map((t) => ({
+        title: t.title,
+        thematic: t.thematicArea ?? "",
+        month: t.startDate ? `${MON[new Date(t.startDate).getMonth()]} ${new Date(t.startDate).getFullYear()}` : "-",
+        duration:
+          t.startDate && t.endDate
+            ? String(Math.max(0, Math.round((+new Date(t.endDate) - +new Date(t.startDate)) / 86400000)))
+            : "-",
+        client: t.clientele ?? t.program ?? "-",
+        courses: "1",
+        ...casteMftRow([t], "", true),
+        agency: t.fundingAgencyName ?? "",
+      })),
+      totalRow:
+        sponsored.length > 0
+          ? { title: "Total", courses: String(sponsored.length), ...casteMftRow(sponsored, "", true) }
+          : undefined,
+    };
+  };
+
+  // Single-KVK report follows the 50pg kvk-report Training layout: A (Type
+  // Wise) + B (Separate On/Off Campus) + C (Sponsored Training Programmes),
+  // no state-wise table, no "Clientele Wise" (client, 2026-09-08).
+  if (scope.kvkId) {
+    return {
+      blocks: [
+        { heading: "2.4.A - Consolidate table (On & Off Campus) Training Type Wise", parts: [] },
+        ...consolidateBlocks("trainingType"),
+        { heading: "2.4.B - Separate On Campus and Off Campus Training Type Wise", parts: [] },
+        ...separateCampusBlocks(),
+        { heading: "2.4.C - Sponsored Training Programmes", parts: [sponsoredPart()] },
+      ],
+    };
+  }
+
   return {
     blocks: [
-      {
-        heading: "State-wise details of training programme",
-        parts: [
-          {
-            kind: "grid",
-            noSerial: true,
-            columns: stateColumns,
-            rows: stateRows,
-            totalRow: { row: "Total", ...stateRowFor(trainings) },
-          },
-        ],
-      },
+      // "State-wise details of training programme" only makes sense across
+      // states - a single-KVK report (KVK Admin, or a Super Admin filtered
+      // to one KVK) has no state dimension, and the 50pg kvk-report goes
+      // straight to the Consolidate table. So it is dropped for that scope
+      // (client, 2026-09-08: "kvk ke report me kahi Bihar/Jharkhand nahi").
+      ...(scope.kvkId
+        ? []
+        : [
+            {
+              heading: "State-wise details of training programme",
+              parts: [
+                {
+                  kind: "grid" as const,
+                  noSerial: true,
+                  columns: stateColumns,
+                  rows: stateRows,
+                  totalRow: { row: "Total", ...stateRowFor(trainings) },
+                },
+              ],
+            },
+          ]),
       { heading: "2.4.A - Consolidate table (On & Off Campus) Training Type Wise", parts: [] },
       ...consolidateBlocks("trainingType"),
       { heading: "2.4.C - Consolidate table (On & Off Campus) Clientele Wise", parts: [] },
@@ -1546,6 +1681,29 @@ async function buildExtensionActivities(scope: ReportScope): Promise<CustomTable
   const natureColumns = mkColumns("nature", "Nature of Extension Activity");
   const natures = [...new Set(rows.map((r) => r.natureOfExtensionActivity))];
 
+  const natureBlock = {
+    kind: "grid" as const,
+    noSerial: true,
+    columns: natureColumns,
+    rows: natures.map((n) => ({ nature: n, ...rowFor(rows.filter((r) => r.natureOfExtensionActivity === n)) })),
+    totalRow: { nature: "Total", ...rowFor(rows) },
+  };
+
+  // A single-KVK report has no state dimension - the 50pg kvk-report shows
+  // only "A. Details of various extension Programmes" (by nature), no
+  // per-state split, no Bihar/Jharkhand (client, 2026-09-08).
+  if (scope.kvkId) {
+    return {
+      blocks: [
+        {
+          heading: "A. Details of various extension Programmes",
+          notes: ["(Including activities of FLD programmes)"],
+          parts: [natureBlock],
+        },
+      ],
+    };
+  }
+
   return {
     blocks: [
       {
@@ -1561,18 +1719,7 @@ async function buildExtensionActivities(scope: ReportScope): Promise<CustomTable
           },
         ],
       },
-      {
-        heading: "B. Details of various extension Programmes",
-        parts: [
-          {
-            kind: "grid",
-            noSerial: true,
-            columns: natureColumns,
-            rows: natures.map((n) => ({ nature: n, ...rowFor(rows.filter((r) => r.natureOfExtensionActivity === n)) })),
-            totalRow: { nature: "Total", ...rowFor(rows) },
-          },
-        ],
-      },
+      { heading: "B. Details of various extension Programmes", parts: [natureBlock] },
     ],
   };
 }
@@ -1590,12 +1737,31 @@ async function buildOtherExtensionActivities(scope: ReportScope): Promise<Custom
     }),
     reportStates(scope.zoneId),
   ]);
+  const natures = [...new Set(rows.map((r) => r.natureOfExtensionActivity))];
+
+  // Single-KVK report: the 50pg kvk-report shows a plain "Nature of
+  // Extension Activity | No. of activities" table - no per-state columns
+  // (client, 2026-09-08).
+  if (scope.kvkId) {
+    return {
+      noSerial: true,
+      columns: [
+        { key: "nature", label: "Nature of Extension Activity" },
+        { key: "total", label: "No. of activities" },
+      ],
+      rows: natures.map((nature) => ({
+        nature,
+        total: String(rows.filter((r) => r.natureOfExtensionActivity === nature).reduce((a, r) => a + r.noOfActivities, 0)),
+      })),
+      totalRow: { nature: "Total", total: String(rows.reduce((a, r) => a + r.noOfActivities, 0)) },
+    };
+  }
+
   const columns: ReportColumn[] = [
     { key: "nature", label: "Nature of Extension Activity" },
     ...stateNames.map((s) => ({ key: `st|${s}`, label: s, groups: ["No. of activities"] })),
     { key: "total", label: "Total", groups: ["No. of activities"] },
   ];
-  const natures = [...new Set(rows.map((r) => r.natureOfExtensionActivity))];
   return {
     columns,
     noSerial: true,
@@ -1628,7 +1794,6 @@ async function buildTechnologyWeek(scope: ReportScope): Promise<CustomTableResul
       select: { typeOfActivities: true, noOfActivities: true, relatedCropTechnology: true, ...CASTE_SELECT, kvk: { select: { name: true } } },
       orderBy: { createdAt: "asc" },
     });
-    if (rows.length === 0) return {};
     const columns: ReportColumn[] = [
       { key: "kvk", label: "KVK" },
       { key: "type", label: "Type of activities" },
@@ -1636,6 +1801,7 @@ async function buildTechnologyWeek(scope: ReportScope): Promise<CustomTableResul
       ...casteMftColumns("Number of participants", { grandLabel: "Total" }),
       { key: "related", label: "Related crop/livestock technology" },
     ];
+    if (rows.length === 0) return { columns, noSerial: true, keepEmpty: true };
     const rowOf = (r: (typeof rows)[number]) => ({
       kvk: r.kvk.name,
       type: r.typeOfActivities,
@@ -1801,7 +1967,6 @@ async function buildWorldSoilDay(scope: ReportScope): Promise<CustomTableResult>
     },
     orderBy: [{ kvkId: "asc" }, { reportingYear: "asc" }],
   });
-  if (records.length === 0) return {};
   type R = (typeof records)[number];
 
   const columns: ReportColumn[] = [
@@ -1814,6 +1979,7 @@ async function buildWorldSoilDay(scope: ReportScope): Promise<CustomTableResult>
     { key: "vipNames", label: "Name(s) of VIP(s) involved if any" },
     { key: "participants", label: "Total No. of Participants attended the program" },
   ];
+  if (records.length === 0) return { columns, keepEmpty: true };
   const rowOf = (r: R, index: number) => ({
     sl: String(index + 1),
     year: r.reportingYear != null ? String(r.reportingYear) : "",
@@ -1855,7 +2021,6 @@ async function buildPoshanMaah(scope: ReportScope): Promise<CustomTableResult> {
     },
     orderBy: [{ kvkId: "asc" }, { activityDate: "asc" }],
   });
-  if (records.length === 0) return {};
   type R = (typeof records)[number];
 
   // super-v2-prod.pdf p.41: the six participant categories sit under the "No.
@@ -1876,6 +2041,7 @@ async function buildPoshanMaah(scope: ReportScope): Promise<CustomTableResult> {
     { key: "pPublic", label: "Public Representatives", groups: [P] },
     { key: "pTotal", label: "Total Participants" },
   ];
+  if (records.length === 0) return { columns, keepEmpty: true };
   const rowOf = (r: R) => ({
     date: stringifyValue(r.activityDate),
     acts: r.activitiesConducted,
@@ -2155,7 +2321,7 @@ async function buildProductionAndSupply(scope: ReportScope): Promise<CustomTable
     prisma.technologyProductProduction.findMany({
       where: scopeAndPeriod(scope, "technologyProductProduction"),
       select: {
-        productCategory: true, productType: true, product: true, category: true, variety: true,
+        productCategory: true, productType: true, product: true, category: true, variety: true, unit: true,
         quantity: true, value: true, ...CASTE_SELECT,
         kvk: { select: { state: { select: { name: true } } } },
       },
@@ -2217,6 +2383,53 @@ async function buildProductionAndSupply(scope: ReportScope): Promise<CustomTable
     (a, b) => catRank(a) - catRank(b) || a.localeCompare(b),
   );
   const letters = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J"];
+
+  // --- Single-KVK report: the 50pg kvk-report has NO state dimension here.
+  // Per category -> per Unit -> per product type (banded), a Crop/Variety/
+  // Quantity/Value/Farmers table with a Sub Total per type and a Total per
+  // unit. No Bihar/Jharkhand anywhere (client, 2026-09-08). ---
+  if (scope.kvkId) {
+    // productType is the banded crop-type ("Cereals"), product is the crop
+    // ("Paddy"), variety is the variety ("HD 2967") - matches the 50pg
+    // kvk-report's "Dairy Animals" band -> "Cow | Desi" layout.
+    const cropCol = (r: R) => (r.product ?? "").trim() || "-";
+    const varietyCol = (r: R) => (r.variety ?? "").trim() || "-";
+    const kvkBlocks: ReportBlock[] = [
+      { heading: "Production and supply of Technological products", parts: [] },
+    ];
+    categoryNames.forEach((cat, ci) => {
+      const inCat = records.filter((r) => (r.productCategory ?? "") === cat);
+      const catName = cat.replace(/^production of\s+/i, "");
+      const parts: ReportBlockPart[] = [];
+      for (const [unit, unitRows] of groupInto(inCat, (r) => (r.unit ?? "").trim() || "-")) {
+        const columns: ReportColumn[] = [
+          { key: "crop", label: "Crop" },
+          { key: "variety", label: "Variety" },
+          { key: "qty", label: `Quantity of Product (${unit})` },
+          { key: "val", label: "Value (Rs)" },
+          ...casteMftColumns("Farmers"),
+        ];
+        const rows: Record<string, string>[] = [];
+        for (const [type, typeRows] of groupInto(unitRows, typeOf)) {
+          rows.push({ crop: type });
+          for (const r of typeRows) {
+            rows.push({
+              crop: cropCol(r),
+              variety: varietyCol(r),
+              qty: `${Number(r.quantity ?? 0)} ${unit}`,
+              val: String(Number(r.value ?? 0)),
+              ...casteMftRow([r]),
+            });
+          }
+          rows.push({ crop: "Sub Total", variety: "", qty: `${qty(typeRows)} ${unit}`, val: String(val(typeRows)), ...casteMftRow(typeRows) });
+        }
+        rows.push({ crop: "Total", variety: "", qty: `${qty(unitRows)} ${unit}`, val: String(val(unitRows)), ...casteMftRow(unitRows) });
+        parts.push({ kind: "grid", noSerial: true, titleBands: [`Unit: ${unit}`], columns, rows });
+      }
+      kvkBlocks.push({ heading: `${letters[ci] ?? String(ci + 1)}. Production of ${catName}`, parts });
+    });
+    return { blocks: kvkBlocks };
+  }
 
   const blocks: ReportBlock[] = categoryNames.map((cat, ci): ReportBlock => {
     const inCat = records.filter((r) => (r.productCategory ?? "") === cat);
@@ -2308,7 +2521,6 @@ function buildSubPlanByType(type: "TSP" | "SCSP") {
         where: { type, kvkId: scope.kvkId },
         select: { activities: true, noOfTraining: true, beneficiaries: true, fundReceivedLakh: true, physicalOutcomeNote: true, locationBeneficiaries: true },
       });
-      if (recs.length === 0) return {};
       const planLabel = type === "TSP" ? "Tribal Sub Plan (TSP)" : "Scheduled Caste Sub Plan (SCSP)";
       const aRows = SUB_PLAN_ACTIVITY_ORDER.map((activity, i) => {
         const m = recs.filter((r) => r.activities === activity);
@@ -2419,7 +2631,6 @@ function buildNariKvk(
   return async (kvkId: string): Promise<CustomTableResult> => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const records: Record<string, any>[] = await (prisma as any)[model].findMany({ where: { kvkId }, orderBy: { createdAt: "asc" } });
-    if (records.length === 0) return {};
     const casteOf = (r: Record<string, unknown>): CasteRecord => ({
       generalMale: Number(r.male ?? 0), generalFemale: Number(r.female ?? 0),
       obcMale: Number(r.obcMale ?? 0), obcFemale: Number(r.obcFemale ?? 0),
@@ -2505,7 +2716,9 @@ function buildNariKvk(
         kind: "grid",
         columns: [...s.lead, ...casteCols],
         rows: records.map((r) => ({ ...s.row(r), ...casteMftRow([casteOf(r)], "", true) })),
-        totalRow: { [s.lead[0].key]: "Grand Total", ...casteMftRow(records.map(casteOf), "", true) },
+        ...(records.length
+          ? { totalRow: { [s.lead[0].key]: "Grand Total", ...casteMftRow(records.map(casteOf), "", true) } }
+          : { keepEmpty: true }),
       }],
     };
     const blocks: ReportBlock[] = [primary];
@@ -2908,10 +3121,18 @@ type FlatSpec = {
   columns: ReportColumn[];
   noSerial?: boolean;
   orderByField?: string;
+  /** Sub-heading printed above the grid, e.g. "Performance of Demonstration Units(Other than Instructional Farm)". */
+  caption?: string;
+  /** Column set for a single-KVK report when it differs from the 93pg all-KVK export (e.g. 4.3.A swaps Variety/Breed..Gross Income for a lone "Status"). */
+  kvkColumns?: ReportColumn[];
+  kvkNoSerial?: boolean;
 };
 
 function flatReportTable(spec: FlatSpec) {
   return async (scope: ReportScope): Promise<CustomTableResult> => {
+    const singleKvk = !!scope.kvkId;
+    const activeColumns = singleKvk && spec.kvkColumns ? spec.kvkColumns : spec.columns;
+    const activeNoSerial = singleKvk && spec.kvkColumns ? spec.kvkNoSerial : spec.noSerial;
     const lead = spec.lead ?? [];
     const needKvk = lead.length > 0;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -2934,10 +3155,11 @@ function flatReportTable(spec: FlatSpec) {
         row[`lead_${l.key}`] =
           l.key === "kvk" ? rec.kvk?.name ?? "" : l.key === "state" ? rec.kvk?.state?.name ?? "" : rec.kvk?.district?.name ?? "";
       }
-      for (const col of spec.columns) row[col.key] = stringifyValue(rec[col.key]);
+      for (const col of activeColumns) row[col.key] = stringifyValue(rec[col.key]);
       return row;
     });
-    return { columns: [...leadCols, ...spec.columns], rows, noSerial: spec.noSerial };
+    const columns = [...leadCols, ...activeColumns];
+    return { columns, rows, noSerial: activeNoSerial, caption: spec.caption, keepEmpty: columns.length > 0 };
   };
 }
 
@@ -3142,6 +3364,7 @@ async function buildDigitalOtherChannels(scope: ReportScope): Promise<CustomTabl
     { key: "sent", label: "No of advisories sent" },
     ...msgKeys.map((m) => ({ key: m.key, label: m.label, groups: [M] })),
   ];
+  if (rows.length === 0) return { columns, noSerial: true, keepEmpty: true };
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const blocks = [...groupInto(rows as any[], (r) => r.kvk.name).entries()].map(([kvkName, list]) => ({
     heading: kvkName,
@@ -3242,14 +3465,22 @@ const SECTION_456_BUILDERS: Record<string, (scope: ReportScope) => Promise<Custo
   }),
   demonstrationUnit: flatReportTable({
     model: "demonstrationUnit",
+    caption: "Performance of Demonstration Units(Other than Instructional Farm)",
+    // 93pg all-KVK export (super-v2-prod.pdf 4.3.A).
     columns: [
       { key: "demoUnitName", label: "Name of Demo Unit" }, { key: "yearOfEstt", label: "Year of Estt." }, { key: "areaSqMt", label: "Area (Sq. mt)" },
       { key: "varietyBreed", label: "Variety/Breed" }, { key: "produce", label: "Produce" }, { key: "qty", label: "Qty." },
       { key: "costOfInputs", label: "Cost of Inputs" }, { key: "grossIncome", label: "Gross Income" }, { key: "remarks", label: "Remarks" },
     ],
+    // 50pg single-KVK export (Atari_Management_System_Deviation_Report.pdf 1.3.A).
+    kvkColumns: [
+      { key: "demoUnitName", label: "Name of Demo Unit" }, { key: "yearOfEstt", label: "Year of Estt." },
+      { key: "areaSqMt", label: "Area (Sq. mt)" }, { key: "status", label: "Status" },
+    ],
   }),
   instructionalFarmCrop: flatReportTable({
     model: "instructionalFarmCrop",
+    caption: "Performance of Instructional Farm(Crops)",
     columns: [
       { key: "season", label: "Season" }, { key: "cropName", label: "Name Of the Crop" }, { key: "areaHa", label: "Area(ha)" },
       { key: "variety", label: "Variety", groups: ["Details of Production"] },
@@ -3263,6 +3494,7 @@ const SECTION_456_BUILDERS: Record<string, (scope: ReportScope) => Promise<Custo
   }),
   productionUnit: flatReportTable({
     model: "productionUnit",
+    caption: "Performance of Production Units(Bio-agents/Bio-pesticides/Bio-fertilizers etc.,)",
     columns: [
       { key: "productName", label: "Name of the Product" }, { key: "qty", label: "Qty.(Kg)" },
       { key: "costOfInputs", label: "Cost of Inputs", groups: ["Amount(Rs.)"] },
@@ -3272,14 +3504,21 @@ const SECTION_456_BUILDERS: Record<string, (scope: ReportScope) => Promise<Custo
   }),
   instructionalFarmLivestock: flatReportTable({
     model: "instructionalFarmLivestock",
+    caption: "Performance of Instructional Farm (livestock and fisheries production)",
     columns: [
-      { key: "animalName", label: "Name of the Animal/Bird/Aquatics" }, { key: "speciesBreed", label: "Species / Breed / Variety" }, { key: "produceType", label: "Type of Produce" },
-      { key: "qty", label: "Qty." }, { key: "costOfInputs", label: "Cost of Inputs" }, { key: "grossIncome", label: "Gross Income" }, { key: "remarks", label: "Remarks" },
+      { key: "animalName", label: "Name of the Animal/Bird/Aquatics" },
+      { key: "speciesBreed", label: "Species / Breed / Variety", groups: ["Details of Production"] },
+      { key: "produceType", label: "Type of Produce", groups: ["Details of Production"] },
+      { key: "qty", label: "Qty.", groups: ["Details of Production"] },
+      { key: "costOfInputs", label: "Cost of Inputs", groups: ["Amount(Rs.)"] },
+      { key: "grossIncome", label: "Gross Income", groups: ["Amount(Rs.)"] },
+      { key: "remarks", label: "Remarks" },
     ],
     noSerial: true,
   }),
   hostelUtilization: flatReportTable({
     model: "hostelUtilization",
+    caption: "Utilization of Hostel Facilities Accommodation Available(No. of Beds)",
     columns: [
       { key: "months", label: "Months" }, { key: "traineesStayed", label: "No. of Trainees Stayed" },
       { key: "traineeDays", label: "Trainee Days(Days Stayed)" }, { key: "reasonForShortFall", label: "Reason for Short Fall(if any)" },
@@ -3354,11 +3593,13 @@ const SECTION_456_BUILDERS: Record<string, (scope: ReportScope) => Promise<Custo
   raweFetFitProgramme: flatReportTable({
     model: "raweFetFitProgramme",
     lead: [KVK],
+    caption: "Details of attachment training (RAWE) through KVK",
     columns: [{ key: "attachmentType", label: "Type of attachment" }, { key: "numberOfStudents", label: "No. of student trained" }, { key: "daysStayed", label: "No. of days stayed" }],
   }),
   vipVisitor: flatReportTable({
     model: "vipVisitor",
     lead: [KVK],
+    caption: "List of other visitors (MP/MLA/DM/VC/Zila Parishad/Other Head of Organization/Foreigners)",
     columns: [{ key: "visitDate", label: "Date" }, { key: "ministerName", label: "Name of the person" }, { key: "observations", label: "Purpose of visit" }],
   }),
   digitalMobileApp: flatReportTable({
@@ -3388,6 +3629,7 @@ const SECTION_456_BUILDERS: Record<string, (scope: ReportScope) => Promise<Custo
   sacMeeting: flatReportTable({
     model: "sacMeeting",
     lead: [KVK],
+    caption: "Details of Scientific Advisory Committee(SAC) Meetings",
     columns: [
       { key: "startDate", label: "Start Date" }, { key: "endDate", label: "End Date" }, { key: "participants", label: "No of Participants" },
       { key: "statutoryMembers", label: "Total Statutory Members Present" }, { key: "recommendations", label: "Salient Recommendations" },
@@ -3399,6 +3641,7 @@ const SECTION_456_BUILDERS: Record<string, (scope: ReportScope) => Promise<Custo
   otherMeeting: flatReportTable({
     model: "otherMeeting",
     lead: [KVK],
+    caption: "Details of other meeting related to ATARI",
     columns: [{ key: "date", label: "Date" }, { key: "meetingType", label: "Type of Meeting" }, { key: "agenda", label: "Agenda" }, { key: "representativeFromAtari", label: "Representative from ATARI" }],
   }),
 };
@@ -3510,7 +3753,6 @@ async function buildCfldExtensionActivity(scope: ReportScope): Promise<CustomTab
     },
     orderBy: [{ kvkId: "asc" }, { date: "asc" }],
   });
-  if (records.length === 0) return {};
   type R = (typeof records)[number];
   const columns: ReportColumn[] = [
     { key: "activity", label: "Extension Activities organized" },
@@ -3518,6 +3760,7 @@ async function buildCfldExtensionActivity(scope: ReportScope): Promise<CustomTab
     { key: "datePlace", label: "Date and place of activity" },
     ...casteMftColumns("Number of farmers", { grandLabel: "Total" }),
   ];
+  if (records.length === 0) return { columns, keepEmpty: true };
   const rowOf = (r: R) => ({
     activity: r.activitiesOrganized,
     season: r.season,
@@ -3535,7 +3778,6 @@ async function buildNicraIntervention(scope: ReportScope): Promise<CustomTableRe
     select: { seedBankFodderBank: true, crop: true, variety: true, quantityQuintal: true, startDate: true, endDate: true, kvk: { select: { name: true } } },
     orderBy: [{ kvkId: "asc" }, { startDate: "asc" }],
   });
-  if (records.length === 0) return {};
   type R = (typeof records)[number];
   const columns: ReportColumn[] = [
     { key: "bankType", label: "Bank Type" },
@@ -3545,6 +3787,7 @@ async function buildNicraIntervention(scope: ReportScope): Promise<CustomTableRe
     { key: "start", label: "Start Date" },
     { key: "end", label: "End Date" },
   ];
+  if (records.length === 0) return { columns, keepEmpty: true };
   const rowOf = (r: R) => ({
     bankType: r.seedBankFodderBank,
     crop: r.crop,
@@ -3587,7 +3830,6 @@ async function buildNicraConvergence(scope: ReportScope): Promise<CustomTableRes
     select: { scheme: true, natureOfWork: true, amount: true, startDate: true, endDate: true, kvk: { select: { name: true } } },
     orderBy: [{ kvkId: "asc" }, { startDate: "asc" }],
   });
-  if (records.length === 0) return {};
   type R = (typeof records)[number];
   const columns: ReportColumn[] = [
     { key: "kvk", label: "KVK" },
@@ -3597,6 +3839,7 @@ async function buildNicraConvergence(scope: ReportScope): Promise<CustomTableRes
     { key: "nature", label: "Nature of Work" },
     { key: "amount", label: "Amount (Rs.)" },
   ];
+  if (records.length === 0) return { columns, keepEmpty: true };
   const rowOf = (r: R) => ({
     kvk: r.kvk.name,
     start: stringifyValue(r.startDate),
@@ -3620,7 +3863,6 @@ async function buildNicraDignitaries(scope: ReportScope): Promise<CustomTableRes
     select: { vipExperts: true, name: true, dateOfVisit: true, remark: true, kvk: { select: { name: true } } },
     orderBy: [{ kvkId: "asc" }, { dateOfVisit: "asc" }],
   });
-  if (records.length === 0) return {};
   type R = (typeof records)[number];
   const columns: ReportColumn[] = [
     { key: "date", label: "Date of Visit" },
@@ -3628,6 +3870,7 @@ async function buildNicraDignitaries(scope: ReportScope): Promise<CustomTableRes
     { key: "name", label: "Name" },
     { key: "remark", label: "Remark" },
   ];
+  if (records.length === 0) return { columns, keepEmpty: true };
   const rowOf = (r: R) => ({ date: stringifyValue(r.dateOfVisit), type: r.vipExperts, name: r.name, remark: r.remark ?? "" });
   const subtotalOf = (list: R[], label: string) => ({ date: `${label} (visits)`, type: "", name: "", remark: String(list.length) });
   return { blocks: kvkBlocksWithGrandTotal(records, columns, rowOf, subtotalOf) };
@@ -3640,13 +3883,13 @@ async function buildNicraPiCoPi(scope: ReportScope): Promise<CustomTableResult> 
     include: { kvk: { select: { name: true } } },
     orderBy: [{ kvkId: "asc" }, { startDate: "asc" }],
   });
-  if (records.length === 0) return {};
   const columns: ReportColumn[] = [
     { key: "type", label: "Type" },
     { key: "name", label: "Name" },
     { key: "start", label: "Start date" },
     { key: "end", label: "End date" },
   ];
+  if (records.length === 0) return { columns, keepEmpty: true };
   const blocks: ReportBlock[] = [...groupInto(records, (r) => r.kvk.name).entries()].map(([kvkName, list]) => ({
     heading: kvkName,
     parts: [
@@ -3675,24 +3918,23 @@ function buildNicraStatePivot(model: "nicraTraining" | "nicraExtensionActivity",
         select: { activityName: true, ...CASTE_SELECT, kvk: { select: { name: true, state: { select: { name: true } } } } },
         orderBy: { startDate: "asc" },
       });
-      if (records.length === 0) return {};
+      // A single-KVK report shows no State/KVK identifying columns - the
+      // client wants nothing state-related anywhere in a KVK's own report,
+      // even though the 50pg reference prints them here (client, 2026-09-08).
       const columns: ReportColumn[] = [
-        { key: "state", label: "State" },
-        { key: "kvk", label: "KVK" },
         { key: "activity", label: "Name of the activity" },
         { key: "count", label: "Number of Programmes" },
         ...casteMftColumns("", { flat: true, grandLabel: "Total" }),
       ];
+      if (records.length === 0) return { columns, keepEmpty: true };
       return {
         columns,
         rows: records.map((r) => ({
-          state: r.kvk.state?.name ?? "",
-          kvk: r.kvk.name,
           activity: r.activityName,
           count: "1",
           ...casteMftRow([r], "", true),
         })),
-        totalRow: { state: "", kvk: "", activity: "Grand Total", count: String(records.length), ...casteMftRow(records, "", true) },
+        totalRow: { activity: "Grand Total", count: String(records.length), ...casteMftRow(records, "", true) },
       };
     }
     if (scope.kvkId && model === "nicraTraining") {
@@ -3701,7 +3943,6 @@ function buildNicraStatePivot(model: "nicraTraining" | "nicraExtensionActivity",
         select: { title: true, startDate: true, endDate: true, duration: true, trainingType: true, ...CASTE_SELECT },
         orderBy: { startDate: "asc" },
       });
-      if (records.length === 0) return {};
       const columns: ReportColumn[] = [
         { key: "title", label: "Title of the training course" },
         { key: "period", label: "Period of Training program" },
@@ -3709,6 +3950,7 @@ function buildNicraStatePivot(model: "nicraTraining" | "nicraExtensionActivity",
         { key: "ttype", label: "Training Type" },
         ...casteMftColumns("", { flat: true, grandLabel: "Total" }),
       ];
+      if (records.length === 0) return { columns, keepEmpty: true };
       return {
         columns,
         rows: records.map((r) => ({
@@ -3754,7 +3996,6 @@ async function buildNicraCustomHiring(scope: ReportScope): Promise<CustomTableRe
     },
     orderBy: { kvk: { name: "asc" } },
   });
-  if (records.length === 0) return {};
   type R = (typeof records)[number];
   const columns: ReportColumn[] = [
     { key: "impl", label: "Name of farm implement/equipment" },
@@ -3764,7 +4005,10 @@ async function buildNicraCustomHiring(scope: ReportScope): Promise<CustomTableRe
     { key: "revenue", label: "Revenue generated by Farm Implement (Rs.)" },
     { key: "expenditure", label: "Expenditure incurred on repairing (Rs.)" },
   ];
-  const blocks: ReportBlock[] = [...groupInto(records, (r) => `${r.kvk.name} — ${r.kvk.state?.name ?? ""}`).entries()].map(
+  if (records.length === 0) return { columns, keepEmpty: true };
+  // A single-KVK report never carries a state name in a heading (client, 2026-09-08).
+  const blockKey = (r: R) => (scope.kvkId ? r.kvk.name : `${r.kvk.name} — ${r.kvk.state?.name ?? ""}`);
+  const blocks: ReportBlock[] = [...groupInto(records, blockKey).entries()].map(
     ([heading, list]) => ({
       heading,
       parts: [
@@ -3793,7 +4037,6 @@ async function buildNicraVcrmc(scope: ReportScope): Promise<CustomTableResult> {
     include: { kvk: { select: { name: true } } },
     orderBy: { kvk: { name: "asc" } },
   });
-  if (records.length === 0) return {};
   type R = (typeof records)[number];
   const M = "VCRMC members (no.)";
   const columns: ReportColumn[] = [
@@ -3808,6 +4051,7 @@ async function buildNicraVcrmc(scope: ReportScope): Promise<CustomTableResult> {
     { key: "president", label: "Name of President" },
     { key: "decision", label: "Major decision taken" },
   ];
+  if (records.length === 0) return { columns, keepEmpty: true };
   const blocks: ReportBlock[] = [...groupInto(records, (r) => r.kvk.name).entries()].map(([kvkName, list]) => ({
     heading: kvkName,
     parts: [
@@ -3843,7 +4087,6 @@ async function buildNicraSoilHealthCard(scope: ReportScope): Promise<CustomTable
     select: { samplesCollected: true, samplesAnalysed: true, shcIssued: true, ...CASTE_SELECT, kvk: { select: { name: true } } },
     orderBy: { kvk: { name: "asc" } },
   });
-  if (records.length === 0) return {};
   type R = (typeof records)[number];
   const columns: ReportColumn[] = [
     { key: "collected", label: "No. of soil samples collected" },
@@ -3851,6 +4094,7 @@ async function buildNicraSoilHealthCard(scope: ReportScope): Promise<CustomTable
     { key: "issued", label: "SHC issued" },
     ...casteMftColumns("", { flat: true, grandLabel: "Total" }),
   ];
+  if (records.length === 0) return { columns, keepEmpty: true };
   const blocks: ReportBlock[] = [...groupInto(records, (r) => r.kvk.name).entries()].map(([kvkName, list]) => ({
     heading: kvkName,
     parts: [
@@ -3883,7 +4127,6 @@ async function buildCfldBudgetUtilization(scope: ReportScope): Promise<CustomTab
     include: { kvk: { select: { name: true } } },
     orderBy: { kvk: { name: "asc" } },
   });
-  if (records.length === 0) return {};
   type R = (typeof records)[number] & Record<string, unknown>;
   const columns: ReportColumn[] = [
     { key: "sl", label: "SL." },
@@ -3897,6 +4140,7 @@ async function buildCfldBudgetUtilization(scope: ReportScope): Promise<CustomTab
     { key: "utilization", label: "Budget Utilization (Rs.)" },
     { key: "balance", label: "Balance (Rs.)" },
   ];
+  if (records.length === 0) return { columns, noSerial: true, keepEmpty: true };
   const blocks: ReportBlock[] = [...groupInto(records, (r) => r.kvk.name).entries()].map(([kvkName, list]) => ({
     heading: `KVK: ${kvkName}`,
     parts: [
@@ -3937,7 +4181,6 @@ async function buildNfGeographical(scope: ReportScope): Promise<CustomTableResul
     include: { kvk: { select: { name: true } } },
     orderBy: [{ kvkId: "asc" }, { startDate: "asc" }],
   });
-  if (records.length === 0) return {};
   const columns: ReportColumn[] = [
     { key: "start", label: "Start date" },
     { key: "end", label: "End date" },
@@ -3946,6 +4189,7 @@ async function buildNfGeographical(scope: ReportScope): Promise<CustomTableResul
     { key: "lat", label: "Latitude (N)" },
     { key: "lng", label: "Longitude (E)" },
   ];
+  if (records.length === 0) return { columns, keepEmpty: true };
   const blocks: ReportBlock[] = [...groupInto(records, (r) => r.kvk.name).entries()].map(([kvkName, list]) => ({
     heading: kvkName,
     parts: [
@@ -4024,7 +4268,6 @@ async function buildDrmrActivity(scope: ReportScope): Promise<CustomTableResult>
     select: { itemActivity: true, unit: true, quantity: true, farmersByCategory: true, kvk: { select: { name: true } } },
     orderBy: { kvk: { name: "asc" } },
   });
-  if (records.length === 0) return {};
   type R = (typeof records)[number];
   const columns: ReportColumn[] = [
     { key: "item", label: "Item/Activity" },
@@ -4032,6 +4275,7 @@ async function buildDrmrActivity(scope: ReportScope): Promise<CustomTableResult>
     { key: "qty", label: "Quantity" },
     ...casteMftColumns("No. of Participants", { grandLabel: "Grand Total" }),
   ];
+  if (records.length === 0) return { columns, noSerial: true, keepEmpty: true };
   const blocks: ReportBlock[] = [...groupInto(records, (r) => r.kvk.name).entries()].map(([kvkName, list]) => ({
     heading: kvkName,
     parts: [
@@ -4075,6 +4319,7 @@ async function buildCraDetails(scope: ReportScope): Promise<CustomTableResult> {
     { key: "yieldFp", label: "Yield obtained under farmer practice (q/ha)" },
     ...casteMftColumns("No. of farmers under demonstration", { grandLabel: "Total" }),
   ];
+  if (records.length === 0) return { columns, keepEmpty: true };
   const rowOf = (r: (typeof records)[number]) => ({
     season: r.season,
     tech: r.technologyDemonstrated,
@@ -4088,8 +4333,13 @@ async function buildCraDetails(scope: ReportScope): Promise<CustomTableResult> {
     ...jsonCasteRow(r.farmersByCategory),
   });
   const letters = ["A", "B", "C", "D", "E", "F"];
-  const blocks: ReportBlock[] = [...groupInto(records, (r) => r.kvk.state?.name ?? "").entries()].map(([state, list], i) => ({
-    heading: `${letters[i] ?? String(i + 1)}. State: ${state}`,
+  // Single-KVK report groups by KVK ("A. KVK: <name>"), not by state, so no
+  // Bihar/Jharkhand appears in a KVK's own report (client 2026-09-08).
+  const grouped = scope.kvkId
+    ? [...groupInto(records, (r) => r.kvk.name).entries()]
+    : [...groupInto(records, (r) => r.kvk.state?.name ?? "").entries()];
+  const blocks: ReportBlock[] = grouped.map(([name, list], i) => ({
+    heading: `${letters[i] ?? String(i + 1)}. ${scope.kvkId ? "KVK" : "State"}: ${name}`,
     parts: [{ kind: "grid", noSerial: false, columns, rows: list.map(rowOf) }],
   }));
   return { blocks };
@@ -4140,7 +4390,6 @@ async function buildCfldTechnicalParameterKvk(kvkId: string): Promise<CustomTabl
     include: { economicParameters: true, socioEconomicImpacts: true, farmersPerceptions: true },
     orderBy: [{ season: "asc" }, { crop: "asc" }],
   });
-  if (records.length === 0) return {};
   const S = (v: unknown) => (v == null || v === "" ? "-" : String(v));
   const D = "Number of farmers", FP = "Farmer's existing practice", DT = "Demonstration technology";
   const YD = "Yield obtained in demonstration (q/ha)", YG = "Yield gap (Kg/ha) w.r.to", YM = "Yield gap minimized (%)";
@@ -4222,10 +4471,10 @@ async function buildCfldTechnicalParameterKvk(kvkId: string): Promise<CustomTabl
 
   return {
     blocks: [
-      { heading: "1. Technical Parameters", parts: [{ kind: "grid", columns: p1cols, rows: p1rows }] },
-      { heading: "2. Economic parameters", parts: [{ kind: "grid", columns: p2cols, rows: p2rows }] },
-      { heading: "3. Socio-economic impact parameters", parts: [{ kind: "grid", columns: p3cols, rows: p3rows }] },
-      { heading: "4. Pulses/Oilseed Farmers' perception of the intervention demonstrated", parts: [{ kind: "grid", columns: p4cols, rows: p4rows }] },
+      { heading: "1. Technical Parameters", parts: [{ kind: "grid", columns: p1cols, rows: p1rows, keepEmpty: true }] },
+      { heading: "2. Economic parameters", parts: [{ kind: "grid", columns: p2cols, rows: p2rows, keepEmpty: true }] },
+      { heading: "3. Socio-economic impact parameters", parts: [{ kind: "grid", columns: p3cols, rows: p3rows, keepEmpty: true }] },
+      { heading: "4. Pulses/Oilseed Farmers' perception of the intervention demonstrated", parts: [{ kind: "grid", columns: p4cols, rows: p4rows, keepEmpty: true }] },
     ],
   };
 }
@@ -4249,7 +4498,6 @@ async function buildCfldTechnicalParameter(scope: ReportScope): Promise<CustomTa
     },
     orderBy: [{ cropType: "asc" }, { season: "asc" }, { crop: "asc" }],
   });
-  if (records.length === 0) return {};
   type Rec = (typeof records)[number];
   const localOf = (r: Rec) => N(r.yieldFarmerFieldQha);
   const demoOf = (r: Rec) => N(r.yieldDemoAvgQha);
@@ -4286,6 +4534,14 @@ async function buildCfldTechnicalParameter(scope: ReportScope): Promise<CustomTa
   ];
   const stateCols: ReportColumn[] = [{ key: "state", label: "State" }, ...measureCols];
   const seasonCols: ReportColumn[] = [{ key: "crop", label: "Crop" }, { key: "state", label: "State" }, ...measureCols];
+  if (records.length === 0) {
+    return {
+      blocks: [{
+        heading: "State wise details of Cluster Front Line Demonstration",
+        parts: [{ kind: "grid", columns: stateCols, rows: [], keepEmpty: true }],
+      }],
+    };
+  }
   const blocks: ReportBlock[] = [];
   [...groupInto(records, (r) => r.cropType ?? "Not Specified").entries()].forEach(([category, catRecords], ci) => {
     const byState = [...groupInto(catRecords, (r) => r.kvk.state?.name ?? "").entries()];
@@ -4337,10 +4593,10 @@ async function buildNicraBasicInfo(scope: ReportScope): Promise<CustomTableResul
         rfDistrictNormal: true, rfDistrictReceived: true, maxTemperature: true, minTemperature: true,
         drySpell10Days: true, drySpell15Days: true, drySpell20Days: true,
         nicraAdoptedVillages: true, floodIntensiveRainMm: true, floodWaterDepthCm: true, floodDurationDays: true,
+        kvk: { select: { name: true } },
       },
       orderBy: { startDate: "asc" },
     });
-    if (records.length === 0) return {};
     const PD = "Period", DD = "Districts data", DS = "Dry spell/ drought", FL = "Flood";
     const columns: ReportColumn[] = [
       { key: "reportingDate", label: "Reporting Date", groups: [PD] },
@@ -4358,19 +4614,18 @@ async function buildNicraBasicInfo(scope: ReportScope): Promise<CustomTableResul
       { key: "floodDepth", label: "Water depth (cm)", groups: [FL] },
       { key: "floodDuration", label: "Duration (days)", groups: [FL] },
     ];
-    return {
-      columns,
-      noSerial: true,
-      rows: records.map((r) => ({
-        reportingDate: stringifyValue(r.reportingDate), startDate: stringifyValue(r.startDate), endDate: stringifyValue(r.endDate),
-        rfNormal: stringifyValue(r.rfDistrictNormal), rfReceived: stringifyValue(r.rfDistrictReceived),
-        tMax: stringifyValue(r.maxTemperature), tMin: stringifyValue(r.minTemperature),
-        d10: r.drySpell10Days != null ? String(r.drySpell10Days) : "", d15: r.drySpell15Days != null ? String(r.drySpell15Days) : "", d20: r.drySpell20Days != null ? String(r.drySpell20Days) : "",
-        villages: r.nicraAdoptedVillages != null ? String(r.nicraAdoptedVillages) : "",
-        floodRain: stringifyValue(r.floodIntensiveRainMm), floodDepth: stringifyValue(r.floodWaterDepthCm),
-        floodDuration: r.floodDurationDays != null ? String(r.floodDurationDays) : "",
-      })),
-    };
+    const kvkName = records[0]?.kvk?.name ?? "";
+    const rows = records.map((r) => ({
+      reportingDate: stringifyValue(r.reportingDate), startDate: stringifyValue(r.startDate), endDate: stringifyValue(r.endDate),
+      rfNormal: stringifyValue(r.rfDistrictNormal), rfReceived: stringifyValue(r.rfDistrictReceived),
+      tMax: stringifyValue(r.maxTemperature), tMin: stringifyValue(r.minTemperature),
+      d10: r.drySpell10Days != null ? String(r.drySpell10Days) : "", d15: r.drySpell15Days != null ? String(r.drySpell15Days) : "", d20: r.drySpell20Days != null ? String(r.drySpell20Days) : "",
+      villages: r.nicraAdoptedVillages != null ? String(r.nicraAdoptedVillages) : "",
+      floodRain: stringifyValue(r.floodIntensiveRainMm), floodDepth: stringifyValue(r.floodWaterDepthCm),
+      floodDuration: r.floodDurationDays != null ? String(r.floodDurationDays) : "",
+    }));
+    if (rows.length === 0) return { columns, noSerial: true, keepEmpty: true };
+    return { blocks: [{ heading: kvkName, parts: [{ kind: "grid", noSerial: true, columns, rows }] }] };
   }
   const [records, stateNames] = await Promise.all([
     prisma.nicraBasicInformation.findMany({
@@ -4384,7 +4639,6 @@ async function buildNicraBasicInfo(scope: ReportScope): Promise<CustomTableResul
     }),
     reportStates(scope.zoneId),
   ]);
-  if (records.length === 0) return {};
   const D = "Districts data (avg)", S = "Dry spell / drought (avg)", F = "Flood (avg)";
   const columns: ReportColumn[] = [
     { key: "state", label: "State" },
@@ -4419,7 +4673,7 @@ async function buildNicraBasicInfo(scope: ReportScope): Promise<CustomTableResul
     .map((st) => ({ st, list: records.filter((r) => r.kvk.state?.name === st) }))
     .filter((x) => x.list.length > 0)
     .map((x) => ({ state: x.st, ...rowFor(x.list) }));
-  return { columns, rows, noSerial: true };
+  return { columns, rows, noSerial: true, keepEmpty: true };
 }
 
 /**
@@ -4440,7 +4694,6 @@ async function buildNicraDetails(scope: ReportScope): Promise<CustomTableResult>
         grossCost: true, grossReturn: true, netReturn: true, bcr: true, ...CASTE_SELECT,
       },
     });
-    if (records.length === 0) return {};
     type KR = (typeof records)[number];
     const CB = "No. of farmers benefitted";
     const casteCells = (["generalMale", "generalFemale", "obcMale", "obcFemale", "scMale", "scFemale", "stMale", "stFemale"] as const);
@@ -4454,6 +4707,7 @@ async function buildNicraDetails(scope: ReportScope): Promise<CustomTableResult>
       { key: "cTotal", label: "Total", groups: [CB] },
       { key: "gCost", label: "Gross cost" }, { key: "gRet", label: "Gross return" }, { key: "nRet", label: "Net return" }, { key: "bcr", label: "BCR" },
     ];
+    if (records.length === 0) return { columns, noSerial: true, keepEmpty: true };
     const casteRow = (list: KR[]) => {
       const out: Record<string, string> = {};
       let total = 0;
@@ -4494,7 +4748,6 @@ async function buildNicraDetails(scope: ReportScope): Promise<CustomTableResult>
     }),
     reportStates(scope.zoneId),
   ]);
-  if (records.length === 0) return {};
   const fmt = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(2));
   const columns: ReportColumn[] = [
     { key: "category", label: "Category" },
@@ -4505,6 +4758,7 @@ async function buildNicraDetails(scope: ReportScope): Promise<CustomTableResult>
       { key: `${s}__n`, label: "Net return", groups: [s] },
     ]),
   ];
+  if (records.length === 0) return { columns, noSerial: true, keepEmpty: true };
   const cellFor = (list: typeof records) => {
     const out: Record<string, string> = {};
     const put = (key: string, sub: typeof records) => {
@@ -4541,13 +4795,12 @@ async function buildAryaCurrentYear(scope: ReportScope): Promise<CustomTableResu
         trainingsConducted: true, unitsEstablished: true, ruralYouthMale: true, ruralYouthFemale: true,
         avgUnitSize: true, productionPerUnit: true, costPerUnit: true, saleValue: true,
         economicGainsPerUnit: true, employmentMandaysMale: true, employmentMandaysFemale: true,
-        kvk: { select: { state: { select: { name: true } } } },
+        kvk: { select: { name: true, state: { select: { name: true } } } },
       },
     }),
     prisma.masterListItem.findMany({ where: { zoneId: scope.zoneId, type: "ARYA_ENTERPRISE" }, orderBy: { name: "asc" } }),
     reportStates(scope.zoneId),
   ]);
-  if (records.length === 0) return {};
   const RY = "No. of rural youth trained", EM = "Employment generated (mandays)";
   const columns: ReportColumn[] = [
     { key: "ent", label: "Name of Enterprise" },
@@ -4565,6 +4818,7 @@ async function buildAryaCurrentYear(scope: ReportScope): Promise<CustomTableResu
     { key: "empM", label: "Male", groups: [EM] },
     { key: "empF", label: "Female", groups: [EM] },
   ];
+  if (records.length === 0) return { columns, keepEmpty: true };
   const num = (v: unknown) => Number(v ?? 0);
   const fmt = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(2));
   const rowFor = (ent: string, list: typeof records) => ({
@@ -4584,13 +4838,17 @@ async function buildAryaCurrentYear(scope: ReportScope): Promise<CustomTableResu
     empF: String(list.reduce((a, r) => a + num(r.employmentMandaysFemale), 0)),
   });
   const entNames = enterprises.length ? enterprises.map((e) => e.name) : [...new Set(records.map((r) => r.enterprise))];
-  const blocks: ReportBlock[] = stateNames
-    .map((st) => ({ st, list: records.filter((r) => r.kvk.state?.name === st) }))
-    .filter((x) => x.list.length > 0)
-    .map((x) => ({
-      heading: `State: ${x.st}`,
-      parts: [{ kind: "grid" as const, columns, rows: entNames.map((ent) => rowFor(ent, x.list.filter((r) => r.enterprise === ent))) }],
-    }));
+  // Single-KVK report: one "KVK: <name>" block, not "State: Bihar" (50pg
+  // kvk-report p.31, client 2026-09-08).
+  const groups = scope.kvkId
+    ? [...groupInto(records, (r) => r.kvk.name).entries()].map(([name, list]) => ({ heading: `KVK: ${name}`, list }))
+    : stateNames
+        .map((st) => ({ heading: `State: ${st}`, list: records.filter((r) => r.kvk.state?.name === st) }))
+        .filter((x) => x.list.length > 0);
+  const blocks: ReportBlock[] = groups.map((x) => ({
+    heading: x.heading,
+    parts: [{ kind: "grid" as const, columns, rows: entNames.map((ent) => rowFor(ent, x.list.filter((r) => r.enterprise === ent))) }],
+  }));
   return { blocks };
 }
 
@@ -4610,13 +4868,12 @@ async function buildAryaPreviousYear(scope: ReportScope): Promise<CustomTableRes
         costFixed: true, costVariable: true, totalProductionPerUnitYear: true, grossCostPerUnitYear: true,
         grossReturnPerUnitYear: true, netBenefitPerUnitYear: true,
         employmentFamily: true, employmentOtherThanFamily: true, personsVisited: true,
-        kvk: { select: { state: { select: { name: true } } } },
+        kvk: { select: { name: true, state: { select: { name: true } } } },
       },
     }),
     prisma.masterListItem.findMany({ where: { zoneId: scope.zoneId, type: "ARYA_ENTERPRISE" }, orderBy: { name: "asc" } }),
     reportStates(scope.zoneId),
   ]);
-  if (records.length === 0) return {};
   const SZ = "Entrepreneurial Unit Size (capacity per year)", CO = "Entrepreneurial Establishment Cost / unit", EM = "Employment generated / year (mandays)";
   // kvk-report p.31 also shows "Date of Closing" / "Date of Restart" next to the
   // closed / restarted counts; super-v2-prod.pdf's 3.4.B has no such columns.
@@ -4643,6 +4900,7 @@ async function buildAryaPreviousYear(scope: ReportScope): Promise<CustomTableRes
     { key: "emTotal", label: "Total", groups: [EM] },
     { key: "visited", label: "No. of persons visited entrepreneur unit" },
   ];
+  if (records.length === 0) return { columns, keepEmpty: true };
   const num = (v: unknown) => Number(v ?? 0);
   const fmt = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(2));
   const rowFor = (ent: string, list: typeof records) => {
@@ -4676,13 +4934,18 @@ async function buildAryaPreviousYear(scope: ReportScope): Promise<CustomTableRes
     };
   };
   const entNames = enterprises.length ? enterprises.map((e) => e.name) : [...new Set(records.map((r) => r.enterprise))];
-  const blocks: ReportBlock[] = stateNames
-    .map((st) => ({ st, list: records.filter((r) => r.kvk.state?.name === st) }))
-    .filter((x) => x.list.length > 0)
-    .map((x) => ({
-      heading: `State: ${x.st}`,
-      parts: [{ kind: "grid" as const, columns, rows: entNames.map((ent) => rowFor(ent, x.list.filter((r) => r.enterprise === ent))) }],
-    }));
+  // Single-KVK report: "KVK: <name>" block, no state suffix - the client wants
+  // no Bihar/Jharkhand anywhere in a KVK's own report, even though the 50pg
+  // reference prints "— Bihar" here (client 2026-09-08).
+  const groups = scope.kvkId
+    ? [...groupInto(records, (r) => r.kvk.name).entries()].map(([name, list]) => ({ heading: `KVK: ${name}`, list }))
+    : stateNames
+        .map((st) => ({ heading: `State: ${st}`, list: records.filter((r) => r.kvk.state?.name === st) }))
+        .filter((x) => x.list.length > 0);
+  const blocks: ReportBlock[] = groups.map((x) => ({
+    heading: x.heading,
+    parts: [{ kind: "grid" as const, columns, rows: entNames.map((ent) => rowFor(ent, x.list.filter((r) => r.enterprise === ent))) }],
+  }));
   return { blocks };
 }
 
@@ -4703,7 +4966,6 @@ async function buildNfPhysical(scope: ReportScope): Promise<CustomTableResult> {
     }),
     reportStates(scope.zoneId),
   ]);
-  if (records.length === 0) return {};
   type R = (typeof records)[number];
   const kind = (r: R) => {
     const a = (r.activityName || "").toLowerCase();
@@ -4739,7 +5001,9 @@ async function buildNfPhysical(scope: ReportScope): Promise<CustomTableResult> {
       };
     });
   const detailCols = (titleLabel: string): ReportColumn[] => [
-    { key: "kvk", label: "KVK" },
+    // Single-KVK report drops the "KVK" column (one value) - the 50pg
+    // kvk-report has none here (client, 2026-09-08).
+    ...(scope.kvkId ? [] : [{ key: "kvk", label: "KVK" }]),
     { key: "title", label: titleLabel },
     { key: "date", label: "Date of programme" },
     { key: "venue", label: "Venue of programme" },
@@ -4754,9 +5018,17 @@ async function buildNfPhysical(scope: ReportScope): Promise<CustomTableResult> {
     ...casteMftRow([r], "", true),
     remarks: r.remarks ?? "",
   });
-  const blocks: ReportBlock[] = [
-    { heading: "State-wise overall Physical Information", parts: [{ kind: "grid" as const, columns: overallCols, rows: overallRows }] },
-  ];
+  if (records.length === 0) {
+    return {
+      columns: scope.kvkId ? detailCols("Title of Natural Farming Training programme") : overallCols,
+      keepEmpty: true,
+    };
+  }
+  // The "State-wise overall" summary has no meaning for one KVK - the 50pg
+  // kvk-report goes straight to the Training / Awareness detail grids.
+  const blocks: ReportBlock[] = scope.kvkId
+    ? []
+    : [{ heading: "State-wise overall Physical Information", parts: [{ kind: "grid" as const, columns: overallCols, rows: overallRows }] }];
   const training = records.filter((r) => kind(r) === "Training");
   const awareness = records.filter((r) => kind(r) === "Awareness");
   if (training.length) blocks.push({ heading: "Training", parts: [{ kind: "grid" as const, columns: detailCols("Title of Natural Farming Training programme"), rows: training.map(detailRow) }] });
@@ -4778,7 +5050,6 @@ async function buildNfBeneficiary(scope: ReportScope): Promise<CustomTableResult
     },
     orderBy: { kvk: { name: "asc" } },
   });
-  if (records.length === 0) return {};
   const columns: ReportColumn[] = [
     { key: "year", label: "Reporting year" },
     { key: "blocks", label: "No. of blocks covered" },
@@ -4789,6 +5060,7 @@ async function buildNfBeneficiary(scope: ReportScope): Promise<CustomTableResult
     { key: "oneSeason", label: "No. of farmers engaged in 1 season" },
     { key: "remarks", label: "Remarks" },
   ];
+  if (records.length === 0) return { columns, keepEmpty: true };
   const blocks: ReportBlock[] = [...groupInto(records, (r) => r.kvk.name).entries()].map(([kvkName, list]) => ({
     heading: kvkName,
     parts: [{
@@ -4823,7 +5095,6 @@ async function buildNfSoilData(scope: ReportScope): Promise<CustomTableResult> {
     },
     orderBy: [{ type: "asc" }, { season: "asc" }],
   });
-  if (records.length === 0) return {};
   const B = "Before crop sowing", A = "After harvesting";
   const columns: ReportColumn[] = [
     { key: "season", label: "Season" },
@@ -4838,6 +5109,7 @@ async function buildNfSoilData(scope: ReportScope): Promise<CustomTableResult> {
       { key: `${p}Mic`, label: "Soil Microbes (cfu)", groups: [g] },
     ]),
   ];
+  if (records.length === 0) return { columns, noSerial: true, keepEmpty: true };
   const rowOf = (r: (typeof records)[number]) => ({
     season: r.season, crop: r.crop,
     bPh: stringifyValue(r.beforePh), bEc: stringifyValue(r.beforeEc), bOc: stringifyValue(r.beforeEcOc),
@@ -4859,7 +5131,6 @@ async function buildNfBudgetExpenditure(scope: ReportScope): Promise<CustomTable
     select: { activityName: true, activitiesOrganised: true, budgetSanction: true, budgetExpenditure: true, totalBudgetExpenditure: true },
     orderBy: { activityName: "asc" },
   });
-  if (records.length === 0) return {};
   const num = (v: unknown) => Number(v ?? 0);
   const columns: ReportColumn[] = [
     { key: "activity", label: "Name of activity" },
@@ -4868,6 +5139,7 @@ async function buildNfBudgetExpenditure(scope: ReportScope): Promise<CustomTable
     { key: "expenditure", label: "Budget expenditure (Rs)" },
     { key: "total", label: "Total Budget Expenditure (Rs)" },
   ];
+  if (records.length === 0) return { columns, noSerial: true, keepEmpty: true };
   return {
     columns,
     noSerial: true,
@@ -4997,7 +5269,6 @@ async function buildAgriDroneDemonstration(scope: ReportScope): Promise<CustomTa
     },
     orderBy: { dateOfDemos: "asc" },
   });
-  if (records.length === 0) return {};
   const columns: ReportColumn[] = [
     { key: "demosOn", label: "Demos on" },
     { key: "district", label: "Name of district" },
@@ -5008,6 +5279,7 @@ async function buildAgriDroneDemonstration(scope: ReportScope): Promise<CustomTa
     { key: "area", label: "Area covered under demos (area in ha)" },
     ...casteMftColumns("No. of Participants", { grandLabel: "Grand Total" }),
   ];
+  if (records.length === 0) return { columns, noSerial: true, keepEmpty: true };
   return {
     columns,
     noSerial: true,
@@ -5040,7 +5312,6 @@ async function buildFpoCbboDetails(scope: ReportScope): Promise<CustomTableResul
     },
     orderBy: { kvk: { state: { name: "asc" } } },
   });
-  if (records.length === 0) return {};
   const yn = (b: boolean) => (b ? "Yes" : "No");
   const opt = (v: number | null) => (v != null ? String(v) : "");
   const columns: ReportColumn[] = [
@@ -5059,6 +5330,7 @@ async function buildFpoCbboDetails(scope: ReportScope): Promise<CustomTableResul
     { key: "bpWithout", label: "Is business plan prepared for FPOs as without CBBOs" },
     { key: "doingBusiness", label: "No. of FPOs doing business" },
   ];
+  if (records.length === 0) return { columns, keepEmpty: true };
   return {
     columns,
     rows: records.map((r) => ({
@@ -5748,14 +6020,22 @@ async function fetchTable(entry: Entry, scope: ReportScope): Promise<ReportTable
   if (builder) {
     try {
       const r = await builder(scope);
+      const cols = r.columns ?? [];
+      const hasBlocks = !!(r.blocks && r.blocks.length > 0);
+      const hasPairs = !!(r.pairs && r.pairs.length > 0);
       return {
         ...base,
-        columns: r.columns ?? [],
+        columns: cols,
         rows: r.rows ?? [],
         totalRow: r.totalRow,
         noSerial: r.noSerial,
-        blocks: r.blocks && r.blocks.length > 0 ? r.blocks : undefined,
-        pairs: r.pairs && r.pairs.length > 0 ? r.pairs : undefined,
+        caption: r.caption,
+        // Show the column header for an empty grid so a tester sees the exact
+        // structure before any data is entered (matches super-v2-prod.pdf's
+        // own empty result grids, which print as a bare header).
+        keepEmpty: r.keepEmpty ?? (cols.length > 0 && (r.rows?.length ?? 0) === 0 && !hasBlocks && !hasPairs),
+        blocks: hasBlocks ? r.blocks : undefined,
+        pairs: hasPairs ? r.pairs : undefined,
       };
     } catch (error) {
       // A failing builder shouldn't blank the whole report, but it must be
@@ -5775,7 +6055,7 @@ async function fetchTable(entry: Entry, scope: ReportScope): Promise<ReportTable
       take: 200,
     });
     const rows = rawRows.map((r) => Object.fromEntries(fields.map((f) => [f, stringifyValue(r[f])])));
-    return { ...base, columns, rows };
+    return { ...base, columns, rows, keepEmpty: columns.length > 0 };
   } catch (error) {
     console.error(`[report] generic fetch failed for ${entry.code} (${entry.model})`, error);
     return { ...base, columns, rows: [] };
