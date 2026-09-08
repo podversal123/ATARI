@@ -241,6 +241,8 @@ export function ProgressChartCard({
    */
   const activeRows = useMemo(() => rows.filter((r) => r.ongoing + r.completed > 0), [rows]);
   const baseRows = showAll || view === "area" || activeRows.length === 0 ? rows : activeRows;
+  /** No row has a single entry - a filter matched nothing. Show a message instead of a wall of zero-height stub bars. */
+  const hasAnyData = activeRows.length > 0;
   const pageCount = Math.max(1, Math.ceil(baseRows.length / PAGE_SIZE));
   /** A single page (e.g. one KVK selected) has nothing left for "Show all"/Prev/Next to do - same page 1 either way - so it's treated as always-shown, same as Area, instead of showing pagination controls with nothing to paginate (client report 2026-08-30). */
   const allShown = view === "area" || showAll || pageCount <= 1;
@@ -362,7 +364,7 @@ export function ProgressChartCard({
             further to reveal either (client report 2026-08-30, seen on a
             single-KVK dashboard filter).
           */}
-          {showAllLabel && view !== "area" && rows.length > PAGE_SIZE && (
+          {hasAnyData && showAllLabel && view !== "area" && rows.length > PAGE_SIZE && (
             <button
               type="button"
               onClick={() => {
@@ -389,6 +391,7 @@ export function ProgressChartCard({
         </div>
       )}
 
+      {hasAnyData && (
       <div className="mt-3 flex items-center justify-end gap-4 text-xs font-medium tracking-wide text-muted-foreground uppercase">
         {mode === "split" ? (
           <>
@@ -408,6 +411,7 @@ export function ProgressChartCard({
           </span>
         )}
       </div>
+      )}
 
       {/*
         Real reference (screenshot comparison, 2026-08-27): "Show all" on a
@@ -432,6 +436,8 @@ export function ProgressChartCard({
         `overflow-y: auto` engaged for no reason, and it was intermittently
         showing a real (if empty) vertical scrollbar next to the chart.
       */}
+      {hasAnyData ? (
+      <>
       <div ref={chartScrollRef} className={needsScroll ? "overflow-x-auto" : undefined}>
       <div
         className={cn(
@@ -787,6 +793,12 @@ export function ProgressChartCard({
           </Button>
         </div>
       </div>
+      </>
+      ) : (
+        <div className="mt-4 flex h-56 items-center justify-center rounded-md border border-dashed border-border text-sm text-muted-foreground">
+          No entries for the selected filters
+        </div>
+      )}
     </div>
   );
 }

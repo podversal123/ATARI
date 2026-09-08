@@ -1,7 +1,26 @@
+"use client";
+
 import { RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SimpleSelect } from "@/components/ui/simple-select";
 import { MultiFilterSelect } from "@/components/dashboard/multi-filter-select";
+import { useSession } from "@/lib/session";
+import { cn } from "@/lib/utils";
+
+/** A disabled, read-only filter field - what Zone always is, and what State / District / Institute / KVK become for a KVK Admin (their session already fixes all of them). */
+function LockedField({ label, value, title }: { label: string; value: string; title: string }) {
+  return (
+    <div>
+      <label className="text-[11px] font-semibold tracking-wide text-primary uppercase">{label}</label>
+      <div
+        title={title}
+        className="mt-1 flex h-8 w-full cursor-not-allowed items-center truncate rounded-md border border-border bg-muted/40 px-2 text-sm text-muted-foreground"
+      >
+        {value}
+      </div>
+    </div>
+  );
+}
 
 export type AnalyticsFilters = {
   /** Comma-joined when multiple values are picked ("All" = nothing selected) - same convention the checkbox multi-selects below use. */
@@ -46,6 +65,8 @@ export function chartGroupingLabel(groupBy: string): string {
   return GROUP_BY_OPTIONS.find((o) => o.value === groupBy)?.label ?? "KVK";
 }
 
+type KvkOption = { name: string; state: string | null; district: string | null; institute: string | null };
+
 type AnalyticsFilterBarProps = {
   filters: AnalyticsFilters;
   onChange: (filters: AnalyticsFilters) => void;
@@ -53,7 +74,8 @@ type AnalyticsFilterBarProps = {
   zoneName: string | null;
   states: string[];
   districts: string[];
-  kvks: string[];
+  /** Each KVK with its State / District / Institute, so picking a KVK auto-selects its parents (data-driven, works for every KVK). */
+  kvkOptions: KvkOption[];
   institutes: string[];
   /** OFT/FLD carry a real TrialStatus (Ongoing/Completed/Not started) - Training/Extension Activity have no status column anywhere in the schema, so Breakdown stays a single fixed "Status" value for those. */
   hasStatus?: boolean;
@@ -79,17 +101,45 @@ export function AnalyticsFilterBar({
   zoneName,
   states,
   districts,
-  kvks,
+  kvkOptions,
   institutes,
   hasStatus = false,
 }: AnalyticsFilterBarProps) {
+  const session = useSession();
+  // A KVK Admin session is fixed to one Zone / State / District / Institute /
+  // KVK - show all five as locked values (like Zone always was), not filters.
+  const isKvkAdmin = session.role === "kvk-admin";
+  const kvks = kvkOptions.map((k) => k.name);
+
   function set<K extends keyof AnalyticsFilters>(key: K, value: string) {
     onChange({ ...filters, [key]: value });
   }
 
+  /**
+   * Picking KVK(s) auto-selects their State / District / Institute (the union
+   * across every picked KVK), so the chain reads top-down like the Zone does.
+   * Clearing the KVK selection leaves the parents where they are.
+   */
+  function onKvkChange(next: Set<string>) {
+    if (next.size === 0) {
+      set("kvk", "All");
+      return;
+    }
+    const picked = kvkOptions.filter((k) => next.has(k.name));
+    const uniq = (xs: (string | null)[]) => Array.from(new Set(xs.filter((x): x is string => Boolean(x))));
+    onChange({
+      ...filters,
+      kvk: fromSet(next),
+      state: fromSet(new Set(uniq(picked.map((k) => k.state)))),
+      district: fromSet(new Set(uniq(picked.map((k) => k.district)))),
+      institute: fromSet(new Set(uniq(picked.map((k) => k.institute)))),
+    });
+  }
+
   return (
     <div className="rounded-lg border border-border bg-card p-4">
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4 lg:grid-cols-8">
+      {/* A KVK Admin has no "Group By" - every dimension (zone/state/district/institute/kvk) collapses to their one KVK, so the column is dropped and the grid narrows to 7. */}
+      <div className={cn("grid grid-cols-2 gap-4 sm:grid-cols-4", isKvkAdmin ? "lg:grid-cols-7" : "lg:grid-cols-8")}>
         <div>
           <label className="text-[11px] font-semibold tracking-wide text-primary uppercase">Year</label>
           <MultiFilterSelect
@@ -102,74 +152,88 @@ export function AnalyticsFilterBar({
             triggerClassName="w-full"
           />
         </div>
-        <div>
-          <label className="text-[11px] font-semibold tracking-wide text-primary uppercase">Zone</label>
-          {/* Not a real `<select>` (even disabled, it rendered with the exact same border/height as every live dropdown next to it, so it still read as clickable) and no longer hardcodes "All" - a Super Admin session only ever has one real zone, so showing it directly is more informative than a fake "All" (client report 2026-08-30). */}
-          <div
-            title="This account only manages one zone - already applied to every card below."
-            className="mt-1 flex h-8 w-full cursor-not-allowed items-center truncate rounded-md border border-border bg-muted/40 px-2 text-sm text-muted-foreground"
-          >
-            {zoneName ?? "All"}
+        {/* Not a real `<select>` - a session only ever has one real zone, so showing it directly is more informative than a fake "All" (client report 2026-08-30). */}
+        <LockedField
+          label="Zone"
+          value={zoneName ?? "All"}
+          title="This account only manages one zone - already applied to every card below."
+        />
+        {isKvkAdmin ? (
+          <LockedField label="State" value={states[0] ?? "All"} title="Your KVK's state - fixed for this account." />
+        ) : (
+          <div>
+            <label className="text-[11px] font-semibold tracking-wide text-primary uppercase">State</label>
+            <MultiFilterSelect
+              label="State"
+              hideLabel
+              options={states}
+              selected={toSet(filters.state)}
+              onChange={(next) => set("state", fromSet(next))}
+              className="mt-1"
+              triggerClassName="w-full"
+            />
           </div>
-        </div>
-        <div>
-          <label className="text-[11px] font-semibold tracking-wide text-primary uppercase">State</label>
-          <MultiFilterSelect
-            label="State"
-            hideLabel
-            options={states}
-            selected={toSet(filters.state)}
-            onChange={(next) => set("state", fromSet(next))}
-            className="mt-1"
-            triggerClassName="w-full"
-          />
-        </div>
-        <div>
-          <label className="text-[11px] font-semibold tracking-wide text-primary uppercase">District</label>
-          <MultiFilterSelect
-            label="District"
-            hideLabel
-            options={districts}
-            selected={toSet(filters.district)}
-            onChange={(next) => set("district", fromSet(next))}
-            className="mt-1"
-            triggerClassName="w-full"
-          />
-        </div>
-        <div>
-          <label className="text-[11px] font-semibold tracking-wide text-primary uppercase">Institute</label>
-          <MultiFilterSelect
-            label="Institute"
-            hideLabel
-            options={institutes}
-            selected={toSet(filters.institute)}
-            onChange={(next) => set("institute", fromSet(next))}
-            className="mt-1"
-            triggerClassName="w-full"
-          />
-        </div>
-        <div>
-          <label className="text-[11px] font-semibold tracking-wide text-primary uppercase">KVK</label>
-          <MultiFilterSelect
-            label="KVK"
-            hideLabel
-            options={kvks}
-            selected={toSet(filters.kvk)}
-            onChange={(next) => set("kvk", fromSet(next))}
-            className="mt-1"
-            triggerClassName="w-full"
-          />
-        </div>
-        <div>
-          <label className="text-[11px] font-semibold tracking-wide text-primary uppercase">Group By</label>
-          <SimpleSelect
-            value={filters.groupBy}
-            onValueChange={(v) => set("groupBy", v)}
-            placeholder="Select"
-            options={GROUP_BY_OPTIONS.map((o) => ({ ...o }))}
-            className="mt-1 h-8"
-          />
-        </div>
+        )}
+        {isKvkAdmin ? (
+          <LockedField label="District" value={districts[0] ?? "All"} title="Your KVK's district - fixed for this account." />
+        ) : (
+          <div>
+            <label className="text-[11px] font-semibold tracking-wide text-primary uppercase">District</label>
+            <MultiFilterSelect
+              label="District"
+              hideLabel
+              options={districts}
+              selected={toSet(filters.district)}
+              onChange={(next) => set("district", fromSet(next))}
+              className="mt-1"
+              triggerClassName="w-full"
+            />
+          </div>
+        )}
+        {isKvkAdmin ? (
+          <LockedField label="Institute" value={institutes[0] ?? "Not set"} title="Your KVK's host institute - fixed for this account." />
+        ) : (
+          <div>
+            <label className="text-[11px] font-semibold tracking-wide text-primary uppercase">Institute</label>
+            <MultiFilterSelect
+              label="Institute"
+              hideLabel
+              options={institutes}
+              selected={toSet(filters.institute)}
+              onChange={(next) => set("institute", fromSet(next))}
+              className="mt-1"
+              triggerClassName="w-full"
+            />
+          </div>
+        )}
+        {isKvkAdmin ? (
+          <LockedField label="KVK" value={kvks[0] ?? session.kvkName ?? "Your KVK"} title="This account is scoped to one KVK." />
+        ) : (
+          <div>
+            <label className="text-[11px] font-semibold tracking-wide text-primary uppercase">KVK</label>
+            <MultiFilterSelect
+              label="KVK"
+              hideLabel
+              options={kvks}
+              selected={toSet(filters.kvk)}
+              onChange={onKvkChange}
+              className="mt-1"
+              triggerClassName="w-full"
+            />
+          </div>
+        )}
+        {!isKvkAdmin && (
+          <div>
+            <label className="text-[11px] font-semibold tracking-wide text-primary uppercase">Group By</label>
+            <SimpleSelect
+              value={filters.groupBy}
+              onValueChange={(v) => set("groupBy", v)}
+              placeholder="Select"
+              options={GROUP_BY_OPTIONS.map((o) => ({ ...o }))}
+              className="mt-1 h-8"
+            />
+          </div>
+        )}
         <div>
           <label className="text-[11px] font-semibold tracking-wide text-primary uppercase">Breakdown</label>
           {hasStatus ? (

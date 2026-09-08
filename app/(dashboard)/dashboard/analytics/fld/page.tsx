@@ -6,6 +6,7 @@ import { AnalyticsFilterBar, chartGroupingLabel } from "@/components/dashboard/a
 import { MetricCard } from "@/components/dashboard/metric-card";
 import { ProgressChartCard, type ProgressChartRow } from "@/components/dashboard/progress-chart-card";
 import { useAnalyticsFilters, type AnalyticsData } from "@/lib/use-analytics-filters";
+import { useSession } from "@/lib/session";
 
 type FldData = AnalyticsData & {
   fld: {
@@ -26,6 +27,7 @@ type FldData = AnalyticsData & {
  */
 export default function FldDetailedAnalyticsPage() {
   const { filters, setFilters, data: raw } = useAnalyticsFilters("fld");
+  const isKvkAdmin = useSession().role === "kvk-admin";
   const data = raw as unknown as FldData | null;
   const stats = data?.fld ?? {
     total: 0,
@@ -56,7 +58,7 @@ export default function FldDetailedAnalyticsPage() {
         FLD - detailed analytics
       </h1>
       <p className="mt-1 text-sm text-muted-foreground">
-        Filter by year, zone, state, district, institute and KVK
+        {isKvkAdmin ? "Filter by year" : "Filter by year, zone, state, district, institute and KVK"}
       </p>
 
       <div className="mt-6">
@@ -67,7 +69,7 @@ export default function FldDetailedAnalyticsPage() {
           zoneName={data?.zoneName ?? null}
           states={data?.stateOptions ?? []}
           districts={data?.districtOptions ?? []}
-          kvks={(data?.kvkOptions ?? []).map((k) => k.name)}
+          kvkOptions={data?.kvkOptions ?? []}
           institutes={data?.instituteOptions ?? []}
           hasStatus
         />
@@ -85,7 +87,7 @@ export default function FldDetailedAnalyticsPage() {
 
       <div className="mt-4">
         <ProgressChartCard
-          title={`FLD by ${chartGroupingLabel(filters.groupBy)}`}
+          title={isKvkAdmin ? "FLD" : `FLD by ${chartGroupingLabel(filters.groupBy)}`}
           description="Status"
           totalCount={stats.total}
           rows={rows}

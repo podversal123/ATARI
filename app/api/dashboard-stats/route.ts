@@ -228,15 +228,22 @@ export async function GET(request: Request) {
       },
       orderBy: { name: "asc" },
     }),
-    /** The KVK dropdown's own option list - every KVK in the zone (narrowed by State/District, never by the currently-selected KVK itself, otherwise picking a KVK would make every other KVK disappear from the dropdown). Also used by the `?scope=` analytics detail pages' own KVK filter, so this always runs regardless of scope. */
+    /** The KVK dropdown's own option list - every KVK in the zone (narrowed by State/District, never by the currently-selected KVK itself, otherwise picking a KVK would make every other KVK disappear from the dropdown). Also used by the `?scope=` analytics detail pages' own KVK filter, so this always runs regardless of scope. Carries each KVK's State/District/Institute so the analytics filter bar can auto-select the parents when a KVK is picked. */
     prisma.kvk.findMany({
       where: kvkOptionsWhere,
-      select: { id: true, name: true },
+      select: {
+        id: true,
+        name: true,
+        state: { select: { name: true } },
+        district: { select: { name: true } },
+        institute: { select: { name: true } },
+      },
       orderBy: { name: "asc" },
     }),
-    scopeParam
-      ? Promise.resolve(0)
-      : prisma.kvk.count({ where: kvkId ? { id: kvkId } : { zoneId: auth.session.zoneId } }),
+    // Reflects the active KVK / State / District / Institute filter (not year -
+    // a KVK exists regardless of year), so the "KVK" stat card tracks the
+    // dashboard's own scope instead of always showing the whole zone.
+    scopeParam ? Promise.resolve(0) : prisma.kvk.count({ where: kvkListWhere }),
     needs("oft") ? prisma.oft.groupBy({ by: ["kvkId", "status"], where: scope, _count: { _all: true } }) : Promise.resolve([]),
     needs("fld") ? prisma.fld.groupBy({ by: ["kvkId", "status"], where: scope, _count: { _all: true } }) : Promise.resolve([]),
     needs("training") ? prisma.training.groupBy({ by: ["kvkId"], where: trainingScope, _count: { _all: true } }) : Promise.resolve([]),
@@ -479,7 +486,13 @@ export async function GET(request: Request) {
   return NextResponse.json({
     totalKvks,
     years,
-    kvkOptions,
+    kvkOptions: kvkOptions.map((k) => ({
+      id: k.id,
+      name: k.name,
+      state: k.state?.name ?? null,
+      district: k.district?.name ?? null,
+      institute: k.institute?.name ?? null,
+    })),
     zoneName: zone?.name ?? null,
     /** A KVK Admin gets only their own KVK's State/District/Institute (from the single scoped `kvks` row); Super Admin gets the whole zone's list. */
     stateOptions: isKvkAdmin

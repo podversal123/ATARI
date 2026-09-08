@@ -6,6 +6,7 @@ import { AnalyticsFilterBar, chartGroupingLabel } from "@/components/dashboard/a
 import { MetricCard } from "@/components/dashboard/metric-card";
 import { ProgressChartCard, type ProgressChartRow } from "@/components/dashboard/progress-chart-card";
 import { useAnalyticsFilters, type AnalyticsData } from "@/lib/use-analytics-filters";
+import { useSession } from "@/lib/session";
 
 type OftData = AnalyticsData & {
   oft: { total: number; quantity: number; cost: number; locations: number; replications: number; farmersCovered: number };
@@ -22,6 +23,7 @@ type OftData = AnalyticsData & {
  */
 export default function OftDetailedAnalyticsPage() {
   const { filters, setFilters, data: raw } = useAnalyticsFilters("oft");
+  const isKvkAdmin = useSession().role === "kvk-admin";
   const data = raw as unknown as OftData | null;
   const stats = data?.oft ?? { total: 0, quantity: 0, cost: 0, locations: 0, replications: 0, farmersCovered: 0 };
   const rows = data?.charts.oft ?? [];
@@ -49,7 +51,7 @@ export default function OftDetailedAnalyticsPage() {
         OFT - detailed analytics
       </h1>
       <p className="mt-1 text-sm text-muted-foreground">
-        Filter by year, zone, state, district, institute and KVK
+        {isKvkAdmin ? "Filter by year" : "Filter by year, zone, state, district, institute and KVK"}
       </p>
 
       <div className="mt-6">
@@ -60,7 +62,7 @@ export default function OftDetailedAnalyticsPage() {
           zoneName={data?.zoneName ?? null}
           states={data?.stateOptions ?? []}
           districts={data?.districtOptions ?? []}
-          kvks={(data?.kvkOptions ?? []).map((k) => k.name)}
+          kvkOptions={data?.kvkOptions ?? []}
           institutes={data?.instituteOptions ?? []}
           hasStatus
         />
@@ -78,7 +80,7 @@ export default function OftDetailedAnalyticsPage() {
 
       <div className="mt-4">
         <ProgressChartCard
-          title={`OFT by ${chartGroupingLabel(filters.groupBy)}`}
+          title={isKvkAdmin ? "OFT" : `OFT by ${chartGroupingLabel(filters.groupBy)}`}
           description="Status"
           totalCount={stats.total}
           rows={rows}

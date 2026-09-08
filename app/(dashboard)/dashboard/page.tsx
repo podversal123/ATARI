@@ -26,7 +26,7 @@ type TotalRow = { id: string; label: string; total: number };
 type DashboardStats = {
   totalKvks: number;
   years: number[];
-  kvkOptions: { id: string; name: string }[];
+  kvkOptions: { id: string; name: string; state: string | null; district: string | null; institute: string | null }[];
   oft: { total: number; ongoing: number; completed: number; kvksWithEntries: number };
   fld: { total: number; ongoing: number; completed: number; kvksWithEntries: number };
   training: { total: number; kvksWithEntries: number };
@@ -255,18 +255,16 @@ export default function DashboardPage() {
   }
 
   /**
-   * The filter card's left edge must land exactly on Ext. Activity's left
-   * edge (so the card spans just the last two stat cards - Ext. Activity and
-   * Total Staff - not further left into Training's column). Its right edge
-   * already lands correctly flush against the row's own right edge via
-   * `justify-between`, so capping the card's width (not a margin) is enough:
-   * with the right edge pinned, a narrower width only pulls the left edge
-   * inward. Measured directly against the real stat cards rather than
-   * mirrored via a second grid, since a separate grid with identical
-   * Tailwind classes did not reliably agree on column widths across
-   * breakpoints when tried for this same alignment earlier.
+   * Super Admin's filter card holds Year + KVK, so its left edge is aligned to
+   * span just the last two stat cards (Ext. Activity + Total Staff). A KVK
+   * Admin only has the Year dropdown, so that card just sizes to its content -
+   * forcing it that wide would stretch a single year select across the row.
    */
   useLayoutEffect(() => {
+    if (session.role === "kvk-admin") {
+      setFilterCardWidth(undefined);
+      return;
+    }
     function measure() {
       const grid = statGridRef.current;
       const filterCard = filterCardRef.current;
@@ -329,16 +327,19 @@ export default function DashboardPage() {
         </div>
         <div
           ref={filterCardRef}
-          className="flex flex-nowrap items-center justify-between gap-1.5 overflow-x-auto rounded-lg border border-border bg-card p-3"
-          style={filterCardWidth ? { width: filterCardWidth } : undefined}
+          className={cn(
+            "flex flex-nowrap items-center gap-2 overflow-x-auto rounded-lg border border-border bg-card p-3",
+            isKvkAdmin ? "" : "justify-between gap-1.5",
+          )}
+          style={!isKvkAdmin && filterCardWidth ? { width: filterCardWidth } : undefined}
         >
           <MultiFilterSelect
             label="Year"
             options={stats.years.map(String)}
             selected={yearFilter}
             onChange={applyYear}
-            className="flex-1"
-            triggerClassName="min-w-0 flex-1"
+            className={isKvkAdmin ? "shrink-0" : "flex-1"}
+            triggerClassName={isKvkAdmin ? "w-32" : "min-w-0 flex-1"}
           />
           {!isKvkAdmin && (
             <MultiFilterSelect
@@ -350,7 +351,7 @@ export default function DashboardPage() {
               triggerClassName="min-w-0 flex-1"
             />
           )}
-          <Button variant="outline-primary" size="sm" onClick={resetFilters}>
+          <Button variant="outline-primary" size="sm" onClick={resetFilters} className="shrink-0">
             Reset
           </Button>
         </div>

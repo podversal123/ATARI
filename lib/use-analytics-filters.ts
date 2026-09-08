@@ -7,7 +7,7 @@ import { usePolling } from "@/lib/use-polling";
 /** Shape every `/api/dashboard-stats?scope=...` response shares, regardless of which section it's scoped to. */
 export type AnalyticsData = {
   years: number[];
-  kvkOptions: { id: string; name: string }[];
+  kvkOptions: { id: string; name: string; state: string | null; district: string | null; institute: string | null }[];
   zoneName: string | null;
   stateOptions: string[];
   districtOptions: string[];

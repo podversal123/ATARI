@@ -6,6 +6,7 @@ import { AnalyticsFilterBar, chartGroupingLabel } from "@/components/dashboard/a
 import { MetricCard } from "@/components/dashboard/metric-card";
 import { ProgressChartCard, type ProgressChartRow } from "@/components/dashboard/progress-chart-card";
 import { useAnalyticsFilters, type AnalyticsData } from "@/lib/use-analytics-filters";
+import { useSession } from "@/lib/session";
 
 type TotalRow = { id: string; label: string; total: number };
 type TrainingData = AnalyticsData & {
@@ -25,6 +26,7 @@ function toTotalChartRows(rows: TotalRow[]): ProgressChartRow[] {
  */
 export default function TrainingDetailedAnalyticsPage() {
   const { filters, setFilters, data: raw } = useAnalyticsFilters("training");
+  const isKvkAdmin = useSession().role === "kvk-admin";
   const data = raw as unknown as TrainingData | null;
   const total = data?.training.total ?? 0;
   const rows = toTotalChartRows(data?.charts.training ?? []);
@@ -43,7 +45,7 @@ export default function TrainingDetailedAnalyticsPage() {
         Training - detailed analytics
       </h1>
       <p className="mt-1 text-sm text-muted-foreground">
-        Filter by year, zone, state, district, institute and KVK
+        {isKvkAdmin ? "Filter by year" : "Filter by year, zone, state, district, institute and KVK"}
       </p>
 
       <div className="mt-6">
@@ -54,7 +56,7 @@ export default function TrainingDetailedAnalyticsPage() {
           zoneName={data?.zoneName ?? null}
           states={data?.stateOptions ?? []}
           districts={data?.districtOptions ?? []}
-          kvks={(data?.kvkOptions ?? []).map((k) => k.name)}
+          kvkOptions={data?.kvkOptions ?? []}
           institutes={data?.instituteOptions ?? []}
         />
       </div>
@@ -64,7 +66,7 @@ export default function TrainingDetailedAnalyticsPage() {
       </div>
 
       <div className="mt-4">
-        <ProgressChartCard title={`Training by ${chartGroupingLabel(filters.groupBy)}`} description="Status" totalCount={total} rows={rows} mode="total" resetKey={JSON.stringify(filters)} />
+        <ProgressChartCard title={isKvkAdmin ? "Training" : `Training by ${chartGroupingLabel(filters.groupBy)}`} description={isKvkAdmin ? "Total trainings conducted" : "Total trainings per KVK"} totalCount={total} rows={rows} mode="total" resetKey={JSON.stringify(filters)} />
       </div>
     </div>
   );
