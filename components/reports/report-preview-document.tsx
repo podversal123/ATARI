@@ -117,7 +117,7 @@ function Grid({ grid }: { grid: ReportGrid }) {
               );
               // Group-header band row: a single label, in the first column - or
               // the second when the table leads with an S.No column.
-              const labelColIdx = /^s\.?\s*no\.?$/i.test(grid.columns[0]?.label ?? "") ? 1 : 0;
+              const labelColIdx = /^s[lr]?\.?\s*no\.?$/i.test(grid.columns[0]?.label ?? "") ? 1 : 0;
               const isBand =
                 !isTotal &&
                 grid.columns.length >= labelColIdx + 2 &&

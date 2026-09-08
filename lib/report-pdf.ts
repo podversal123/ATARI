@@ -149,7 +149,7 @@ function renderGrid(doc: jsPDF, grid: ReportGrid, startY: number): number {
    */
   // A band row carries a single label - in the first column, or the second when
   // the table leads with an S.No column (blank on band rows).
-  const labelColIdx = /^s\.?\s*no\.?$/i.test(grid.columns[0]?.label ?? "") ? 1 : 0;
+  const labelColIdx = /^s[lr]?\.?\s*no\.?$/i.test(grid.columns[0]?.label ?? "") ? 1 : 0;
   const bandRowIdx = new Set<number>();
   if (grid.columns.length >= labelColIdx + 2) {
     grid.rows.forEach((row, i) => {
