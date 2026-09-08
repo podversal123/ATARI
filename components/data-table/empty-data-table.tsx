@@ -29,7 +29,6 @@ import { SIDEBAR_ICONS } from "@/components/layout/sidebar-icons";
 import { reportSubsectionForLeaf } from "@/lib/report-section-map";
 import type { ReportSection, ReportTable } from "@/lib/report-types";
 import { cn, downloadBlob } from "@/lib/utils";
-import { useSession } from "@/lib/session";
 import { Input } from "@/components/ui/input";
 import { SimpleSelect } from "@/components/ui/simple-select";
 import { MultiFilterSelect } from "@/components/dashboard/multi-filter-select";
@@ -221,9 +220,7 @@ export function EmptyDataTable({
   staffTransferHistory,
   staffTransfer,
 }: EmptyDataTableProps) {
-  const session = useSession();
   const router = useRouter();
-  const isSuperAdmin = session.role === "super-admin";
   /** Every list table gets a real Action column (Edit/Delete) regardless of role, matching every other leaf in the app - Transfer/Add Result specifically stay KVK-only below (transferring or marking a trial's own result isn't a Super Admin action), but that no longer means hiding Edit/Delete from Super Admin too. */
   const showActionColumn = true;
   /** `columns` includes any `formOnly` entries (demographic-breakdown blocks) needed by the Add/Edit form below - the list table itself only ever renders real, single-value columns, so every table concern (header, rows, colSpan, exports) uses this filtered list instead. */

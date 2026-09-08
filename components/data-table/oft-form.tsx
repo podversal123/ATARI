@@ -47,7 +47,6 @@ const DEFAULT_TECHNOLOGY_OPTIONS: TechnologyOption[] = [
 ];
 
 const currentYear = new Date().getFullYear();
-const REPORTING_YEARS = Array.from({ length: 6 }, (_, i) => String(currentYear - i));
 
 type ThematicAreaRow = { thematicArea: string; subjectName: string };
 

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { usePolling } from "@/lib/use-polling";
-import { KeyRound, MoreVertical, Pencil, Plus, Search, Trash2 } from "lucide-react";
+import { MoreVertical, Pencil, Plus, Search, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -496,7 +496,7 @@ export function UserManagementView() {
       <AlertDialog open={deleteUser !== null} onOpenChange={(open) => !open && setDeleteUser(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete user "{deleteUser?.name}"?</AlertDialogTitle>
+            <AlertDialogTitle>Delete user &quot;{deleteUser?.name}&quot;?</AlertDialogTitle>
             <AlertDialogDescription>
               This permanently removes their account and login access. This cannot be undone.
             </AlertDialogDescription>

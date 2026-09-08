@@ -488,7 +488,7 @@ export function RoleManagementView() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              Delete role "{deleteRole?.name}"?
+              Delete role &quot;{deleteRole?.name}&quot;?
             </AlertDialogTitle>
             <AlertDialogDescription>
               This removes the role and its permission configuration. Users

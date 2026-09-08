@@ -12,7 +12,10 @@ import { useEffect, useRef } from "react";
  */
 export function usePolling(callback: () => void, intervalMs = 20000) {
   const callbackRef = useRef(callback);
-  callbackRef.current = callback;
+  // Keep the ref current without writing to it during render.
+  useEffect(() => {
+    callbackRef.current = callback;
+  });
 
   useEffect(() => {
     const id = setInterval(() => {

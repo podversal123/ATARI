@@ -29,7 +29,6 @@ const currentYear = new Date().getFullYear();
 function uniqueNonEmpty(values: (string | undefined)[]): string[] {
   return Array.from(new Set(values.filter((v): v is string => Boolean(v?.trim()))));
 }
-const REPORTING_YEARS = Array.from({ length: 6 }, (_, i) => String(currentYear - i));
 
 type NamedRow = Record<string, string>;
 
