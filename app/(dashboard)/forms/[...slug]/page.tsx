@@ -538,8 +538,13 @@ export default async function FormsPage({ params, searchParams }: FormsPageProps
       totalCount: rows.length,
     };
   } else if (user && node.type === "leaf" && node.slug === "vehicle-details") {
+    // VehicleStatus has no kvkId of its own (only vehicleId + zoneId), so a KVK
+    // Admin has to be scoped through the parent Vehicle - same shape as the FLD
+    // child tables below.
     const rows = await prisma.vehicleStatus.findMany({
-      where: kvkScope,
+      where: kvkScope.kvkId
+        ? { vehicle: { kvkId: kvkScope.kvkId } }
+        : { zoneId: kvkScope.zoneId },
       include: { vehicle: { include: { kvk: true } } },
       orderBy: { createdAt: "desc" },
     });
@@ -573,8 +578,12 @@ export default async function FormsPage({ params, searchParams }: FormsPageProps
       totalCount: rows.length,
     };
   } else if (user && node.type === "leaf" && node.slug === "equipment-details") {
+    // EquipmentStatus has no kvkId of its own (only equipmentId + zoneId) - scope
+    // a KVK Admin through the parent Equipment.
     const rows = await prisma.equipmentStatus.findMany({
-      where: kvkScope,
+      where: kvkScope.kvkId
+        ? { equipment: { kvkId: kvkScope.kvkId } }
+        : { zoneId: kvkScope.zoneId },
       include: { equipment: { include: { kvk: true } } },
       orderBy: { createdAt: "desc" },
     });
