@@ -2641,7 +2641,11 @@ function buildNariKvk(
 ) {
   return async (kvkId: string): Promise<CustomTableResult> => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const records: Record<string, any>[] = await (prisma as any)[model].findMany({ where: { kvkId }, orderBy: { createdAt: "asc" } });
+    const records: Record<string, any>[] = await (prisma as any)[model].findMany({
+      where: { kvkId },
+      include: { kvk: { select: { name: true } } },
+      orderBy: { createdAt: "asc" },
+    });
     const casteOf = (r: Record<string, unknown>): CasteRecord => ({
       generalMale: Number(r.male ?? 0), generalFemale: Number(r.female ?? 0),
       obcMale: Number(r.obcMale ?? 0), obcFemale: Number(r.obcFemale ?? 0),
@@ -2654,16 +2658,16 @@ function buildNariKvk(
         caption: "Details of Established Nutrition Garden in Nutri-Smart Village",
         lead: [
           { key: "village", label: "Name of Nutri-Smart Village" }, { key: "activity", label: "Activity Type" },
-          { key: "type", label: "Type of Nutritional Garden" }, { key: "number", label: "Number" }, { key: "area", label: "Area (sqm)" },
+          { key: "type", label: "Type of Nutritional Garden" }, { key: "number", label: "Number" }, { key: "area", label: "Area(sqm)" },
         ],
         row: (r) => ({ village: r.nutriSmartVillage, activity: r.activity, type: r.typeOfNutritionalGarden, number: String(r.numbers), area: stringifyValue(r.areaSqm) }),
         secondary: {
           caption: "Production and Consumption of Nutrition Garden Crops of Each Beneficiary",
           jsonKey: "crops",
           columns: [
-            { key: "name", label: "Name of Crops" }, { key: "varieties", label: "Varieties" }, { key: "areaGrown", label: "Area Grown (sqm)" },
-            { key: "production", label: "Production (kg)" }, { key: "consumption", label: "Consumption (kg)" },
-            { key: "sell", label: "Sell of Produce (kg)" }, { key: "income", label: "Income from Sell of Produce (Rs)" },
+            { key: "name", label: "Name of Crops" }, { key: "varieties", label: "Varieties" }, { key: "areaGrown", label: "Area Grown(sqm)" },
+            { key: "production", label: "Production(kg)" }, { key: "consumption", label: "Consumption(kg)" },
+            { key: "sell", label: "Sell of Produce(kg)" }, { key: "income", label: "Income from Sell of Produce (Rs)" },
           ],
           map: (x) => ({ name: String(x.name ?? ""), varieties: String(x.varieties ?? ""), areaGrown: String(x.areaGrown ?? ""), production: String(x.production ?? ""), consumption: String(x.consumption ?? ""), sell: String(x.sell ?? ""), income: String(x.income ?? "") }),
         },
@@ -2732,7 +2736,11 @@ function buildNariKvk(
           : { keepEmpty: true }),
       }],
     };
-    const blocks: ReportBlock[] = [primary];
+    // kvk-report p.36-38 prints a "KVK: <name>" band above each NARI grid.
+    const kvkName = records[0]?.kvk?.name as string | undefined;
+    const blocks: ReportBlock[] = kvkName
+      ? [{ heading: `KVK: ${kvkName}`, parts: [] }, primary]
+      : [primary];
     if (s.secondary) {
       const items = records.flatMap((r) => (Array.isArray(r[s.secondary!.jsonKey]) ? (r[s.secondary!.jsonKey] as Record<string, unknown>[]) : []));
       blocks.push({
@@ -4318,9 +4326,17 @@ async function buildAgriDroneIntroduction(scope: ReportScope): Promise<CustomTab
     where: scopeAndPeriod(scope, "agriDroneIntroduction"),
     orderBy: { year: "asc" },
   });
-  if (records.length === 0) return {};
+  const paramCols: ReportColumn[] = [
+    { key: "param", label: "Name of parameter" },
+    { key: "detail", label: "Details of parameter" },
+  ];
+  const CAPTION = "Information of Agri Drone project implementation by the different Institutions/KVK";
+  if (records.length === 0) {
+    // Show the fixed parameter list with blank details so a tester sees the exact shape.
+    return { caption: CAPTION, columns: paramCols, rows: AGRI_DRONE_PARAMS.map((p) => ({ param: p.label, detail: "" })), keepEmpty: true };
+  }
   const blocks: ReportBlock[] = [
-    { heading: "Information of Agri Drone project implementation by the different Institutions/KVK", align: "center", parts: [] },
+    { heading: CAPTION, align: "center", parts: [] },
   ];
   for (const r of records) {
     blocks.push({
@@ -5283,7 +5299,22 @@ async function buildNfDemonstration(scope: ReportScope): Promise<CustomTableResu
     include: { kvk: { select: { name: true, state: { select: { name: true } } } } },
     orderBy: [{ kvk: { name: "asc" } }, { createdAt: "asc" }],
   });
-  if (records.length === 0) return {};
+  const DEMO_LABELS = [
+    "Name of KVK/Farmer where demonstration conducted", "Address of Farmer with contact detail",
+    "Agro Climatic Zone of Village/KVK", "Cropping pattern of KVK plot/ Farmer plot",
+    "Farming Situation of the Selected Farmer/KVK", "Latitude (N)", "Longitude (E)",
+    "Name of Activity", "Crop", "Variety", "Season (Kharif / Rabi / Summer)",
+    "Name of Natural Farming components/Technology demonstrated", "Area (ha) in Natural farming practice",
+    "Detail of farmer practice", "Farmer Feedback",
+  ];
+  if (records.length === 0) {
+    return {
+      blocks: [{
+        heading: "A) KVK/ Farmer wise information of demonstration conducted.",
+        parts: [{ kind: "pairs", pairs: DEMO_LABELS.map((label) => ({ label, value: "" })) }, nfParameterGrid(null)],
+      }],
+    };
+  }
   const blocks: ReportBlock[] = records.map((r) => ({
     heading: `${r.kvk.name} — ${r.farmerName}`,
     parts: [
@@ -5324,7 +5355,19 @@ async function buildNfAlreadyPracticing(scope: ReportScope): Promise<CustomTable
     include: { kvk: { select: { name: true } } },
     orderBy: [{ kvk: { name: "asc" } }, { createdAt: "asc" }],
   });
-  if (records.length === 0) return {};
+  const PRAC_LABELS = [
+    "Name of Farmer", "Address", "Contact Number", "Name of Activity", "Crop",
+    "Name of Natural Farming components/Technology demonstrated", "Area (ha) in Natural farming practice",
+    "Practicing Year Of Natural Farming", "Farmer Feedback",
+  ];
+  if (records.length === 0) {
+    return {
+      blocks: [{
+        heading: "Information of Farmer Already Practicing Natural Farming",
+        parts: [{ kind: "pairs", pairs: PRAC_LABELS.map((label) => ({ label, value: "" })) }, nfParameterGrid(null)],
+      }],
+    };
+  }
   const blocks: ReportBlock[] = records.map((r) => ({
     heading: `${r.kvk.name} — ${r.farmerName}`,
     parts: [
