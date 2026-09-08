@@ -3940,7 +3940,7 @@ function buildNicraStatePivot(model: "nicraTraining" | "nicraExtensionActivity",
     if (scope.kvkId && model === "nicraTraining") {
       const records = await prisma.nicraTraining.findMany({
         where: { kvkId: scope.kvkId },
-        select: { title: true, startDate: true, endDate: true, duration: true, trainingType: true, ...CASTE_SELECT },
+        select: { title: true, startDate: true, endDate: true, duration: true, trainingType: true, ...CASTE_SELECT, kvk: { select: { name: true } } },
         orderBy: { startDate: "asc" },
       });
       const columns: ReportColumn[] = [
@@ -3951,16 +3951,23 @@ function buildNicraStatePivot(model: "nicraTraining" | "nicraExtensionActivity",
         ...casteMftColumns("", { flat: true, grandLabel: "Total" }),
       ];
       if (records.length === 0) return { columns, keepEmpty: true };
+      // kvk-report p.28 prints a "KVK <name>" band above the training grid.
       return {
-        columns,
-        rows: records.map((r) => ({
-          title: r.title,
-          period: `${stringifyValue(r.startDate)} to ${stringifyValue(r.endDate)}`,
-          duration: r.duration ?? "",
-          ttype: r.trainingType ?? "",
-          ...casteMftRow([r], "", true),
-        })),
-        totalRow: { title: "Grand Total", period: "", duration: "", ttype: "", ...casteMftRow(records, "", true) },
+        blocks: [{
+          heading: records[0].kvk.name,
+          parts: [{
+            kind: "grid",
+            columns,
+            rows: records.map((r) => ({
+              title: r.title,
+              period: `${stringifyValue(r.startDate)} to ${stringifyValue(r.endDate)}`,
+              duration: r.duration ?? "",
+              ttype: r.trainingType ?? "",
+              ...casteMftRow([r], "", true),
+            })),
+            totalRow: { title: "Grand Total", period: "", duration: "", ttype: "", ...casteMftRow(records, "", true) },
+          }],
+        }],
       };
     }
     const [records, stateNames] = await Promise.all([
@@ -4700,14 +4707,18 @@ async function buildNicraDetails(scope: ReportScope): Promise<CustomTableResult>
     const casteLabels = ["Gen M", "Gen F", "OBC M", "OBC F", "SC M", "SC F", "ST M", "ST F"];
     const num = (v: unknown) => Number(v ?? 0);
     const fmt = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(2));
+    // kvk-report p.28 leads with an "S.No" column that numbers only the real
+    // detail rows (band / sub-total / total rows carry no serial).
     const columns: ReportColumn[] = [
+      { key: "sNo", label: "S.No" },
       { key: "crop", label: "Crop" }, { key: "season", label: "Season" }, { key: "month", label: "Month" },
       { key: "tech", label: "Technology demonstrated" }, { key: "area", label: "Area / Unit" }, { key: "yield", label: "Yield" },
       ...casteCells.map((k, i) => ({ key: `c_${k}`, label: casteLabels[i], groups: [CB] })),
       { key: "cTotal", label: "Total", groups: [CB] },
       { key: "gCost", label: "Gross cost" }, { key: "gRet", label: "Gross return" }, { key: "nRet", label: "Net return" }, { key: "bcr", label: "BCR" },
     ];
-    if (records.length === 0) return { columns, noSerial: true, keepEmpty: true };
+    const CAPTION = "NICRA — Details of demonstrations / interventions";
+    if (records.length === 0) return { columns, noSerial: true, keepEmpty: true, caption: CAPTION };
     const casteRow = (list: KR[]) => {
       const out: Record<string, string> = {};
       let total = 0;
@@ -4722,21 +4733,25 @@ async function buildNicraDetails(scope: ReportScope): Promise<CustomTableResult>
       bcr: list.length === 1 ? stringifyValue(list[0].bcr) : "",
     });
     const rows: Record<string, string>[] = [];
+    let sNo = 0;
+    const band = (label: string) => rows.push({ sNo: "", crop: label, season: "", month: "", tech: "", area: "", yield: "" });
     for (const [category, catList] of groupInto(records, (r) => r.category ?? "Not Specified").entries()) {
-      rows.push({ crop: category, season: "", month: "", tech: "", area: "", yield: "" });
+      band(category);
       for (const [subCategory, subList] of groupInto(catList, (r) => r.subCategory ?? "").entries()) {
+        if (subCategory) band(subCategory);
         for (const r of subList) {
           rows.push({
+            sNo: String(++sNo),
             crop: r.cropName, season: r.seasonName, month: r.month ?? "",
             tech: r.technologyDemonstration, area: stringifyValue(r.areaOrUnit), yield: stringifyValue(r.yield),
             ...casteRow([r]), ...measureRow([r]),
           });
         }
-        rows.push({ crop: `Sub-total — ${subCategory}`, season: "", month: "", tech: "", area: "", yield: "", ...casteRow(subList), ...measureRow(subList), bcr: "" });
+        rows.push({ sNo: "", crop: `Sub-total — ${subCategory || category}`, season: "", month: "", tech: "", area: "", yield: "", ...casteRow(subList), ...measureRow(subList), bcr: "" });
       }
-      rows.push({ crop: `Total — ${category}`, season: "", month: "", tech: "", area: "", yield: "", ...casteRow(catList), ...measureRow(catList), bcr: "" });
+      rows.push({ sNo: "", crop: `Total — ${category}`, season: "", month: "", tech: "", area: "", yield: "", ...casteRow(catList), ...measureRow(catList), bcr: "" });
     }
-    return { columns, rows, noSerial: true };
+    return { columns, rows, noSerial: true, caption: CAPTION };
   }
   const [records, stateNames] = await Promise.all([
     prisma.nicraDetails.findMany({

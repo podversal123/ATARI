@@ -147,12 +147,17 @@ function renderGrid(doc: jsPDF, grid: ReportGrid, startY: number): number {
    * they render as a confusing blank row. super-v2-prod.pdf shades + bolds
    * them so they read as a heading. Skipped for 1-column tables.
    */
+  // A band row carries a single label - in the first column, or the second when
+  // the table leads with an S.No column (blank on band rows).
+  const labelColIdx = /^s\.?\s*no\.?$/i.test(grid.columns[0]?.label ?? "") ? 1 : 0;
   const bandRowIdx = new Set<number>();
-  if (grid.columns.length >= 2) {
+  if (grid.columns.length >= labelColIdx + 2) {
     grid.rows.forEach((row, i) => {
-      const first = String(row[grid.columns[0].key] ?? "").trim();
-      const restBlank = grid.columns.slice(1).every((c) => String(row[c.key] ?? "").trim() === "");
-      if (first !== "" && restBlank) bandRowIdx.add(i);
+      const label = String(row[grid.columns[labelColIdx].key] ?? "").trim();
+      const restBlank = grid.columns.every(
+        (c, idx) => idx === labelColIdx || String(row[c.key] ?? "").trim() === "",
+      );
+      if (label !== "" && restBlank) bandRowIdx.add(i);
     });
   }
   const contentW = doc.internal.pageSize.getWidth() - MARGIN * 2;

@@ -115,15 +115,16 @@ function Grid({ grid }: { grid: ReportGrid }) {
               const isTotal = grid.columns.some((col) =>
                 /^\s*(sub[-\s]?total|subtotal|grand\s*total|total)\b/i.test(String(row[col.key] ?? "")),
               );
-              // Group-header band row: only the first column has text (the
-              // OFT summary A-E labels, 2.4.A "Training Area" bands, ...).
+              // Group-header band row: a single label, in the first column - or
+              // the second when the table leads with an S.No column.
+              const labelColIdx = /^s\.?\s*no\.?$/i.test(grid.columns[0]?.label ?? "") ? 1 : 0;
               const isBand =
                 !isTotal &&
-                grid.columns.length >= 2 &&
-                String(row[grid.columns[0].key] ?? "").trim() !== "" &&
-                grid.columns
-                  .slice(1)
-                  .every((col) => String(row[col.key] ?? "").trim() === "");
+                grid.columns.length >= labelColIdx + 2 &&
+                String(row[grid.columns[labelColIdx].key] ?? "").trim() !== "" &&
+                grid.columns.every(
+                  (col, idx) => idx === labelColIdx || String(row[col.key] ?? "").trim() === "",
+                );
               return (
                 <tr
                   key={rowIndex}
