@@ -319,7 +319,9 @@ export const LEAF_RECORD_REGISTRY: Record<string, CreateFn> = {
         totallyCompleted: bool(v.totallyCompleted),
         plinthAreaSqM: dec(v.plinthAreaSqM),
         underUse: bool(v.underUse),
-        sourceOfFunding: str(v.sourceOfFunding), fundingAgencyName: str(v.fundingAgencyName),
+        sourceOfFunding: str(v.sourceOfFunding),
+        // fundingAgencyName has no form input (not on the reference) - the
+        // column keeps its schema default and existing values are untouched.
       },
     }),
   "about-kvk/land-infrastructure/land-details": (v, ctx) =>
@@ -1679,7 +1681,9 @@ export const LEAF_UPDATE_REGISTRY: Record<string, UpdateFn> = {
         totallyCompleted: bool(v.totallyCompleted),
         plinthAreaSqM: dec(v.plinthAreaSqM),
         underUse: bool(v.underUse),
-        sourceOfFunding: str(v.sourceOfFunding), fundingAgencyName: str(v.fundingAgencyName),
+        sourceOfFunding: str(v.sourceOfFunding),
+        // fundingAgencyName has no form input (not on the reference) - the
+        // column keeps its schema default and existing values are untouched.
       },
     }),
   "about-kvk/land-infrastructure/land-details": (id, v, ctx) =>

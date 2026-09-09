@@ -916,24 +916,51 @@ const aboutKvk = group(
     ]),
     group("land-infrastructure", "Land & Infrastructure Information", [
       /**
-       * The 6 status fields are real Yes/No values (confirmed live on
-       * atariams.org/view-infra - "Yes"/"No" in every cell), stored as
-       * booleans via the leaf registry's own `bool()` helper. They render
-       * as Yes/No dropdowns, not free-text inputs (client request,
-       * 2026-09-04) - same `staticOptions` pattern already used elsewhere.
+       * Column labels, the 15-option "Name of Infrastructure" select, the
+       * form field order and the required marks are all transcribed from the
+       * live reference (atariams.org /create-infra + /edit-infra, KVK admin).
+       * List column order (this array, read untouched) matches the reference
+       * list; `formOrder` carries the reference form sequence (plinth/lintel/
+       * roof first, then Not Yet Started). The status fields are real Yes/No
+       * booleans stored via the leaf registry's `bool()` helper; they open on
+       * the "Please Select" placeholder (no default), same as the reference.
+       * `fundingAgencyName` is not on the reference form or list - the model
+       * column stays for the KVK report, it just no longer has a form input.
        */
       leaf("infrastructure-details", "Infrastructure Details", [
         { key: "kvk", label: "KVK" },
-        { key: "infraMasterName", label: "Infra Master Name" },
-        { key: "notYetStarted", label: "Not Yet Started", staticOptions: ["Yes", "No"], defaultValue: "No" },
-        { key: "completedPlinthLevel", label: "Completed Plinth Level", staticOptions: ["Yes", "No"], defaultValue: "No" },
-        { key: "completedLintelLevel", label: "Completed Lintel Level", staticOptions: ["Yes", "No"], defaultValue: "No" },
-        { key: "completedRoofLevel", label: "Completed Roof Level", staticOptions: ["Yes", "No"], defaultValue: "No" },
-        { key: "totallyCompleted", label: "Totally Completed", staticOptions: ["Yes", "No"], defaultValue: "No" },
-        { key: "plinthAreaSqM", label: "Plinth Area (Sq M)" },
-        { key: "underUse", label: "Under Use", staticOptions: ["Yes", "No"], defaultValue: "No" },
-        { key: "sourceOfFunding", label: "Source of Funding" },
-        { key: "fundingAgencyName", label: "Funding Agency Name" },
+        {
+          key: "infraMasterName",
+          label: "Name of Infrastructure",
+          required: true,
+          formOrder: 1,
+          placeholder: "Please Select",
+          staticOptions: [
+            "Admin Building",
+            "Farmers Hostel",
+            "Staff Quarters",
+            "Piggery unit",
+            "Fencing",
+            "Rain Water harvesting structure",
+            "Threshing floor",
+            "Farm godown",
+            "Dairy unit",
+            "Poultry unit",
+            "Goatery unit",
+            "Mushroom Lab",
+            "Shade house",
+            "Soil test Lab",
+            "Others",
+          ],
+        },
+        { key: "notYetStarted", label: "Not Yet Started", staticOptions: ["Yes", "No"], placeholder: "Please Select", required: true, formOrder: 5 },
+        { key: "completedPlinthLevel", label: "Completed upto plinth level", staticOptions: ["Yes", "No"], placeholder: "Please Select", required: true, formOrder: 2 },
+        { key: "completedLintelLevel", label: "Completed upto lintel level", staticOptions: ["Yes", "No"], placeholder: "Please Select", required: true, formOrder: 3 },
+        { key: "completedRoofLevel", label: "Completed upto roof level", staticOptions: ["Yes", "No"], placeholder: "Please Select", required: true, formOrder: 4 },
+        { key: "totallyCompleted", label: "Totally Completed", staticOptions: ["Yes", "No"], placeholder: "Please Select", required: true, formOrder: 6 },
+        { key: "plinthAreaSqM", label: "Plinth Area(m²)", required: true, formOrder: 7 },
+        { key: "underUse", label: "Under use or not", staticOptions: ["Yes", "No"], placeholder: "Please Select", required: true, formOrder: 8 },
+        { key: "sourceOfFunding", label: "Source of Funding", required: true, formOrder: 9 },
       ]),
       leaf("land-details", "Land Details", [
         { key: "kvk", label: "KVK" },

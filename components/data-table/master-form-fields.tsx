@@ -387,7 +387,7 @@ export function MasterFormFields({
                 id={fieldId}
                 value={formValues[column.key] ?? ""}
                 onValueChange={(v) => onChange({ ...formValues, [column.key]: v })}
-                placeholder={`Select ${compactPlaceholder(column.formLabel ?? column.label)}`}
+                placeholder={column.placeholder ?? `Select ${compactPlaceholder(column.formLabel ?? column.label)}`}
                 options={column.staticOptions.map((option) => ({ value: option, label: option }))}
                 className="h-10"
               />
