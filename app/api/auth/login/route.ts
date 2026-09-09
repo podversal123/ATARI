@@ -64,6 +64,7 @@ export async function POST(request: Request) {
       stateId: user.stateId,
       districtId: user.districtId,
       hostOrgId: user.hostOrgId,
+      kvkName: user.kvk?.name ?? null,
     },
     remember,
   );

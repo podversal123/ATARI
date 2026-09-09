@@ -1,16 +1,24 @@
 "use client";
 
 import Image from "next/image";
-import { Suspense, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Eye, EyeOff } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { persistSession } from "@/lib/session";
 
-/** Only redirect back to a same-origin app path - never follow an absolute/external `from` value. */
-function safeRedirectTarget(from: string | null) {
+/**
+ * The post-login target. Read straight from the current URL at submit time
+ * (not via useSearchParams) so this page needs no Suspense boundary and
+ * server-renders in full - a Suspense fallback here meant the whole login
+ * screen painted blank until the client bundle hydrated ("late reload").
+ * Only ever follow a same-origin app path, never an absolute/external value.
+ */
+function postLoginTarget(): string {
+  if (typeof window === "undefined") return "/dashboard";
+  const from = new URLSearchParams(window.location.search).get("from");
   if (!from || !from.startsWith("/") || from.startsWith("//")) return "/dashboard";
   return from;
 }
@@ -21,13 +29,16 @@ function safeRedirectTarget(from: string | null) {
  */
 function LoginForm() {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const [showPassword, setShowPassword] = useState(false);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [remember, setRemember] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  // Stays true from a successful response until the dashboard nav actually
+  // takes over, so the button never flips back to its idle label while the
+  // page still sits on /login waiting for the route change.
+  const [redirecting, setRedirecting] = useState(false);
 
   return (
     <div className="flex min-h-screen">
@@ -96,13 +107,16 @@ function LoginForm() {
                 const data = await response.json();
                 if (!response.ok) {
                   setError(data.error ?? "Something went wrong. Please try again.");
+                  setSubmitting(false);
                   return;
                 }
                 persistSession({ role: data.role, kvkName: data.kvkName });
-                router.push(safeRedirectTarget(searchParams.get("from")));
+                // Keep the button in its loading state through the navigation -
+                // don't drop back to "Continue" while /login is still on screen.
+                setRedirecting(true);
+                router.replace(postLoginTarget());
               } catch {
                 setError("Could not reach the server. Please try again.");
-              } finally {
                 setSubmitting(false);
               }
             }}
@@ -176,10 +190,10 @@ function LoginForm() {
 
             <Button
               type="submit"
-              disabled={submitting}
+              disabled={submitting || redirecting}
               className="h-13 w-full rounded-lg bg-[#034541] text-base font-semibold text-white hover:bg-[#034541]/90 disabled:opacity-70"
             >
-              {submitting ? "Signing in…" : "Continue"}
+              {submitting || redirecting ? "Signing in…" : "Continue"}
             </Button>
           </form>
 
@@ -216,9 +230,5 @@ function LoginForm() {
 }
 
 export default function LoginPage() {
-  return (
-    <Suspense fallback={null}>
-      <LoginForm />
-    </Suspense>
-  );
+  return <LoginForm />;
 }

@@ -31,6 +31,12 @@ export type SessionPayload = {
   stateId: string | null;
   districtId: string | null;
   hostOrgId: string | null;
+  /**
+   * Carried in the token so /api/auth/me (SessionGate's on-mount identity
+   * check) never has to hit the DB for it. Older cookies issued before this
+   * field existed won't have it - /api/auth/me falls back to a lookup then.
+   */
+  kvkName?: string | null;
 };
 
 export async function hashPassword(password: string) {

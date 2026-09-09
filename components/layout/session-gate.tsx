@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
+  clearSession,
   hasStoredSession,
   persistSession,
   useSessionReady,
@@ -38,18 +39,46 @@ export function SessionGate({ children }: { children: React.ReactNode }) {
     let cancelled = false;
     const hadStored = hasStoredSession();
     fetch("/api/auth/me", { cache: "no-store" })
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data: { role?: SessionRole; kvkName?: string } | null) => {
-        if (cancelled) return;
-        const role = data?.role;
-        if (role === "super-admin" || role === "kvk-admin" || role === "kvk-user") {
-          persistSession({ role, kvkName: data?.kvkName });
-        } else if (!hadStored) {
-          router.replace("/login");
-          return;
-        }
-        setNeedsHydration(false);
+      .then(async (res) => {
+        if (res.ok) return { kind: "ok" as const, data: await res.json() };
+        return { kind: "error" as const, status: res.status };
       })
+      .then(
+        (
+          result:
+            | { kind: "ok"; data: { role?: SessionRole; kvkName?: string } | null }
+            | { kind: "error"; status: number },
+        ) => {
+          if (cancelled) return;
+
+          if (result.kind === "ok") {
+            const role = result.data?.role;
+            if (role === "super-admin" || role === "kvk-admin" || role === "kvk-user") {
+              persistSession({ role, kvkName: result.data?.kvkName });
+              setNeedsHydration(false);
+              return;
+            }
+          }
+
+          // Cookie is gone or rejected: never keep rendering the shell off a
+          // stale sessionStorage copy (its fallback role is Super Admin) -
+          // drop it and go to /login so the user re-authenticates cleanly.
+          if (result.kind === "error" && (result.status === 401 || result.status === 403)) {
+            clearSession({ silent: true });
+            router.replace("/login");
+            return;
+          }
+
+          // Any other failure (5xx, unexpected body): don't trap the user on a
+          // blank shell - fall through to the cached session if there is one,
+          // otherwise send them to login.
+          if (!hadStored) {
+            router.replace("/login");
+            return;
+          }
+          setNeedsHydration(false);
+        },
+      )
       .catch(() => {
         if (!cancelled) setNeedsHydration(false);
       });
