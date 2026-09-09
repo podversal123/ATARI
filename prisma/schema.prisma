@@ -3759,6 +3759,11 @@ model MasterListItem {
   name   String
   zoneId String
   zone   Zone           @relation(fields: [zoneId], references: [id])
+  /// "Mark as Other option" on the master create form - a row flagged here
+  /// becomes the "Other" choice in every Form Management dropdown sourced
+  /// from this master, and picking it opens a free-text input beside the
+  /// dropdown for a custom value.
+  isOther Boolean @default(false)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -3876,11 +3881,14 @@ model CfldCropMaster {
 
 /// Production Masters: Product Category -> Product Type -> Products.
 model ProductTypeMaster {
-  id           String @id @default(cuid())
+  id           String  @id @default(cuid())
   categoryName String
   typeName     String
   zoneId       String
-  zone         Zone   @relation(fields: [zoneId], references: [id])
+  zone         Zone    @relation(fields: [zoneId], references: [id])
+  /// "Mark as Other option" - this row becomes the "Other" choice in every
+  /// Form Management dropdown sourced from this master.
+  isOther      Boolean @default(false)
 
   products ProductMaster[]
 
@@ -3897,27 +3905,30 @@ model ProductMaster {
   productTypeMasterId String
   productTypeMaster   ProductTypeMaster @relation(fields: [productTypeMasterId], references: [id])
   zoneId              String
+  isOther             Boolean           @default(false)
 
   @@unique([productTypeMasterId, name])
   @@index([zoneId])
 }
 
 model CroppingSystemMaster {
-  id       String @id @default(cuid())
+  id       String  @id @default(cuid())
   season   String
   cropName String
   zoneId   String
-  zone     Zone   @relation(fields: [zoneId], references: [id])
+  zone     Zone    @relation(fields: [zoneId], references: [id])
+  isOther  Boolean @default(false)
 
   @@index([zoneId])
 }
 
 model FarmingSystemMaster {
-  id                String @id @default(cuid())
+  id                String  @id @default(cuid())
   season            String
   farmingSystemName String
   zoneId            String
-  zone              Zone   @relation(fields: [zoneId], references: [id])
+  zone              Zone    @relation(fields: [zoneId], references: [id])
+  isOther           Boolean @default(false)
 
   @@index([zoneId])
 }
@@ -3992,6 +4003,7 @@ model TrainingAreaMaster {
   trainingTypeId String
   trainingType   TrainingTypeMaster @relation(fields: [trainingTypeId], references: [id])
   zoneId         String
+  isOther        Boolean            @default(false)
 
   thematicAreas TrainingThematicAreaMaster[]
 
@@ -4005,6 +4017,7 @@ model TrainingThematicAreaMaster {
   trainingAreaId String
   trainingArea   TrainingAreaMaster @relation(fields: [trainingAreaId], references: [id])
   zoneId         String
+  isOther        Boolean            @default(false)
 
   @@unique([trainingAreaId, name])
   @@index([zoneId])

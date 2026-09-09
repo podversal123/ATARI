@@ -547,7 +547,7 @@ export function EmptyDataTable({
     }
     setEditingRow(row);
     setFormValues(values);
-    setMarkAsOther(false);
+    setMarkAsOther(recordKind === "master" && row._isOther === "1");
     setFormError(null);
     setFormOpen(true);
   }
@@ -574,7 +574,14 @@ export function EmptyDataTable({
           : await fetch(recordKind === "master" ? "/api/master-record/update" : "/api/leaf-record/update", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ path: recordPath, id, values: formValues }),
+              body: JSON.stringify({
+                path: recordPath,
+                id,
+                values:
+                  recordKind === "master"
+                    ? { ...formValues, __markAsOther__: markAsOther ? "yes" : "no" }
+                    : formValues,
+              }),
             });
       const data = await response.json();
       if (!response.ok) {

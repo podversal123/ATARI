@@ -84,7 +84,13 @@ export function AddLeafPage({
       const response = await fetch(recordKind === "master" ? "/api/master-record" : "/api/leaf-record", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ path: recordPath, values: formValues }),
+        body: JSON.stringify({
+          path: recordPath,
+          values:
+            recordKind === "master"
+              ? { ...formValues, __markAsOther__: markAsOther ? "yes" : "no" }
+              : formValues,
+        }),
       });
       const data = await response.json();
       if (!response.ok) {

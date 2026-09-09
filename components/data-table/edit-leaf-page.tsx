@@ -80,6 +80,8 @@ export function EditLeafPage({
         values[column.key] = row[column.key] != null ? String(row[column.key]) : "";
       }
       setFormValues(values);
+      // Pre-check "Mark as Other" from the row's own saved flag (master lists carry `_isOther`).
+      if (recordKind === "master" && row._isOther === "1") setMarkAsOther(true);
 
       // The Photographs section isn't part of the list row - load this
       // record's own Module Images so an edit reconciles against the real
@@ -124,7 +126,14 @@ export function EditLeafPage({
       const response = await fetch(recordKind === "master" ? "/api/master-record/update" : "/api/leaf-record/update", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ path: recordPath, id, values: formValues }),
+        body: JSON.stringify({
+          path: recordPath,
+          id,
+          values:
+            recordKind === "master"
+              ? { ...formValues, __markAsOther__: markAsOther ? "yes" : "no" }
+              : formValues,
+        }),
       });
       const data = await response.json();
       if (!response.ok) {

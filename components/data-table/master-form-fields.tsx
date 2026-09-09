@@ -158,14 +158,22 @@ function SourceMasterField({
     };
   }, [master]);
 
+  const filteredRows = rows.filter(
+    (row) => !filterKey || !dependsOnValue || row[filterKey] === dependsOnValue,
+  );
   const options = Array.from(
-    new Set(
-      rows
-        .filter((row) => !filterKey || !dependsOnValue || row[filterKey] === dependsOnValue)
-        .map((row) => row[optionKey])
-        .filter((v): v is string => Boolean(v)),
-    ),
+    new Set(filteredRows.map((row) => row[optionKey]).filter((v): v is string => Boolean(v))),
   ).sort();
+
+  /**
+   * A master row flagged "Mark as Other option" turns its own name into the
+   * dropdown's "Other" choice - picking it opens a free-text input beside
+   * the select so the user can type a value that isn't in the list. The
+   * typed text is what gets submitted; the select just stays parked on the
+   * Other row so the input keeps showing.
+   */
+  const otherName = filteredRows.find((row) => row._isOther === "1")?.[optionKey];
+  const isOtherActive = Boolean(otherName) && (value === otherName || (Boolean(value) && !options.includes(value)));
 
   // Reference's own "empty options" caption (confirmed live, 2026-09-03 client screenshot: "No product types available for this category" / "No products available for this type" under Production & Supply's cascading Product Type/Product selects) - shown whenever the real fetched list resolves to zero rows, not just while genuinely waiting on the parent field.
   const noOptions = loaded && !disabled && options.length === 0;
@@ -174,19 +182,30 @@ function SourceMasterField({
 
   return (
     <div>
-      <SimpleSelect
-        id={fieldId}
-        value={value}
-        disabled={disabled}
-        onValueChange={onChange}
-        placeholder={
-          disabled
-            ? `Select ${compactPlaceholder(dependsOnLabel ?? "the required field")} first`
-            : (column.placeholder ?? `Select ${compactPlaceholder(column.formLabel ?? column.label)}`)
-        }
-        options={options.map((option) => ({ value: option, label: option }))}
-        className={cn("h-10", noOptions && "rounded-b-none")}
-      />
+      <div className={cn("flex gap-2", isOtherActive && "items-start")}>
+        <SimpleSelect
+          id={fieldId}
+          value={isOtherActive && otherName ? otherName : value}
+          disabled={disabled}
+          onValueChange={onChange}
+          placeholder={
+            disabled
+              ? `Select ${compactPlaceholder(dependsOnLabel ?? "the required field")} first`
+              : (column.placeholder ?? `Select ${compactPlaceholder(column.formLabel ?? column.label)}`)
+          }
+          options={options.map((option) => ({ value: option, label: option }))}
+          className={cn("h-10", isOtherActive ? "flex-1" : "w-full", noOptions && "rounded-b-none")}
+        />
+        {isOtherActive && (
+          <Input
+            aria-label={`${column.formLabel ?? column.label} - other value`}
+            className="h-10 flex-1"
+            placeholder="Enter value"
+            value={value === otherName ? "" : value}
+            onChange={(e) => onChange(e.target.value.trim() ? e.target.value : (otherName as string))}
+          />
+        )}
+      </div>
       {noOptions && (
         <div className="flex items-center gap-1.5 rounded-b-md border border-t-0 border-border bg-muted/60 px-3 py-1.5 text-xs text-muted-foreground">
           <Info className="size-3.5 shrink-0" />

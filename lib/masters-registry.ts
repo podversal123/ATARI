@@ -28,17 +28,24 @@ function simpleMasterList(type: MasterListType, columnKey: string) {
         where: { zoneId, type },
         orderBy: { name: "asc" },
       });
-      return items.map((i) => ({ id: i.id, [columnKey]: i.name }));
+      // `_isOther` lets a Form Management dropdown mark this row as its "Other"
+      // choice (see the "Mark as Other option" checkbox on the create form).
+      return items.map((i) => ({ id: i.id, [columnKey]: i.name, _isOther: i.isOther ? "1" : "" }));
     }) as ListFn,
     create: (async (values, zoneId) => {
       const name = reqStr(values[columnKey]);
       if (!name) throw new Error(`${columnKey} is required.`);
-      return prisma.masterListItem.create({ data: { type, name, zoneId } });
+      return prisma.masterListItem.create({
+        data: { type, name, zoneId, isOther: bool(values.__markAsOther__) },
+      });
     }) as CreateFn,
     update: (async (id, values, zoneId) => {
       const name = reqStr(values[columnKey]);
       if (!name) throw new Error(`${columnKey} is required.`);
-      return prisma.masterListItem.updateMany({ where: { id, zoneId, type }, data: { name } });
+      return prisma.masterListItem.updateMany({
+        where: { id, zoneId, type },
+        data: { name, isOther: bool(values.__markAsOther__) },
+      });
     }) as UpdateFn,
     delete: ((id, zoneId) =>
       prisma.masterListItem.deleteMany({ where: { id, zoneId, type } })) as DeleteFn,
@@ -575,42 +582,42 @@ const dedicated: Record<string, MasterLeafEntry> = {
   "training-area": {
     list: async (zoneId) => {
       const rows = await prisma.trainingAreaMaster.findMany({ where: { zoneId }, include: { trainingType: true }, orderBy: { name: "asc" } });
-      return rows.map((r) => ({ id: r.id, trainingType: r.trainingType.name, trainingAreaName: r.name }));
+      return rows.map((r) => ({ id: r.id, trainingType: r.trainingType.name, trainingAreaName: r.name, _isOther: r.isOther ? "1" : "" }));
     },
     create: async (v, zoneId) => {
       const type = await prisma.trainingTypeMaster.findFirst({ where: { zoneId, name: reqStr(v.trainingType) } });
       if (!type) throw new Error(`Unknown training type: ${v.trainingType}`);
       const name = reqStr(v.trainingAreaName);
       if (!name) throw new Error("Training area name is required.");
-      return prisma.trainingAreaMaster.create({ data: { name, trainingTypeId: type.id, zoneId } });
+      return prisma.trainingAreaMaster.create({ data: { name, trainingTypeId: type.id, zoneId, isOther: bool(v.__markAsOther__) } });
     },
     update: async (id, v, zoneId) => {
       const type = await prisma.trainingTypeMaster.findFirst({ where: { zoneId, name: reqStr(v.trainingType) } });
       if (!type) throw new Error(`Unknown training type: ${v.trainingType}`);
       const name = reqStr(v.trainingAreaName);
       if (!name) throw new Error("Training area name is required.");
-      return prisma.trainingAreaMaster.updateMany({ where: { id, zoneId }, data: { name, trainingTypeId: type.id } });
+      return prisma.trainingAreaMaster.updateMany({ where: { id, zoneId }, data: { name, trainingTypeId: type.id, isOther: bool(v.__markAsOther__) } });
     },
     delete: (id, zoneId) => prisma.trainingAreaMaster.deleteMany({ where: { id, zoneId } }),
   },
   "training-thematic-area": {
     list: async (zoneId) => {
       const rows = await prisma.trainingThematicAreaMaster.findMany({ where: { zoneId }, include: { trainingArea: true }, orderBy: { name: "asc" } });
-      return rows.map((r) => ({ id: r.id, trainingAreaName: r.trainingArea.name, thematicArea: r.name }));
+      return rows.map((r) => ({ id: r.id, trainingAreaName: r.trainingArea.name, thematicArea: r.name, _isOther: r.isOther ? "1" : "" }));
     },
     create: async (v, zoneId) => {
       const area = await prisma.trainingAreaMaster.findFirst({ where: { zoneId, name: reqStr(v.trainingAreaName) } });
       if (!area) throw new Error(`Unknown training area: ${v.trainingAreaName}`);
       const name = reqStr(v.thematicArea);
       if (!name) throw new Error("Thematic area is required.");
-      return prisma.trainingThematicAreaMaster.create({ data: { name, trainingAreaId: area.id, zoneId } });
+      return prisma.trainingThematicAreaMaster.create({ data: { name, trainingAreaId: area.id, zoneId, isOther: bool(v.__markAsOther__) } });
     },
     update: async (id, v, zoneId) => {
       const area = await prisma.trainingAreaMaster.findFirst({ where: { zoneId, name: reqStr(v.trainingAreaName) } });
       if (!area) throw new Error(`Unknown training area: ${v.trainingAreaName}`);
       const name = reqStr(v.thematicArea);
       if (!name) throw new Error("Thematic area is required.");
-      return prisma.trainingThematicAreaMaster.updateMany({ where: { id, zoneId }, data: { name, trainingAreaId: area.id } });
+      return prisma.trainingThematicAreaMaster.updateMany({ where: { id, zoneId }, data: { name, trainingAreaId: area.id, isOther: bool(v.__markAsOther__) } });
     },
     delete: (id, zoneId) => prisma.trainingThematicAreaMaster.deleteMany({ where: { id, zoneId } }),
   },
@@ -619,19 +626,19 @@ const dedicated: Record<string, MasterLeafEntry> = {
   "product-type": {
     list: async (zoneId) => {
       const rows = await prisma.productTypeMaster.findMany({ where: { zoneId }, orderBy: { categoryName: "asc" } });
-      return rows.map((r) => ({ id: r.id, productCategoryName: r.categoryName, productCategoryType: r.typeName }));
+      return rows.map((r) => ({ id: r.id, productCategoryName: r.categoryName, productCategoryType: r.typeName, _isOther: r.isOther ? "1" : "" }));
     },
     create: async (v, zoneId) => {
       const categoryName = reqStr(v.productCategoryName);
       const typeName = reqStr(v.productCategoryType);
       if (!categoryName || !typeName) throw new Error("Product category name and type are required.");
-      return prisma.productTypeMaster.create({ data: { categoryName, typeName, zoneId } });
+      return prisma.productTypeMaster.create({ data: { categoryName, typeName, zoneId, isOther: bool(v.__markAsOther__) } });
     },
     update: async (id, v, zoneId) => {
       const categoryName = reqStr(v.productCategoryName);
       const typeName = reqStr(v.productCategoryType);
       if (!categoryName || !typeName) throw new Error("Product category name and type are required.");
-      return prisma.productTypeMaster.updateMany({ where: { id, zoneId }, data: { categoryName, typeName } });
+      return prisma.productTypeMaster.updateMany({ where: { id, zoneId }, data: { categoryName, typeName, isOther: bool(v.__markAsOther__) } });
     },
     delete: (id, zoneId) => prisma.productTypeMaster.deleteMany({ where: { id, zoneId } }),
   },
@@ -644,6 +651,7 @@ const dedicated: Record<string, MasterLeafEntry> = {
         productCategoryType: r.productTypeMaster.typeName,
         productName: r.name,
         quantityRequired: String(r.quantityRequired),
+        _isOther: r.isOther ? "1" : "",
       }));
     },
     create: async (v, zoneId) => {
@@ -659,6 +667,7 @@ const dedicated: Record<string, MasterLeafEntry> = {
           name,
           productTypeMasterId: type.id,
           zoneId,
+          isOther: bool(v.__markAsOther__),
         },
       });
     },
@@ -674,6 +683,7 @@ const dedicated: Record<string, MasterLeafEntry> = {
         data: {
           name,
           productTypeMasterId: type.id,
+          isOther: bool(v.__markAsOther__),
         },
       });
     },
@@ -682,34 +692,34 @@ const dedicated: Record<string, MasterLeafEntry> = {
   "cropping-system": {
     list: async (zoneId) => {
       const rows = await prisma.croppingSystemMaster.findMany({ where: { zoneId }, orderBy: { cropName: "asc" } });
-      return rows.map((r) => ({ id: r.id, season: r.season, cropName: r.cropName }));
+      return rows.map((r) => ({ id: r.id, season: r.season, cropName: r.cropName, _isOther: r.isOther ? "1" : "" }));
     },
     create: async (v, zoneId) => {
       const cropName = reqStr(v.cropName);
       if (!cropName) throw new Error("Crop name is required.");
-      return prisma.croppingSystemMaster.create({ data: { season: reqStr(v.season), cropName, zoneId } });
+      return prisma.croppingSystemMaster.create({ data: { season: reqStr(v.season), cropName, zoneId, isOther: bool(v.__markAsOther__) } });
     },
     update: async (id, v, zoneId) => {
       const cropName = reqStr(v.cropName);
       if (!cropName) throw new Error("Crop name is required.");
-      return prisma.croppingSystemMaster.updateMany({ where: { id, zoneId }, data: { season: reqStr(v.season), cropName } });
+      return prisma.croppingSystemMaster.updateMany({ where: { id, zoneId }, data: { season: reqStr(v.season), cropName, isOther: bool(v.__markAsOther__) } });
     },
     delete: (id, zoneId) => prisma.croppingSystemMaster.deleteMany({ where: { id, zoneId } }),
   },
   "farming-system": {
     list: async (zoneId) => {
       const rows = await prisma.farmingSystemMaster.findMany({ where: { zoneId }, orderBy: { farmingSystemName: "asc" } });
-      return rows.map((r) => ({ id: r.id, season: r.season, farmingSystemName: r.farmingSystemName }));
+      return rows.map((r) => ({ id: r.id, season: r.season, farmingSystemName: r.farmingSystemName, _isOther: r.isOther ? "1" : "" }));
     },
     create: async (v, zoneId) => {
       const farmingSystemName = reqStr(v.farmingSystemName);
       if (!farmingSystemName) throw new Error("Farming system name is required.");
-      return prisma.farmingSystemMaster.create({ data: { season: reqStr(v.season), farmingSystemName, zoneId } });
+      return prisma.farmingSystemMaster.create({ data: { season: reqStr(v.season), farmingSystemName, zoneId, isOther: bool(v.__markAsOther__) } });
     },
     update: async (id, v, zoneId) => {
       const farmingSystemName = reqStr(v.farmingSystemName);
       if (!farmingSystemName) throw new Error("Farming system name is required.");
-      return prisma.farmingSystemMaster.updateMany({ where: { id, zoneId }, data: { season: reqStr(v.season), farmingSystemName } });
+      return prisma.farmingSystemMaster.updateMany({ where: { id, zoneId }, data: { season: reqStr(v.season), farmingSystemName, isOther: bool(v.__markAsOther__) } });
     },
     delete: (id, zoneId) => prisma.farmingSystemMaster.deleteMany({ where: { id, zoneId } }),
   },
