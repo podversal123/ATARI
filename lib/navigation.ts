@@ -401,44 +401,6 @@ const otherMasters = group(
         { key: "name", label: "Name", required: true, placeholder: "e.g. ICAR" },
       ]),
     ]),
-    group("nari", "NARI Masters", [
-      leaf("nari-activity", "NARI Activity Master", [
-        { key: "name", label: "Activity Name", required: true },
-      ]),
-      /** Form labels are "Nutrition Garden Type" / "Category Name" (real reference, 2026-08-31) - both were the generic "Name" default. */
-      leaf("nari-nutrition-garden-type", "NARI Nutrition Garden Type Master", [
-        { key: "name", label: "Name", formLabel: "Nutrition Garden Type", required: true },
-      ]),
-      leaf("nari-crop-category", "NARI Crop Category Master", [
-        { key: "name", label: "Name", formLabel: "Category Name", required: true },
-      ]),
-    ]),
-    group("nicra", "NICRA Masters", [
-      leaf("nicra-category", "NICRA Category Master", [
-        { key: "name", label: "Category Name", required: true },
-      ]),
-      /** Real reference order (2026-08-31): Category (dropdown) comes before Sub Category Name, not after - parent picker first, same as every other cascading pair in this file. */
-      leaf("nicra-sub-category", "NICRA Sub-category Master", [
-        {
-          key: "categoryName",
-          label: "Category Name",
-          formLabel: "Category",
-          required: true,
-          sourceMaster: { master: "nicra-category", optionKey: "name" },
-        },
-        { key: "subCategoryName", label: "Sub Category Name", required: true },
-      ]),
-      leaf("nicra-seed-fodder-bank", "NICRA Seed/Fodder Bank Master", [
-        { key: "name", label: "Seed Bank Fodder Bank", required: true },
-      ]),
-      /** Form labels are "Dignitary Type" / "PI/CO-PI Type" (real reference, 2026-08-31) - both were the generic "Type" default. */
-      leaf("nicra-dignitary-type", "NICRA Dignitary Type Master", [
-        { key: "name", label: "Type", formLabel: "Dignitary Type", required: true },
-      ]),
-      leaf("nicra-pi-co-pi-type", "NICRA PI/CO-PI Type Master", [
-        { key: "name", label: "Type", formLabel: "PI/CO-PI Type", required: true },
-      ]),
-    ]),
     /**
      * Same page-H1-vs-card-label split as Resource Masters above. None of
      * these six leaves' real Create forms show a "Mark as Other" checkbox
@@ -786,6 +748,45 @@ const productionProjects = group(
       leaf("demonstrations-on", "Agri-Drone Demonstrations On Master", [
         { key: "name", label: "Demonstrations On", required: true },
       ], undefined, true),
+    ]),
+    /** Moved here from Other Masters (client direction): NARI and NICRA are project masters, so they belong under Production Masters. Slugs, columns and data are unchanged - only the sidebar section. */
+    group("nari", "NARI Masters", [
+      leaf("nari-activity", "NARI Activity Master", [
+        { key: "name", label: "Activity Name", required: true },
+      ]),
+      /** Form labels are "Nutrition Garden Type" / "Category Name" (real reference, 2026-08-31) - both were the generic "Name" default. */
+      leaf("nari-nutrition-garden-type", "NARI Nutrition Garden Type Master", [
+        { key: "name", label: "Name", formLabel: "Nutrition Garden Type", required: true },
+      ]),
+      leaf("nari-crop-category", "NARI Crop Category Master", [
+        { key: "name", label: "Name", formLabel: "Category Name", required: true },
+      ]),
+    ]),
+    group("nicra", "NICRA Masters", [
+      leaf("nicra-category", "NICRA Category Master", [
+        { key: "name", label: "Category Name", required: true },
+      ]),
+      /** Real reference order (2026-08-31): Category (dropdown) comes before Sub Category Name, not after - parent picker first, same as every other cascading pair in this file. */
+      leaf("nicra-sub-category", "NICRA Sub-category Master", [
+        {
+          key: "categoryName",
+          label: "Category Name",
+          formLabel: "Category",
+          required: true,
+          sourceMaster: { master: "nicra-category", optionKey: "name" },
+        },
+        { key: "subCategoryName", label: "Sub Category Name", required: true },
+      ]),
+      leaf("nicra-seed-fodder-bank", "NICRA Seed/Fodder Bank Master", [
+        { key: "name", label: "Seed Bank Fodder Bank", required: true },
+      ]),
+      /** Form labels are "Dignitary Type" / "PI/CO-PI Type" (real reference, 2026-08-31) - both were the generic "Type" default. */
+      leaf("nicra-dignitary-type", "NICRA Dignitary Type Master", [
+        { key: "name", label: "Type", formLabel: "Dignitary Type", required: true },
+      ]),
+      leaf("nicra-pi-co-pi-type", "NICRA PI/CO-PI Type Master", [
+        { key: "name", label: "Type", formLabel: "PI/CO-PI Type", required: true },
+      ]),
     ]),
   ],
   {
