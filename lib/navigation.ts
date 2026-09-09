@@ -853,13 +853,20 @@ const aboutKvk = group(
         { key: "address", label: "Address" },
         { key: "sanctionYear", label: "Year of Sanction" },
       ]),
+      /**
+       * Add/Edit form transcribed from the live reference
+       * (atariams.org /bank-account-details/create, KVK admin): every field
+       * is required and the form has no photo upload. Account Type keeps its
+       * All Masters "Bank Account Type" source (the master already holds the
+       * real option set - not narrowed to the reference's shorter list).
+       */
       leaf("bank-account-details", "Bank Account Details", [
         { key: "kvk", label: "KVK" },
-        { key: "accountType", label: "Account Type", required: true, sourceMaster: { master: "bank-account-type", optionKey: "name" } },
-        { key: "accountName", label: "Account Name" },
-        { key: "bankName", label: "Bank Name" },
-        { key: "location", label: "Location" },
-        { key: "accountNumber", label: "Account Number" },
+        { key: "accountType", label: "Account Type", required: true, placeholder: "Select", sourceMaster: { master: "bank-account-type", optionKey: "name" } },
+        { key: "accountName", label: "Account Name", required: true },
+        { key: "bankName", label: "Bank Name", required: true },
+        { key: "location", label: "Location", required: true },
+        { key: "accountNumber", label: "Account Number", required: true },
       ]),
     ]),
     group("employee", "Employee Information", [
@@ -962,10 +969,18 @@ const aboutKvk = group(
         { key: "underUse", label: "Under use or not", staticOptions: ["Yes", "No"], placeholder: "Please Select", required: true, formOrder: 8 },
         { key: "sourceOfFunding", label: "Source of Funding", required: true, formOrder: 9 },
       ]),
+      /**
+       * The "Total Land with KVK" repeating section at the bottom of the live
+       * reference's Edit KVK form (atariams.org /edit-kvks): each row is a
+       * free-text Item plus its area, entered as "In Ha:". No per-row year
+       * (the form's "Enter Year" is the separate Year of Sanction field) and
+       * no required marks. Kept as its own leaf here - one record per land
+       * row - feeding report 1.3.B. `description` stays a report-only column.
+       */
       leaf("land-details", "Land Details", [
         { key: "kvk", label: "KVK" },
         { key: "item", label: "Item" },
-        { key: "areaHa", label: "Area Ha" },
+        { key: "areaHa", label: "In Ha" },
       ]),
       /** Real columns confirmed live at /forms/about-kvk/infrastructure/staff-quarters. */
       leaf("staff-quarters", "Staff Quarters", [
@@ -976,16 +991,26 @@ const aboutKvk = group(
       ]),
     ]),
     group("vehicles", "Vehicles Information", [
-      /** 4 columns and no KVK column at all - confirmed 2026-08-22. Page H1 is "View Vehicles"; the landing card says "Vehicles". */
+      /**
+       * List columns and the Add/Edit form are transcribed from the live
+       * reference (atariams.org /view-vehicle + /create-vehicle, KVK admin):
+       * KVK Name -> Vehicle Name -> Registration No. -> Year of Purchase ->
+       * Total Cost(Rs.) -> Total Run(km/hrs) -> Present Status. Only Name of
+       * Vehicle, Year of Purchase and Present Status are required on the
+       * reference form. Vehicle Type stays a database column for the KVK
+       * report (1.4.A/1.4.B) but the reference form has no input for it.
+       */
       leaf(
         "view-vehicles",
         "View Vehicles",
         [
-          { key: "vehicleType", label: "Vehicle Type" },
-          { key: "vehicleName", label: "Vehicle Name" },
-          { key: "registrationNo", label: "Registration No" },
-          { key: "yearOfPurchase", label: "Year of Purchase" },
-          { key: "totalCost", label: "Total Cost" },
+          { key: "kvk", label: "KVK" },
+          { key: "vehicleName", label: "Vehicle Name", formLabel: "Name of Vehicle", required: true, formOrder: 1 },
+          { key: "registrationNo", label: "Registration No.", formLabel: "Registration Number", formOrder: 2 },
+          { key: "yearOfPurchase", label: "Year of Purchase", required: true, formOrder: 3 },
+          { key: "totalCost", label: "Total Cost (Rs.)", formLabel: "Total Cost", formOrder: 4 },
+          { key: "totalRun", label: "Total Run(km/hrs)", formOrder: 5 },
+          { key: "presentStatus", label: "Present Status", required: true, formOrder: 6 },
         ],
         "Vehicles",
       ),
@@ -1090,12 +1115,18 @@ const aboutKvk = group(
           staticOptions: ["Working", "Not Working", "Condemned", "Auction"],
         },
       ]),
-      /** Standalone About-KVK leaf on atariams.org (/view-implement, /create-implement) - table columns and Add-form fields read live 2026-09-04. */
+      /**
+       * Standalone About-KVK leaf on atariams.org (/view-implement +
+       * /create-implement, KVK admin). The list header for the name column
+       * is "Equipment Name"; the Add/Edit form labels the same field "Name
+       * of Implement". Present Status and Source of fund are plain text on
+       * the reference form (no fixed option list). No photo upload.
+       */
       leaf("farm-implement-details", "Farm Implement Details", [
         { key: "kvk", label: "KVK", readonly: true },
-        { key: "name", label: "Name of Implement", required: true },
+        { key: "name", label: "Equipment Name", formLabel: "Name of Implement", required: true },
         { key: "yearOfPurchase", label: "Year of Purchase", required: true },
-        { key: "totalCost", label: "Total Cost (Rs.)", required: true },
+        { key: "totalCost", label: "Total Cost (Rs.)", formLabel: "Total Cost", required: true },
         { key: "presentStatus", label: "Present Status", required: true },
         { key: "sourceOfFund", label: "Source of fund", required: true },
       ]),

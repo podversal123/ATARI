@@ -54,12 +54,12 @@ function stringifyValue(v: unknown): string {
 const MODEL_FIELDS: Record<string, string[]> = {
   kvk: ["name", "address", "officePhone", "fax", "email", "sanctionYear"],
   bankAccount: ["accountType", "accountName", "bankName", "location", "accountNumber"],
-  staff: ["sanctionedPost", "name", "dateOfBirth", "discipline", "payScale", "dateOfJoining", "category", "jobType", "position", "mobile", "email", "allowances", "transferStatus"],
+  staff: ["sanctionedPost", "name", "dateOfBirth", "discipline", "payBand", "payScale", "dateOfJoining", "category", "jobType", "position", "mobile", "email", "allowances", "transferStatus"],
   staffTransfer: ["transferDate", "numberOfTransfers"],
   infrastructure: ["infrastructureName", "notYetStarted", "completedPlinthLevel", "completedLintelLevel", "completedRoofLevel", "totallyCompleted", "plinthAreaSqM", "underUse", "sourceOfFunding"],
   land: ["item", "description", "areaHa"],
-  staffQuarters: ["dateOfCompletion", "numberOfQuarters", "remark"],
-  vehicle: ["name", "registrationNo", "yearOfPurchase", "cost"],
+  staffQuarters: ["dateOfCompletion", "whetherCompleted", "numberOfQuarters", "occupancyDetails", "remark"],
+  vehicle: ["name", "registrationNo", "yearOfPurchase", "cost", "totalRun", "presentStatus"],
   vehicleStatus: ["reportingYear", "totalRunKmHrs", "presentStatus", "repairingCost", "fundingSource", "fundingAgency"],
   equipment: ["name", "yearOfPurchase", "cost", "presentStatus", "sourceOfFund"],
   equipmentStatus: ["reportingYear", "sourceOfFund", "fundingAgency", "presentStatus"],
@@ -3013,7 +3013,7 @@ async function buildStaffQuarters(scope: ReportScope): Promise<CustomTableResult
           kvk: rec.kvk?.name ?? "",
           doc: stringifyValue(rec.dateOfCompletion),
           count: String(rec.numberOfQuarters),
-          occ: rec.remark ?? "",
+          occ: rec.occupancyDetails ?? rec.remark ?? "",
         },
       ],
     };
@@ -3054,6 +3054,8 @@ async function buildVehicleStatus(scope: ReportScope): Promise<CustomTableResult
           registrationNo: true,
           yearOfPurchase: true,
           cost: true,
+          totalRun: true,
+          presentStatus: true,
           kvk: { select: { name: true } },
         },
       },
@@ -3083,8 +3085,14 @@ async function buildVehicleStatus(scope: ReportScope): Promise<CustomTableResult
     reg: s.vehicle?.registrationNo ?? "",
     yop: s.vehicle?.yearOfPurchase != null ? String(s.vehicle.yearOfPurchase) : "",
     cost: s.vehicle?.cost != null ? stringifyValue(s.vehicle.cost) : "",
-    run: s.totalRunKmHrs != null ? stringifyValue(s.totalRunKmHrs) : "",
-    status: s.presentStatus ?? "",
+    // Per-year value, falling back to the vehicle master's current one.
+    run:
+      s.totalRunKmHrs != null
+        ? stringifyValue(s.totalRunKmHrs)
+        : s.vehicle?.totalRun != null
+          ? stringifyValue(s.vehicle.totalRun)
+          : "",
+    status: s.presentStatus ?? s.vehicle?.presentStatus ?? "",
     repair: s.repairingCost != null ? stringifyValue(s.repairingCost) : "",
     fundingSource: s.fundingSource ?? "",
     fundingAgency: s.fundingAgency ?? "",

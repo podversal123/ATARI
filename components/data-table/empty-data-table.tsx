@@ -149,6 +149,8 @@ type EmptyDataTableProps = {
   note?: string;
   /** Staff Transferred only (real reference action, confirmed 2026-09-01): adds a "View Transfer History" item between Edit and Delete, reading each row's `historyJson` field (a JSON-stringified array of { fromKvk, toKvk, date }) built server-side from every StaffTransfer record for that staff member. */
   staffTransferHistory?: boolean;
+  /** Read-only list: no "Add New", no Action column. For leaves the live reference shows as a plain table with no row actions (e.g. Staff Transferred / atariams.org /transfer-staff - the records are created only by Employee Details' own Transfer action). */
+  readOnly?: boolean;
   /** Employee Details only: the Action dropdown gains "Transfer", opening a KVK + Date of Relieving dialog that POSTs to /api/staff/transfer. The hop then shows under the destination KVK's "Details of Staff Transferred" list only. */
   staffTransfer?: boolean;
   /** Registry key in lib/leaf-record-registry.ts (Form Management) or lib/masters-registry.ts (All Masters) - enables real Edit/Delete for this leaf's rows. Omit for leaves not wired to the database yet. For recordKind "notification" this is just a truthy sentinel (the row's own `id` drives the real /api/notifications/[id] URL, not a registry path). */
@@ -219,10 +221,11 @@ export function EmptyDataTable({
   onMutated,
   staffTransferHistory,
   staffTransfer,
+  readOnly,
 }: EmptyDataTableProps) {
   const router = useRouter();
-  /** Every list table gets a real Action column (Edit/Delete) regardless of role, matching every other leaf in the app - Transfer/Add Result specifically stay KVK-only below (transferring or marking a trial's own result isn't a Super Admin action), but that no longer means hiding Edit/Delete from Super Admin too. */
-  const showActionColumn = true;
+  /** Every list table gets a real Action column (Edit/Delete) regardless of role, matching every other leaf in the app - Transfer/Add Result specifically stay KVK-only below (transferring or marking a trial's own result isn't a Super Admin action), but that no longer means hiding Edit/Delete from Super Admin too. `readOnly` leaves (Staff Transferred) are the one exception the live reference makes - a plain table, no row actions. */
+  const showActionColumn = !readOnly;
   /** `columns` includes any `formOnly` entries (demographic-breakdown blocks) needed by the Add/Edit form below - the list table itself only ever renders real, single-value columns, so every table concern (header, rows, colSpan, exports) uses this filtered list instead. */
   const tableColumns = columns.filter((c) => !c.formOnly);
   const Icon = icon ? SIDEBAR_ICONS[icon] : undefined;

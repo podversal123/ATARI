@@ -294,7 +294,7 @@ export const LEAF_RECORD_REGISTRY: Record<string, CreateFn> = {
         accountType: reqStr(v.accountType),
         accountName: reqStr(v.accountName),
         bankName: reqStr(v.bankName),
-        location: str(v.location),
+        location: reqStr(v.location),
         accountNumber: reqStr(v.accountNumber),
       },
     }),
@@ -332,7 +332,16 @@ export const LEAF_RECORD_REGISTRY: Record<string, CreateFn> = {
     }),
   "about-kvk/vehicles/view-vehicles": (v, ctx) =>
     prisma.vehicle.create({
-      data: { ...ctx, vehicleType: str(v.vehicleType), name: reqStr(v.vehicleName), registrationNo: reqStr(v.registrationNo), yearOfPurchase: reqInt(v.yearOfPurchase), cost: reqDec(v.totalCost) },
+      // vehicleType has no form input on the reference - it stays a report-only column.
+      data: {
+        ...ctx,
+        name: reqStr(v.vehicleName),
+        registrationNo: reqStr(v.registrationNo),
+        yearOfPurchase: reqInt(v.yearOfPurchase),
+        cost: reqDec(v.totalCost),
+        totalRun: dec(v.totalRun),
+        presentStatus: str(v.presentStatus),
+      },
     }),
   "about-kvk/vehicles/vehicle-details": async (v, ctx) => {
     const vehicle = await prisma.vehicle.findFirst({ where: { kvkId: ctx.kvkId, name: reqStr(v.vehicleName) } });
@@ -389,6 +398,7 @@ export const LEAF_RECORD_REGISTRY: Record<string, CreateFn> = {
         position: str(v.position),
         mobile: str(v.mobile),
         email: str(v.email),
+        payBand: str(v.payBand),
         payScale: str(v.payScale),
         discipline: str(v.discipline),
         dateOfBirth: date(v.dateOfBirth),
@@ -1657,7 +1667,7 @@ export const LEAF_UPDATE_REGISTRY: Record<string, UpdateFn> = {
   "about-kvk/basic/bank-account-details": (id, v, ctx) =>
     prisma.bankAccount.updateMany({
       where: { id, ...kvkScope(ctx) },
-      data: { accountType: reqStr(v.accountType), accountName: reqStr(v.accountName), bankName: reqStr(v.bankName), location: str(v.location), accountNumber: reqStr(v.accountNumber) },
+      data: { accountType: reqStr(v.accountType), accountName: reqStr(v.accountName), bankName: reqStr(v.bankName), location: reqStr(v.location), accountNumber: reqStr(v.accountNumber) },
     }),
   // The bespoke Add form (EmployeeDetailsAddForm) submits `name`/`casteCategory`;
   // the generic Edit form submits the list-column keys `staffName`/`category`.
@@ -1673,6 +1683,7 @@ export const LEAF_UPDATE_REGISTRY: Record<string, UpdateFn> = {
         position: str(v.position),
         mobile: str(v.mobile),
         email: str(v.email),
+        payBand: str(v.payBand),
         payScale: str(v.payScale),
         discipline: str(v.discipline),
         dateOfBirth: date(v.dateOfBirth),
@@ -1712,7 +1723,14 @@ export const LEAF_UPDATE_REGISTRY: Record<string, UpdateFn> = {
   "about-kvk/vehicles/view-vehicles": (id, v, ctx) =>
     prisma.vehicle.updateMany({
       where: { id, ...kvkScope(ctx) },
-      data: { vehicleType: str(v.vehicleType), name: reqStr(v.vehicleName), registrationNo: reqStr(v.registrationNo), yearOfPurchase: reqInt(v.yearOfPurchase), cost: reqDec(v.totalCost) },
+      data: {
+        name: reqStr(v.vehicleName),
+        registrationNo: reqStr(v.registrationNo),
+        yearOfPurchase: reqInt(v.yearOfPurchase),
+        cost: reqDec(v.totalCost),
+        totalRun: dec(v.totalRun),
+        presentStatus: str(v.presentStatus),
+      },
     }),
   "about-kvk/vehicles/vehicle-details": async (id, v, ctx) => {
     const vehicle = await prisma.vehicle.findFirst({ where: { ...kvkScope(ctx), name: reqStr(v.vehicleName) } });

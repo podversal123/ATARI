@@ -575,6 +575,9 @@ model Staff {
   name           String
   dateOfBirth    DateTime?
   discipline     String?
+  /// Reference /create-staff "Level" field (Level - 1 .. Level - 14), separate
+  /// from the free "Pay Scale" amount.
+  payBand        String?
   payScale       String?
   dateOfJoining  DateTime?
   category       String? // SC / ST / OBC / General
@@ -677,7 +680,9 @@ model StaffQuarters {
   zoneId String
 
   dateOfCompletion DateTime?
+  whetherCompleted Boolean?
   numberOfQuarters Int       @default(0)
+  occupancyDetails String?
   remark           String?
 
   occupancy StaffQuarterOccupancy[]
@@ -716,6 +721,11 @@ model Vehicle {
   registrationNo String
   yearOfPurchase Int
   cost           Decimal @db.Decimal(12, 2)
+  /// Reference /create-vehicle captures the vehicle's current Total Run and
+  /// Present Status on the master row; /view-vehicle then lists them. The
+  /// yearly VehicleStatus keeps its own per-year values for 1.4.B.
+  totalRun       Decimal? @db.Decimal(12, 2)
+  presentStatus  String?
 
   statuses VehicleStatus[]
 

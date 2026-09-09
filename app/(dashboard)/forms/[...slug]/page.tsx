@@ -1,4 +1,4 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { FileText } from "lucide-react";
 import {
   FORM_MANAGEMENT,
@@ -19,6 +19,8 @@ import { AddLeafPage } from "@/components/data-table/add-leaf-page";
 import { EditLeafPage } from "@/components/data-table/edit-leaf-page";
 import { KvkMasterAddForm } from "@/components/data-table/kvk-master-add-form";
 import { KvkMasterEditForm } from "@/components/data-table/kvk-master-edit-form";
+import { LandDetailsForm } from "@/components/data-table/land-details-form";
+import { StaffQuartersForm } from "@/components/data-table/staff-quarters-form";
 import { EmployeeDetailsAddForm } from "@/components/data-table/employee-details-add-form";
 import { OftForm } from "@/components/data-table/oft-form";
 import { FldForm } from "@/components/data-table/fld-form";
@@ -45,6 +47,10 @@ const MODULE_IMAGES_COLUMN: MasterColumn = {
 /** Appends the shared Photographs section to a leaf's generic Add/Edit form unless it already declares one (OFT/FLD carry their own) or Reports has no category for it. */
 function withModuleImages(columns: MasterColumn[], path: string): MasterColumn[] {
   if (!REPORT_LEAF_PATHS.has(path)) return columns;
+  // About KVK captures KVK profile data (land, vehicles, equipment, bank
+  // accounts, staff...) - none of its forms carry a photo upload on the
+  // live reference, so the shared Photographs section does not belong here.
+  if (path.startsWith("about-kvk/")) return columns;
   if (columns.some((column) => column.fieldKind === "photos")) return columns;
   return [...columns, MODULE_IMAGES_COLUMN];
 }
@@ -125,6 +131,19 @@ export default async function FormsPage({ params, searchParams }: FormsPageProps
 
   const { node, trail } = resolved;
 
+  // Leaves the live reference gives no per-row Add/Edit page:
+  //  - land-details: one repeatable "Total Land with KVK" panel
+  //  - staff-transferred: a read-only table (records come from the Transfer
+  //    action on Employee Details, atariams.org /transfer-staff)
+  // Send those URLs back to the list instead of 404ing.
+  if (
+    (isAddPage || isEditPage) &&
+    node.type === "leaf" &&
+    (node.slug === "land-details" || node.slug === "staff-transferred")
+  ) {
+    redirect(`/forms/${slug.join("/")}`);
+  }
+
   if (isEditPage) {
     if (node.type !== "leaf" || CUSTOM_FORM_SLUGS.has(node.slug) || !editId) notFound();
     const editTrail: Crumb[] = [{ label: "Form Management", href: "/forms" }];
@@ -154,6 +173,19 @@ export default async function FormsPage({ params, searchParams }: FormsPageProps
           title="Edit KVKs"
         />
       );
+    }
+    if (node.slug === "staff-quarters") {
+      return (
+        <StaffQuartersForm
+          trail={editTrail}
+          backHref={editBackHref}
+          id={editId}
+          title="Edit Staff Quarters"
+        />
+      );
+    }
+    if (node.slug === "employee-details") {
+      return <EmployeeDetailsAddForm trail={editTrail} backHref={editBackHref} id={editId} />;
     }
     if (node.slug === "technical-parameter") {
       return (
@@ -234,6 +266,9 @@ export default async function FormsPage({ params, searchParams }: FormsPageProps
     const backHref = `/forms/${slug.join("/")}`;
     if (node.slug === "view-kvks") {
       return <KvkMasterAddForm trail={addTrail} backHref={backHref} title="Create KVKs" />;
+    }
+    if (node.slug === "staff-quarters") {
+      return <StaffQuartersForm trail={addTrail} backHref={backHref} title="Add Staff Quarters" />;
     }
     if (node.slug === "employee-details") {
       return <EmployeeDetailsAddForm trail={addTrail} backHref={backHref} />;
@@ -409,7 +444,10 @@ export default async function FormsPage({ params, searchParams }: FormsPageProps
         email: r.email ?? "",
         sanctionedPost: r.sanctionedPost,
         mobile: r.mobile ?? "",
+        payBand: r.payBand ?? "",
         payScale: r.payScale ?? "",
+        discipline: r.discipline ?? "",
+        dateOfBirth: r.dateOfBirth ? r.dateOfBirth.toISOString().slice(0, 10) : "",
         dateOfJoining: r.dateOfJoining ? r.dateOfJoining.toISOString().slice(0, 10) : "",
         jobType: r.jobType ?? "",
         allowances: r.allowances ?? "",
@@ -525,15 +563,19 @@ export default async function FormsPage({ params, searchParams }: FormsPageProps
   } else if (user && node.type === "leaf" && node.slug === "view-vehicles") {
     const rows = await prisma.vehicle.findMany({
       where: kvkScope,
+      include: { kvk: true },
       orderBy: { createdAt: "desc" },
     });
     formData = {
       rows: rows.map((r) => ({
         id: r.id,
+        kvk: r.kvk.name,
         vehicleName: r.name,
         registrationNo: r.registrationNo,
         yearOfPurchase: String(r.yearOfPurchase),
         totalCost: String(r.cost),
+        totalRun: r.totalRun != null ? String(r.totalRun) : "",
+        presentStatus: r.presentStatus ?? "",
       })),
       totalCount: rows.length,
     };
@@ -2632,8 +2674,10 @@ export default async function FormsPage({ params, searchParams }: FormsPageProps
         title={
           node.type === "group"
             ? "Form Management"
-            : node.type === "leaf" && node.slug === "technical-achievement"
-              ? node.label
+            : node.type === "leaf" &&
+                (node.slug === "technical-achievement" ||
+                  (node.slug === "land-details" && user?.kvkId))
+              ? (node.pageTitle ?? node.label)
               : undefined
         }
         icon={node.type === "group" ? FileText : undefined}
@@ -2659,6 +2703,14 @@ export default async function FormsPage({ params, searchParams }: FormsPageProps
       ) : node.type === "leaf" && node.slug === "technical-achievement" ? (
         /* The one Form Management leaf that is a matrix report rather than a list table. */
         <TechnicalAchievementSummaryPanel />
+      ) : node.type === "leaf" && node.slug === "land-details" && user?.kvkId ? (
+        /*
+         * Land Details for a KVK Admin is the reference's repeatable "Total
+         * Land with KVK" section (Item + In Ha, add/remove rows, one save) -
+         * not a per-row list table. Super Admin still gets the plain table
+         * below (all KVKs' land rows, read scope).
+         */
+        <LandDetailsForm backHref={listBackHref} />
       ) : node.type === "leaf" ? (
         <EmptyDataTable
           title={node.pageTitle ?? node.label}
@@ -2674,7 +2726,10 @@ export default async function FormsPage({ params, searchParams }: FormsPageProps
           // reference shows no "Add" to a Super Admin on these leaves either.
           // "view-kvks" is the exception - its own /api/kvks route is a real
           // Super Admin create flow.
-          hideAddNew={node.slug !== "view-kvks" && !user?.kvkId}
+          hideAddNew={
+            node.slug === "staff-transferred" ||
+            (node.slug !== "view-kvks" && !user?.kvkId)
+          }
           addNewHref={
             CUSTOM_FORM_SLUGS.has(node.slug)
               ? undefined
@@ -2691,6 +2746,8 @@ export default async function FormsPage({ params, searchParams }: FormsPageProps
           resultKind={node.slug === "view-fld" ? "fld" : node.slug === "oft" ? "oft" : undefined}
           staffTransferHistory={node.slug === "staff-transferred"}
           staffTransfer={node.slug === "employee-details"}
+          /* atariams.org /transfer-staff is a plain read-only table (no Add, no Action) - the records come only from Employee Details' Transfer action. */
+          readOnly={node.slug === "staff-transferred"}
           /** Exact wording from the client's "changes required 1.0.pdf" (2026-08-25, item 4) - each leaf's own note only, no cross-reference to the other leaf. CFLD Technical Parameter's own note is exact text confirmed against the real reference (atari-client.vercel.app, 2026-09-02). */
           note={
             node.slug === "oft"
