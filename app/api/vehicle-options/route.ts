@@ -13,11 +13,33 @@ export async function GET() {
   const auth = await requireSession(["SUPER_ADMIN", "KVK_ADMIN"]);
   if (!auth.ok) return auth.response;
 
-  const rows = await prisma.vehicle.findMany({
+  const vehicles = await prisma.vehicle.findMany({
     where: auth.session.kvkId ? { kvkId: auth.session.kvkId } : { zoneId: auth.session.zoneId },
     orderBy: { name: "asc" },
-    select: { id: true, name: true, registrationNo: true },
+    select: {
+      id: true,
+      name: true,
+      registrationNo: true,
+      vehicleType: true,
+      totalRun: true,
+      presentStatus: true,
+      sourceOfFunding: true,
+      repairingCost: true,
+    },
   });
+
+  // Flattened so the Vehicle Details form can auto-fill from the picked row
+  // (MasterColumn.sourceMaster.autofill).
+  const rows = vehicles.map((v) => ({
+    id: v.id,
+    name: v.name,
+    registrationNo: v.registrationNo,
+    vehicleType: v.vehicleType ?? "",
+    totalRun: v.totalRun != null ? String(v.totalRun) : "",
+    presentStatus: v.presentStatus ?? "",
+    sourceOfFunding: v.sourceOfFunding ?? "",
+    repairingCost: v.repairingCost != null ? String(v.repairingCost) : "",
+  }));
 
   return NextResponse.json({ rows });
 }

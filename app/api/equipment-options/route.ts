@@ -13,11 +13,27 @@ export async function GET() {
   const auth = await requireSession(["SUPER_ADMIN", "KVK_ADMIN"]);
   if (!auth.ok) return auth.response;
 
-  const rows = await prisma.equipment.findMany({
+  const equipment = await prisma.equipment.findMany({
     where: auth.session.kvkId ? { kvkId: auth.session.kvkId } : { zoneId: auth.session.zoneId },
     orderBy: { name: "asc" },
-    select: { id: true, name: true },
+    select: {
+      id: true,
+      name: true,
+      presentStatus: true,
+      sourceOfFund: true,
+      repairingCost: true,
+    },
   });
+
+  // Flattened so the Equipment Details form can auto-fill from the picked row
+  // (MasterColumn.sourceMaster.autofill).
+  const rows = equipment.map((e) => ({
+    id: e.id,
+    name: e.name,
+    presentStatus: e.presentStatus ?? "",
+    sourceOfFund: e.sourceOfFund ?? "",
+    repairingCost: e.repairingCost != null ? String(e.repairingCost) : "",
+  }));
 
   return NextResponse.json({ rows });
 }

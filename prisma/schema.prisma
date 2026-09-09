@@ -724,8 +724,12 @@ model Vehicle {
   /// Reference /create-vehicle captures the vehicle's current Total Run and
   /// Present Status on the master row; /view-vehicle then lists them. The
   /// yearly VehicleStatus keeps its own per-year values for 1.4.B.
-  totalRun       Decimal? @db.Decimal(12, 2)
-  presentStatus  String?
+  totalRun        Decimal? @db.Decimal(12, 2)
+  presentStatus   String?
+  /// Only meaningful when presentStatus is "Repairing" - the form field is
+  /// hidden otherwise (see MasterColumn.showWhen).
+  repairingCost   Decimal? @db.Decimal(12, 2)
+  sourceOfFunding String?
 
   statuses VehicleStatus[]
 
@@ -773,6 +777,9 @@ model Equipment {
   /// shows Source of fund (it is not re-entered per year).
   presentStatus  String?
   sourceOfFund   String?
+  /// Only meaningful when presentStatus is "Repairing" - the form field is
+  /// hidden otherwise (see MasterColumn.showWhen).
+  repairingCost  Decimal? @db.Decimal(12, 2)
 
   statuses EquipmentStatus[]
 
@@ -813,6 +820,8 @@ model EquipmentStatus {
   sourceOfFund  String?
   fundingAgency String?
   presentStatus String?
+  /// Only meaningful when presentStatus is "Repairing".
+  repairingCost Decimal?  @db.Decimal(12, 2)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

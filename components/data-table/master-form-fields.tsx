@@ -27,6 +27,17 @@ export function prefixedDemographicKey(prefix: string, suffix: string): string {
   return prefix ? `${prefix}${suffix[0].toUpperCase()}${suffix.slice(1)}` : suffix;
 }
 
+/** Whether a `showWhen`-gated column should be visible / validated given the current form values. */
+export function matchesShowWhen(
+  showWhen: NonNullable<MasterColumn["showWhen"]>,
+  values: Record<string, string>,
+): boolean {
+  const current = values[showWhen.key] ?? "";
+  return Array.isArray(showWhen.equals)
+    ? showWhen.equals.includes(current)
+    : current === showWhen.equals;
+}
+
 /**
  * Any column that holds a calendar date renders as a native date picker,
  * whether or not it was explicitly tagged `fieldKind: "date"` - the key
@@ -139,11 +150,11 @@ function SourceMasterField({
   dependsOnValue?: string;
   dependsOnLabel?: string;
   disabled: boolean;
-  onChange: (value: string) => void;
+  onChange: (value: string, extras?: Record<string, string>) => void;
 }) {
   const [rows, setRows] = useState<Record<string, string>[]>([]);
   const [loaded, setLoaded] = useState(false);
-  const { master, optionKey, filterKey } = column.sourceMaster;
+  const { master, optionKey, filterKey, carryForwardFrom } = column.sourceMaster;
 
   useEffect(() => {
     let cancelled = false;
@@ -175,6 +186,25 @@ function SourceMasterField({
   const otherName = filteredRows.find((row) => row._isOther === "1")?.[optionKey];
   const isOtherActive = Boolean(otherName) && (value === otherName || (Boolean(value) && !options.includes(value)));
 
+  /** Picking a real option: optionally carry forward related fields from an endpoint. */
+  async function handleSelect(picked: string) {
+    if (!carryForwardFrom || !picked || picked === otherName) {
+      onChange(picked);
+      return;
+    }
+    try {
+      const res = await fetch(`${carryForwardFrom}?value=${encodeURIComponent(picked)}`);
+      const data = await res.json();
+      const fields =
+        data?.fields && typeof data.fields === "object"
+          ? (data.fields as Record<string, string>)
+          : undefined;
+      onChange(picked, fields);
+    } catch {
+      onChange(picked);
+    }
+  }
+
   // Reference's own "empty options" caption (confirmed live, 2026-09-03 client screenshot: "No product types available for this category" / "No products available for this type" under Production & Supply's cascading Product Type/Product selects) - shown whenever the real fetched list resolves to zero rows, not just while genuinely waiting on the parent field.
   const noOptions = loaded && !disabled && options.length === 0;
   const captionNoun = `${(column.formLabel ?? column.label).toLowerCase()}s`;
@@ -187,7 +217,7 @@ function SourceMasterField({
           id={fieldId}
           value={isOtherActive && otherName ? otherName : value}
           disabled={disabled}
-          onValueChange={onChange}
+          onValueChange={handleSelect}
           placeholder={
             disabled
               ? `Select ${compactPlaceholder(dependsOnLabel ?? "the required field")} first`
@@ -298,6 +328,8 @@ export function MasterFormFields({
         // not editable) - the opposite of what plain `readonly` means here
         // (dropped from the form entirely), so it has to bypass that check.
         if (column.readonly && column.fieldKind !== "calculated") return null;
+        // Conditional field - only shown when another field's value matches.
+        if (column.showWhen && !matchesShowWhen(column.showWhen, formValues)) return null;
         const fieldId = `${instanceId}-${column.key}`;
         const isCascading = Boolean(cascadeType && CASCADE_FIELDS[cascadeType]?.has(column.key));
         const isHostOrgField =
@@ -458,14 +490,14 @@ export function MasterFormFields({
                 dependsOnValue={dependsOnValue}
                 dependsOnLabel={columns.find((c) => c.key === dependsOnKey)?.label}
                 disabled={disabled}
-                onChange={(value) => {
+                onChange={(value, extras) => {
                   // Clear any field that itself sources from this one, so a changed parent can't leave a stale, now-invalid child selection behind.
                   const dependents = Object.fromEntries(
                     columns
                       .filter((c) => c.sourceMaster?.dependsOnKey === column.key)
                       .map((c) => [c.key, ""]),
                   );
-                  onChange({ ...formValues, [column.key]: value, ...dependents });
+                  onChange({ ...formValues, [column.key]: value, ...dependents, ...(extras ?? {}) });
                 }}
               />
             </div>

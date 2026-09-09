@@ -570,12 +570,15 @@ export default async function FormsPage({ params, searchParams }: FormsPageProps
       rows: rows.map((r) => ({
         id: r.id,
         kvk: r.kvk.name,
+        vehicleType: r.vehicleType ?? "",
         vehicleName: r.name,
         registrationNo: r.registrationNo,
         yearOfPurchase: String(r.yearOfPurchase),
         totalCost: String(r.cost),
         totalRun: r.totalRun != null ? String(r.totalRun) : "",
         presentStatus: r.presentStatus ?? "",
+        repairingCost: r.repairingCost != null ? String(r.repairingCost) : "",
+        sourceOfFunding: r.sourceOfFunding ?? "",
       })),
       totalCount: rows.length,
     };
@@ -618,6 +621,7 @@ export default async function FormsPage({ params, searchParams }: FormsPageProps
         yearOfPurchase: String(r.yearOfPurchase),
         totalCost: String(r.cost),
         presentStatus: r.presentStatus ?? "",
+        repairingCost: r.repairingCost != null ? String(r.repairingCost) : "",
         sourceOfFund: r.sourceOfFund ?? "",
       })),
       totalCount: rows.length,
@@ -640,6 +644,7 @@ export default async function FormsPage({ params, searchParams }: FormsPageProps
         equipmentName: r.equipment.name,
         sourceOfFund: r.equipment.sourceOfFund ?? "",
         presentStatus: r.presentStatus ?? "",
+        repairingCost: r.repairingCost != null ? String(r.repairingCost) : "",
       })),
       totalCount: rows.length,
     };

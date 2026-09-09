@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PageHeader, type Crumb } from "@/components/layout/page-header";
-import { MasterFormFields, DEMOGRAPHIC_KEYS, prefixedDemographicKey } from "./master-form-fields";
+import { MasterFormFields, DEMOGRAPHIC_KEYS, prefixedDemographicKey, matchesShowWhen } from "./master-form-fields";
 import type { MasterColumn } from "@/lib/navigation";
 import { cn } from "@/lib/utils";
 
@@ -115,6 +115,7 @@ export function EditLeafPage({
         !column.readonly &&
         column.key !== "kvk" &&
         column.key !== "kvkName" &&
+        (!column.showWhen || matchesShowWhen(column.showWhen, formValues)) &&
         !formValues[column.key]?.trim(),
     );
     if (missing.length > 0) {

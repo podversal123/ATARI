@@ -332,15 +332,18 @@ export const LEAF_RECORD_REGISTRY: Record<string, CreateFn> = {
     }),
   "about-kvk/vehicles/view-vehicles": (v, ctx) =>
     prisma.vehicle.create({
-      // vehicleType has no form input on the reference - it stays a report-only column.
       data: {
         ...ctx,
+        vehicleType: str(v.vehicleType),
         name: reqStr(v.vehicleName),
         registrationNo: reqStr(v.registrationNo),
         yearOfPurchase: reqInt(v.yearOfPurchase),
         cost: reqDec(v.totalCost),
         totalRun: dec(v.totalRun),
         presentStatus: str(v.presentStatus),
+        // Only carries a value while Present Status is "Repairing".
+        repairingCost: v.presentStatus === "Repairing" ? dec(v.repairingCost) : null,
+        sourceOfFunding: str(v.sourceOfFunding),
       },
     }),
   "about-kvk/vehicles/vehicle-details": async (v, ctx) => {
@@ -354,7 +357,7 @@ export const LEAF_RECORD_REGISTRY: Record<string, CreateFn> = {
         totalRunKmHrs: dec(v.totalRunKms),
         presentStatus: str(v.presentStatus),
         fundingSource: str(v.fundingSource),
-        repairingCost: dec(v.repairingCost),
+        repairingCost: v.presentStatus === "Repairing" ? dec(v.repairingCost) : null,
       },
     });
   },
@@ -367,6 +370,8 @@ export const LEAF_RECORD_REGISTRY: Record<string, CreateFn> = {
         yearOfPurchase: reqInt(v.yearOfPurchase),
         cost: reqDec(v.totalCost),
         presentStatus: str(v.presentStatus),
+        // Only carries a value while Present Status is "Repairing".
+        repairingCost: v.presentStatus === "Repairing" ? dec(v.repairingCost) : null,
         sourceOfFund: str(v.sourceOfFund),
       },
     }),
@@ -374,7 +379,13 @@ export const LEAF_RECORD_REGISTRY: Record<string, CreateFn> = {
     const equipment = await prisma.equipment.findFirst({ where: { kvkId: ctx.kvkId, name: reqStr(v.equipmentName) } });
     if (!equipment) throw new Error("Equipment not found");
     return prisma.equipmentStatus.create({
-      data: { equipmentId: equipment.id, zoneId: ctx.zoneId, reportingYear: reqInt(v.reportingYear), presentStatus: str(v.presentStatus) },
+      data: {
+        equipmentId: equipment.id,
+        zoneId: ctx.zoneId,
+        reportingYear: reqInt(v.reportingYear),
+        presentStatus: str(v.presentStatus),
+        repairingCost: v.presentStatus === "Repairing" ? dec(v.repairingCost) : null,
+      },
     });
   },
   "about-kvk/equipments/farm-implement-details": (v, ctx) =>
@@ -1724,12 +1735,15 @@ export const LEAF_UPDATE_REGISTRY: Record<string, UpdateFn> = {
     prisma.vehicle.updateMany({
       where: { id, ...kvkScope(ctx) },
       data: {
+        vehicleType: str(v.vehicleType),
         name: reqStr(v.vehicleName),
         registrationNo: reqStr(v.registrationNo),
         yearOfPurchase: reqInt(v.yearOfPurchase),
         cost: reqDec(v.totalCost),
         totalRun: dec(v.totalRun),
         presentStatus: str(v.presentStatus),
+        repairingCost: v.presentStatus === "Repairing" ? dec(v.repairingCost) : null,
+        sourceOfFunding: str(v.sourceOfFunding),
       },
     }),
   "about-kvk/vehicles/vehicle-details": async (id, v, ctx) => {
@@ -1743,7 +1757,7 @@ export const LEAF_UPDATE_REGISTRY: Record<string, UpdateFn> = {
         totalRunKmHrs: dec(v.totalRunKms),
         presentStatus: str(v.presentStatus),
         fundingSource: str(v.fundingSource),
-        repairingCost: dec(v.repairingCost),
+        repairingCost: v.presentStatus === "Repairing" ? dec(v.repairingCost) : null,
       },
     });
   },
@@ -1755,13 +1769,18 @@ export const LEAF_UPDATE_REGISTRY: Record<string, UpdateFn> = {
         yearOfPurchase: reqInt(v.yearOfPurchase),
         cost: reqDec(v.totalCost),
         presentStatus: str(v.presentStatus),
+        repairingCost: v.presentStatus === "Repairing" ? dec(v.repairingCost) : null,
         sourceOfFund: str(v.sourceOfFund),
       },
     }),
   "about-kvk/equipments/equipment-details": (id, v, ctx) =>
     prisma.equipmentStatus.updateMany({
       where: { id, equipment: { ...kvkScope(ctx) } },
-      data: { reportingYear: reqInt(v.reportingYear), presentStatus: str(v.presentStatus) },
+      data: {
+        reportingYear: reqInt(v.reportingYear),
+        presentStatus: str(v.presentStatus),
+        repairingCost: v.presentStatus === "Repairing" ? dec(v.repairingCost) : null,
+      },
     }),
   "about-kvk/equipments/farm-implement-details": (id, v, ctx) =>
     prisma.farmImplement.updateMany({

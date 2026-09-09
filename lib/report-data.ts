@@ -59,10 +59,10 @@ const MODEL_FIELDS: Record<string, string[]> = {
   infrastructure: ["infrastructureName", "notYetStarted", "completedPlinthLevel", "completedLintelLevel", "completedRoofLevel", "totallyCompleted", "plinthAreaSqM", "underUse", "sourceOfFunding"],
   land: ["item", "description", "areaHa"],
   staffQuarters: ["dateOfCompletion", "whetherCompleted", "numberOfQuarters", "occupancyDetails", "remark"],
-  vehicle: ["name", "registrationNo", "yearOfPurchase", "cost", "totalRun", "presentStatus"],
+  vehicle: ["name", "registrationNo", "yearOfPurchase", "cost", "totalRun", "presentStatus", "repairingCost", "sourceOfFunding"],
   vehicleStatus: ["reportingYear", "totalRunKmHrs", "presentStatus", "repairingCost", "fundingSource", "fundingAgency"],
-  equipment: ["name", "yearOfPurchase", "cost", "presentStatus", "sourceOfFund"],
-  equipmentStatus: ["reportingYear", "sourceOfFund", "fundingAgency", "presentStatus"],
+  equipment: ["name", "yearOfPurchase", "cost", "presentStatus", "sourceOfFund", "repairingCost"],
+  equipmentStatus: ["reportingYear", "sourceOfFund", "fundingAgency", "presentStatus", "repairingCost"],
   technicalAchievementSummaryEntry: ["reportingYear", "sectionCode", "metricCode", "casteCategory", "value"],
   oft: ["reportingYear", "discipline", "staff", "thematicArea", "trialOnForm", "problemDiagnosed", "sourceOfTechnology", "productionSystem", "performanceIndicators", "finalRecommendation", "constraintsIdentified", "farmersParticipationProcess", "quantity", "unit", "noOfTrialReplicationFarmer", "startMonth", "endMonth", "criticalInput", "costOfOft", "fundingAgency", "resultSummary", "status", "generalMale", "generalFemale", "obcMale", "obcFemale", "scMale", "scFemale", "stMale", "stFemale"],
   fld: ["reportingYear", "startDate", "endDate", "category", "subCategory", "technologyDemonstrated", "status"],
@@ -3056,6 +3056,7 @@ async function buildVehicleStatus(scope: ReportScope): Promise<CustomTableResult
           cost: true,
           totalRun: true,
           presentStatus: true,
+          repairingCost: true,
           kvk: { select: { name: true } },
         },
       },
@@ -3074,7 +3075,7 @@ async function buildVehicleStatus(scope: ReportScope): Promise<CustomTableResult
     { key: "run", label: "Total Run(km/hrs)" },
     { key: "status", label: "Present status" },
     { key: "repair", label: "Repairing Cost" },
-    { key: "fundingSource", label: "Funding Source" },
+    { key: "fundingSource", label: "Source of Funding" },
     { key: "fundingAgency", label: "Funding Agency" },
   ];
   const rows = statuses.map((s) => ({
@@ -3093,7 +3094,12 @@ async function buildVehicleStatus(scope: ReportScope): Promise<CustomTableResult
           ? stringifyValue(s.vehicle.totalRun)
           : "",
     status: s.presentStatus ?? s.vehicle?.presentStatus ?? "",
-    repair: s.repairingCost != null ? stringifyValue(s.repairingCost) : "",
+    repair:
+      s.repairingCost != null
+        ? stringifyValue(s.repairingCost)
+        : s.vehicle?.repairingCost != null
+          ? stringifyValue(s.vehicle.repairingCost)
+          : "",
     fundingSource: s.fundingSource ?? "",
     fundingAgency: s.fundingAgency ?? "",
   }));
@@ -3126,7 +3132,7 @@ async function buildEquipmentStatus(scope: ReportScope): Promise<CustomTableResu
     { key: "equipment", label: "Equipment Name" },
     { key: "yop", label: "Year of purchase" },
     { key: "cost", label: "Cost (Rs.)" },
-    { key: "sourceOfFund", label: "Source of fund" },
+    { key: "sourceOfFund", label: "Source of Funding" },
     { key: "fundingAgency", label: "Funding Agency" },
     { key: "status", label: "Present status" },
   ];

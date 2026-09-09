@@ -47,6 +47,13 @@ export type MasterColumn = {
     optionKey: string;
     dependsOnKey?: string;
     filterKey?: string;
+    /**
+     * When set, picking a value in this dropdown fetches
+     * `${carryForwardFrom}?value=<picked>` and merges the returned
+     * `{ fields: { formKey: value } }` into the form - used by Vehicle /
+     * Equipment Details to carry forward the previous year's status.
+     */
+    carryForwardFrom?: string;
   };
   /**
    * Renders as a real checkbox instead of a text input ("checkbox", stored
@@ -74,6 +81,12 @@ export type MasterColumn = {
   formOnly?: boolean;
   /** Renders as a <select> from a fixed, known-real option list (not another master's saved rows, not free text) - e.g. Institute Name's real 4-option set. */
   staticOptions?: string[];
+  /**
+   * Field is only rendered (and only required-checked) when another field's
+   * current value matches - e.g. Vehicle/Equipment "Repairing Cost" shows
+   * only when "Present Status" is "Repairing".
+   */
+  showWhen?: { key: string; equals: string | string[] };
   /** Shows a red "*" next to the label on the Add/Edit form and blocks submit until filled - only set where confirmed against a real reference screenshot (client report, 2026-08-31); left unset elsewhere rather than guessed. */
   required?: boolean;
   /** Overrides the input's auto-generated "Enter {label}" placeholder with a real example hint from the reference (e.g. "e.g. 15600-39100") - only set where confirmed against a real reference screenshot, 2026-08-31. */
@@ -993,25 +1006,48 @@ const aboutKvk = group(
     ]),
     group("vehicles", "Vehicles Information", [
       /**
-       * List columns and the Add/Edit form are transcribed from the live
-       * reference (atariams.org /view-vehicle + /create-vehicle, KVK admin):
-       * KVK Name -> Vehicle Name -> Registration No. -> Year of Purchase ->
-       * Total Cost(Rs.) -> Total Run(km/hrs) -> Present Status. Only Name of
-       * Vehicle, Year of Purchase and Present Status are required on the
-       * reference form. Vehicle Type stays a database column for the KVK
-       * report (1.4.A/1.4.B) but the reference form has no input for it.
+       * View Vehicles master form: Vehicle Type (fixed list) comes first,
+       * then Name of Vehicle, Registration Number, Year of Purchase, Total
+       * Cost, Total Run(km/hrs), Present Status (Working / Repairing /
+       * Condemned). Picking "Repairing" reveals a Repairing Cost input
+       * (MasterColumn.showWhen). Vehicle Type also feeds the KVK report
+       * (1.4.A/1.4.B).
        */
       leaf(
         "view-vehicles",
         "View Vehicles",
         [
           { key: "kvk", label: "KVK" },
-          { key: "vehicleName", label: "Vehicle Name", formLabel: "Name of Vehicle", required: true, formOrder: 1 },
-          { key: "registrationNo", label: "Registration No.", formLabel: "Registration Number", formOrder: 2 },
-          { key: "yearOfPurchase", label: "Year of Purchase", required: true, formOrder: 3 },
-          { key: "totalCost", label: "Total Cost (Rs.)", formLabel: "Total Cost", formOrder: 4 },
-          { key: "totalRun", label: "Total Run(km/hrs)", formOrder: 5 },
-          { key: "presentStatus", label: "Present Status", required: true, formOrder: 6 },
+          {
+            key: "vehicleType",
+            label: "Vehicle Type",
+            required: true,
+            formOrder: 1,
+            placeholder: "Select",
+            staticOptions: ["Bus", "Jeep", "Tractor", "Motor Cycle"],
+          },
+          { key: "vehicleName", label: "Vehicle Name", formLabel: "Name of Vehicle", required: true, formOrder: 2 },
+          { key: "registrationNo", label: "Registration No.", formLabel: "Registration Number", formOrder: 3 },
+          { key: "yearOfPurchase", label: "Year of Purchase", required: true, formOrder: 4 },
+          { key: "totalCost", label: "Total Cost (Rs.)", formLabel: "Total Cost", formOrder: 5 },
+          { key: "totalRun", label: "Total Run(km/hrs)", formOrder: 6 },
+          {
+            key: "presentStatus",
+            label: "Present Status",
+            required: true,
+            formOrder: 7,
+            placeholder: "Select",
+            staticOptions: ["Working", "Repairing", "Condemned"],
+          },
+          {
+            key: "repairingCost",
+            label: "Repairing Cost",
+            required: true,
+            formOnly: true,
+            formOrder: 8,
+            showWhen: { key: "presentStatus", equals: "Repairing" },
+          },
+          { key: "sourceOfFunding", label: "Source of Funding", required: true, formOrder: 9 },
         ],
         "Vehicles",
       ),
@@ -1044,25 +1080,40 @@ const aboutKvk = group(
           required: true,
           formOrder: 2,
           placeholder: "Select",
-          sourceMaster: { master: "__vehicle__", optionKey: "name" },
+          // Picking a vehicle carries forward its most recent year's status
+          // (falling back to the master's own current values on a first entry).
+          sourceMaster: { master: "__vehicle__", optionKey: "name", carryForwardFrom: "/api/vehicle-details/prefill" },
         },
         { key: "registrationNumber", label: "Registration No.", readonly: true },
         { key: "totalRunKms", label: "Total Run(km/hrs)", required: true, formOrder: 3 },
-        { key: "presentStatus", label: "Present Status", required: true, formOrder: 4 },
-        // Funding Source + Repairing Cost are on the reference Add/Edit form
+        {
+          key: "presentStatus",
+          label: "Present Status",
+          required: true,
+          formOrder: 4,
+          placeholder: "Select",
+          staticOptions: ["Working", "Repairing", "Condemned"],
+        },
+        // Source of Funding + Repairing Cost are on the reference Add/Edit form
         // but not its list table - form-only here too.
-        { key: "fundingSource", label: "Funding Source", required: true, formOrder: 5, formOnly: true },
-        { key: "repairingCost", label: "Repairing Cost", required: true, formOrder: 6, formOnly: true },
+        { key: "fundingSource", label: "Source of Funding", required: true, formOrder: 5, formOnly: true },
+        {
+          key: "repairingCost",
+          label: "Repairing Cost",
+          required: true,
+          formOnly: true,
+          formOrder: 6,
+          showWhen: { key: "presentStatus", equals: "Repairing" },
+        },
       ]),
     ]),
     group("equipments", "Equipments Information", [
       /**
-       * The equipment master. List columns and the Add/Edit form are
-       * transcribed from the live reference (atariams.org /view-equipment +
-       * /create-equipment, KVK admin): Name of Equipment -> Year of Purchase
-       * -> Total Cost -> Present Status -> Source of fund, all required and
-       * plain inputs. Equipment Type stays a database column for the KVK
-       * report (1.5.A/1.5.B) but the reference form has no input for it.
+       * The equipment master: Name of Equipment -> Year of Purchase -> Total
+       * Cost -> Present Status (Working / Repairing / Condemned) -> Source of
+       * fund. Picking "Repairing" reveals a Repairing Cost input
+       * (MasterColumn.showWhen). Same flow as View Vehicles minus the
+       * Vehicle Type field. Equipment Type stays a KVK-report-only column.
        */
       leaf(
         "view-equipments",
@@ -1072,8 +1123,23 @@ const aboutKvk = group(
           { key: "equipmentName", label: "Equipment Name", formLabel: "Name of Equipment", required: true, formOrder: 1 },
           { key: "yearOfPurchase", label: "Year of Purchase", required: true, formOrder: 2 },
           { key: "totalCost", label: "Total Cost (Rs.)", required: true, formOrder: 3 },
-          { key: "presentStatus", label: "Present Status", required: true, formOrder: 4 },
-          { key: "sourceOfFund", label: "Source of fund", required: true, formOrder: 5 },
+          {
+            key: "presentStatus",
+            label: "Present Status",
+            required: true,
+            formOrder: 4,
+            placeholder: "Select",
+            staticOptions: ["Working", "Repairing", "Condemned"],
+          },
+          {
+            key: "repairingCost",
+            label: "Repairing Cost",
+            required: true,
+            formOnly: true,
+            formOrder: 5,
+            showWhen: { key: "presentStatus", equals: "Repairing" },
+          },
+          { key: "sourceOfFund", label: "Source of Funding", required: true, formOrder: 6 },
         ],
         "Equipments",
       ),
@@ -1104,16 +1170,24 @@ const aboutKvk = group(
           required: true,
           formOrder: 2,
           placeholder: "Select",
-          sourceMaster: { master: "__equipment__", optionKey: "name" },
+          sourceMaster: { master: "__equipment__", optionKey: "name", carryForwardFrom: "/api/equipment-details/prefill" },
         },
-        { key: "sourceOfFund", label: "Source of fund", readonly: true },
+        { key: "sourceOfFund", label: "Source of Funding", readonly: true },
         {
           key: "presentStatus",
           label: "Present Status",
           required: true,
           formOrder: 3,
           placeholder: "Select",
-          staticOptions: ["Working", "Not Working", "Condemned", "Auction"],
+          staticOptions: ["Working", "Repairing", "Condemned"],
+        },
+        {
+          key: "repairingCost",
+          label: "Repairing Cost",
+          required: true,
+          formOnly: true,
+          formOrder: 4,
+          showWhen: { key: "presentStatus", equals: "Repairing" },
         },
       ]),
       /**
@@ -1129,7 +1203,7 @@ const aboutKvk = group(
         { key: "yearOfPurchase", label: "Year of Purchase", required: true },
         { key: "totalCost", label: "Total Cost (Rs.)", formLabel: "Total Cost", required: true },
         { key: "presentStatus", label: "Present Status", required: true },
-        { key: "sourceOfFund", label: "Source of fund", required: true },
+        { key: "sourceOfFund", label: "Source of Funding", required: true },
       ]),
     ]),
   ],
