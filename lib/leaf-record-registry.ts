@@ -338,18 +338,34 @@ export const LEAF_RECORD_REGISTRY: Record<string, CreateFn> = {
     const vehicle = await prisma.vehicle.findFirst({ where: { kvkId: ctx.kvkId, name: reqStr(v.vehicleName) } });
     if (!vehicle) throw new Error("Vehicle not found");
     return prisma.vehicleStatus.create({
-      data: { vehicleId: vehicle.id, zoneId: ctx.zoneId, reportingYear: reqInt(v.reportingYear), totalRunKmHrs: dec(v.totalRunKms) },
+      data: {
+        vehicleId: vehicle.id,
+        zoneId: ctx.zoneId,
+        reportingYear: reqInt(v.reportingYear),
+        totalRunKmHrs: dec(v.totalRunKms),
+        presentStatus: str(v.presentStatus),
+        fundingSource: str(v.fundingSource),
+        repairingCost: dec(v.repairingCost),
+      },
     });
   },
   "about-kvk/equipments/view-equipments": (v, ctx) =>
     prisma.equipment.create({
-      data: { ...ctx, equipmentType: str(v.equipmentType), name: reqStr(v.equipmentName), yearOfPurchase: reqInt(v.yearOfPurchase), cost: reqDec(v.totalCost) },
+      // equipmentType has no form input on the reference - it stays a report-only column.
+      data: {
+        ...ctx,
+        name: reqStr(v.equipmentName),
+        yearOfPurchase: reqInt(v.yearOfPurchase),
+        cost: reqDec(v.totalCost),
+        presentStatus: str(v.presentStatus),
+        sourceOfFund: str(v.sourceOfFund),
+      },
     }),
   "about-kvk/equipments/equipment-details": async (v, ctx) => {
     const equipment = await prisma.equipment.findFirst({ where: { kvkId: ctx.kvkId, name: reqStr(v.equipmentName) } });
     if (!equipment) throw new Error("Equipment not found");
     return prisma.equipmentStatus.create({
-      data: { equipmentId: equipment.id, zoneId: ctx.zoneId, reportingYear: reqInt(v.reportingYear), sourceOfFund: str(v.sourceOfFund) },
+      data: { equipmentId: equipment.id, zoneId: ctx.zoneId, reportingYear: reqInt(v.reportingYear), presentStatus: str(v.presentStatus) },
     });
   },
   "about-kvk/equipments/farm-implement-details": (v, ctx) =>
@@ -1698,20 +1714,36 @@ export const LEAF_UPDATE_REGISTRY: Record<string, UpdateFn> = {
       where: { id, ...kvkScope(ctx) },
       data: { vehicleType: str(v.vehicleType), name: reqStr(v.vehicleName), registrationNo: reqStr(v.registrationNo), yearOfPurchase: reqInt(v.yearOfPurchase), cost: reqDec(v.totalCost) },
     }),
-  "about-kvk/vehicles/vehicle-details": (id, v, ctx) =>
-    prisma.vehicleStatus.updateMany({
+  "about-kvk/vehicles/vehicle-details": async (id, v, ctx) => {
+    const vehicle = await prisma.vehicle.findFirst({ where: { ...kvkScope(ctx), name: reqStr(v.vehicleName) } });
+    if (!vehicle) throw new Error("Vehicle not found");
+    return prisma.vehicleStatus.updateMany({
       where: { id, vehicle: { ...kvkScope(ctx) } },
-      data: { reportingYear: reqInt(v.reportingYear), totalRunKmHrs: dec(v.totalRunKms) },
-    }),
+      data: {
+        vehicleId: vehicle.id,
+        reportingYear: reqInt(v.reportingYear),
+        totalRunKmHrs: dec(v.totalRunKms),
+        presentStatus: str(v.presentStatus),
+        fundingSource: str(v.fundingSource),
+        repairingCost: dec(v.repairingCost),
+      },
+    });
+  },
   "about-kvk/equipments/view-equipments": (id, v, ctx) =>
     prisma.equipment.updateMany({
       where: { id, ...kvkScope(ctx) },
-      data: { equipmentType: str(v.equipmentType), name: reqStr(v.equipmentName), yearOfPurchase: reqInt(v.yearOfPurchase), cost: reqDec(v.totalCost) },
+      data: {
+        name: reqStr(v.equipmentName),
+        yearOfPurchase: reqInt(v.yearOfPurchase),
+        cost: reqDec(v.totalCost),
+        presentStatus: str(v.presentStatus),
+        sourceOfFund: str(v.sourceOfFund),
+      },
     }),
   "about-kvk/equipments/equipment-details": (id, v, ctx) =>
     prisma.equipmentStatus.updateMany({
       where: { id, equipment: { ...kvkScope(ctx) } },
-      data: { reportingYear: reqInt(v.reportingYear), sourceOfFund: str(v.sourceOfFund) },
+      data: { reportingYear: reqInt(v.reportingYear), presentStatus: str(v.presentStatus) },
     }),
   "about-kvk/equipments/farm-implement-details": (id, v, ctx) =>
     prisma.farmImplement.updateMany({

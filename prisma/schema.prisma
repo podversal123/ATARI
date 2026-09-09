@@ -758,6 +758,11 @@ model Equipment {
   name           String
   yearOfPurchase Int
   cost           Decimal @db.Decimal(12, 2)
+  /// Reference /create-equipment captures Present Status + Source of fund on
+  /// the equipment master itself; the yearly Equipment Details list then just
+  /// shows Source of fund (it is not re-entered per year).
+  presentStatus  String?
+  sourceOfFund   String?
 
   statuses EquipmentStatus[]
 

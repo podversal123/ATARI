@@ -989,37 +989,106 @@ const aboutKvk = group(
         ],
         "Vehicles",
       ),
-      /** Real columns confirmed live at /forms/about-kvk/vehicle-details - this is the full confirmed set, no horizontal scroll beyond it in the source. */
+      /**
+       * The yearly status record for a vehicle. List columns and the Add/Edit
+       * form are transcribed from the live reference (atariams.org
+       * /view-vehicle-details + /create-vehicle-details, KVK admin): the form
+       * is Reporting Year (year select) -> Vehicle (picked from this KVK's own
+       * Vehicles master) -> Total Run -> Present Status -> Funding Source ->
+       * Repairing Cost, all required. Registration No. is a list-only column,
+       * derived from the picked vehicle (`readonly` -> shown in the table,
+       * never a form input). All six values map to existing VehicleStatus
+       * columns - no migration.
+       */
       leaf("vehicle-details", "Vehicle Details", [
-        { key: "reportingYear", label: "Reporting Year" },
+        {
+          key: "reportingYear",
+          label: "Year",
+          formLabel: "Reporting Year",
+          required: true,
+          formOrder: 1,
+          placeholder: "Select",
+          staticOptions: Array.from({ length: 4 }, (_, i) => String(new Date().getFullYear() - i)),
+        },
         { key: "kvk", label: "KVK" },
-        { key: "vehicleName", label: "Vehicle Name" },
-        { key: "registrationNumber", label: "Registration Number" },
-        { key: "totalRunKms", label: "Total Run (Kms)" },
+        {
+          key: "vehicleName",
+          label: "Vehicle Name",
+          formLabel: "Vehicle",
+          required: true,
+          formOrder: 2,
+          placeholder: "Select",
+          sourceMaster: { master: "__vehicle__", optionKey: "name" },
+        },
+        { key: "registrationNumber", label: "Registration No.", readonly: true },
+        { key: "totalRunKms", label: "Total Run(km/hrs)", required: true, formOrder: 3 },
+        { key: "presentStatus", label: "Present Status", required: true, formOrder: 4 },
+        // Funding Source + Repairing Cost are on the reference Add/Edit form
+        // but not its list table - form-only here too.
+        { key: "fundingSource", label: "Funding Source", required: true, formOrder: 5, formOnly: true },
+        { key: "repairingCost", label: "Repairing Cost", required: true, formOrder: 6, formOnly: true },
       ]),
     ]),
     group("equipments", "Equipments Information", [
+      /**
+       * The equipment master. List columns and the Add/Edit form are
+       * transcribed from the live reference (atariams.org /view-equipment +
+       * /create-equipment, KVK admin): Name of Equipment -> Year of Purchase
+       * -> Total Cost -> Present Status -> Source of fund, all required and
+       * plain inputs. Equipment Type stays a database column for the KVK
+       * report (1.5.A/1.5.B) but the reference form has no input for it.
+       */
       leaf(
         "view-equipments",
         "View Equipments",
         [
           { key: "kvk", label: "KVK" },
-          { key: "equipmentType", label: "Equipment Type" },
-          { key: "equipmentName", label: "Equipment Name" },
-          { key: "companyBrandModel", label: "Company / Brand / Model" },
-          { key: "yearOfPurchase", label: "Year of Purchase" },
-          { key: "totalCost", label: "Total Cost (Rs)" },
-          { key: "sourceOfFunding", label: "Source of Funding" },
+          { key: "equipmentName", label: "Equipment Name", formLabel: "Name of Equipment", required: true, formOrder: 1 },
+          { key: "yearOfPurchase", label: "Year of Purchase", required: true, formOrder: 2 },
+          { key: "totalCost", label: "Total Cost (Rs.)", required: true, formOrder: 3 },
+          { key: "presentStatus", label: "Present Status", required: true, formOrder: 4 },
+          { key: "sourceOfFund", label: "Source of fund", required: true, formOrder: 5 },
         ],
         "Equipments",
       ),
-      /** Positions 4-5 were wrong: the real table has Company / Brand / Model and Source of Fund there. Anything beyond column 5 sits under the pinned Action column and is unconfirmed. */
+      /**
+       * The yearly status record for an equipment. Transcribed from the live
+       * reference (atariams.org /view-equipment-details +
+       * /create-equipment-details, KVK admin): the form is Reporting Year
+       * (year select) -> Equipment (picked from this KVK's own Equipments
+       * master) -> Present Status (fixed list), all required. Source of fund
+       * is a list-only column, derived from the picked equipment
+       * (`readonly` -> shown in the table, never a form input).
+       */
       leaf("equipment-details", "Equipment Details", [
-        { key: "reportingYear", label: "Reporting Year" },
+        {
+          key: "reportingYear",
+          label: "Year",
+          formLabel: "Reporting Year",
+          required: true,
+          formOrder: 1,
+          placeholder: "Select",
+          staticOptions: Array.from({ length: 4 }, (_, i) => String(new Date().getFullYear() - i)),
+        },
         { key: "kvk", label: "KVK" },
-        { key: "equipmentName", label: "Equipment Name" },
-        { key: "companyBrandModel", label: "Company / Brand / Model" },
-        { key: "sourceOfFund", label: "Source of Funding" },
+        {
+          key: "equipmentName",
+          label: "Equipment Name",
+          formLabel: "Equipment",
+          required: true,
+          formOrder: 2,
+          placeholder: "Select",
+          sourceMaster: { master: "__equipment__", optionKey: "name" },
+        },
+        { key: "sourceOfFund", label: "Source of fund", readonly: true },
+        {
+          key: "presentStatus",
+          label: "Present Status",
+          required: true,
+          formOrder: 3,
+          placeholder: "Select",
+          staticOptions: ["Working", "Not Working", "Condemned", "Auction"],
+        },
       ]),
       /** Standalone About-KVK leaf on atariams.org (/view-implement, /create-implement) - table columns and Add-form fields read live 2026-09-04. */
       leaf("farm-implement-details", "Farm Implement Details", [

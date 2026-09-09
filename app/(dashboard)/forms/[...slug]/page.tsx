@@ -556,6 +556,9 @@ export default async function FormsPage({ params, searchParams }: FormsPageProps
         vehicleName: r.vehicle.name,
         registrationNumber: r.vehicle.registrationNo,
         totalRunKms: r.totalRunKmHrs ? String(r.totalRunKmHrs) : "",
+        presentStatus: r.presentStatus ?? "",
+        fundingSource: r.fundingSource ?? "",
+        repairingCost: r.repairingCost != null ? String(r.repairingCost) : "",
       })),
       totalCount: rows.length,
     };
@@ -570,10 +573,10 @@ export default async function FormsPage({ params, searchParams }: FormsPageProps
         id: r.id,
         kvk: r.kvk.name,
         equipmentName: r.name,
-        companyBrandModel: "",
         yearOfPurchase: String(r.yearOfPurchase),
         totalCost: String(r.cost),
-        sourceOfFunding: "",
+        presentStatus: r.presentStatus ?? "",
+        sourceOfFund: r.sourceOfFund ?? "",
       })),
       totalCount: rows.length,
     };
@@ -593,8 +596,8 @@ export default async function FormsPage({ params, searchParams }: FormsPageProps
         reportingYear: String(r.reportingYear),
         kvk: r.equipment.kvk.name,
         equipmentName: r.equipment.name,
-        companyBrandModel: "",
-        sourceOfFund: r.sourceOfFund ?? "",
+        sourceOfFund: r.equipment.sourceOfFund ?? "",
+        presentStatus: r.presentStatus ?? "",
       })),
       totalCount: rows.length,
     };

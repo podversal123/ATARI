@@ -85,13 +85,25 @@ const CASCADE_FIELDS: Record<string, Set<string>> = {
  */
 const sourceMasterCache = new Map<string, Promise<Record<string, string>[]>>();
 
-/** Sentinel `sourceMaster.master` value meaning "this KVK's own Staff list" (/api/staff-options) rather than a real zone-wide master slug (/api/master-options) - Staff belongs to one KVK, unlike every other cross-master dropdown, so it needs its own endpoint, not a real "staff" master row. */
+/**
+ * Sentinel `sourceMaster.master` values that resolve to one KVK's own records
+ * (its Staff / Vehicles / Equipments), not a real zone-wide master slug -
+ * these belong to a single KVK, unlike every other cross-master dropdown, so
+ * each has its own `/api/*-options` endpoint instead of a `/api/master-options`
+ * slug. The reference's own "Vehicle" / "Equipment" selects on the yearly
+ * Vehicle/Equipment Details forms pull the same per-KVK list.
+ */
 const STAFF_SOURCE = "__staff__";
+const PER_KVK_OPTION_ENDPOINTS: Record<string, string> = {
+  [STAFF_SOURCE]: "/api/staff-options",
+  __vehicle__: "/api/vehicle-options",
+  __equipment__: "/api/equipment-options",
+};
 
 function fetchSourceMasterRows(master: string): Promise<Record<string, string>[]> {
   let cached = sourceMasterCache.get(master);
   if (!cached) {
-    const url = master === STAFF_SOURCE ? "/api/staff-options" : `/api/master-options?slug=${encodeURIComponent(master)}`;
+    const url = PER_KVK_OPTION_ENDPOINTS[master] ?? `/api/master-options?slug=${encodeURIComponent(master)}`;
     cached = fetch(url)
       .then((res) => (res.ok ? res.json() : { rows: [] }))
       .then((data) => (data.rows ?? []) as Record<string, string>[])
@@ -170,7 +182,7 @@ function SourceMasterField({
         placeholder={
           disabled
             ? `Select ${compactPlaceholder(dependsOnLabel ?? "the required field")} first`
-            : `Select ${compactPlaceholder(column.formLabel ?? column.label)}`
+            : (column.placeholder ?? `Select ${compactPlaceholder(column.formLabel ?? column.label)}`)
         }
         options={options.map((option) => ({ value: option, label: option }))}
         className={cn("h-10", noOptions && "rounded-b-none")}

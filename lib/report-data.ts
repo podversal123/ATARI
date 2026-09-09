@@ -61,7 +61,7 @@ const MODEL_FIELDS: Record<string, string[]> = {
   staffQuarters: ["dateOfCompletion", "numberOfQuarters", "remark"],
   vehicle: ["name", "registrationNo", "yearOfPurchase", "cost"],
   vehicleStatus: ["reportingYear", "totalRunKmHrs", "presentStatus", "repairingCost", "fundingSource", "fundingAgency"],
-  equipment: ["name", "yearOfPurchase", "cost"],
+  equipment: ["name", "yearOfPurchase", "cost", "presentStatus", "sourceOfFund"],
   equipmentStatus: ["reportingYear", "sourceOfFund", "fundingAgency", "presentStatus"],
   technicalAchievementSummaryEntry: ["reportingYear", "sectionCode", "metricCode", "casteCategory", "value"],
   oft: ["reportingYear", "discipline", "staff", "thematicArea", "trialOnForm", "problemDiagnosed", "sourceOfTechnology", "productionSystem", "performanceIndicators", "finalRecommendation", "constraintsIdentified", "farmersParticipationProcess", "quantity", "unit", "noOfTrialReplicationFarmer", "startMonth", "endMonth", "criticalInput", "costOfOft", "fundingAgency", "resultSummary", "status", "generalMale", "generalFemale", "obcMale", "obcFemale", "scMale", "scFemale", "stMale", "stFemale"],
@@ -3103,6 +3103,7 @@ async function buildEquipmentStatus(scope: ReportScope): Promise<CustomTableResu
           name: true,
           yearOfPurchase: true,
           cost: true,
+          sourceOfFund: true,
           kvk: { select: { name: true } },
         },
       },
@@ -3128,7 +3129,9 @@ async function buildEquipmentStatus(scope: ReportScope): Promise<CustomTableResu
     equipment: s.equipment?.name ?? "",
     yop: s.equipment?.yearOfPurchase != null ? String(s.equipment.yearOfPurchase) : "",
     cost: s.equipment?.cost != null ? stringifyValue(s.equipment.cost) : "",
-    sourceOfFund: s.sourceOfFund ?? "",
+    // Source of fund lives on the equipment master (reference /create-equipment);
+    // fall back to the legacy per-year value for records saved before that move.
+    sourceOfFund: s.equipment?.sourceOfFund ?? s.sourceOfFund ?? "",
     fundingAgency: s.fundingAgency ?? "",
     status: s.presentStatus ?? "",
   }));
