@@ -14,7 +14,7 @@ type LogRow = {
   loginTime: string;
 };
 
-const ALL_COLUMNS = ["KVK Name", "Name Of User", "Activity", "IP Address", "Login Time"];
+const ALL_COLUMNS = ["S.No.", "KVK Name", "Name Of User", "Activity", "IP Address", "Login Time"];
 
 function formatLoginTime(iso: string) {
   return new Date(iso).toLocaleString("en-IN", {
@@ -36,7 +36,9 @@ export function RecentLogHistoryCard() {
 
   const load = useCallback(() => {
     let cancelled = false;
-    fetch("/api/log-history?limit=6")
+    // Enough rows to fill the card's fixed height (matches the progress cards
+    // above) so there's no dead space below the last row on a short list.
+    fetch("/api/log-history?limit=12")
       .then((res) => (res.ok ? res.json() : null))
       .then((data: { rows: LogRow[] } | null) => {
         if (!cancelled && data) setRows(data.rows);
@@ -65,12 +67,12 @@ export function RecentLogHistoryCard() {
           View all
         </Link>
       </div>
-      <div className="mt-3 min-h-0 flex-1 -mx-5 overflow-y-auto border-t border-border">
-        <table className="h-full w-full text-sm">
+      <div className="mt-3 min-h-0 flex-1 -mx-5 overflow-auto border-t border-border">
+        <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-border bg-muted/50 text-left text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+            <tr className="divide-x divide-border border-b border-border bg-muted/50 text-left text-xs font-semibold tracking-wide text-muted-foreground uppercase">
               {columns.map((column) => (
-                <th key={column} className="px-5 py-2">
+                <th key={column} className="px-4 py-2.5 whitespace-nowrap">
                   {column}
                 </th>
               ))}
@@ -81,21 +83,25 @@ export function RecentLogHistoryCard() {
               <tr>
                 <td
                   colSpan={columns.length}
-                  className="px-5 py-10 text-center align-middle text-muted-foreground"
+                  className="px-4 py-10 text-center align-middle text-muted-foreground"
                 >
                   No records found.
                 </td>
               </tr>
             ) : (
-              rows.map((row) => (
-                <tr key={row.id} className="border-b border-border last:border-0">
+              rows.map((row, index) => (
+                <tr
+                  key={row.id}
+                  className="divide-x divide-border border-b border-border last:border-0"
+                >
+                  <td className="px-4 py-2.5 text-foreground">{index + 1}</td>
                   {!isKvkScoped && (
-                    <td className="px-5 py-2 text-foreground">{row.kvkName}</td>
+                    <td className="px-4 py-2.5 whitespace-nowrap text-foreground">{row.kvkName}</td>
                   )}
-                  <td className="px-5 py-2 text-foreground">{row.nameOfUser}</td>
-                  <td className="px-5 py-2 text-muted-foreground">{row.activity}</td>
-                  <td className="px-5 py-2 text-muted-foreground">{row.ipAddress}</td>
-                  <td className="px-5 py-2 text-muted-foreground">
+                  <td className="px-4 py-2.5 text-foreground">{row.nameOfUser}</td>
+                  <td className="px-4 py-2.5 text-muted-foreground">{row.activity}</td>
+                  <td className="px-4 py-2.5 whitespace-nowrap text-muted-foreground">{row.ipAddress}</td>
+                  <td className="px-4 py-2.5 whitespace-nowrap text-muted-foreground">
                     {formatLoginTime(row.loginTime)}
                   </td>
                 </tr>

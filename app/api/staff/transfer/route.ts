@@ -5,14 +5,12 @@ import { safeErrorMessage } from "@/lib/safe-error-message";
 
 /**
  * Transfer a staff member to another KVK. Records the hop in StaffTransfer
- * (from = the staff's current KVK, to = the chosen KVK) and marks the staff
- * row "Transferred" WITHOUT moving it - the record stays under the source
- * KVK's own Employee Details, marked Transferred (client report,
- * 2026-09-07: it was showing at the destination instead). Same pattern as
- * OFT/FLD Transfer here, where the original row also stays visible under
- * its owner marked Transferred. The destination KVK sees the incoming hop
- * in its own "Details of Staff Transferred" list (that list is scoped by
- * toKvkId).
+ * (from = the staff's current KVK, to = the chosen KVK) and moves the staff
+ * row to the destination: it leaves the source KVK's Employee Details and
+ * appears under the destination KVK's Employee Details (marked
+ * "Transferred"). The transfer then shows in "Details of Staff Transferred"
+ * for the destination KVK (that list is scoped by toKvkId), never the
+ * source.
  */
 export async function POST(request: Request) {
   const auth = await requireSession(["KVK_ADMIN", "SUPER_ADMIN"]);
@@ -59,7 +57,7 @@ export async function POST(request: Request) {
       }),
       prisma.staff.update({
         where: { id: staff.id },
-        data: { transferStatus: "Transferred" },
+        data: { kvkId: toKvk.id, transferStatus: "Transferred" },
       }),
     ]);
 
