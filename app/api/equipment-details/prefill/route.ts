@@ -31,6 +31,12 @@ export async function GET(request: Request) {
     orderBy: { reportingYear: "desc" },
   });
 
+  // Condemned equipment is retired - its details do NOT carry forward into a
+  // new year (client direction, 2026-09-10). "Repairing" still carries forward
+  // so the user just edits the repairing cost.
+  const latestStatus = (last?.presentStatus ?? equipment.presentStatus ?? "").trim().toLowerCase();
+  if (latestStatus === "condemned") return NextResponse.json({ fields: {} });
+
   const num = (v: unknown) => (v == null ? "" : String(v));
 
   const fields = last
