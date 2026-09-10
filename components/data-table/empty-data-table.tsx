@@ -180,6 +180,20 @@ const STATUS_BADGE_STYLES: Record<string, string> = {
 };
 
 /**
+ * Whether a cell value falls in one of the selected reporting years. Handles a
+ * plain year ("2025") and a date form of it ("2025-01-01", "2025-09-10", an
+ * ISO timestamp) - some leaves store `reportingYear` as "<year>-01-01" because
+ * the field renders as a date picker, so a bare `Set.has(value)` check misses
+ * every one of their rows when a year is selected.
+ */
+function inSelectedYears(value: string, years: Set<string>): boolean {
+  if (!value) return false;
+  if (years.has(value)) return true;
+  const y = value.slice(0, 4);
+  return /^\d{4}$/.test(y) && years.has(y);
+}
+
+/**
  * The list-page shell repeated across nearly every master and form screen:
  * tabs above a card, then inside the card a title+export-buttons row, a
  * search/date-filter row, and the table. This exact ordering (tabs before
@@ -633,13 +647,19 @@ export function EmptyDataTable({
         if (!matches) return false;
       }
       if (reportingYears.size > 0) {
-        const ry = String(row.reportingYear ?? "");
-        const byYearCol = ry !== "" && reportingYears.has(ry);
-        const byDateCol = dateColumnKeys.some((key) => {
-          const raw = String(row[key] ?? "");
-          return raw.length >= 4 && reportingYears.has(raw.slice(0, 4));
-        });
-        if (!byYearCol && !byDateCol) return false;
+        const yearRaw = String(row.reportingYear ?? "");
+        const dateVals = dateColumnKeys
+          .map((key) => String(row[key] ?? ""))
+          .filter(Boolean);
+        // Only rows that actually carry a year (a reportingYear or a date) are
+        // subject to the year filter. Roster leaves - View KVKs, Bank Accounts,
+        // Land, Infrastructure, Staff Quarters, ... - have neither, so the
+        // filter must not blank them out when a year is picked.
+        if (yearRaw !== "" || dateVals.length > 0) {
+          const byYearCol = inSelectedYears(yearRaw, reportingYears);
+          const byDateCol = dateVals.some((v) => inSelectedYears(v, reportingYears));
+          if (!byYearCol && !byDateCol) return false;
+        }
       }
       if (hasActiveDates) {
         const inRange = dateColumnKeys.some((key) => {
@@ -750,12 +770,12 @@ export function EmptyDataTable({
           .map((l) => keyByLabel.get(l))
           .filter((k): k is string => Boolean(k));
         rows = rows.filter((r) => {
-          const ry = yk ? String(r[yk] ?? "") : "";
-          if (ry !== "" && reportingYears.has(ry)) return true;
-          return dks.some((k) => {
-            const v = String(r[k] ?? "");
-            return v.length >= 4 && reportingYears.has(v.slice(0, 4));
-          });
+          const yearRaw = yk ? String(r[yk] ?? "") : "";
+          const dateVals = dks.map((k) => String(r[k] ?? "")).filter(Boolean);
+          // Rows with no year at all (roster leaves) aren't year-filterable.
+          if (yearRaw === "" && dateVals.length === 0) return true;
+          if (inSelectedYears(yearRaw, reportingYears)) return true;
+          return dateVals.some((v) => inSelectedYears(v, reportingYears));
         });
       }
       if (hasActiveDates) {
