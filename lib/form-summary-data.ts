@@ -8,8 +8,8 @@ export type TrackedLeaf = {
   model: string;
   /** SwachhtaObservance backs both "Sewa" and "Pakhwada" (kind enum), so those two leaves each need a real extra filter, not a plain per-model groupBy - every other leaf here has one model to itself. */
   extraWhere?: Record<string, string>;
-  /** StaffTransfer's own per-KVK column is `toKvkId`, not `kvkId` (confirmed in lib/leaf-record-registry.ts's own delete handler for this leaf) - every other leaf here groups by `kvkId`. */
-  kvkField?: "kvkId" | "toKvkId";
+  /** StaffTransfer has no plain `kvkId` - the transfer is owned by the KVK the staff left, so it groups by `fromKvkId` (matches the Staff Transferred list + report, which scope the same way). Every other leaf here groups by `kvkId`. */
+  kvkField?: "kvkId" | "fromKvkId";
   /**
    * How this leaf's model carries a reporting year, so the Form Summary's
    * "Reporting year" filter can actually scope the per-KVK counts (it was a
@@ -127,9 +127,9 @@ export function yearsWhereFor(model: string, years: number[]): Record<string, un
  * for a bespoke Create flow instead (CFLD Technical Parameter, Technology
  * Week Celebration, World Soil Day) - each still backed by one real model.
  */
-const LEAF_MODEL_MAP: Record<string, { model: string; extraWhere?: Record<string, string>; kvkField?: "kvkId" | "toKvkId" }> = {
+const LEAF_MODEL_MAP: Record<string, { model: string; extraWhere?: Record<string, string>; kvkField?: "kvkId" | "fromKvkId" }> = {
   "about-kvk/basic/bank-account-details": { model: "bankAccount" },
-  "about-kvk/employee/staff-transferred": { model: "staffTransfer", kvkField: "toKvkId" },
+  "about-kvk/employee/staff-transferred": { model: "staffTransfer", kvkField: "fromKvkId" },
   "about-kvk/land-infrastructure/infrastructure-details": { model: "infrastructure" },
   "about-kvk/land-infrastructure/land-details": { model: "land" },
   "about-kvk/land-infrastructure/staff-quarters": { model: "staffQuarters" },

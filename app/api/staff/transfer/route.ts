@@ -7,10 +7,11 @@ import { safeErrorMessage } from "@/lib/safe-error-message";
  * Transfer a staff member to another KVK. Records the hop in StaffTransfer
  * (from = the staff's current KVK, to = the chosen KVK) and moves the staff
  * row to the destination: it leaves the source KVK's Employee Details and
- * appears under the destination KVK's Employee Details (marked
- * "Transferred"). The transfer then shows in "Details of Staff Transferred"
- * for the destination KVK (that list is scoped by toKvkId), never the
- * source.
+ * appears under the destination KVK's Employee Details (marked "Transferred").
+ * The transfer shows in "Details of Staff Transferred" for the SOURCE KVK
+ * (that list, the Form Summary count and report 1.2.B are all scoped by
+ * fromKvkId) - it sits beside that KVK's own Employee Details, since that KVK
+ * is the one that transferred the staff out. (client direction, 2026-09-10)
  */
 export async function POST(request: Request) {
   const auth = await requireSession(["KVK_ADMIN", "SUPER_ADMIN"]);

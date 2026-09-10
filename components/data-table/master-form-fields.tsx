@@ -111,14 +111,29 @@ const PER_KVK_OPTION_ENDPOINTS: Record<string, string> = {
   __equipment__: "/api/equipment-options",
 };
 
+function fetchRows(url: string): Promise<Record<string, string>[]> {
+  return fetch(url, { cache: "no-store" })
+    .then((res) => (res.ok ? res.json() : { rows: [] }))
+    .then((data) => (data.rows ?? []) as Record<string, string>[])
+    .catch(() => []);
+}
+
+/** A dropdown row that should behave as the free-text "Other" choice by its name alone (no "Mark as Other" flag needed). Exact match only - "Other Enterprises" is a real category, not this. */
+export function isOtherName(name: string | undefined): boolean {
+  const n = (name ?? "").trim().toLowerCase();
+  return n === "other" || n === "others";
+}
+
 function fetchSourceMasterRows(master: string): Promise<Record<string, string>[]> {
+  const perKvkUrl = PER_KVK_OPTION_ENDPOINTS[master];
+  // The per-KVK lists (Staff / Vehicles / Equipments) are edited by the KVK
+  // admin in the same session - a vehicle just added on View Vehicles must
+  // appear in this dropdown right away - so never serve those from the cache.
+  if (perKvkUrl) return fetchRows(perKvkUrl);
+
   let cached = sourceMasterCache.get(master);
   if (!cached) {
-    const url = PER_KVK_OPTION_ENDPOINTS[master] ?? `/api/master-options?slug=${encodeURIComponent(master)}`;
-    cached = fetch(url)
-      .then((res) => (res.ok ? res.json() : { rows: [] }))
-      .then((data) => (data.rows ?? []) as Record<string, string>[])
-      .catch(() => []);
+    cached = fetchRows(`/api/master-options?slug=${encodeURIComponent(master)}`);
     sourceMasterCache.set(master, cached);
   }
   return cached;
@@ -143,6 +158,7 @@ function SourceMasterField({
   dependsOnLabel,
   disabled,
   onChange,
+  enableOtherOption,
 }: {
   column: MasterColumn & { sourceMaster: NonNullable<MasterColumn["sourceMaster"]> };
   fieldId: string;
@@ -151,6 +167,14 @@ function SourceMasterField({
   dependsOnLabel?: string;
   disabled: boolean;
   onChange: (value: string, extras?: Record<string, string>) => void;
+  /**
+   * Whether a row flagged "Mark as Other option" should turn into a free-text
+   * "Other" choice here. Only true for Form Management data-entry forms - in an
+   * All Masters form this same field is just a parent picker (e.g. the Subject
+   * Name select when creating an OFT Thematic Area), where a typed-in value
+   * makes no sense.
+   */
+  enableOtherOption: boolean;
 }) {
   const [rows, setRows] = useState<Record<string, string>[]>([]);
   const [loaded, setLoaded] = useState(false);
@@ -169,21 +193,34 @@ function SourceMasterField({
     };
   }, [master]);
 
-  const filteredRows = rows.filter(
+  const cascadeRows = rows.filter(
     (row) => !filterKey || !dependsOnValue || row[filterKey] === dependsOnValue,
   );
+
+  /**
+   * The dropdown's "Other" choice - picking it opens a free-text input beside
+   * the select so the user can type a value that isn't in the list. The typed
+   * text is what gets submitted; the select stays parked on the Other row so
+   * the input keeps showing.
+   *
+   * A row a Super Admin flagged "Mark as Other option" wins; otherwise a row
+   * literally named "Other"/"Others" is treated as the Other choice
+   * automatically (most masters already ship one, and expecting the admin to
+   * also tick a box on it is a redundant step).
+   *
+   * Sourced from the full unfiltered set, so it stays offered once the parent
+   * field is set even when it belongs to a different parent than the one
+   * chosen - it's an escape hatch, not real cascade data.
+   */
+  const otherRow = enableOtherOption
+    ? (rows.find((row) => row._isOther === "1") ?? rows.find((row) => isOtherName(row[optionKey])))
+    : undefined;
+  const otherName = otherRow?.[optionKey];
+  const filteredRows =
+    otherRow && !cascadeRows.includes(otherRow) ? [...cascadeRows, otherRow] : cascadeRows;
   const options = Array.from(
     new Set(filteredRows.map((row) => row[optionKey]).filter((v): v is string => Boolean(v))),
   ).sort();
-
-  /**
-   * A master row flagged "Mark as Other option" turns its own name into the
-   * dropdown's "Other" choice - picking it opens a free-text input beside
-   * the select so the user can type a value that isn't in the list. The
-   * typed text is what gets submitted; the select just stays parked on the
-   * Other row so the input keeps showing.
-   */
-  const otherName = filteredRows.find((row) => row._isOther === "1")?.[optionKey];
   const isOtherActive = Boolean(otherName) && (value === otherName || (Boolean(value) && !options.includes(value)));
 
   /** Picking a real option: optionally carry forward related fields from an endpoint. */
@@ -254,6 +291,13 @@ type MasterFormFieldsProps = {
   isSimpleMaster: boolean;
   markAsOther: boolean;
   onMarkAsOtherChange: (checked: boolean) => void;
+  /**
+   * Form Management data-entry forms only: lets a sourceMaster select whose
+   * master has a row flagged "Mark as Other option" offer a free-text "Other"
+   * choice. Off for All Masters forms, where the same selects are just
+   * parent pickers. Defaults off.
+   */
+  enableOtherOption?: boolean;
 };
 
 /**
@@ -273,6 +317,7 @@ export function MasterFormFields({
   isSimpleMaster,
   markAsOther,
   onMarkAsOtherChange,
+  enableOtherOption = false,
 }: MasterFormFieldsProps) {
   const instanceId = useId();
   const cascade = useCascadeOptions(Boolean(cascadeType));
@@ -490,6 +535,7 @@ export function MasterFormFields({
                 dependsOnValue={dependsOnValue}
                 dependsOnLabel={columns.find((c) => c.key === dependsOnKey)?.label}
                 disabled={disabled}
+                enableOtherOption={enableOtherOption}
                 onChange={(value, extras) => {
                   // Clear any field that itself sources from this one, so a changed parent can't leave a stale, now-invalid child selection behind.
                   const dependents = Object.fromEntries(

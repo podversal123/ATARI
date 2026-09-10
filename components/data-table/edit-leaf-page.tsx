@@ -22,6 +22,15 @@ type EditLeafPageProps = {
   compactFields?: boolean;
   /** Which registry/endpoint `recordPath` refers to - "form" (default, Form Management, POSTs to /api/leaf-record/update) or "master" (All Masters, POSTs to /api/master-record/update). Mirrors AddLeafPage's own `recordKind`. */
   recordKind?: "form" | "master";
+  /**
+   * Forces the "Mark as 'Other' option" checkbox on (mirrors AddLeafPage's
+   * own prop and NavLeaf.showMarkAsOther) - without this, Edit only showed
+   * the checkbox for the handful of masters whose single column is literally
+   * keyed "name", so a row on any of the ~21 flagged masters (keyed
+   * "clientele", "fundingSource", ...) could be flagged on create but never
+   * seen or unflagged when edited.
+   */
+  showMarkAsOther?: boolean;
 };
 
 /**
@@ -49,6 +58,7 @@ export function EditLeafPage({
   formColumns,
   compactFields,
   recordKind = "form",
+  showMarkAsOther,
 }: EditLeafPageProps) {
   const router = useRouter();
   const [formValues, setFormValues] = useState<Record<string, string> | null>(null);
@@ -56,7 +66,8 @@ export function EditLeafPage({
   const [markAsOther, setMarkAsOther] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const isSimpleMaster = columns.length === 1 && columns[0].key === "name";
+  const isSimpleMaster =
+    showMarkAsOther ?? (columns.length === 1 && columns[0].key === "name");
 
   useEffect(() => {
     const raw = sessionStorage.getItem(`edit-record:${id}`);
@@ -190,10 +201,14 @@ export function EditLeafPage({
               columns={columns}
               cascadeType={cascadeType}
               formValues={formValues}
-              onChange={setFormValues}
+              onChange={(next) => {
+                setFormValues(next);
+                if (error) setError(null);
+              }}
               isSimpleMaster={isSimpleMaster}
               markAsOther={markAsOther}
               onMarkAsOtherChange={setMarkAsOther}
+              enableOtherOption={recordKind === "form"}
             />
           </div>
         )}

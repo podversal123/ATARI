@@ -243,7 +243,14 @@ export function EmployeeDetailsAddForm({ trail, backHref, id }: EmployeeDetailsF
 
           <div className="space-y-1.5">
             <Label htmlFor="staff-job-type">Permanent/Temporary</Label>
-            <Input id="staff-job-type" className="h-10" value={jobType} onChange={(e) => setJobType(e.target.value)} />
+            <SimpleSelect
+              id="staff-job-type"
+              value={jobType}
+              onValueChange={setJobType}
+              placeholder="Please Select"
+              options={opt(["Permanent", "Temporary"])}
+              className="h-10"
+            />
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="staff-allowances">Details of allowances</Label>

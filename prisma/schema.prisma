@@ -3783,10 +3783,13 @@ model MasterListItem {
 
 /// OFT Masters: Subject -> Thematic Area (real 2-level hierarchy).
 model OftSubject {
-  id     String @id @default(cuid())
-  name   String
-  zoneId String
-  zone   Zone   @relation(fields: [zoneId], references: [id])
+  id      String  @id @default(cuid())
+  name    String
+  zoneId  String
+  zone    Zone    @relation(fields: [zoneId], references: [id])
+  /// Flags this row as the "Other" choice for any Form Management dropdown
+  /// sourced from this master - picking it there opens a free-text input.
+  isOther Boolean @default(false)
 
   thematicAreas OftThematicAreaMaster[]
 
@@ -3800,6 +3803,8 @@ model OftThematicAreaMaster {
   subjectId String
   subject   OftSubject @relation(fields: [subjectId], references: [id])
   zoneId    String
+  /// See OftSubject.isOther.
+  isOther   Boolean    @default(false)
 
   @@unique([subjectId, name])
   @@index([zoneId])
@@ -3809,10 +3814,12 @@ model OftThematicAreaMaster {
 /// Sector -> Thematic Area branch - both confirmed as real, separate
 /// hierarchies under Sector in lib/navigation.ts's oftFldMasters group.
 model FldSector {
-  id     String @id @default(cuid())
-  name   String
-  zoneId String
-  zone   Zone   @relation(fields: [zoneId], references: [id])
+  id      String  @id @default(cuid())
+  name    String
+  zoneId  String
+  zone    Zone    @relation(fields: [zoneId], references: [id])
+  /// See OftSubject.isOther.
+  isOther Boolean @default(false)
 
   thematicAreas FldThematicAreaMaster[]
   categories    FldCategoryMaster[]
@@ -3827,6 +3834,8 @@ model FldThematicAreaMaster {
   sectorId String
   sector   FldSector @relation(fields: [sectorId], references: [id])
   zoneId   String
+  /// See OftSubject.isOther.
+  isOther  Boolean   @default(false)
 
   @@unique([sectorId, name])
   @@index([zoneId])
@@ -3838,6 +3847,8 @@ model FldCategoryMaster {
   sectorId String
   sector   FldSector @relation(fields: [sectorId], references: [id])
   zoneId   String
+  /// See OftSubject.isOther.
+  isOther  Boolean   @default(false)
 
   subCategories FldSubCategoryMaster[]
 
@@ -3851,6 +3862,8 @@ model FldSubCategoryMaster {
   categoryId String
   category   FldCategoryMaster @relation(fields: [categoryId], references: [id])
   zoneId     String
+  /// See OftSubject.isOther.
+  isOther    Boolean           @default(false)
 
   crops CropMaster[]
 
@@ -3870,6 +3883,8 @@ model CropMaster {
   subCategoryId    String
   subCategory      FldSubCategoryMaster @relation(fields: [subCategoryId], references: [id])
   zoneId           String
+  /// See OftSubject.isOther.
+  isOther          Boolean              @default(false)
 
   @@unique([subCategoryId, name])
   @@index([zoneId])

@@ -18,6 +18,7 @@ import { FormPhotosField, type FormPhoto } from "./form-photos-field";
 import { TagInputField } from "./tag-input-field";
 import { compactPlaceholder } from "@/lib/compact-placeholder";
 import { OftResultFields } from "./oft-result-fields";
+import { OtherAwareSelect, type MasterRow } from "./other-aware-select";
 
 type OftFormProps = {
   trail: Crumb[];
@@ -67,9 +68,9 @@ function uniqueNonEmpty(values: (string | undefined)[]): string[] {
 export function OftForm({ trail, backHref, id, initialView }: OftFormProps) {
   const router = useRouter();
   const [thematicAreaRows, setThematicAreaRows] = useState<ThematicAreaRow[]>([]);
-  const [subjectOptions, setSubjectOptions] = useState<string[]>([]);
+  const [subjectRows, setSubjectRows] = useState<MasterRow[]>([]);
   const [staffOptions, setStaffOptions] = useState<string[]>([]);
-  const [fundingSourceOptions, setFundingSourceOptions] = useState<string[]>([]);
+  const [fundingSourceRows, setFundingSourceRows] = useState<MasterRow[]>([]);
   const [seasonOptions, setSeasonOptions] = useState<string[]>([]);
   const [loading, setLoading] = useState(Boolean(id));
 
@@ -80,7 +81,7 @@ export function OftForm({ trail, backHref, id, initialView }: OftFormProps) {
       .catch(() => {});
     fetch("/api/master-options?slug=subject")
       .then((res) => (res.ok ? res.json() : { rows: [] }))
-      .then((data) => setSubjectOptions(uniqueNonEmpty((data.rows ?? []).map((r: Record<string, string>) => r.subjectName))))
+      .then((data) => setSubjectRows(data.rows ?? []))
       .catch(() => {});
     fetch("/api/staff-options")
       .then((res) => (res.ok ? res.json() : { rows: [] }))
@@ -88,7 +89,7 @@ export function OftForm({ trail, backHref, id, initialView }: OftFormProps) {
       .catch(() => {});
     fetch("/api/master-options?slug=funding-source")
       .then((res) => (res.ok ? res.json() : { rows: [] }))
-      .then((data) => setFundingSourceOptions(uniqueNonEmpty((data.rows ?? []).map((r: Record<string, string>) => r.fundingSource))))
+      .then((data) => setFundingSourceRows(data.rows ?? []))
       .catch(() => {});
     /** Real Season Master (audit finding, 2026-09-02 - the hardcoded Kharif/Rabi/Zaid list didn't match the real master's actual values, Kharif/Rabi/Summer). */
     fetch("/api/master-options?slug=season")
@@ -137,13 +138,8 @@ export function OftForm({ trail, backHref, id, initialView }: OftFormProps) {
     setTechnologyOptions((prev) => prev.map((t, i) => (i === index ? { ...t, description } : t)));
   }
 
-  const thematicAreaOptions = useMemo(
-    () =>
-      uniqueNonEmpty(
-        thematicAreaRows
-          .filter((r) => !oftSubject || r.subjectName === oftSubject)
-          .map((r) => r.thematicArea),
-      ),
+  const thematicAreaRowsForSubject = useMemo(
+    () => thematicAreaRows.filter((r) => !oftSubject || r.subjectName === oftSubject),
     [thematicAreaRows, oftSubject],
   );
 
@@ -367,8 +363,8 @@ export function OftForm({ trail, backHref, id, initialView }: OftFormProps) {
         </div>
 
         <div className="mt-4 grid grid-cols-[repeat(auto-fit,minmax(240px,320px))] gap-5">
-          {selectField("oft-subject", "OFT Subject", oftSubject, setOftSubject, subjectOptions, true)}
-          {selectField("oft-thematic-area", "Thematic Area", thematicArea, setThematicArea, thematicAreaOptions, true)}
+          <OtherAwareSelect id="oft-subject" label="OFT Subject" required value={oftSubject} onChange={setOftSubject} rows={subjectRows} optionKey="subjectName" />
+          <OtherAwareSelect id="oft-thematic-area" label="Thematic Area" required value={thematicArea} onChange={setThematicArea} rows={thematicAreaRowsForSubject} allRows={thematicAreaRows} optionKey="thematicArea" />
           {selectField("oft-discipline", "Discipline", discipline, setDiscipline, DISCIPLINES, true)}
           {textField("oft-title", "Title of On Farm Trial (OFT)", trialOnForm, setTrialOnForm, true)}
         </div>
@@ -379,7 +375,7 @@ export function OftForm({ trail, backHref, id, initialView }: OftFormProps) {
         </div>
 
         <div className="mt-4 grid grid-cols-[repeat(auto-fit,minmax(240px,320px))] gap-5">
-          {selectField("oft-funding-source", "Source of Funding", sourceOfFunding, setSourceOfFunding, fundingSourceOptions, true)}
+          <OtherAwareSelect id="oft-funding-source" label="Source of Funding" required value={sourceOfFunding} onChange={setSourceOfFunding} rows={fundingSourceRows} optionKey="fundingSource" />
           {textField("oft-production-system", "Production System and Thematic Area", productionSystem, setProductionSystem, true)}
         </div>
 

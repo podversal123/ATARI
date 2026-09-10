@@ -83,6 +83,7 @@ export default async function MastersPage({ params }: MastersPageProps) {
         cascadeType={cascadeType}
         formColumns={node.formColumns}
         compactFields={node.compactFields ?? true}
+        showMarkAsOther={node.showMarkAsOther}
         recordPath={node.slug}
         recordKind="master"
         id={editId}

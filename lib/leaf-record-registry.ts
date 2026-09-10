@@ -349,16 +349,20 @@ export const LEAF_RECORD_REGISTRY: Record<string, CreateFn> = {
   "about-kvk/vehicles/vehicle-details": async (v, ctx) => {
     const vehicle = await prisma.vehicle.findFirst({ where: { kvkId: ctx.kvkId, name: reqStr(v.vehicleName) } });
     if (!vehicle) throw new Error("Vehicle not found");
-    return prisma.vehicleStatus.create({
-      data: {
-        vehicleId: vehicle.id,
-        zoneId: ctx.zoneId,
-        reportingYear: reqInt(v.reportingYear),
-        totalRunKmHrs: dec(v.totalRunKms),
-        presentStatus: str(v.presentStatus),
-        fundingSource: str(v.fundingSource),
-        repairingCost: v.presentStatus === "Repairing" ? dec(v.repairingCost) : null,
-      },
+    const reportingYear = reqInt(v.reportingYear);
+    const data = {
+      totalRunKmHrs: dec(v.totalRunKms),
+      presentStatus: str(v.presentStatus),
+      fundingSource: str(v.fundingSource),
+      repairingCost: v.presentStatus === "Repairing" ? dec(v.repairingCost) : null,
+    };
+    // One VehicleStatus per vehicle+year (@@unique). Picking a vehicle/year
+    // that already has a row updates it - the Add form's carry-forward
+    // prefills from that same row - instead of failing on the unique key.
+    return prisma.vehicleStatus.upsert({
+      where: { vehicleId_reportingYear: { vehicleId: vehicle.id, reportingYear } },
+      create: { vehicleId: vehicle.id, zoneId: ctx.zoneId, reportingYear, ...data },
+      update: data,
     });
   },
   "about-kvk/equipments/view-equipments": (v, ctx) =>
@@ -378,14 +382,16 @@ export const LEAF_RECORD_REGISTRY: Record<string, CreateFn> = {
   "about-kvk/equipments/equipment-details": async (v, ctx) => {
     const equipment = await prisma.equipment.findFirst({ where: { kvkId: ctx.kvkId, name: reqStr(v.equipmentName) } });
     if (!equipment) throw new Error("Equipment not found");
-    return prisma.equipmentStatus.create({
-      data: {
-        equipmentId: equipment.id,
-        zoneId: ctx.zoneId,
-        reportingYear: reqInt(v.reportingYear),
-        presentStatus: str(v.presentStatus),
-        repairingCost: v.presentStatus === "Repairing" ? dec(v.repairingCost) : null,
-      },
+    const reportingYear = reqInt(v.reportingYear);
+    const data = {
+      presentStatus: str(v.presentStatus),
+      repairingCost: v.presentStatus === "Repairing" ? dec(v.repairingCost) : null,
+    };
+    // One EquipmentStatus per equipment+year (@@unique) - see vehicle-details.
+    return prisma.equipmentStatus.upsert({
+      where: { equipmentId_reportingYear: { equipmentId: equipment.id, reportingYear } },
+      create: { equipmentId: equipment.id, zoneId: ctx.zoneId, reportingYear, ...data },
+      update: data,
     });
   },
   "about-kvk/equipments/farm-implement-details": (v, ctx) =>
@@ -1518,7 +1524,7 @@ type DeleteFn = (id: string, ctx: ScopedContext) => Promise<{ count: number }>;
  */
 export const LEAF_DELETE_REGISTRY: Record<string, DeleteFn> = {
   "about-kvk/basic/bank-account-details": (id, ctx) => prisma.bankAccount.deleteMany({ where: { id, ...kvkScope(ctx) } }),
-  "about-kvk/employee/staff-transferred": (id, ctx) => prisma.staffTransfer.deleteMany({ where: { id, ...(ctx.kvkId ? { toKvkId: ctx.kvkId } : { toKvk: { zoneId: ctx.zoneId } }) } }),
+  "about-kvk/employee/staff-transferred": (id, ctx) => prisma.staffTransfer.deleteMany({ where: { id, ...(ctx.kvkId ? { fromKvkId: ctx.kvkId } : { fromKvk: { zoneId: ctx.zoneId } }) } }),
   "about-kvk/land-infrastructure/infrastructure-details": (id, ctx) => prisma.infrastructure.deleteMany({ where: { id, ...kvkScope(ctx) } }),
   "about-kvk/land-infrastructure/land-details": (id, ctx) => prisma.land.deleteMany({ where: { id, ...kvkScope(ctx) } }),
   "about-kvk/land-infrastructure/staff-quarters": (id, ctx) => prisma.staffQuarters.deleteMany({ where: { id, ...kvkScope(ctx) } }),
@@ -1527,7 +1533,18 @@ export const LEAF_DELETE_REGISTRY: Record<string, DeleteFn> = {
   "about-kvk/equipments/view-equipments": (id, ctx) => prisma.equipment.deleteMany({ where: { id, ...kvkScope(ctx) } }),
   "about-kvk/equipments/equipment-details": (id, ctx) => prisma.equipmentStatus.deleteMany({ where: { id, equipment: { ...kvkScope(ctx) } } }),
   "about-kvk/equipments/farm-implement-details": (id, ctx) => prisma.farmImplement.deleteMany({ where: { id, ...kvkScope(ctx) } }),
-  "about-kvk/employee/employee-details": (id, ctx) => prisma.staff.deleteMany({ where: { id, ...kvkScope(ctx) } }),
+  "about-kvk/employee/employee-details": async (id, ctx) => {
+    // Staff -> StaffTransfer is a RESTRICT FK, so a staff member who has ever
+    // been transferred can't be deleted directly (the transfer flow now
+    // creates these rows). Clear their transfer history first, in one txn.
+    const staff = await prisma.staff.findFirst({ where: { id, ...kvkScope(ctx) }, select: { id: true } });
+    if (!staff) return { count: 0 };
+    await prisma.$transaction([
+      prisma.staffTransfer.deleteMany({ where: { staffId: id } }),
+      prisma.staff.deleteMany({ where: { id, ...kvkScope(ctx) } }),
+    ]);
+    return { count: 1 };
+  },
 
   /** Also clears this record's own Module Images (formRecordId) - otherwise deleting the record would leave orphaned photos behind, contradicting the real "images added/removed should reflect automatically" rule. */
   "achievements/oft": async (id, ctx) => {
@@ -1795,7 +1812,7 @@ export const LEAF_UPDATE_REGISTRY: Record<string, UpdateFn> = {
     }),
   "about-kvk/employee/staff-transferred": (id, v, ctx) =>
     prisma.staffTransfer.updateMany({
-      where: { id, ...(ctx.kvkId ? { toKvkId: ctx.kvkId } : { toKvk: { zoneId: ctx.zoneId } }) },
+      where: { id, ...(ctx.kvkId ? { fromKvkId: ctx.kvkId } : { fromKvk: { zoneId: ctx.zoneId } }) },
       data: { transferDate: reqDate(v.transferDate) },
     }),
 

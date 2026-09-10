@@ -1488,6 +1488,7 @@ export function EmptyDataTable({
                 isSimpleMaster={isSimpleMaster}
                 markAsOther={markAsOther}
                 onMarkAsOtherChange={setMarkAsOther}
+                enableOtherOption={recordKind === "form"}
               />
             </div>
 

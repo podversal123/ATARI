@@ -356,76 +356,76 @@ const dedicated: Record<string, MasterLeafEntry> = {
   subject: {
     list: async (zoneId) => {
       const rows = await prisma.oftSubject.findMany({ where: { zoneId }, include: { _count: { select: { thematicAreas: true } } }, orderBy: { name: "asc" } });
-      return rows.map((r) => ({ id: r.id, subjectName: r.name, thematicAreasCount: String(r._count.thematicAreas) }));
+      return rows.map((r) => ({ id: r.id, subjectName: r.name, thematicAreasCount: String(r._count.thematicAreas), _isOther: r.isOther ? "1" : "" }));
     },
     create: async (v, zoneId) => {
       const name = reqStr(v.subjectName);
       if (!name) throw new Error("Subject name is required.");
-      return prisma.oftSubject.create({ data: { name, zoneId } });
+      return prisma.oftSubject.create({ data: { name, zoneId, isOther: bool(v.__markAsOther__) } });
     },
     update: async (id, v, zoneId) => {
       const name = reqStr(v.subjectName);
       if (!name) throw new Error("Subject name is required.");
-      return prisma.oftSubject.updateMany({ where: { id, zoneId }, data: { name } });
+      return prisma.oftSubject.updateMany({ where: { id, zoneId }, data: { name, isOther: bool(v.__markAsOther__) } });
     },
     delete: (id, zoneId) => prisma.oftSubject.deleteMany({ where: { id, zoneId } }),
   },
   "oft-thematic-area": {
     list: async (zoneId) => {
       const rows = await prisma.oftThematicAreaMaster.findMany({ where: { zoneId }, include: { subject: true }, orderBy: { name: "asc" } });
-      return rows.map((r) => ({ id: r.id, thematicArea: r.name, subjectName: r.subject.name }));
+      return rows.map((r) => ({ id: r.id, thematicArea: r.name, subjectName: r.subject.name, _isOther: r.isOther ? "1" : "" }));
     },
     create: async (v, zoneId) => {
       const subject = await prisma.oftSubject.findFirst({ where: { zoneId, name: reqStr(v.subjectName) } });
       if (!subject) throw new Error(`Unknown subject: ${v.subjectName}`);
       const name = reqStr(v.thematicArea);
       if (!name) throw new Error("Thematic area name is required.");
-      return prisma.oftThematicAreaMaster.create({ data: { name, subjectId: subject.id, zoneId } });
+      return prisma.oftThematicAreaMaster.create({ data: { name, subjectId: subject.id, zoneId, isOther: bool(v.__markAsOther__) } });
     },
     update: async (id, v, zoneId) => {
       const subject = await prisma.oftSubject.findFirst({ where: { zoneId, name: reqStr(v.subjectName) } });
       if (!subject) throw new Error(`Unknown subject: ${v.subjectName}`);
       const name = reqStr(v.thematicArea);
       if (!name) throw new Error("Thematic area name is required.");
-      return prisma.oftThematicAreaMaster.updateMany({ where: { id, zoneId }, data: { name, subjectId: subject.id } });
+      return prisma.oftThematicAreaMaster.updateMany({ where: { id, zoneId }, data: { name, subjectId: subject.id, isOther: bool(v.__markAsOther__) } });
     },
     delete: (id, zoneId) => prisma.oftThematicAreaMaster.deleteMany({ where: { id, zoneId } }),
   },
   sector: {
     list: async (zoneId) => {
       const rows = await prisma.fldSector.findMany({ where: { zoneId }, include: { _count: { select: { categories: true } } }, orderBy: { name: "asc" } });
-      return rows.map((r) => ({ id: r.id, sectorName: r.name, categoriesCount: String(r._count.categories) }));
+      return rows.map((r) => ({ id: r.id, sectorName: r.name, categoriesCount: String(r._count.categories), _isOther: r.isOther ? "1" : "" }));
     },
     create: async (v, zoneId) => {
       const name = reqStr(v.sectorName);
       if (!name) throw new Error("Sector name is required.");
-      return prisma.fldSector.create({ data: { name, zoneId } });
+      return prisma.fldSector.create({ data: { name, zoneId, isOther: bool(v.__markAsOther__) } });
     },
     update: async (id, v, zoneId) => {
       const name = reqStr(v.sectorName);
       if (!name) throw new Error("Sector name is required.");
-      return prisma.fldSector.updateMany({ where: { id, zoneId }, data: { name } });
+      return prisma.fldSector.updateMany({ where: { id, zoneId }, data: { name, isOther: bool(v.__markAsOther__) } });
     },
     delete: (id, zoneId) => prisma.fldSector.deleteMany({ where: { id, zoneId } }),
   },
   "fld-thematic-area": {
     list: async (zoneId) => {
       const rows = await prisma.fldThematicAreaMaster.findMany({ where: { zoneId }, include: { sector: true }, orderBy: { name: "asc" } });
-      return rows.map((r) => ({ id: r.id, thematicAreaName: r.name, sectorName: r.sector.name }));
+      return rows.map((r) => ({ id: r.id, thematicAreaName: r.name, sectorName: r.sector.name, _isOther: r.isOther ? "1" : "" }));
     },
     create: async (v, zoneId) => {
       const sector = await prisma.fldSector.findFirst({ where: { zoneId, name: reqStr(v.sectorName) } });
       if (!sector) throw new Error(`Unknown sector: ${v.sectorName}`);
       const name = reqStr(v.thematicAreaName);
       if (!name) throw new Error("Thematic area name is required.");
-      return prisma.fldThematicAreaMaster.create({ data: { name, sectorId: sector.id, zoneId } });
+      return prisma.fldThematicAreaMaster.create({ data: { name, sectorId: sector.id, zoneId, isOther: bool(v.__markAsOther__) } });
     },
     update: async (id, v, zoneId) => {
       const sector = await prisma.fldSector.findFirst({ where: { zoneId, name: reqStr(v.sectorName) } });
       if (!sector) throw new Error(`Unknown sector: ${v.sectorName}`);
       const name = reqStr(v.thematicAreaName);
       if (!name) throw new Error("Thematic area name is required.");
-      return prisma.fldThematicAreaMaster.updateMany({ where: { id, zoneId }, data: { name, sectorId: sector.id } });
+      return prisma.fldThematicAreaMaster.updateMany({ where: { id, zoneId }, data: { name, sectorId: sector.id, isOther: bool(v.__markAsOther__) } });
     },
     delete: (id, zoneId) => prisma.fldThematicAreaMaster.deleteMany({ where: { id, zoneId } }),
   },
@@ -436,21 +436,21 @@ const dedicated: Record<string, MasterLeafEntry> = {
         include: { sector: true, _count: { select: { subCategories: true } } },
         orderBy: { name: "asc" },
       });
-      return rows.map((r) => ({ id: r.id, categoryName: r.name, sectorName: r.sector.name, subCategoriesCount: String(r._count.subCategories) }));
+      return rows.map((r) => ({ id: r.id, categoryName: r.name, sectorName: r.sector.name, subCategoriesCount: String(r._count.subCategories), _isOther: r.isOther ? "1" : "" }));
     },
     create: async (v, zoneId) => {
       const sector = await prisma.fldSector.findFirst({ where: { zoneId, name: reqStr(v.sectorName) } });
       if (!sector) throw new Error(`Unknown sector: ${v.sectorName}`);
       const name = reqStr(v.categoryName);
       if (!name) throw new Error("Category name is required.");
-      return prisma.fldCategoryMaster.create({ data: { name, sectorId: sector.id, zoneId } });
+      return prisma.fldCategoryMaster.create({ data: { name, sectorId: sector.id, zoneId, isOther: bool(v.__markAsOther__) } });
     },
     update: async (id, v, zoneId) => {
       const sector = await prisma.fldSector.findFirst({ where: { zoneId, name: reqStr(v.sectorName) } });
       if (!sector) throw new Error(`Unknown sector: ${v.sectorName}`);
       const name = reqStr(v.categoryName);
       if (!name) throw new Error("Category name is required.");
-      return prisma.fldCategoryMaster.updateMany({ where: { id, zoneId }, data: { name, sectorId: sector.id } });
+      return prisma.fldCategoryMaster.updateMany({ where: { id, zoneId }, data: { name, sectorId: sector.id, isOther: bool(v.__markAsOther__) } });
     },
     delete: (id, zoneId) => prisma.fldCategoryMaster.deleteMany({ where: { id, zoneId } }),
   },
@@ -467,6 +467,7 @@ const dedicated: Record<string, MasterLeafEntry> = {
         categoryName: r.category.name,
         sectorName: r.category.sector.name,
         cropsCount: String(r._count.crops),
+        _isOther: r.isOther ? "1" : "",
       }));
     },
     create: async (v, zoneId) => {
@@ -476,7 +477,7 @@ const dedicated: Record<string, MasterLeafEntry> = {
       if (!category) throw new Error(`Unknown category: ${v.categoryName}`);
       const name = reqStr(v.subCategoryName);
       if (!name) throw new Error("Sub category name is required.");
-      return prisma.fldSubCategoryMaster.create({ data: { name, categoryId: category.id, zoneId } });
+      return prisma.fldSubCategoryMaster.create({ data: { name, categoryId: category.id, zoneId, isOther: bool(v.__markAsOther__) } });
     },
     update: async (id, v, zoneId) => {
       const sector = await prisma.fldSector.findFirst({ where: { zoneId, name: reqStr(v.sectorName) } });
@@ -485,7 +486,7 @@ const dedicated: Record<string, MasterLeafEntry> = {
       if (!category) throw new Error(`Unknown category: ${v.categoryName}`);
       const name = reqStr(v.subCategoryName);
       if (!name) throw new Error("Sub category name is required.");
-      return prisma.fldSubCategoryMaster.updateMany({ where: { id, zoneId }, data: { name, categoryId: category.id } });
+      return prisma.fldSubCategoryMaster.updateMany({ where: { id, zoneId }, data: { name, categoryId: category.id, isOther: bool(v.__markAsOther__) } });
     },
     delete: (id, zoneId) => prisma.fldSubCategoryMaster.deleteMany({ where: { id, zoneId } }),
   },
@@ -504,6 +505,7 @@ const dedicated: Record<string, MasterLeafEntry> = {
         category: r.subCategory.category.name,
         sectorName: r.subCategory.category.sector.name,
         quantityRequired: String(r.quantityRequired),
+        _isOther: r.isOther ? "1" : "",
       }));
     },
     create: async (v, zoneId) => {
@@ -521,6 +523,7 @@ const dedicated: Record<string, MasterLeafEntry> = {
           name,
           subCategoryId: subCategory.id,
           zoneId,
+          isOther: bool(v.__markAsOther__),
         },
       });
     },
@@ -538,6 +541,7 @@ const dedicated: Record<string, MasterLeafEntry> = {
         data: {
           name,
           subCategoryId: subCategory.id,
+          isOther: bool(v.__markAsOther__),
         },
       });
     },

@@ -2939,10 +2939,10 @@ async function buildHostOrgAddressTable(scope: ReportScope): Promise<CustomTable
   return { columns, rows };
 }
 
-/** 1.2.B "Staff Transferred" - joins staff + the from/to KVK names. Scoped to the destination KVK's zone, same as the model's own isolation rule. */
+/** 1.2.B "Staff Transferred" - joins staff + the from/to KVK names. Scoped by `fromKvkId` for a KVK admin: the transfer belongs to the KVK the staff left (matches the Staff Transferred list + Form Summary). */
 async function buildStaffTransferred(scope: ReportScope): Promise<CustomTableResult> {
   const transfers = await prisma.staffTransfer.findMany({
-    where: scope.kvkId ? { toKvkId: scope.kvkId } : { zoneId: scope.zoneId },
+    where: scope.kvkId ? { fromKvkId: scope.kvkId } : { zoneId: scope.zoneId },
     include: {
       staff: { select: { name: true } },
       fromKvk: { select: { name: true } },

@@ -13,6 +13,7 @@ import { compactPlaceholder } from "@/lib/compact-placeholder";
 import { DemographicGrid, type DemographicValues } from "./demographic-breakdown";
 import { FormPhotosField, type FormPhoto } from "./form-photos-field";
 import { FldResultFields } from "./fld-result-fields";
+import { OtherAwareSelect } from "./other-aware-select";
 
 type FldFormProps = {
   trail: Crumb[];
@@ -95,39 +96,32 @@ export function FldForm({ trail, backHref, id, initialView }: FldFormProps) {
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  const sectorOptions = useMemo(() => uniqueNonEmpty(sectorRows.map((r) => r.sectorName)).sort(), [sectorRows]);
-  const thematicAreaOptions = useMemo(
-    () =>
-      uniqueNonEmpty(
-        thematicAreaRows.filter((r) => !sector || r.sectorName === sector).map((r) => r.thematicAreaName),
-      ).sort(),
+  // Cascade-filtered rows per parent selection. The flagged "Other" row is
+  // sourced from the full set via OtherAwareSelect's `allRows`, so it stays
+  // offered even when it sits under a different parent.
+  const thematicAreaRowsFiltered = useMemo(
+    () => thematicAreaRows.filter((r) => !sector || r.sectorName === sector),
     [thematicAreaRows, sector],
   );
-  const categoryOptions = useMemo(
-    () => uniqueNonEmpty(categoryRows.filter((r) => !sector || r.sectorName === sector).map((r) => r.categoryName)).sort(),
+  const categoryRowsFiltered = useMemo(
+    () => categoryRows.filter((r) => !sector || r.sectorName === sector),
     [categoryRows, sector],
   );
-  const subCategoryOptions = useMemo(
+  const subCategoryRowsFiltered = useMemo(
     () =>
-      uniqueNonEmpty(
-        subCategoryRows
-          .filter((r) => (!sector || r.sectorName === sector) && (!category || r.categoryName === category))
-          .map((r) => r.subCategoryName),
-      ).sort(),
+      subCategoryRows.filter(
+        (r) => (!sector || r.sectorName === sector) && (!category || r.categoryName === category),
+      ),
     [subCategoryRows, sector, category],
   );
-  const cropOptions = useMemo(
+  const cropRowsFiltered = useMemo(
     () =>
-      uniqueNonEmpty(
-        cropRows
-          .filter(
-            (r) =>
-              (!sector || r.sectorName === sector) &&
-              (!category || r.category === category) &&
-              (!subCategory || r.subCategoryName === subCategory),
-          )
-          .map((r) => r.cropName),
-      ).sort(),
+      cropRows.filter(
+        (r) =>
+          (!sector || r.sectorName === sector) &&
+          (!category || r.category === category) &&
+          (!subCategory || r.subCategoryName === subCategory),
+      ),
     [cropRows, sector, category, subCategory],
   );
 
@@ -334,14 +328,14 @@ export function FldForm({ trail, backHref, id, initialView }: FldFormProps) {
         </div>
 
         <div className="mt-4 grid grid-cols-[repeat(auto-fit,minmax(240px,320px))] gap-5">
-          {selectField("fld-sector", "Sector", sector, setSector, sectorOptions, true)}
-          {selectField("fld-thematic-area", "Thematic Area", thematicArea, setThematicArea, thematicAreaOptions, true)}
-          {selectField("fld-category", "Category", category, setCategory, categoryOptions, true)}
-          {selectField("fld-sub-category", "Sub Category", subCategory, setSubCategory, subCategoryOptions, true)}
+          <OtherAwareSelect id="fld-sector" label="Sector" required value={sector} onChange={setSector} rows={sectorRows} optionKey="sectorName" />
+          <OtherAwareSelect id="fld-thematic-area" label="Thematic Area" required value={thematicArea} onChange={setThematicArea} rows={thematicAreaRowsFiltered} allRows={thematicAreaRows} optionKey="thematicAreaName" />
+          <OtherAwareSelect id="fld-category" label="Category" required value={category} onChange={setCategory} rows={categoryRowsFiltered} allRows={categoryRows} optionKey="categoryName" />
+          <OtherAwareSelect id="fld-sub-category" label="Sub Category" required value={subCategory} onChange={setSubCategory} rows={subCategoryRowsFiltered} allRows={subCategoryRows} optionKey="subCategoryName" />
         </div>
 
         <div className="mt-4 grid grid-cols-[repeat(auto-fit,minmax(240px,320px))] gap-5">
-          {selectField("fld-crop", "Crop/Animal/Enterprise", cropAnimalEnterprise, setCropAnimalEnterprise, cropOptions, true)}
+          <OtherAwareSelect id="fld-crop" label="Crop/Animal/Enterprise" required value={cropAnimalEnterprise} onChange={setCropAnimalEnterprise} rows={cropRowsFiltered} allRows={cropRows} optionKey="cropName" />
           {/* Shortened from "Name of Technology Demonstrated (FLD Name)" (client report, 2026-09-03) - the full label wrapped to 2 lines in its ~320-380px grid track, pushing its own input down and breaking row alignment with the neighboring "No of demonstration" field. Same meaning, fits one line. */}
           {textField("fld-technology", "Technology Demonstrated (FLD Name)", technologyDemonstrated, setTechnologyDemonstrated, true)}
           {textField("fld-no-of-demo", "No of demonstration", noOfDemonstration, setNoOfDemonstration, true, "number")}

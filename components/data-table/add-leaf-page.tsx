@@ -147,10 +147,17 @@ export function AddLeafPage({
             columns={columns}
             cascadeType={cascadeType}
             formValues={formValues}
-            onChange={setFormValues}
+            // Clear a stale "fill all required fields" message as soon as the
+            // user starts filling them - it otherwise stays on screen until
+            // the next Submit and reads as "still failing".
+            onChange={(next) => {
+              setFormValues(next);
+              if (error) setError(null);
+            }}
             isSimpleMaster={isSimpleMaster}
             markAsOther={markAsOther}
             onMarkAsOtherChange={setMarkAsOther}
+            enableOtherOption={recordKind === "form"}
           />
         </div>
 
