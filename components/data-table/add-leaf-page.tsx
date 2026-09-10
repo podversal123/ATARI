@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -51,10 +51,28 @@ export function AddLeafPage({
   compactFields,
 }: AddLeafPageProps) {
   const router = useRouter();
-  // Pre-fill any column with a confirmed real default (e.g. Vehicle/Equipment Present Status's Hide in Next Year -> "No") instead of starting every field blank.
+  // Pre-fill any column with a confirmed real default (e.g. Vehicle/Equipment
+  // Present Status's Hide in Next Year -> "No") instead of starting every field
+  // blank.
   const [formValues, setFormValues] = useState<Record<string, string>>(() =>
-    Object.fromEntries(columns.filter((c) => c.defaultValue !== undefined).map((c) => [c.key, c.defaultValue!])),
+    Object.fromEntries(
+      columns.filter((c) => c.defaultValue !== undefined).map((c) => [c.key, c.defaultValue!]),
+    ),
   );
+
+  // A `?prefill=<json>` query param (the Vehicle/Equipment Details
+  // carried-forward row's "Edit") seeds the form with last year's values. Read
+  // in an effect so a client-side navigation's fresh URL is reliably in place.
+  useEffect(() => {
+    const raw = new URLSearchParams(window.location.search).get("prefill");
+    if (!raw) return;
+    try {
+      const parsed = JSON.parse(raw) as Record<string, string>;
+      setFormValues((prev) => ({ ...prev, ...parsed }));
+    } catch {
+      /* ignore a malformed prefill param */
+    }
+  }, []);
   const [markAsOther, setMarkAsOther] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);

@@ -1299,6 +1299,20 @@ export function EmptyDataTable({
                           >
                             <DropdownMenuItem
                               onClick={() => {
+                                // A carried-forward row has no DB record yet -
+                                // "Edit" opens the Add form pre-filled with last
+                                // year's values for the current year; saving it
+                                // creates the real record.
+                                if (
+                                  row._carriedForward === "1" &&
+                                  addNewHref &&
+                                  typeof row._prefill === "string"
+                                ) {
+                                  router.push(
+                                    `${addNewHref}?prefill=${encodeURIComponent(row._prefill)}`,
+                                  );
+                                  return;
+                                }
                                 const id = row.id;
                                 if (editHrefBase && !customForm && typeof id === "string") {
                                   sessionStorage.setItem(`edit-record:${id}`, JSON.stringify(row));
@@ -1414,7 +1428,7 @@ export function EmptyDataTable({
                                 </DropdownMenuItem>
                               </>
                             )}
-                            {!isCfldTechnicalParameter && (
+                            {!isCfldTechnicalParameter && row._carriedForward !== "1" && (
                               <DropdownMenuItem
                                 variant="destructive"
                                 onClick={() => setDeleteRow(row)}

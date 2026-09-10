@@ -589,26 +589,53 @@ export default async function FormsPage({ params, searchParams }: FormsPageProps
     // VehicleStatus has no kvkId of its own (only vehicleId + zoneId), so a KVK
     // Admin has to be scoped through the parent Vehicle - same shape as the FLD
     // child tables below.
-    const rows = await prisma.vehicleStatus.findMany({
+    const statuses = await prisma.vehicleStatus.findMany({
       where: kvkScope.kvkId
         ? { vehicle: { kvkId: kvkScope.kvkId } }
         : { zoneId: kvkScope.zoneId },
       include: { vehicle: { include: { kvk: true } } },
       orderBy: { createdAt: "desc" },
     });
+    // Carry-forward (client direction, 2026-09-10): a vehicle whose latest
+    // record is in an earlier year and isn't "Condemned" shows automatically
+    // as a current-year row carrying last year's values. It's display-only
+    // (id "carry:<vehicleId>", `_carriedForward`) until the user edits+saves
+    // it - that creates the real current-year record (upsert).
+    const CURRENT_YEAR = new Date().getFullYear();
+    const latestByVehicle = new Map<string, (typeof statuses)[number]>();
+    for (const s of statuses) {
+      const cur = latestByVehicle.get(s.vehicleId);
+      if (!cur || s.reportingYear > cur.reportingYear) latestByVehicle.set(s.vehicleId, s);
+    }
+    const carried = [...latestByVehicle.values()].filter(
+      (s) =>
+        s.reportingYear < CURRENT_YEAR &&
+        (s.presentStatus ?? "").trim().toLowerCase() !== "condemned",
+    );
+    const toVehicleRow = (s: (typeof statuses)[number], isCarried: boolean) => {
+      const formFields = {
+        reportingYear: String(isCarried ? CURRENT_YEAR : s.reportingYear),
+        vehicleName: s.vehicle.name,
+        totalRunKms: s.totalRunKmHrs != null ? String(s.totalRunKmHrs) : "",
+        presentStatus: s.presentStatus ?? "",
+        fundingSource: s.fundingSource ?? "",
+        repairingCost: s.repairingCost != null ? String(s.repairingCost) : "",
+      };
+      return {
+        id: isCarried ? `carry:${s.vehicleId}` : s.id,
+        ...formFields,
+        kvk: s.vehicle.kvk.name,
+        registrationNumber: s.vehicle.registrationNo,
+        _carriedForward: isCarried ? "1" : "",
+        ...(isCarried ? { _prefill: JSON.stringify(formFields) } : {}),
+      };
+    };
     formData = {
-      rows: rows.map((r) => ({
-        id: r.id,
-        reportingYear: String(r.reportingYear),
-        kvk: r.vehicle.kvk.name,
-        vehicleName: r.vehicle.name,
-        registrationNumber: r.vehicle.registrationNo,
-        totalRunKms: r.totalRunKmHrs ? String(r.totalRunKmHrs) : "",
-        presentStatus: r.presentStatus ?? "",
-        fundingSource: r.fundingSource ?? "",
-        repairingCost: r.repairingCost != null ? String(r.repairingCost) : "",
-      })),
-      totalCount: rows.length,
+      rows: [
+        ...carried.map((s) => toVehicleRow(s, true)),
+        ...statuses.map((s) => toVehicleRow(s, false)),
+      ],
+      totalCount: statuses.length + carried.length,
     };
   } else if (user && node.type === "leaf" && node.slug === "view-equipments") {
     const rows = await prisma.equipment.findMany({
@@ -632,24 +659,47 @@ export default async function FormsPage({ params, searchParams }: FormsPageProps
   } else if (user && node.type === "leaf" && node.slug === "equipment-details") {
     // EquipmentStatus has no kvkId of its own (only equipmentId + zoneId) - scope
     // a KVK Admin through the parent Equipment.
-    const rows = await prisma.equipmentStatus.findMany({
+    const statuses = await prisma.equipmentStatus.findMany({
       where: kvkScope.kvkId
         ? { equipment: { kvkId: kvkScope.kvkId } }
         : { zoneId: kvkScope.zoneId },
       include: { equipment: { include: { kvk: true } } },
       orderBy: { createdAt: "desc" },
     });
+    // Same carry-forward as Vehicle Details above.
+    const CURRENT_YEAR = new Date().getFullYear();
+    const latestByEquipment = new Map<string, (typeof statuses)[number]>();
+    for (const s of statuses) {
+      const cur = latestByEquipment.get(s.equipmentId);
+      if (!cur || s.reportingYear > cur.reportingYear) latestByEquipment.set(s.equipmentId, s);
+    }
+    const carried = [...latestByEquipment.values()].filter(
+      (s) =>
+        s.reportingYear < CURRENT_YEAR &&
+        (s.presentStatus ?? "").trim().toLowerCase() !== "condemned",
+    );
+    const toEquipmentRow = (s: (typeof statuses)[number], isCarried: boolean) => {
+      const formFields = {
+        reportingYear: String(isCarried ? CURRENT_YEAR : s.reportingYear),
+        equipmentName: s.equipment.name,
+        presentStatus: s.presentStatus ?? "",
+        repairingCost: s.repairingCost != null ? String(s.repairingCost) : "",
+      };
+      return {
+        id: isCarried ? `carry:${s.equipmentId}` : s.id,
+        ...formFields,
+        kvk: s.equipment.kvk.name,
+        sourceOfFund: s.equipment.sourceOfFund ?? "",
+        _carriedForward: isCarried ? "1" : "",
+        ...(isCarried ? { _prefill: JSON.stringify(formFields) } : {}),
+      };
+    };
     formData = {
-      rows: rows.map((r) => ({
-        id: r.id,
-        reportingYear: String(r.reportingYear),
-        kvk: r.equipment.kvk.name,
-        equipmentName: r.equipment.name,
-        sourceOfFund: r.equipment.sourceOfFund ?? "",
-        presentStatus: r.presentStatus ?? "",
-        repairingCost: r.repairingCost != null ? String(r.repairingCost) : "",
-      })),
-      totalCount: rows.length,
+      rows: [
+        ...carried.map((s) => toEquipmentRow(s, true)),
+        ...statuses.map((s) => toEquipmentRow(s, false)),
+      ],
+      totalCount: statuses.length + carried.length,
     };
   } else if (user && node.type === "leaf" && node.slug === "farm-implement-details") {
     const rows = await prisma.farmImplement.findMany({

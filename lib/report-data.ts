@@ -3078,8 +3078,8 @@ async function buildVehicleStatus(scope: ReportScope): Promise<CustomTableResult
     { key: "fundingSource", label: "Source of Funding" },
     { key: "fundingAgency", label: "Funding Agency" },
   ];
-  const rows = statuses.map((s) => ({
-    year: String(s.reportingYear),
+  const rowOf = (s: (typeof statuses)[number], year: number) => ({
+    year: String(year),
     kvk: s.vehicle?.kvk?.name ?? "",
     vtype: s.vehicle?.vehicleType ?? "",
     vehicle: s.vehicle?.name ?? "",
@@ -3102,7 +3102,24 @@ async function buildVehicleStatus(scope: ReportScope): Promise<CustomTableResult
           : "",
     fundingSource: s.fundingSource ?? "",
     fundingAgency: s.fundingAgency ?? "",
-  }));
+  });
+  const rows = statuses.map((s) => rowOf(s, s.reportingYear));
+  // Carry-forward: a vehicle whose latest record is an earlier, non-condemned
+  // year also appears as a current-year row (matches the Vehicle Details list).
+  const CURRENT_YEAR = new Date().getFullYear();
+  const latest = new Map<string, (typeof statuses)[number]>();
+  for (const s of statuses) {
+    const cur = latest.get(s.vehicleId);
+    if (!cur || s.reportingYear > cur.reportingYear) latest.set(s.vehicleId, s);
+  }
+  for (const s of latest.values()) {
+    if (
+      s.reportingYear < CURRENT_YEAR &&
+      (s.presentStatus ?? "").trim().toLowerCase() !== "condemned"
+    ) {
+      rows.push(rowOf(s, CURRENT_YEAR));
+    }
+  }
   return { columns, rows };
 }
 
@@ -3136,8 +3153,8 @@ async function buildEquipmentStatus(scope: ReportScope): Promise<CustomTableResu
     { key: "fundingAgency", label: "Funding Agency" },
     { key: "status", label: "Present status" },
   ];
-  const rows = statuses.map((s) => ({
-    year: String(s.reportingYear),
+  const rowOf = (s: (typeof statuses)[number], year: number) => ({
+    year: String(year),
     kvk: s.equipment?.kvk?.name ?? "",
     etype: s.equipment?.equipmentType ?? "",
     equipment: s.equipment?.name ?? "",
@@ -3148,7 +3165,23 @@ async function buildEquipmentStatus(scope: ReportScope): Promise<CustomTableResu
     sourceOfFund: s.equipment?.sourceOfFund ?? s.sourceOfFund ?? "",
     fundingAgency: s.fundingAgency ?? "",
     status: s.presentStatus ?? "",
-  }));
+  });
+  const rows = statuses.map((s) => rowOf(s, s.reportingYear));
+  // Carry-forward: same as buildVehicleStatus / the Equipment Details list.
+  const CURRENT_YEAR = new Date().getFullYear();
+  const latest = new Map<string, (typeof statuses)[number]>();
+  for (const s of statuses) {
+    const cur = latest.get(s.equipmentId);
+    if (!cur || s.reportingYear > cur.reportingYear) latest.set(s.equipmentId, s);
+  }
+  for (const s of latest.values()) {
+    if (
+      s.reportingYear < CURRENT_YEAR &&
+      (s.presentStatus ?? "").trim().toLowerCase() !== "condemned"
+    ) {
+      rows.push(rowOf(s, CURRENT_YEAR));
+    }
+  }
   return { columns, rows };
 }
 
