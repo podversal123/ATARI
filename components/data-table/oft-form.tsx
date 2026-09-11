@@ -48,6 +48,16 @@ const DEFAULT_TECHNOLOGY_OPTIONS: TechnologyOption[] = [
 ];
 
 const currentYear = new Date().getFullYear();
+/**
+ * Real audit finding, 2026-09-11: this form had a `reportingYear` state
+ * variable (submitted on every save) but no rendered "Reporting Year" field
+ * anywhere - it silently saved as whatever `currentYear` was at the moment
+ * the page loaded, with no way to enter a past year's trial. Same fixed
+ * last-4-years list `vehicle-details`/`equipment-details` already use
+ * (lib/navigation.ts) - the one other place in this app that offers a
+ * Reporting Year picker.
+ */
+const REPORTING_YEAR_OPTIONS = Array.from({ length: 4 }, (_, i) => String(currentYear - i));
 
 type ThematicAreaRow = { thematicArea: string; subjectName: string };
 
@@ -356,6 +366,7 @@ export function OftForm({ trail, backHref, id, initialView }: OftFormProps) {
         {loading && <p className="mb-4 text-sm text-muted-foreground">Loading record…</p>}
 
         <div className="grid grid-cols-[repeat(auto-fit,minmax(240px,320px))] gap-5">
+          {selectField("oft-reporting-year", "Reporting Year", reportingYear, setReportingYear, REPORTING_YEAR_OPTIONS, true)}
           {textField("oft-start-month", "OFT Start Date", startMonth, setStartMonth, true, undefined, "date")}
           {textField("oft-end-month", "Expected Completion Date", endMonth, setEndMonth, true, undefined, "date", startMonth || undefined)}
           {selectField("oft-staff", "Name of SMS/KVK Head", staff, setStaff, staffOptions, true)}

@@ -140,46 +140,144 @@ export async function PUT(
   if (!technical.crop || !technical.technologyDemonstrated) {
     return NextResponse.json({ error: "Crop and Technology Demonstrated are required." }, { status: 400 });
   }
+  const reportingDateRaw = str(technical.reportingDate);
+  const reportingDate = reportingDateRaw ? new Date(reportingDateRaw) : undefined;
+  if (!reportingDate || Number.isNaN(reportingDate.getTime())) {
+    return NextResponse.json({ error: "Reporting Year is required." }, { status: 400 });
+  }
 
   const farmerYield = dec(technical.farmerYield);
   const demoYieldAvg = dec(technical.demoYieldAvg);
   const districtYield = dec(technical.districtYield);
   const stateYield = dec(technical.stateYield);
   const potentialYield = dec(technical.potentialYield);
-  const reportingDate = str(technical.reportingDate) ? new Date(technical.reportingDate) : undefined;
 
-  await prisma.cfldTechnicalParameter.update({
-    where: { id },
-    data: {
-      reportingYear: reportingDate ? reportingDate.getFullYear() : reqInt(technical.reportingYear),
-      reportingDate,
-      month: str(technical.month),
-      season: reqStr(technical.season),
-      cropType: str(technical.cropType),
-      crop: reqStr(technical.crop),
-      cropDemonstrated: reqStr(technical.crop),
-      variety: str(technical.variety),
-      areaHa: reqDec(technical.areaHa),
-      targetAreaHa: dec(technical.targetAreaHa),
-      targetDemonstrations: technical.targetDemonstrations?.trim() ? parseInt(technical.targetDemonstrations, 10) : undefined,
-      numberOfFarmers: reqInt(technical.numberOfFarmers),
-      farmersByCategory: demographics,
-      detailOfTechnologyDemonstrated: reqStr(technical.technologyDemonstrated),
-      existingFarmerPractice: str(technical.existingFarmerPractice),
-      yieldFarmerFieldQha: farmerYield,
-      yieldDemoMaxQha: dec(technical.demoYieldMax),
-      yieldDemoMinQha: dec(technical.demoYieldMin),
-      yieldDemoAvgQha: demoYieldAvg,
-      districtYield,
-      stateYield,
-      potentialYield,
-      percentIncrease: percentIncreaseInYield(demoYieldAvg, farmerYield),
-      yieldGapMinimizedPercentDistrict: yieldGapMinimizedPercent(districtYield, demoYieldAvg),
-      yieldGapMinimizedPercentState: yieldGapMinimizedPercent(stateYield, demoYieldAvg),
-      yieldGapMinimizedPercentPotential: yieldGapMinimizedPercent(potentialYield, demoYieldAvg),
-      status,
-    },
-  });
+  const hasEconomic = Object.values(economic).some((v) => v !== "" && v != null);
+  const farmerGrossCost = dec(economic.costFarmer);
+  const farmerGrossReturn = dec(economic.grossReturnFarmer);
+  const demoGrossCost = dec(economic.costDemo);
+  const demoGrossReturn = dec(economic.grossReturnDemo);
+
+  const hasPerception = Object.values(perception).some((v) => v !== "" && v != null);
+  const hasSocioEconomic = Object.values(socioEconomic).some((v) => v !== "" && v != null);
+
+  // Parent update + the 3 children's replace-wholesale (delete then
+  // conditionally recreate) all commit together - previously 5-7 separate
+  // awaits, so a failure partway through (e.g. the DB connection dropping
+  // between the economic delete and its recreate) could leave the record
+  // half-updated. $transaction makes it all-or-nothing.
+  await prisma.$transaction([
+    prisma.cfldTechnicalParameter.update({
+      where: { id },
+      data: {
+        // reportingYear is ALWAYS derived from reportingDate - see the create
+        // route's matching comment for why the old reqInt(technical.
+        // reportingYear) fallback let the two silently drift apart.
+        reportingYear: reportingDate.getFullYear(),
+        reportingDate,
+        month: str(technical.month),
+        season: reqStr(technical.season),
+        cropType: str(technical.cropType),
+        crop: reqStr(technical.crop),
+        cropDemonstrated: reqStr(technical.crop),
+        variety: str(technical.variety),
+        areaHa: reqDec(technical.areaHa),
+        targetAreaHa: dec(technical.targetAreaHa),
+        targetDemonstrations: technical.targetDemonstrations?.trim() ? parseInt(technical.targetDemonstrations, 10) : undefined,
+        numberOfFarmers: reqInt(technical.numberOfFarmers),
+        farmersByCategory: demographics,
+        detailOfTechnologyDemonstrated: reqStr(technical.technologyDemonstrated),
+        existingFarmerPractice: str(technical.existingFarmerPractice),
+        yieldFarmerFieldQha: farmerYield,
+        yieldDemoMaxQha: dec(technical.demoYieldMax),
+        yieldDemoMinQha: dec(technical.demoYieldMin),
+        yieldDemoAvgQha: demoYieldAvg,
+        districtYield,
+        stateYield,
+        potentialYield,
+        percentIncrease: percentIncreaseInYield(demoYieldAvg, farmerYield),
+        yieldGapMinimizedPercentDistrict: yieldGapMinimizedPercent(districtYield, demoYieldAvg),
+        yieldGapMinimizedPercentState: yieldGapMinimizedPercent(stateYield, demoYieldAvg),
+        yieldGapMinimizedPercentPotential: yieldGapMinimizedPercent(potentialYield, demoYieldAvg),
+        status,
+      },
+    }),
+    prisma.cfldEconomicParameter.deleteMany({ where: { cfldTechnicalParameterId: id } }),
+    ...(hasEconomic
+      ? [
+          prisma.cfldEconomicParameter.create({
+            data: {
+              cfldTechnicalParameterId: id,
+              zoneId: auth.session.zoneId,
+              detailOfTechnology: reqStr(technical.technologyDemonstrated),
+              farmerGrossCost,
+              demoGrossCost,
+              farmerGrossReturn,
+              demoGrossReturn,
+              // Real reference (atari-client.vercel.app, 2026-09-01): Net Return and
+              // B:C ratio are shown as "Auto-calculated" (Gross Return - Gross
+              // Cost, Gross Return / Gross Cost), not independently entered - the
+              // old dialog let them be typed in directly, which no longer matches.
+              farmerNetReturn:
+                farmerGrossReturn !== undefined && farmerGrossCost !== undefined
+                  ? farmerGrossReturn - farmerGrossCost
+                  : undefined,
+              demoNetReturn:
+                demoGrossReturn !== undefined && demoGrossCost !== undefined
+                  ? demoGrossReturn - demoGrossCost
+                  : undefined,
+              farmerBcRatio:
+                farmerGrossReturn !== undefined && farmerGrossCost
+                  ? farmerGrossReturn / farmerGrossCost
+                  : undefined,
+              demoBcRatio:
+                demoGrossReturn !== undefined && demoGrossCost
+                  ? demoGrossReturn / demoGrossCost
+                  : undefined,
+              additionalIncome: dec(economic.additionalIncome),
+            },
+          }),
+        ]
+      : []),
+    prisma.cfldFarmersPerception.deleteMany({ where: { cfldTechnicalParameterId: id } }),
+    ...(hasPerception
+      ? [
+          prisma.cfldFarmersPerception.create({
+            data: {
+              cfldTechnicalParameterId: id,
+              zoneId: auth.session.zoneId,
+              technologyDetail: reqStr(technical.technologyDemonstrated),
+              suitability: str(perception.suitability),
+              liking: str(perception.likingsPreference),
+              affordabilityPercent: dec(perception.affordability),
+              negativeEffect: str(perception.negativeEffect),
+              acceptableToGroup: str(perception.acceptableToAll),
+              suggestions: str(perception.suggestions),
+              farmerFeedback: str(perception.farmerFeedback),
+            },
+          }),
+        ]
+      : []),
+    prisma.cfldSocioEconomicImpact.deleteMany({ where: { cfldTechnicalParameterId: id } }),
+    ...(hasSocioEconomic
+      ? [
+          prisma.cfldSocioEconomicImpact.create({
+            data: {
+              cfldTechnicalParameterId: id,
+              zoneId: auth.session.zoneId,
+              cropDemonstrated: reqStr(technical.crop),
+              totalProduceObtainedKg: dec(socioEconomic.totalProduceObtainedKg),
+              produceSoldKgPerHousehold: dec(socioEconomic.produceSoldKgPerHousehold),
+              sellingRatePerKg: dec(socioEconomic.sellingRatePerKg),
+              produceUsedOwnFarmKg: dec(socioEconomic.produceUsedOwnFarmKg),
+              produceDistributedToOthersKg: dec(socioEconomic.produceDistributedToOthersKg),
+              purposeOfIncomeUtilized: str(socioEconomic.purposeOfIncomeUtilized),
+              employmentGeneratedMandays: dec(socioEconomic.employmentGeneratedMandays),
+            },
+          }),
+        ]
+      : []),
+  ]);
 
   const photoYear = reportingDate ? reportingDate.getFullYear() : reqInt(technical.reportingYear) || new Date().getFullYear();
   const photoDate = reportingDate ?? new Date();
@@ -196,85 +294,6 @@ export async function PUT(
   const asJson = (v: unknown) => (typeof v === "string" ? v : JSON.stringify(v ?? []));
   await syncModuleImages(asJson(body?.trainingPhotos), { ...photoBase, slot: CFLD_TRAINING_SLOT });
   await syncModuleImages(asJson(body?.actionPhotos), { ...photoBase, slot: CFLD_ACTION_SLOT });
-
-  await prisma.cfldEconomicParameter.deleteMany({ where: { cfldTechnicalParameterId: id } });
-  const hasEconomic = Object.values(economic).some((v) => v !== "" && v != null);
-  if (hasEconomic) {
-    const farmerGrossCost = dec(economic.costFarmer);
-    const farmerGrossReturn = dec(economic.grossReturnFarmer);
-    const demoGrossCost = dec(economic.costDemo);
-    const demoGrossReturn = dec(economic.grossReturnDemo);
-    await prisma.cfldEconomicParameter.create({
-      data: {
-        cfldTechnicalParameterId: id,
-        zoneId: auth.session.zoneId,
-        detailOfTechnology: reqStr(technical.technologyDemonstrated),
-        farmerGrossCost,
-        demoGrossCost,
-        farmerGrossReturn,
-        demoGrossReturn,
-        // Real reference (atari-client.vercel.app, 2026-09-01): Net Return and
-        // B:C ratio are shown as "Auto-calculated" (Gross Return - Gross
-        // Cost, Gross Return / Gross Cost), not independently entered - the
-        // old dialog let them be typed in directly, which no longer matches.
-        farmerNetReturn:
-          farmerGrossReturn !== undefined && farmerGrossCost !== undefined
-            ? farmerGrossReturn - farmerGrossCost
-            : undefined,
-        demoNetReturn:
-          demoGrossReturn !== undefined && demoGrossCost !== undefined
-            ? demoGrossReturn - demoGrossCost
-            : undefined,
-        farmerBcRatio:
-          farmerGrossReturn !== undefined && farmerGrossCost
-            ? farmerGrossReturn / farmerGrossCost
-            : undefined,
-        demoBcRatio:
-          demoGrossReturn !== undefined && demoGrossCost
-            ? demoGrossReturn / demoGrossCost
-            : undefined,
-        additionalIncome: dec(economic.additionalIncome),
-      },
-    });
-  }
-
-  await prisma.cfldFarmersPerception.deleteMany({ where: { cfldTechnicalParameterId: id } });
-  const hasPerception = Object.values(perception).some((v) => v !== "" && v != null);
-  if (hasPerception) {
-    await prisma.cfldFarmersPerception.create({
-      data: {
-        cfldTechnicalParameterId: id,
-        zoneId: auth.session.zoneId,
-        technologyDetail: reqStr(technical.technologyDemonstrated),
-        suitability: str(perception.suitability),
-        liking: str(perception.likingsPreference),
-        affordabilityPercent: dec(perception.affordability),
-        negativeEffect: str(perception.negativeEffect),
-        acceptableToGroup: str(perception.acceptableToAll),
-        suggestions: str(perception.suggestions),
-        farmerFeedback: str(perception.farmerFeedback),
-      },
-    });
-  }
-
-  await prisma.cfldSocioEconomicImpact.deleteMany({ where: { cfldTechnicalParameterId: id } });
-  const hasSocioEconomic = Object.values(socioEconomic).some((v) => v !== "" && v != null);
-  if (hasSocioEconomic) {
-    await prisma.cfldSocioEconomicImpact.create({
-      data: {
-        cfldTechnicalParameterId: id,
-        zoneId: auth.session.zoneId,
-        cropDemonstrated: reqStr(technical.crop),
-        totalProduceObtainedKg: dec(socioEconomic.totalProduceObtainedKg),
-        produceSoldKgPerHousehold: dec(socioEconomic.produceSoldKgPerHousehold),
-        sellingRatePerKg: dec(socioEconomic.sellingRatePerKg),
-        produceUsedOwnFarmKg: dec(socioEconomic.produceUsedOwnFarmKg),
-        produceDistributedToOthersKg: dec(socioEconomic.produceDistributedToOthersKg),
-        purposeOfIncomeUtilized: str(socioEconomic.purposeOfIncomeUtilized),
-        employmentGeneratedMandays: dec(socioEconomic.employmentGeneratedMandays),
-      },
-    });
-  }
 
   return NextResponse.json({ ok: true });
 }

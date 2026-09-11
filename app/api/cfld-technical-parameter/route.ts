@@ -42,6 +42,11 @@ export async function POST(request: Request) {
   if (!technical.crop || !technical.technologyDemonstrated) {
     return NextResponse.json({ error: "Crop and Technology Demonstrated are required." }, { status: 400 });
   }
+  const reportingDateRaw = str(technical.reportingDate);
+  const reportingDate = reportingDateRaw ? new Date(reportingDateRaw) : undefined;
+  if (!reportingDate || Number.isNaN(reportingDate.getTime())) {
+    return NextResponse.json({ error: "Reporting Year is required." }, { status: 400 });
+  }
 
   const ctx = { kvkId: auth.session.kvkId, zoneId: auth.session.zoneId };
 
@@ -50,12 +55,25 @@ export async function POST(request: Request) {
   const districtYield = dec(technical.districtYield);
   const stateYield = dec(technical.stateYield);
   const potentialYield = dec(technical.potentialYield);
-  const reportingDate = str(technical.reportingDate) ? new Date(technical.reportingDate) : undefined;
 
   const record = await prisma.cfldTechnicalParameter.create({
     data: {
       ...ctx,
-      reportingYear: reportingDate ? reportingDate.getFullYear() : reqInt(technical.reportingYear),
+      /**
+       * reportingYear is ALWAYS derived from reportingDate, never from a
+       * separately-submitted value - the real form has only one "Reporting
+       * Year" control, a full date-picker (cfld-technical-parameter-page.tsx),
+       * so there is nothing else to fall back to. A `reqInt(technical.
+       * reportingYear)` fallback used to sit here for a field the client
+       * never actually sends; if a save ever landed with an empty date,
+       * Prisma silently skipped `reportingDate` (left the DB's existing
+       * value alone) while `reportingYear` still got overwritten from that
+       * dead fallback - the two could drift apart on the same row.
+       * Requiring the date above (real audit finding, 2026-09-11 - 12 of
+       * 175 live CFLD records had reportingYear disagree with
+       * reportingDate's own year) closes that gap for every future save.
+       */
+      reportingYear: reportingDate.getFullYear(),
       reportingDate,
       month: str(technical.month),
       season: reqStr(technical.season),
@@ -86,14 +104,13 @@ export async function POST(request: Request) {
   });
 
   {
-    const photoYear = reportingDate ? reportingDate.getFullYear() : reqInt(technical.reportingYear) || new Date().getFullYear();
     const photoBase = {
       kvkId: auth.session.kvkId,
       zoneId: auth.session.zoneId,
       categoryPath: CFLD_LEAF_PATH,
       categoryLabel: leafCategoryLabel(CFLD_LEAF_PATH),
-      reportingYear: photoYear,
-      activityDate: reportingDate ?? new Date(),
+      reportingYear: reportingDate.getFullYear(),
+      activityDate: reportingDate,
       formRecordId: record.id,
       uploadedById: auth.session.sub,
     };

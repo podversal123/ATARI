@@ -1335,7 +1335,27 @@ export function EmptyDataTable({
                                 }
                                 const id = row.id;
                                 if (editHrefBase && !customForm && typeof id === "string") {
-                                  sessionStorage.setItem(`edit-record:${id}`, JSON.stringify(row));
+                                  const payload = JSON.stringify(row);
+                                  sessionStorage.setItem(`edit-record:${id}`, payload);
+                                  // Also mirrored to localStorage (real audit
+                                  // finding, 2026-09-11: opening this same Edit
+                                  // link in a new tab - e.g. middle-click / "Open
+                                  // in new tab" - has no sessionStorage of its
+                                  // own, since that store is per-tab, and showed
+                                  // "could not be loaded"). localStorage is
+                                  // shared across every tab of this browser, so
+                                  // a new tab opened from the same click can
+                                  // still read it; EditLeafPage tries
+                                  // sessionStorage first and only falls back to
+                                  // this copy. A bookmark or shared link from a
+                                  // separate browsing session still correctly
+                                  // shows "could not be loaded" - there's no
+                                  // record data to fall back to in that case.
+                                  try {
+                                    localStorage.setItem(`edit-record:${id}`, payload);
+                                  } catch {
+                                    // Private-browsing / storage-blocked - sessionStorage above still covers the normal click-to-edit path.
+                                  }
                                   router.push(`${editHrefBase}/edit/${id}`);
                                   return;
                                 }

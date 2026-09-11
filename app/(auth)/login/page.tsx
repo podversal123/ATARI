@@ -19,7 +19,11 @@ import { persistSession } from "@/lib/session";
 function postLoginTarget(): string {
   if (typeof window === "undefined") return "/dashboard";
   const from = new URLSearchParams(window.location.search).get("from");
-  if (!from || !from.startsWith("/") || from.startsWith("//")) return "/dashboard";
+  // Reject protocol-relative ("//host") and backslash forms ("/\host", which
+  // browsers normalise to "//host") - both would navigate off-site.
+  if (!from || !from.startsWith("/") || from.startsWith("//") || from.includes("\\")) {
+    return "/dashboard";
+  }
   return from;
 }
 

@@ -434,26 +434,40 @@ export default async function FormsPage({ params, searchParams }: FormsPageProps
       orderBy: { createdAt: "desc" },
     });
     formData = {
-      rows: rows.map((r) => ({
-        id: r.id,
-        kvk: r.kvk.name,
-        photo: r.photoUrl ?? "",
-        resume: r.resumeUrl ?? "",
-        staffName: r.name,
-        position: r.position ?? "",
-        email: r.email ?? "",
-        sanctionedPost: r.sanctionedPost,
-        mobile: r.mobile ?? "",
-        payBand: r.payBand ?? "",
-        payScale: r.payScale ?? "",
-        discipline: r.discipline ?? "",
-        dateOfBirth: r.dateOfBirth ? r.dateOfBirth.toISOString().slice(0, 10) : "",
-        dateOfJoining: r.dateOfJoining ? r.dateOfJoining.toISOString().slice(0, 10) : "",
-        jobType: r.jobType ?? "",
-        allowances: r.allowances ?? "",
-        category: r.category ?? "",
-        transferStatus: r.transferStatus ?? "",
-      })),
+      // Position is stored as text (schema allows non-numeric legacy values)
+      // but entered through a `type="number"` field and means a real rank -
+      // sorting it as a string ("10" before "2") would be wrong (client
+      // report, 2026-09-11: "position 1 hai to wo top pe rahega"). Sorted
+      // here instead of via Prisma `orderBy` so the comparison is numeric;
+      // blank/non-numeric position falls to the end, not interleaved.
+      rows: rows
+        .map((r) => ({
+          id: r.id,
+          kvk: r.kvk.name,
+          photo: r.photoUrl ?? "",
+          resume: r.resumeUrl ?? "",
+          staffName: r.name,
+          position: r.position ?? "",
+          email: r.email ?? "",
+          sanctionedPost: r.sanctionedPost,
+          mobile: r.mobile ?? "",
+          payBand: r.payBand ?? "",
+          payScale: r.payScale ?? "",
+          discipline: r.discipline ?? "",
+          dateOfBirth: r.dateOfBirth ? r.dateOfBirth.toISOString().slice(0, 10) : "",
+          dateOfJoining: r.dateOfJoining ? r.dateOfJoining.toISOString().slice(0, 10) : "",
+          jobType: r.jobType ?? "",
+          allowances: r.allowances ?? "",
+          category: r.category ?? "",
+          transferStatus: r.transferStatus ?? "",
+        }))
+        .sort((a, b) => {
+          // Number("") is 0, not NaN - a blank position would otherwise sort
+          // to the very top instead of the bottom. Check for a real value first.
+          const pa = a.position.trim() ? Number(a.position) : NaN;
+          const pb = b.position.trim() ? Number(b.position) : NaN;
+          return (Number.isFinite(pa) ? pa : Infinity) - (Number.isFinite(pb) ? pb : Infinity);
+        }),
       totalCount: rows.length,
     };
   } else if (user && node.type === "leaf" && node.slug === "staff-transferred") {
@@ -596,11 +610,14 @@ export default async function FormsPage({ params, searchParams }: FormsPageProps
       include: { vehicle: { include: { kvk: true } } },
       orderBy: { createdAt: "desc" },
     });
-    // Carry-forward (client direction, 2026-09-10): a vehicle whose latest
-    // record is in an earlier year and isn't "Condemned" shows automatically
-    // as a current-year row carrying last year's values. It's display-only
-    // (id "carry:<vehicleId>", `_carriedForward`) until the user edits+saves
-    // it - that creates the real current-year record (upsert).
+    // Carry-forward (client direction, 2026-09-10, revised 2026-09-11): a
+    // vehicle whose latest record is in an earlier year and isn't "Auction"
+    // shows automatically as a current-year row carrying last year's values.
+    // It's display-only (id "carry:<vehicleId>", `_carriedForward`) until the
+    // user edits+saves it - that creates the real current-year record
+    // (upsert). Only "Auction" stops carry-forward now - "Condemned" no
+    // longer does (client direction, 2026-09-11: a condemned vehicle still
+    // carries forward normally; only once it's sent to auction does it stop).
     const CURRENT_YEAR = new Date().getFullYear();
     const latestByVehicle = new Map<string, (typeof statuses)[number]>();
     for (const s of statuses) {
@@ -610,7 +627,7 @@ export default async function FormsPage({ params, searchParams }: FormsPageProps
     const carried = [...latestByVehicle.values()].filter(
       (s) =>
         s.reportingYear < CURRENT_YEAR &&
-        (s.presentStatus ?? "").trim().toLowerCase() !== "condemned",
+        (s.presentStatus ?? "").trim().toLowerCase() !== "auction",
     );
     const toVehicleRow = (s: (typeof statuses)[number], isCarried: boolean) => {
       const formFields = {
@@ -664,9 +681,9 @@ export default async function FormsPage({ params, searchParams }: FormsPageProps
         ? { equipment: { kvkId: kvkScope.kvkId } }
         : { zoneId: kvkScope.zoneId },
       include: { equipment: { include: { kvk: true } } },
-      orderBy: { createdAt: "desc" },
+      orderBy: [{ reportingYear: "desc" }, { createdAt: "desc" }],
     });
-    // Same carry-forward as Vehicle Details above.
+    // Same carry-forward as Vehicle Details above - only "Auction" stops it.
     const CURRENT_YEAR = new Date().getFullYear();
     const latestByEquipment = new Map<string, (typeof statuses)[number]>();
     for (const s of statuses) {
@@ -676,7 +693,7 @@ export default async function FormsPage({ params, searchParams }: FormsPageProps
     const carried = [...latestByEquipment.values()].filter(
       (s) =>
         s.reportingYear < CURRENT_YEAR &&
-        (s.presentStatus ?? "").trim().toLowerCase() !== "condemned",
+        (s.presentStatus ?? "").trim().toLowerCase() !== "auction",
     );
     const toEquipmentRow = (s: (typeof statuses)[number], isCarried: boolean) => {
       const formFields = {
@@ -723,7 +740,7 @@ export default async function FormsPage({ params, searchParams }: FormsPageProps
     const rows = await prisma.oft.findMany({
       where: kvkScope,
       include: { kvk: true },
-      orderBy: { createdAt: "desc" },
+      orderBy: [{ reportingYear: "desc" }, { createdAt: "desc" }],
     });
     formData = {
       rows: rows.map((r) => ({
@@ -741,7 +758,7 @@ export default async function FormsPage({ params, searchParams }: FormsPageProps
     const rows = await prisma.fld.findMany({
       where: kvkScope,
       include: { kvk: true },
-      orderBy: { createdAt: "desc" },
+      orderBy: [{ reportingYear: "desc" }, { createdAt: "desc" }],
     });
     formData = {
       rows: rows.map((r) => ({
@@ -794,7 +811,7 @@ export default async function FormsPage({ params, searchParams }: FormsPageProps
     const rows = await prisma.training.findMany({
       where: kvkScope,
       include: { kvk: true },
-      orderBy: { createdAt: "desc" },
+      orderBy: [{ reportingYear: "desc" }, { createdAt: "desc" }],
     });
     const imagesByRecord = await moduleImagesByRecord(rows.map((r) => r.id));
     formData = {
@@ -832,7 +849,7 @@ export default async function FormsPage({ params, searchParams }: FormsPageProps
     const rows = await prisma.extensionActivity.findMany({
       where: kvkScope,
       include: { kvk: true },
-      orderBy: { createdAt: "desc" },
+      orderBy: [{ reportingYear: "desc" }, { createdAt: "desc" }],
     });
     const imagesByRecord = await moduleImagesByRecord(rows.map((r) => r.id));
     formData = {
@@ -870,7 +887,7 @@ export default async function FormsPage({ params, searchParams }: FormsPageProps
     const rows = await prisma.otherExtensionActivity.findMany({
       where: kvkScope,
       include: { kvk: true },
-      orderBy: { createdAt: "desc" },
+      orderBy: [{ reportingYear: "desc" }, { createdAt: "desc" }],
     });
     formData = {
       rows: rows.map((r) => ({
@@ -991,7 +1008,7 @@ export default async function FormsPage({ params, searchParams }: FormsPageProps
     const rows = await prisma.swachhtaBudgetExpenditure.findMany({
       where: kvkScope,
       include: { kvk: true },
-      orderBy: { createdAt: "desc" },
+      orderBy: [{ reportingYear: "desc" }, { createdAt: "desc" }],
     });
     formData = {
       rows: rows.map((r) => ({
@@ -1024,7 +1041,7 @@ export default async function FormsPage({ params, searchParams }: FormsPageProps
     const rows = await prisma.soilTestingEquipment.findMany({
       where: kvkScope,
       include: { kvk: true },
-      orderBy: { createdAt: "desc" },
+      orderBy: [{ reportingYear: "desc" }, { createdAt: "desc" }],
     });
     formData = {
       rows: rows.map((r) => ({
@@ -1060,7 +1077,7 @@ export default async function FormsPage({ params, searchParams }: FormsPageProps
     const rows = await prisma.worldSoilDay.findMany({
       where: kvkScope,
       include: { kvk: true },
-      orderBy: { createdAt: "desc" },
+      orderBy: [{ reportingYear: "desc" }, { createdAt: "desc" }],
     });
     formData = {
       rows: rows.map((r) => ({
@@ -1192,7 +1209,7 @@ export default async function FormsPage({ params, searchParams }: FormsPageProps
     const rows = await prisma.cfldTechnicalParameter.findMany({
       where: kvkScope,
       include: { kvk: true },
-      orderBy: { createdAt: "desc" },
+      orderBy: [{ reportingYear: "desc" }, { createdAt: "desc" }],
     });
     formData = {
       rows: rows.map((r) => ({
@@ -1988,7 +2005,7 @@ export default async function FormsPage({ params, searchParams }: FormsPageProps
     const rows = await prisma.kvkActivityImpact.findMany({
       where: kvkScope,
       include: { kvk: true },
-      orderBy: { createdAt: "desc" },
+      orderBy: [{ reportingYear: "desc" }, { createdAt: "desc" }],
     });
     formData = {
       rows: rows.map((r) => ({
@@ -2011,7 +2028,7 @@ export default async function FormsPage({ params, searchParams }: FormsPageProps
     const rows = await prisma.entrepreneurshipDetail.findMany({
       where: kvkScope,
       include: { kvk: true },
-      orderBy: { createdAt: "desc" },
+      orderBy: [{ reportingYear: "desc" }, { createdAt: "desc" }],
     });
     formData = {
       rows: rows.map((r) => ({
@@ -2039,7 +2056,7 @@ export default async function FormsPage({ params, searchParams }: FormsPageProps
     const rows = await prisma.successStory.findMany({
       where: kvkScope,
       include: { kvk: true },
-      orderBy: { createdAt: "desc" },
+      orderBy: [{ reportingYear: "desc" }, { createdAt: "desc" }],
     });
     formData = {
       rows: rows.map((r) => ({
@@ -2073,7 +2090,7 @@ export default async function FormsPage({ params, searchParams }: FormsPageProps
     const rows = await prisma.districtLevelData.findMany({
       where: kvkScope,
       include: { kvk: true },
-      orderBy: { createdAt: "desc" },
+      orderBy: [{ reportingYear: "desc" }, { createdAt: "desc" }],
     });
     formData = {
       rows: rows.map((r) => ({
@@ -2089,7 +2106,7 @@ export default async function FormsPage({ params, searchParams }: FormsPageProps
     const rows = await prisma.operationalAreaDetail.findMany({
       where: kvkScope,
       include: { kvk: true },
-      orderBy: { createdAt: "desc" },
+      orderBy: [{ reportingYear: "desc" }, { createdAt: "desc" }],
     });
     formData = {
       rows: rows.map((r) => ({
@@ -2109,7 +2126,7 @@ export default async function FormsPage({ params, searchParams }: FormsPageProps
     const rows = await prisma.villageAdoptionProgramme.findMany({
       where: kvkScope,
       include: { kvk: true },
-      orderBy: { createdAt: "desc" },
+      orderBy: [{ reportingYear: "desc" }, { createdAt: "desc" }],
     });
     formData = {
       rows: rows.map((r) => ({
@@ -2126,7 +2143,7 @@ export default async function FormsPage({ params, searchParams }: FormsPageProps
     const rows = await prisma.priorityThrustArea.findMany({
       where: kvkScope,
       include: { kvk: true },
-      orderBy: { createdAt: "desc" },
+      orderBy: [{ reportingYear: "desc" }, { createdAt: "desc" }],
     });
     formData = {
       rows: rows.map((r) => ({
@@ -2141,7 +2158,7 @@ export default async function FormsPage({ params, searchParams }: FormsPageProps
     const rows = await prisma.demonstrationUnit.findMany({
       where: kvkScope,
       include: { kvk: true },
-      orderBy: { createdAt: "desc" },
+      orderBy: [{ reportingYear: "desc" }, { createdAt: "desc" }],
     });
     formData = {
       rows: rows.map((r) => ({
@@ -2164,7 +2181,7 @@ export default async function FormsPage({ params, searchParams }: FormsPageProps
     const rows = await prisma.instructionalFarmCrop.findMany({
       where: kvkScope,
       include: { kvk: true },
-      orderBy: { createdAt: "desc" },
+      orderBy: [{ reportingYear: "desc" }, { createdAt: "desc" }],
     });
     formData = {
       rows: rows.map((r) => ({
@@ -2187,7 +2204,7 @@ export default async function FormsPage({ params, searchParams }: FormsPageProps
     const rows = await prisma.productionUnit.findMany({
       where: kvkScope,
       include: { kvk: true },
-      orderBy: { createdAt: "desc" },
+      orderBy: [{ reportingYear: "desc" }, { createdAt: "desc" }],
     });
     formData = {
       rows: rows.map((r) => ({
@@ -2206,7 +2223,7 @@ export default async function FormsPage({ params, searchParams }: FormsPageProps
     const rows = await prisma.instructionalFarmLivestock.findMany({
       where: kvkScope,
       include: { kvk: true },
-      orderBy: { createdAt: "desc" },
+      orderBy: [{ reportingYear: "desc" }, { createdAt: "desc" }],
     });
     formData = {
       rows: rows.map((r) => ({
@@ -2227,7 +2244,7 @@ export default async function FormsPage({ params, searchParams }: FormsPageProps
     const rows = await prisma.hostelUtilization.findMany({
       where: kvkScope,
       include: { kvk: true },
-      orderBy: { createdAt: "desc" },
+      orderBy: [{ reportingYear: "desc" }, { createdAt: "desc" }],
     });
     formData = {
       rows: rows.map((r) => ({
@@ -2336,7 +2353,7 @@ export default async function FormsPage({ params, searchParams }: FormsPageProps
     const rows = await prisma.revolvingFund.findMany({
       where: kvkScope,
       include: { kvk: true },
-      orderBy: { createdAt: "desc" },
+      orderBy: [{ reportingYear: "desc" }, { createdAt: "desc" }],
     });
     formData = {
       rows: rows.map((r) => ({
@@ -2393,7 +2410,7 @@ export default async function FormsPage({ params, searchParams }: FormsPageProps
     const rows = await prisma.functionalLinkage.findMany({
       where: kvkScope,
       include: { kvk: true },
-      orderBy: { createdAt: "desc" },
+      orderBy: [{ reportingYear: "desc" }, { createdAt: "desc" }],
     });
     formData = {
       rows: rows.map((r) => ({
@@ -2409,7 +2426,7 @@ export default async function FormsPage({ params, searchParams }: FormsPageProps
     const rows = await prisma.specialProgramme.findMany({
       where: kvkScope,
       include: { kvk: true },
-      orderBy: { createdAt: "desc" },
+      orderBy: [{ reportingYear: "desc" }, { createdAt: "desc" }],
     });
     formData = {
       rows: rows.map((r) => ({

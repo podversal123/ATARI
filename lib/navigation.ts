@@ -1009,7 +1009,7 @@ const aboutKvk = group(
        * View Vehicles master form: Vehicle Type (fixed list) comes first,
        * then Name of Vehicle, Registration Number, Year of Purchase, Total
        * Cost, Total Run(km/hrs), Present Status (Working / Repairing /
-       * Condemned). Picking "Repairing" reveals a Repairing Cost input
+       * Condemned / Auction). Picking "Repairing" reveals a Repairing Cost input
        * (MasterColumn.showWhen). Vehicle Type also feeds the KVK report
        * (1.4.A/1.4.B).
        */
@@ -1037,7 +1037,7 @@ const aboutKvk = group(
             required: true,
             formOrder: 7,
             placeholder: "Select",
-            staticOptions: ["Working", "Repairing", "Condemned"],
+            staticOptions: ["Working", "Repairing", "Condemned", "Auction"],
           },
           {
             key: "repairingCost",
@@ -1092,7 +1092,7 @@ const aboutKvk = group(
           required: true,
           formOrder: 4,
           placeholder: "Select",
-          staticOptions: ["Working", "Repairing", "Condemned"],
+          staticOptions: ["Working", "Repairing", "Condemned", "Auction"],
         },
         // Source of Funding + Repairing Cost are on the reference Add/Edit form
         // but not its list table - form-only here too.
@@ -1110,7 +1110,7 @@ const aboutKvk = group(
     group("equipments", "Equipments Information", [
       /**
        * The equipment master: Name of Equipment -> Year of Purchase -> Total
-       * Cost -> Present Status (Working / Repairing / Condemned) -> Source of
+       * Cost -> Present Status (Working / Repairing / Condemned / Auction) -> Source of
        * fund. Picking "Repairing" reveals a Repairing Cost input
        * (MasterColumn.showWhen). Same flow as View Vehicles minus the
        * Vehicle Type field. Equipment Type stays a KVK-report-only column.
@@ -1129,7 +1129,7 @@ const aboutKvk = group(
             required: true,
             formOrder: 4,
             placeholder: "Select",
-            staticOptions: ["Working", "Repairing", "Condemned"],
+            staticOptions: ["Working", "Repairing", "Condemned", "Auction"],
           },
           {
             key: "repairingCost",
@@ -1179,7 +1179,7 @@ const aboutKvk = group(
           required: true,
           formOrder: 3,
           placeholder: "Select",
-          staticOptions: ["Working", "Repairing", "Condemned"],
+          staticOptions: ["Working", "Repairing", "Condemned", "Auction"],
         },
         {
           key: "repairingCost",

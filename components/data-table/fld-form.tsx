@@ -25,6 +25,8 @@ type FldFormProps = {
 };
 
 const currentYear = new Date().getFullYear();
+/** Same audit finding and fix as oft-form.tsx's matching constant, 2026-09-11 - this form also submitted `reportingYear` on every save with no rendered field to set it. */
+const REPORTING_YEAR_OPTIONS = Array.from({ length: 4 }, (_, i) => String(currentYear - i));
 
 /** Dedupes and drops blank values before handing a list to SimpleSelect - real bug found 2026-09-01: mapping master rows straight to option strings let a blank/duplicate field value through as a literal "" option, crashing React with "two children with the same key ''" (see the identical fix in oft-form.tsx). */
 function uniqueNonEmpty(values: (string | undefined)[]): string[] {
@@ -321,6 +323,7 @@ export function FldForm({ trail, backHref, id, initialView }: FldFormProps) {
         {loading && <p className="mb-4 text-sm text-muted-foreground">Loading record…</p>}
 
         <div className="grid grid-cols-[repeat(auto-fit,minmax(240px,320px))] gap-5">
+          {selectField("fld-reporting-year", "Reporting Year", reportingYear, setReportingYear, REPORTING_YEAR_OPTIONS, true)}
           {textField("fld-start-date", "Start Date", startDate, setStartDate, true, "date")}
           {textField("fld-end-date", "Expected Completion Date", endDate, setEndDate, true, "date", startDate || undefined)}
           {selectField("fld-staff", "Name of SMS/KVK Head", staff, setStaff, staffOptions, true)}

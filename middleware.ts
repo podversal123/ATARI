@@ -5,6 +5,18 @@ import { getSecretKey } from "@/lib/auth-secret";
 const COOKIE_NAME = "ams_session";
 
 /**
+ * Route prefixes only a Super Admin may open. Already dropped from the
+ * sidebar and Ctrl+K search for KVK roles (KVK_HIDDEN_SLUGS in
+ * lib/navigation.ts) and user/role-management already bounce a KVK session
+ * client-side (client direction, 2026-09-07) - but /masters had no client
+ * guard at all, and all three still rendered server-side (full RSC payload)
+ * on a direct URL. This is the backend half of the same, already-decided
+ * rule. To re-open a section to KVK roles later, remove it here and from
+ * KVK_HIDDEN_SLUGS together.
+ */
+const SUPER_ADMIN_ONLY_PREFIXES = ["/masters", "/user-management", "/role-management"];
+
+/**
  * Real session check at the edge - without this, typing a dashboard URL
  * directly bypasses login entirely (the old mock only gated the UI's
  * *appearance*, not access). Verifies the JWT itself (not just presence)
@@ -20,7 +32,14 @@ export async function middleware(request: NextRequest) {
 
   if (token) {
     try {
-      await jwtVerify(token, getSecretKey());
+      const { payload } = await jwtVerify(token, getSecretKey());
+      const { pathname } = request.nextUrl;
+      const superAdminOnly = SUPER_ADMIN_ONLY_PREFIXES.some(
+        (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
+      );
+      if (superAdminOnly && payload.role !== "SUPER_ADMIN") {
+        return NextResponse.redirect(new URL("/dashboard", request.url));
+      }
       return NextResponse.next();
     } catch {
       // fall through to redirect

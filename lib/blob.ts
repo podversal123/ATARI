@@ -108,6 +108,15 @@ const UPLOAD_RULES: Record<UploadKind, { folder: string; maxBytes: number; mimeT
 };
 
 /**
+ * The single source of truth for which `kind` values /api/upload accepts -
+ * derived from UPLOAD_RULES so the route can never drift out of sync with
+ * the storage rules (it did: `rawe-attachment` / `success-story-image` /
+ * `ppv-fra-farmer-image` were added here but not to the route's own hand-
+ * kept list, so those upload fields returned 400).
+ */
+export const UPLOAD_KINDS = Object.keys(UPLOAD_RULES) as UploadKind[];
+
+/**
  * Checks the file's actual leading bytes against its claimed MIME type
  * (security audit finding, 2026-09-02 - `file.type` in a FormData upload is
  * just a client-asserted string, trivially spoofable; without this, an

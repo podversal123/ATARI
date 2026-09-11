@@ -38,12 +38,14 @@ export async function GET(request: Request) {
     orderBy: { reportingYear: "desc" },
   });
 
-  // A condemned vehicle is retired - its details do NOT carry forward into a
-  // new year (client direction, 2026-09-10). Selecting it for a new year
-  // starts blank; a "Repairing" vehicle still carries forward normally so the
-  // user can just edit the repairing cost.
+  // A vehicle sent to auction is retired - its details do NOT carry forward
+  // into a new year (client direction, 2026-09-11 - revises the 2026-09-10
+  // rule, which stopped carry-forward for "Condemned"; a condemned vehicle
+  // now carries forward normally, only "Auction" stops it). Selecting it for
+  // a new year starts blank; a "Repairing" vehicle still carries forward
+  // normally so the user can just edit the repairing cost.
   const latestStatus = (last?.presentStatus ?? vehicle.presentStatus ?? "").trim().toLowerCase();
-  if (latestStatus === "condemned") return NextResponse.json({ fields: {} });
+  if (latestStatus === "auction") return NextResponse.json({ fields: {} });
 
   const num = (v: unknown) =>
     v == null ? "" : String(v);

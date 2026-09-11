@@ -70,7 +70,21 @@ export function EditLeafPage({
     showMarkAsOther ?? (columns.length === 1 && columns[0].key === "name");
 
   useEffect(() => {
-    const raw = sessionStorage.getItem(`edit-record:${id}`);
+    // sessionStorage is the fast, common path (set by EmptyDataTable's own
+    // "Edit" click, same tab). localStorage is a fallback for a new tab
+    // opened from that same click (real audit finding, 2026-09-11 - see the
+    // matching comment in empty-data-table.tsx) - it's shared across every
+    // tab of this browser, unlike sessionStorage, which is per-tab. A
+    // bookmark or shared link from an unrelated browsing session still has
+    // neither, and still correctly falls through to `loadError` below.
+    let raw = sessionStorage.getItem(`edit-record:${id}`);
+    if (!raw) {
+      try {
+        raw = localStorage.getItem(`edit-record:${id}`);
+      } catch {
+        // Private-browsing / storage-blocked - falls through to loadError below, same as no fallback existing.
+      }
+    }
     if (!raw) {
       setLoadError(true);
       return;
@@ -153,6 +167,11 @@ export function EditLeafPage({
         return;
       }
       sessionStorage.removeItem(`edit-record:${id}`);
+      try {
+        localStorage.removeItem(`edit-record:${id}`);
+      } catch {
+        // Private-browsing / storage-blocked - nothing to clean up there either.
+      }
       router.push(backHref);
       router.refresh();
     } catch {

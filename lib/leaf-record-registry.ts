@@ -1764,12 +1764,31 @@ export const LEAF_UPDATE_REGISTRY: Record<string, UpdateFn> = {
       },
     }),
   "about-kvk/vehicles/vehicle-details": async (id, v, ctx) => {
-    const vehicle = await prisma.vehicle.findFirst({ where: { ...kvkScope(ctx), name: reqStr(v.vehicleName) } });
-    if (!vehicle) throw new Error("Vehicle not found");
+    const existingStatus = await prisma.vehicleStatus.findFirst({
+      where: { id, vehicle: { ...kvkScope(ctx) } },
+      select: { vehicleId: true, vehicle: { select: { kvkId: true, name: true } } },
+    });
+    if (!existingStatus) return { count: 0 };
+    /**
+     * Re-point to a different vehicle only within the row's OWN KVK, never by
+     * a bare zone-wide name match - vehicle names repeat across KVKs (e.g.
+     * "Bolero" is a real name in 29 different KVKs' fleets), so a Super
+     * Admin editing a status row used to risk `vehicle.findFirst` picking an
+     * arbitrary same-named vehicle from a *different* KVK and silently
+     * re-parenting this row onto it. No lookup at all when the name is
+     * unchanged (the common case), so a normal edit behaves exactly as before.
+     */
+    const name = reqStr(v.vehicleName);
+    let vehicleId = existingStatus.vehicleId;
+    if (name && name !== existingStatus.vehicle.name) {
+      const target = await prisma.vehicle.findFirst({ where: { kvkId: existingStatus.vehicle.kvkId, name } });
+      if (!target) throw new Error("Vehicle not found");
+      vehicleId = target.id;
+    }
     return prisma.vehicleStatus.updateMany({
       where: { id, vehicle: { ...kvkScope(ctx) } },
       data: {
-        vehicleId: vehicle.id,
+        vehicleId,
         reportingYear: reqInt(v.reportingYear),
         totalRunKmHrs: dec(v.totalRunKms),
         presentStatus: str(v.presentStatus),
