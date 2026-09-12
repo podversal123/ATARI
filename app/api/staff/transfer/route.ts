@@ -29,7 +29,7 @@ export async function POST(request: Request) {
   try {
     const staff = await prisma.staff.findFirst({
       where: { id: staffId, ...(auth.session.kvkId ? { kvkId: auth.session.kvkId } : { zoneId: auth.session.zoneId }) },
-      select: { id: true, kvkId: true, name: true },
+      select: { id: true, kvkId: true, name: true, kvk: { select: { name: true } } },
     });
     if (!staff) {
       return NextResponse.json({ error: "Staff not found, or not in your scope." }, { status: 404 });
@@ -58,7 +58,17 @@ export async function POST(request: Request) {
       }),
       prisma.staff.update({
         where: { id: staff.id },
-        data: { kvkId: toKvk.id, transferStatus: "Transferred" },
+        data: {
+          kvkId: toKvk.id,
+          // Client direction, 2026-09-12: at the destination KVK, "Date of
+          // Joining" means joined *this* KVK, not the staff member's original
+          // hire date - the transfer date is that join date. Transfer Status
+          // names the KVK they came from instead of a bare "Transferred", so
+          // the destination KVK's own Employee Details answers "where did
+          // this person come from" without opening Staff Transferred.
+          dateOfJoining: new Date(transferDate),
+          transferStatus: `Transferred from ${staff.kvk.name}`,
+        },
       }),
     ]);
 

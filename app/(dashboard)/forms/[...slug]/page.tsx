@@ -474,6 +474,8 @@ export default async function FormsPage({ params, searchParams }: FormsPageProps
     // Scoped by `fromKvkId` - the transfer belongs to the KVK the staff left
     // (it sits beside that KVK's own Employee Details), not the KVK they moved
     // to (client direction, 2026-09-10). Super Admin still sees the whole zone.
+    // (A request to also show this to the destination KVK came up
+    // 2026-09-12 - held pending client confirmation, not applied.)
     const rows = await prisma.staffTransfer.findMany({
       where: kvkScope.kvkId ? { fromKvkId: kvkScope.kvkId } : { zoneId: kvkScope.zoneId },
       include: { staff: true, fromKvk: true, toKvk: true },
@@ -517,6 +519,7 @@ export default async function FormsPage({ params, searchParams }: FormsPageProps
         staffName: r.staff.name,
         kvkNameBeforeTransfer: r.fromKvk.name,
         latestKvkName: r.toKvk.name,
+        dateOfRelieving: r.transferDate.toISOString().slice(0, 10),
         historyJson: JSON.stringify(historyByStaffId.get(r.staffId) ?? []),
       })),
       totalCount: rows.length,

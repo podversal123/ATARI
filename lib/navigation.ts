@@ -929,8 +929,14 @@ const aboutKvk = group(
         "Staff Transferred",
         [
           { key: "staffName", label: "Staff Name" },
-          { key: "kvkNameBeforeTransfer", label: "Before Transfer KVK Name" },
-          { key: "latestKvkName", label: "After Transfer KVK Name" },
+          // Client direction, 2026-09-12: "Transfer From/To KVK Name", with
+          // the relieving date sitting between them - was "Before/After
+          // Transfer KVK Name" with no date column at all (the date was only
+          // ever in the Transfer dialog itself and "View Transfer History",
+          // never here).
+          { key: "kvkNameBeforeTransfer", label: "From Transfer KVK Name" },
+          { key: "dateOfRelieving", label: "Date of Relieving" },
+          { key: "latestKvkName", label: "To Transfer KVK Name" },
         ],
         "Details of Staff Transferred",
       ),
