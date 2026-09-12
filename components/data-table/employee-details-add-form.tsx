@@ -9,36 +9,36 @@ import { Label } from "@/components/ui/label";
 import { SimpleSelect } from "@/components/ui/simple-select";
 import { PageHeader, type Crumb } from "@/components/layout/page-header";
 import { FileUploadField } from "@/components/data-table/file-upload-field";
+import { OtherAwareSelect, type MasterRow } from "@/components/data-table/other-aware-select";
 import type { MasterColumn } from "@/lib/navigation";
 
 const PHOTO_COLUMN: MasterColumn = { key: "photo", label: "Photo", fileKind: "image", uploadKind: "staff-photo" };
 const RESUME_COLUMN: MasterColumn = { key: "resume", label: "Resume", fileKind: "document", uploadKind: "staff-resume" };
 
-/** All four dropdowns are fixed <select> lists on the live reference (atariams.org /create-staff), transcribed verbatim. */
-const SANCTIONED_POSTS = [
-  "Senior Scientist & Head",
-  "SMS (Subject Matter Speaclist)",
-  "Programme Assistant (Lab Technician)",
-  "Programme Assistant (Computer)",
-  "Farm Manager",
-  "Assistant",
-  "Stenographer",
-  "Driver",
-  "Supporting staff",
-];
-const LEVELS = [
-  "Level - 1", "Level - 2", "Level - 3", "Level - 4", "Level - 5", "Level - 6",
-  "Level - 10", "Level - 10R", "Level - 11", "Level - 11R", "Level - 12",
-  "Level - 12R", "Level - 13A", "Level - 14",
-];
-const DISCIPLINES = [
-  "Agronomy", "Soil Science", "Horticulture", "Plant breeding", "Plant Protection",
-  "Entomology", "Plant Pathology", "Home Science", "Agricultural Engineering",
-  "Agricultural Extension", "Animal Science", "Fisheries", "Other",
-];
-const CATEGORIES = ["SC", "ST", "OBC", "General"];
-
 const opt = (values: string[]) => values.map((v) => ({ value: v, label: v }));
+
+/**
+ * Real audit finding, 2026-09-12: Sanctioned Post, Level (Pay Band), Discipline
+ * and Category each had their own hardcoded list here, completely disconnected
+ * from the real Sanctioned Post / Pay Level / Discipline / Staff Category
+ * masters Super Admin already manages under All Masters - a value added there
+ * never reached this form, and this form's own copy could drift from the
+ * master (the hardcoded Discipline list was already missing nothing, but its
+ * own OFT form counterpart only had 5 of the master's 13 real values). Fetched
+ * live like every other master-sourced dropdown in this app now, through
+ * OtherAwareSelect so a master row flagged "Mark as 'Other' option" gets its
+ * real free-text follow-up instead of just being a dead-end literal string.
+ */
+function useMasterRows(slug: string) {
+  const [rows, setRows] = useState<MasterRow[]>([]);
+  useEffect(() => {
+    fetch(`/api/master-options?slug=${slug}`)
+      .then((res) => (res.ok ? res.json() : { rows: [] }))
+      .then((data: { rows?: MasterRow[] }) => setRows(data.rows ?? []))
+      .catch(() => {});
+  }, [slug]);
+  return rows;
+}
 
 type EmployeeDetailsFormProps = {
   trail: Crumb[];
@@ -78,6 +78,11 @@ export function EmployeeDetailsAddForm({ trail, backHref, id }: EmployeeDetailsF
   const [loadError, setLoadError] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  const sanctionedPostRows = useMasterRows("sanctioned-post");
+  const payLevelRows = useMasterRows("pay-level");
+  const disciplineRows = useMasterRows("discipline");
+  const staffCategoryRows = useMasterRows("staff-category");
 
   useEffect(() => {
     if (!id) return;
@@ -163,19 +168,15 @@ export function EmployeeDetailsAddForm({ trail, backHref, id }: EmployeeDetailsF
       <div className="animate-in fade-in-0 slide-in-from-right-8 ease-out rounded-lg border border-border bg-card p-5 duration-300">
         <p className="mb-3 text-lg font-semibold text-primary">Staff Position</p>
         <div className="grid grid-cols-[repeat(auto-fit,minmax(240px,320px))] gap-5">
-          <div className="space-y-1.5">
-            <Label htmlFor="sanctioned-post">
-              Sanctioned Post <span className="text-destructive">*</span>
-            </Label>
-            <SimpleSelect
-              id="sanctioned-post"
-              value={sanctionedPost}
-              onValueChange={setSanctionedPost}
-              placeholder="Please Select"
-              options={opt(SANCTIONED_POSTS)}
-              className="h-10"
-            />
-          </div>
+          <OtherAwareSelect
+            id="sanctioned-post"
+            label="Sanctioned Post"
+            required
+            value={sanctionedPost}
+            onChange={setSanctionedPost}
+            rows={sanctionedPostRows}
+            optionKey="name"
+          />
           <div className="space-y-1.5">
             <Label htmlFor="staff-name">
               Name <span className="text-destructive">*</span>
@@ -199,35 +200,29 @@ export function EmployeeDetailsAddForm({ trail, backHref, id }: EmployeeDetailsF
             <Label htmlFor="staff-email">Email</Label>
             <Input id="staff-email" type="email" className="h-10" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Enter email address" />
           </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="staff-level">Level</Label>
-            <SimpleSelect
-              id="staff-level"
-              value={payBand}
-              onValueChange={setPayBand}
-              placeholder="Select"
-              options={opt(LEVELS)}
-              className="h-10"
-            />
-          </div>
+          <OtherAwareSelect
+            id="staff-level"
+            label="Level"
+            value={payBand}
+            onChange={setPayBand}
+            rows={payLevelRows}
+            optionKey="name"
+            placeholder="Select"
+          />
           <div className="space-y-1.5">
             <Label htmlFor="staff-pay-scale">Pay Scale</Label>
             <Input id="staff-pay-scale" type="number" className="h-10" value={payScale} onChange={(e) => setPayScale(e.target.value)} />
           </div>
 
-          <div className="space-y-1.5">
-            <Label htmlFor="staff-discipline">
-              Discipline <span className="text-destructive">*</span>
-            </Label>
-            <SimpleSelect
-              id="staff-discipline"
-              value={discipline}
-              onValueChange={setDiscipline}
-              placeholder="Please Select"
-              options={opt(DISCIPLINES)}
-              className="h-10"
-            />
-          </div>
+          <OtherAwareSelect
+            id="staff-discipline"
+            label="Discipline"
+            required
+            value={discipline}
+            onChange={setDiscipline}
+            rows={disciplineRows}
+            optionKey="name"
+          />
           <div className="space-y-1.5">
             <Label htmlFor="staff-dob">
               Date of Birth <span className="text-destructive">*</span>
@@ -256,19 +251,15 @@ export function EmployeeDetailsAddForm({ trail, backHref, id }: EmployeeDetailsF
             <Label htmlFor="staff-allowances">Details of allowances</Label>
             <Input id="staff-allowances" className="h-10" value={allowances} onChange={(e) => setAllowances(e.target.value)} />
           </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="staff-category">
-              Category <span className="text-destructive">*</span>
-            </Label>
-            <SimpleSelect
-              id="staff-category"
-              value={category}
-              onValueChange={setCategory}
-              placeholder="Please Select"
-              options={opt(CATEGORIES)}
-              className="h-10"
-            />
-          </div>
+          <OtherAwareSelect
+            id="staff-category"
+            label="Category"
+            required
+            value={category}
+            onChange={setCategory}
+            rows={staffCategoryRows}
+            optionKey="name"
+          />
 
           <div className="col-[1/-1] grid grid-cols-[repeat(auto-fit,minmax(260px,380px))] gap-5">
             <FileUploadField

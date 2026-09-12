@@ -29,14 +29,6 @@ type OftFormProps = {
   initialView?: "oft" | "result";
 };
 
-/** Real discipline headings the report groups each OFT under (section "1.2.A KVK Wise OFT Details" of the real ATARI AMS Report). */
-const DISCIPLINES = [
-  "OFT (Agricultural Extension)",
-  "OFT (Agronomy)",
-  "OFT (Animal Science)",
-  "OFT (Fisheries)",
-  "OFT (Home Science)",
-];
 const SOURCES = ["ICAR", "AICRP", "SAU", "Other"];
 
 type TechnologyOption = { label: string; description: string };
@@ -82,12 +74,24 @@ export function OftForm({ trail, backHref, id, initialView }: OftFormProps) {
   const [staffOptions, setStaffOptions] = useState<string[]>([]);
   const [fundingSourceRows, setFundingSourceRows] = useState<MasterRow[]>([]);
   const [seasonOptions, setSeasonOptions] = useState<string[]>([]);
+  const [disciplineRows, setDisciplineRows] = useState<MasterRow[]>([]);
   const [loading, setLoading] = useState(Boolean(id));
 
   useEffect(() => {
     fetch("/api/master-options?slug=oft-thematic-area")
       .then((res) => (res.ok ? res.json() : { rows: [] }))
       .then((data) => setThematicAreaRows(data.rows ?? []))
+      .catch(() => {});
+    /**
+     * Real Discipline Master (audit finding, 2026-09-12) - this form's own
+     * hardcoded 5-value list ("OFT (Agricultural Extension)" etc.) had no
+     * "Other" option at all and covered only 5 of the master's real 13
+     * disciplines; Employee Details' own separate hardcoded copy had the
+     * same drift-from-the-master problem, fixed the same way.
+     */
+    fetch("/api/master-options?slug=discipline")
+      .then((res) => (res.ok ? res.json() : { rows: [] }))
+      .then((data) => setDisciplineRows(data.rows ?? []))
       .catch(() => {});
     fetch("/api/master-options?slug=subject")
       .then((res) => (res.ok ? res.json() : { rows: [] }))
@@ -376,7 +380,7 @@ export function OftForm({ trail, backHref, id, initialView }: OftFormProps) {
         <div className="mt-4 grid grid-cols-[repeat(auto-fit,minmax(240px,320px))] gap-5">
           <OtherAwareSelect id="oft-subject" label="OFT Subject" required value={oftSubject} onChange={setOftSubject} rows={subjectRows} optionKey="subjectName" />
           <OtherAwareSelect id="oft-thematic-area" label="Thematic Area" required value={thematicArea} onChange={setThematicArea} rows={thematicAreaRowsForSubject} allRows={thematicAreaRows} optionKey="thematicArea" />
-          {selectField("oft-discipline", "Discipline", discipline, setDiscipline, DISCIPLINES, true)}
+          <OtherAwareSelect id="oft-discipline" label="Discipline" required value={discipline} onChange={setDiscipline} rows={disciplineRows} optionKey="name" />
           {textField("oft-title", "Title of On Farm Trial (OFT)", trialOnForm, setTrialOnForm, true)}
         </div>
 

@@ -4,7 +4,6 @@ import { useMemo } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SimpleSelect } from "@/components/ui/simple-select";
-import { cn } from "@/lib/utils";
 
 export type MasterRow = Record<string, string>;
 
@@ -66,37 +65,90 @@ export function OtherAwareSelect({
       rows.map((r) => r[optionKey]).filter((v): v is string => Boolean(v?.trim())),
     );
     if (otherName) values.add(otherName);
-    return Array.from(values).sort();
+    // "Other" always sorts last (client direction, 2026-09-12) - a plain
+    // alphabetical sort could put it anywhere (e.g. "Other" before "Soil
+    // Science"), same as every other value here isn't otherName.
+    const sorted = Array.from(values).sort((a, b) => {
+      if (a === otherName) return b === otherName ? 0 : 1;
+      if (b === otherName) return -1;
+      return a.localeCompare(b);
+    });
+    return sorted;
   }, [rows, optionKey, otherName]);
+  /**
+   * Real bug, 2026-09-12: this used to fall back to "treat as Other" for any
+   * value not in the current `options` - but `options` is the CASCADE-
+   * FILTERED list (e.g. Thematic Area narrowed to the just-picked OFT
+   * Subject), which goes empty/different the moment an unrelated parent
+   * field changes. That made a real, already-picked Thematic Area look
+   * "orphaned" the instant OFT Subject was changed (even to "Other"), so it
+   * silently flipped to the Other/specify UI and pre-filled the specify box
+   * with that old value - never something the user actually typed. The
+   * fallback now checks the FULL unfiltered master (`src`) instead, so a
+   * value only ever counts as "Other" when it truly doesn't exist anywhere
+   * in the master, not merely outside the current cascade slice.
+   */
+  const allValues = useMemo(
+    () => new Set(src.map((r) => r[optionKey]).filter((v): v is string => Boolean(v?.trim()))),
+    [src, optionKey],
+  );
   const isOtherActive =
-    Boolean(otherName) && (value === otherName || (Boolean(value) && !options.includes(value)));
+    Boolean(otherName) && (value === otherName || (Boolean(value) && !allValues.has(value)));
+
+  const select = (
+    <SimpleSelect
+      id={id}
+      value={isOtherActive && otherName ? otherName : value}
+      onValueChange={onChange}
+      disabled={disabled}
+      placeholder={placeholder}
+      options={options.map((option) => ({ value: option, label: option }))}
+      className="h-10 w-full"
+    />
+  );
+
+  if (!isOtherActive) {
+    return (
+      <div className="space-y-1.5">
+        <Label htmlFor={id}>
+          {label} {required && <span className="text-destructive">*</span>}
+        </Label>
+        {select}
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-1.5">
-      <Label htmlFor={id}>
-        {label} {required && <span className="text-destructive">*</span>}
-      </Label>
-      <div className={cn("flex gap-2", isOtherActive && "items-start")}>
-        <SimpleSelect
-          id={id}
-          value={isOtherActive && otherName ? otherName : value}
-          onValueChange={onChange}
-          disabled={disabled}
-          placeholder={placeholder}
-          options={options.map((option) => ({ value: option, label: option }))}
-          className={cn("h-10", isOtherActive ? "flex-1" : "w-full")}
+    // Beside the select, not below it (client direction, 2026-09-12) - but a
+    // select + a whole second labelled input need more room than this
+    // field's own single grid track (e.g. minmax(240px,320px)) has, which is
+    // what truncated "Specify OFT Subject" in an earlier version of this fix.
+    // Spanning 2 tracks only while the specify box is showing gives both the
+    // room they need without changing this field's width the rest of the
+    // time; later fields on the row simply wrap to make room, same as
+    // `auto-fit` already does for a merely-longer field anywhere else in
+    // this app. The select and the specify input are two equal, independent
+    // Label+field pairs side by side (not one shared label above a flex row)
+    // so both labels sit on the exact same line, not one a row lower than
+    // the other (real client screenshot, 2026-09-12).
+    <div className="flex items-start gap-3" style={{ gridColumn: "span 2" }}>
+      <div className="flex-1 space-y-1.5">
+        <Label htmlFor={id}>
+          {label} {required && <span className="text-destructive">*</span>}
+        </Label>
+        {select}
+      </div>
+      <div className="flex-1 space-y-1.5">
+        <Label htmlFor={`${id}-other`}>Please specify</Label>
+        <Input
+          id={`${id}-other`}
+          className="h-10 w-full"
+          placeholder={`Specify ${label}`}
+          value={value === otherName ? "" : value}
+          onChange={(e) =>
+            onChange(e.target.value.trim() ? e.target.value : (otherName as string))
+          }
         />
-        {isOtherActive && (
-          <Input
-            aria-label={`${label} - other value`}
-            className="h-10 flex-1"
-            placeholder="Enter value"
-            value={value === otherName ? "" : value}
-            onChange={(e) =>
-              onChange(e.target.value.trim() ? e.target.value : (otherName as string))
-            }
-          />
-        )}
       </div>
     </div>
   );
