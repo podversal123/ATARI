@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/auto-transfer-oft-fld",
+      "schedule": "0 0 * * *"
+    }
+  ]
+}

@@ -153,6 +153,8 @@ function FieldLabel({ htmlFor, required, children }: { htmlFor: string; required
 function SourceMasterField({
   column,
   fieldId,
+  label,
+  required,
   value,
   dependsOnValue,
   dependsOnLabel,
@@ -162,6 +164,8 @@ function SourceMasterField({
 }: {
   column: MasterColumn & { sourceMaster: NonNullable<MasterColumn["sourceMaster"]> };
   fieldId: string;
+  label: string;
+  required?: boolean;
   value: string;
   dependsOnValue?: string;
   dependsOnLabel?: string;
@@ -218,9 +222,16 @@ function SourceMasterField({
   const otherName = otherRow?.[optionKey];
   const filteredRows =
     otherRow && !cascadeRows.includes(otherRow) ? [...cascadeRows, otherRow] : cascadeRows;
+  // "Other" always sorts last (client direction, 2026-09-12 - same rule
+  // OtherAwareSelect's own options list already follows for OFT/FLD) - a
+  // plain alphabetical sort could put it anywhere, which this used to do.
   const options = Array.from(
     new Set(filteredRows.map((row) => row[optionKey]).filter((v): v is string => Boolean(v))),
-  ).sort();
+  ).sort((a, b) => {
+    if (a === otherName) return b === otherName ? 0 : 1;
+    if (b === otherName) return -1;
+    return a.localeCompare(b);
+  });
   const isOtherActive = Boolean(otherName) && (value === otherName || (Boolean(value) && !options.includes(value)));
 
   /** Picking a real option: optionally carry forward related fields from an endpoint. */
@@ -247,38 +258,67 @@ function SourceMasterField({
   const captionNoun = `${(column.formLabel ?? column.label).toLowerCase()}s`;
   const dependsOnNoun = dependsOnLabel?.trim().split(/\s+/).pop()?.toLowerCase();
 
-  return (
-    <div>
-      <div className={cn("flex gap-2", isOtherActive && "items-start")}>
-        <SimpleSelect
-          id={fieldId}
-          value={isOtherActive && otherName ? otherName : value}
-          disabled={disabled}
-          onValueChange={handleSelect}
-          placeholder={
-            disabled
-              ? `Select ${compactPlaceholder(dependsOnLabel ?? "the required field")} first`
-              : (column.placeholder ?? `Select ${compactPlaceholder(column.formLabel ?? column.label)}`)
-          }
-          options={options.map((option) => ({ value: option, label: option }))}
-          className={cn("h-10", isOtherActive ? "flex-1" : "w-full", noOptions && "rounded-b-none")}
-        />
-        {isOtherActive && (
-          <Input
-            aria-label={`${column.formLabel ?? column.label} - other value`}
-            className="h-10 flex-1"
-            placeholder="Enter value"
-            value={value === otherName ? "" : value}
-            onChange={(e) => onChange(e.target.value.trim() ? e.target.value : (otherName as string))}
-          />
-        )}
+  const select = (
+    <SimpleSelect
+      id={fieldId}
+      value={isOtherActive && otherName ? otherName : value}
+      disabled={disabled}
+      onValueChange={handleSelect}
+      placeholder={
+        disabled
+          ? `Select ${compactPlaceholder(dependsOnLabel ?? "the required field")} first`
+          : (column.placeholder ?? `Select ${compactPlaceholder(column.formLabel ?? column.label)}`)
+      }
+      options={options.map((option) => ({ value: option, label: option }))}
+      className={cn("h-10 w-full", noOptions && "rounded-b-none")}
+    />
+  );
+
+  const noOptionsCaption = noOptions && (
+    <div className="flex items-center gap-1.5 rounded-b-md border border-t-0 border-border bg-muted/60 px-3 py-1.5 text-xs text-muted-foreground">
+      <Info className="size-3.5 shrink-0" />
+      <span>No {captionNoun} available{dependsOnNoun ? ` for this ${dependsOnNoun}` : ""}</span>
+    </div>
+  );
+
+  if (!isOtherActive) {
+    return (
+      <div className="space-y-1.5">
+        <FieldLabel htmlFor={fieldId} required={required}>
+          {label}
+        </FieldLabel>
+        {select}
+        {noOptionsCaption}
       </div>
-      {noOptions && (
-        <div className="flex items-center gap-1.5 rounded-b-md border border-t-0 border-border bg-muted/60 px-3 py-1.5 text-xs text-muted-foreground">
-          <Info className="size-3.5 shrink-0" />
-          <span>No {captionNoun} available{dependsOnNoun ? ` for this ${dependsOnNoun}` : ""}</span>
-        </div>
-      )}
+    );
+  }
+
+  // Beside the select, not below it - same "Please specify" pattern as
+  // OtherAwareSelect (OFT/FLD's own bespoke forms) instead of this
+  // component's old bare "Enter value" input with no label of its own
+  // (client report, 2026-09-13). Two parallel Label+field blocks at the
+  // same DOM depth, not one shared label above a flex row, so both labels
+  // land on the same line - the exact same fix OtherAwareSelect needed for
+  // this same reason.
+  return (
+    <div className="flex items-start gap-3" style={{ gridColumn: "span 2" }}>
+      <div className="flex-1 space-y-1.5">
+        <FieldLabel htmlFor={fieldId} required={required}>
+          {label}
+        </FieldLabel>
+        {select}
+        {noOptionsCaption}
+      </div>
+      <div className="flex-1 space-y-1.5">
+        <Label htmlFor={`${fieldId}-other`}>Please specify</Label>
+        <Input
+          id={`${fieldId}-other`}
+          className="h-10 w-full"
+          placeholder={`Specify ${label}`}
+          value={value === otherName ? "" : value}
+          onChange={(e) => onChange(e.target.value.trim() ? e.target.value : (otherName as string))}
+        />
+      </div>
     </div>
   );
 }
@@ -321,6 +361,27 @@ export function MasterFormFields({
 }: MasterFormFieldsProps) {
   const instanceId = useId();
   const cascade = useCascadeOptions(Boolean(cascadeType));
+  /**
+   * Real bug, 2026-09-13: "Reporting Year" fields with a plain `staticOptions`
+   * list (Vehicle Details, Equipment Details) hardcoded "current year back
+   * 3" - a real record from any other year (older arrears entry, or a
+   * future-dated one like the 2027 OFT found this session) had no way to be
+   * selected at all, not even to edit one that already existed. Real years
+   * from every model this KVK (or, for Super Admin, the whole zone) actually
+   * has data for - the exact same source /api/reports/years already
+   * verified for the Reports checkbox - are merged into the static list
+   * instead, so a year is never missing just because it's outside a fixed
+   * window. Only fetched when this form actually has such a field.
+   */
+  const needsRealYears = columns.some((c) => c.key === "reportingYear" && c.staticOptions);
+  const [realYears, setRealYears] = useState<string[]>([]);
+  useEffect(() => {
+    if (!needsRealYears) return;
+    fetch("/api/reports/years")
+      .then((res) => (res.ok ? res.json() : { years: [] }))
+      .then((data) => setRealYears(data.years ?? []))
+      .catch(() => {});
+  }, [needsRealYears]);
   /** Form-field render order only - list columns elsewhere always read the raw `columns` prop untouched. Stable sort (index tiebreak, not relying on Array.sort's own stability) so fields without a formOrder keep their original relative position, just pushed after every numbered field. */
   const orderedColumns = columns
     .map((column, index) => ({ column, index }))
@@ -486,6 +547,18 @@ export function MasterFormFields({
         }
 
         if (column.staticOptions) {
+          // Reporting Year: union the hardcoded "recent years" quick-picks
+          // with every real year this scope's data actually has, plus
+          // whatever value is already saved on this record (belt-and-braces
+          // for the instant right after a fetch that hasn't landed yet) - see
+          // `needsRealYears` above for why this can never regress to the old
+          // fixed-window bug.
+          const options =
+            column.key === "reportingYear"
+              ? Array.from(
+                  new Set([...column.staticOptions, ...realYears, ...(formValues[column.key] ? [formValues[column.key]] : [])]),
+                ).sort((a, b) => Number(b) - Number(a))
+              : column.staticOptions;
           return (
             <div key={column.key} className="space-y-1.5">
               <FieldLabel htmlFor={fieldId} required={column.required}>
@@ -496,7 +569,7 @@ export function MasterFormFields({
                 value={formValues[column.key] ?? ""}
                 onValueChange={(v) => onChange({ ...formValues, [column.key]: v })}
                 placeholder={column.placeholder ?? `Select ${compactPlaceholder(column.formLabel ?? column.label)}`}
-                options={column.staticOptions.map((option) => ({ value: option, label: option }))}
+                options={options.map((option) => ({ value: option, label: option }))}
                 className="h-10"
               />
             </div>
@@ -524,29 +597,27 @@ export function MasterFormFields({
           const dependsOnValue = dependsOnKey ? formValues[dependsOnKey] : undefined;
           const disabled = Boolean(dependsOnKey) && !dependsOnValue;
           return (
-            <div key={column.key} className="space-y-1.5">
-              <FieldLabel htmlFor={fieldId} required={column.required}>
-                {column.formLabel ?? column.label}
-              </FieldLabel>
-              <SourceMasterField
-                column={column as MasterColumn & { sourceMaster: NonNullable<MasterColumn["sourceMaster"]> }}
-                fieldId={fieldId}
-                value={formValues[column.key] ?? ""}
-                dependsOnValue={dependsOnValue}
-                dependsOnLabel={columns.find((c) => c.key === dependsOnKey)?.label}
-                disabled={disabled}
-                enableOtherOption={enableOtherOption}
-                onChange={(value, extras) => {
-                  // Clear any field that itself sources from this one, so a changed parent can't leave a stale, now-invalid child selection behind.
-                  const dependents = Object.fromEntries(
-                    columns
-                      .filter((c) => c.sourceMaster?.dependsOnKey === column.key)
-                      .map((c) => [c.key, ""]),
-                  );
-                  onChange({ ...formValues, [column.key]: value, ...dependents, ...(extras ?? {}) });
-                }}
-              />
-            </div>
+            <SourceMasterField
+              key={column.key}
+              column={column as MasterColumn & { sourceMaster: NonNullable<MasterColumn["sourceMaster"]> }}
+              fieldId={fieldId}
+              label={column.formLabel ?? column.label}
+              required={column.required}
+              value={formValues[column.key] ?? ""}
+              dependsOnValue={dependsOnValue}
+              dependsOnLabel={columns.find((c) => c.key === dependsOnKey)?.label}
+              disabled={disabled}
+              enableOtherOption={enableOtherOption}
+              onChange={(value, extras) => {
+                // Clear any field that itself sources from this one, so a changed parent can't leave a stale, now-invalid child selection behind.
+                const dependents = Object.fromEntries(
+                  columns
+                    .filter((c) => c.sourceMaster?.dependsOnKey === column.key)
+                    .map((c) => [c.key, ""]),
+                );
+                onChange({ ...formValues, [column.key]: value, ...dependents, ...(extras ?? {}) });
+              }}
+            />
           );
         }
 

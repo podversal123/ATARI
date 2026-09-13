@@ -25,8 +25,21 @@ type FldFormProps = {
 };
 
 const currentYear = new Date().getFullYear();
-/** Same audit finding and fix as oft-form.tsx's matching constant, 2026-09-11 - this form also submitted `reportingYear` on every save with no rendered field to set it. */
-const REPORTING_YEAR_OPTIONS = Array.from({ length: 4 }, (_, i) => String(currentYear - i));
+/**
+ * Same audit finding and fix as oft-form.tsx's matching constant, 2026-09-11
+ * - this form also submitted `reportingYear` on every save with no rendered
+ * field to set it.
+ *
+ * Real bug, 2026-09-13: this stayed a hardcoded "current year back 3" quick-
+ * pick list even after empty-data-table.tsx's own Reporting Year filter and
+ * master-form-fields.tsx's generic staticOptions fields were both fixed to
+ * pull real years from the database - this is a bespoke form, so neither
+ * fix reached it. First fix merged real years into that static list; client
+ * direction, 2026-09-13 (same day): drop the hardcoded list entirely so the
+ * dropdown is fully DB-driven, not just DB-supplemented - see
+ * reportingYearOptions below, which is now just realYears + whatever year
+ * this record already holds (currentYear, for a brand-new record).
+ */
 
 /** Dedupes and drops blank values before handing a list to SimpleSelect - real bug found 2026-09-01: mapping master rows straight to option strings let a blank/duplicate field value through as a literal "" option, crashing React with "two children with the same key ''" (see the identical fix in oft-form.tsx). */
 function uniqueNonEmpty(values: (string | undefined)[]): string[] {
@@ -54,6 +67,7 @@ export function FldForm({ trail, backHref, id, initialView }: FldFormProps) {
   const [thematicAreaRows, setThematicAreaRows] = useState<NamedRow[]>([]);
   const [staffOptions, setStaffOptions] = useState<string[]>([]);
   const [seasonOptions, setSeasonOptions] = useState<string[]>([]);
+  const [realYears, setRealYears] = useState<string[]>([]);
   const [loading, setLoading] = useState(Boolean(id));
 
   useEffect(() => {
@@ -76,9 +90,26 @@ export function FldForm({ trail, backHref, id, initialView }: FldFormProps) {
       .then((res) => (res.ok ? res.json() : { rows: [] }))
       .then((data) => setSeasonOptions(uniqueNonEmpty((data.rows ?? []).map((r: NamedRow) => r.name))))
       .catch(() => {});
+    fetch("/api/reports/years")
+      .then((res) => (res.ok ? res.json() : { years: [] }))
+      .then((data) => setRealYears(data.years ?? []))
+      .catch(() => {});
   }, []);
 
   const [reportingYear, setReportingYear] = useState(String(currentYear));
+  /**
+   * Fully DB-driven - no hardcoded year list. `reportingYear` is always
+   * included alongside the real years so a brand-new record (defaulted to
+   * `currentYear`, which may have zero saved records yet) and an old/edited
+   * record's own value are never missing from their own dropdown.
+   */
+  const reportingYearOptions = useMemo(
+    () =>
+      Array.from(new Set([...realYears, reportingYear]))
+        .filter(Boolean)
+        .sort((a, b) => Number(b) - Number(a)),
+    [realYears, reportingYear],
+  );
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [staff, setStaff] = useState("");
@@ -90,7 +121,8 @@ export function FldForm({ trail, backHref, id, initialView }: FldFormProps) {
   const [cropAnimalEnterprise, setCropAnimalEnterprise] = useState("");
   const [technologyDemonstrated, setTechnologyDemonstrated] = useState("");
   const [noOfDemonstration, setNoOfDemonstration] = useState("");
-  const [unit, setUnit] = useState("");
+  /** Only ever read when the crop is the free-text "Other" one - see `unit`'s own derivation below. */
+  const [unitOverride, setUnitOverride] = useState("");
   const [quantity, setQuantity] = useState("");
   const [status, setStatus] = useState("Ongoing");
   const [demographics, setDemographics] = useState<DemographicValues>({});
@@ -127,6 +159,28 @@ export function FldForm({ trail, backHref, id, initialView }: FldFormProps) {
     [cropRows, sector, category, subCategory],
   );
 
+  /**
+   * Real Unit rule (client direction, 2026-09-13): only 3 cases, not a
+   * per-crop value (Crop Master's own `unit` column exists but is empty on
+   * all 1365 real rows right now, so nothing to key off there yet) -
+   * Women Empowerment / Livestock and Fisheries / Other Enterprises always
+   * report by count ("Number"); a free-text ("Other") crop lets the user
+   * type whatever unit fits; every other real crop is demonstrated over an
+   * area, so it's always "Ha" (Hectare). A plain derived value, not synced
+   * state - `unit` is never really a choice except in the Other-crop case
+   * (where it's exactly `unitOverride`, the one thing the user can type),
+   * so there's nothing to hold in its own state or push via an effect.
+   */
+  const NUMBER_UNIT_SECTORS = ["Women Empowerment", "Livestock and Fisheries", "Other Enterprises"];
+  const isNumberUnitSector = NUMBER_UNIT_SECTORS.includes(sector);
+  const isOtherCrop =
+    cropRows.find((r) => r.cropName === cropAnimalEnterprise)?._isOther === "1";
+  const unit = isOtherCrop ? unitOverride : isNumberUnitSector ? "Number" : "Ha";
+  /** Number-unit quantities are always whole counts; only "Ha" (area) allows a decimal fraction of a hectare. */
+  function onQuantityChange(v: string) {
+    setQuantity(unit === "Number" ? v.replace(/[^\d]/g, "") : v);
+  }
+
   useEffect(() => {
     if (!id) return;
     setLoading(true);
@@ -149,7 +203,7 @@ export function FldForm({ trail, backHref, id, initialView }: FldFormProps) {
         setCropAnimalEnterprise(data.cropAnimalEnterprise ?? "");
         setTechnologyDemonstrated(data.technologyDemonstrated ?? "");
         setNoOfDemonstration(data.noOfDemonstration ?? "");
-        setUnit(data.unit ?? "");
+        setUnitOverride(data.unit ?? "");
         setQuantity(data.quantity ?? "");
         setStatus(data.status ?? "Ongoing");
         setDemographics({
@@ -252,6 +306,8 @@ export function FldForm({ trail, backHref, id, initialView }: FldFormProps) {
     type: "text" | "number" | "date" = "text",
     /** For a completion/end date - can't be before this date. */
     min?: string,
+    /** Unit's own two auto-set cases ("Number"/"Ha") - a real value, but never a free choice, so the input just displays it instead of accepting typing. */
+    readOnly?: boolean,
   ) {
     return (
       <div className="space-y-1.5">
@@ -262,8 +318,9 @@ export function FldForm({ trail, backHref, id, initialView }: FldFormProps) {
           id={idAttr}
           type={type}
           min={type === "date" ? min : undefined}
-          className="h-10"
+          className={cn("h-10", readOnly && "bg-muted/50")}
           value={value}
+          readOnly={readOnly}
           onChange={(e) => onChange(e.target.value)}
           placeholder={type === "text" ? `Enter ${compactPlaceholder(label).toLowerCase()}` : undefined}
         />
@@ -323,7 +380,7 @@ export function FldForm({ trail, backHref, id, initialView }: FldFormProps) {
         {loading && <p className="mb-4 text-sm text-muted-foreground">Loading record…</p>}
 
         <div className="grid grid-cols-[repeat(auto-fit,minmax(240px,320px))] gap-5">
-          {selectField("fld-reporting-year", "Reporting Year", reportingYear, setReportingYear, REPORTING_YEAR_OPTIONS, true)}
+          {selectField("fld-reporting-year", "Reporting Year", reportingYear, setReportingYear, reportingYearOptions, true)}
           {textField("fld-start-date", "Start Date", startDate, setStartDate, true, "date")}
           {textField("fld-end-date", "Expected Completion Date", endDate, setEndDate, true, "date", startDate || undefined)}
           {selectField("fld-staff", "Name of SMS/KVK Head", staff, setStaff, staffOptions, true)}
@@ -345,8 +402,8 @@ export function FldForm({ trail, backHref, id, initialView }: FldFormProps) {
         </div>
 
         <div className="mt-4 grid grid-cols-[repeat(auto-fit,minmax(240px,320px))] gap-5">
-          {textField("fld-unit", "Unit", unit, setUnit, false)}
-          {textField("fld-quantity", "Quantity", quantity, setQuantity, false, "number")}
+          {textField("fld-unit", "Unit", unit, setUnitOverride, false, "text", undefined, !isOtherCrop)}
+          {textField("fld-quantity", "Quantity", quantity, onQuantityChange, false, unit === "Number" ? "text" : "number")}
         </div>
 
         {id && (

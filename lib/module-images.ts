@@ -29,12 +29,6 @@ export const ALL_CATEGORY_PATHS = new Set(
   MODULE_IMAGE_CATEGORIES.map((leaf) => leaf.path),
 );
 
-/** Descending, current year first - matches the spec's own example list (2026, 2025, 2024, etc.). */
-export const MODULE_IMAGE_REPORTING_YEARS: string[] = Array.from(
-  { length: 6 },
-  (_, i) => String(new Date().getFullYear() - i),
-);
-
 export const MAX_IMAGE_SIZE_MB = 5;
 export const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/jpg", "image/png"];
 

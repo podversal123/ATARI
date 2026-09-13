@@ -31,7 +31,6 @@ import { MultiFilterSelect } from "@/components/dashboard/multi-filter-select";
 import {
   ALL_CATEGORY_PATHS,
   MODULE_IMAGE_CATEGORIES,
-  MODULE_IMAGE_REPORTING_YEARS,
   type ModuleImageRecord,
 } from "@/lib/module-images";
 import { useSession } from "@/lib/session";
@@ -86,9 +85,23 @@ export function KvkModuleImagesView() {
     loadRows();
   }, [loadRows]);
 
-  const [selectedYears, setSelectedYears] = useState<Set<string>>(
-    new Set(MODULE_IMAGE_REPORTING_YEARS),
+  /**
+   * Real bug, 2026-09-13: the year checklist used to come from a hardcoded
+   * "current year back 5" list (lib/module-images.ts's now-removed
+   * MODULE_IMAGE_REPORTING_YEARS), with `selectedYears` starting as that
+   * full hardcoded set to mean "all years". Any real upload whose reporting
+   * year fell outside that fixed window could never be selected - not even
+   * via "All" - because "All" only ever meant that same fixed set, and
+   * `filteredRows` excluded anything not literally in it. Years now come
+   * from this KVK's own real uploads, and an empty `selectedYears` (the
+   * actual default, not a reconstructed "full set") means no year filter
+   * at all - so a year is never invisible no matter how old or new.
+   */
+  const yearOptions = useMemo(
+    () => Array.from(new Set(rows.map((r) => r.reportingYear))).sort((a, b) => Number(b) - Number(a)),
+    [rows],
   );
+  const [selectedYears, setSelectedYears] = useState<Set<string>>(new Set());
   const [selectedCategories, setSelectedCategories] = useState<Set<string>>(
     new Set(ALL_CATEGORY_PATHS),
   );
@@ -105,7 +118,7 @@ export function KvkModuleImagesView() {
 
   const allCategoriesSelected =
     selectedCategories.size === ALL_CATEGORY_PATHS.size;
-  const allYearsSelected = selectedYears.size === MODULE_IMAGE_REPORTING_YEARS.length;
+  const allYearsSelected = selectedYears.size === 0 || selectedYears.size === yearOptions.length;
   const allStatusesSelected = selectedStatuses.size === STATUS_OPTIONS.length;
   const dateRangeInvalid =
     fromDate !== "" && toDate !== "" && fromDate > toDate;
@@ -130,7 +143,7 @@ export function KvkModuleImagesView() {
   const filteredRows = useMemo(() => {
     const query = search.trim().toLowerCase();
     return rows.filter((row) => {
-      if (!selectedYears.has(row.reportingYear)) return false;
+      if (!allYearsSelected && !selectedYears.has(row.reportingYear)) return false;
       if (!selectedCategories.has(row.categoryPath)) return false;
       if (!selectedStatuses.has(isPublished(row) ? "Published" : "Not Published")) return false;
       if (fromDate && row.date < fromDate) return false;
@@ -148,6 +161,7 @@ export function KvkModuleImagesView() {
     });
   }, [
     rows,
+    allYearsSelected,
     selectedYears,
     selectedCategories,
     selectedStatuses,
@@ -165,7 +179,7 @@ export function KvkModuleImagesView() {
   function countForLeaf(path: string) {
     return rows.filter((row) => {
       if (row.categoryPath !== path) return false;
-      if (!selectedYears.has(row.reportingYear)) return false;
+      if (!allYearsSelected && !selectedYears.has(row.reportingYear)) return false;
       if (!selectedStatuses.has(isPublished(row) ? "Published" : "Not Published")) return false;
       if (fromDate && row.date < fromDate) return false;
       if (toDate && row.date > toDate) return false;
@@ -196,7 +210,7 @@ export function KvkModuleImagesView() {
     toDate !== "";
 
   function resetFilters() {
-    setSelectedYears(new Set(MODULE_IMAGE_REPORTING_YEARS));
+    setSelectedYears(new Set());
     setSelectedCategories(new Set(ALL_CATEGORY_PATHS));
     setSelectedStatuses(new Set(STATUS_OPTIONS));
     setFromDate("");
@@ -298,7 +312,7 @@ export function KvkModuleImagesView() {
               <MultiFilterSelect
                 label="Reporting Year"
                 hideLabel
-                options={MODULE_IMAGE_REPORTING_YEARS}
+                options={yearOptions}
                 selected={selectedYears}
                 onChange={setSelectedYears}
                 triggerClassName="h-9 w-full"

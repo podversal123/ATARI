@@ -253,6 +253,96 @@ const MODEL_PERIOD_DATE_FIELDS: Record<string, string[]> = {
   moduleImage: ["activityDate"],
 };
 
+/**
+ * Every real calendar year this scope (one KVK, or the whole zone) has data
+ * for, across every model the report engine period-bounds - the exact same
+ * `MODEL_PERIOD_YEAR_FIELD` / `MODEL_PERIOD_DATE_FIELDS` maps `periodClause`
+ * already uses, so this can never drift out of sync with what "Reporting
+ * Year" actually filters. Backs the Reports / Form Management "Reporting
+ * Year" checkbox list (`/api/reports/years`).
+ *
+ * Real bug, 2026-09-13: that checklist used to be a hardcoded "current year
+ * back 5" constant (REPORT_YEAR_LIST) - any real record outside that fixed
+ * window (older than 5 years, or dated into the future) could never be
+ * checked, so the report would silently look like it had no data for that
+ * year even though the year simply wasn't offered as an option at all.
+ */
+/**
+ * A handful of models in the two maps above have no direct `kvkId` column -
+ * they belong to a KVK only through a parent record (a Vehicle, an
+ * Equipment, an Fld) or, for StaffTransfer, through a differently-named
+ * column. Real bug, 2026-09-13: querying these the same way as every other
+ * model (`{ kvkId }`) is an unknown-argument Prisma error, not a harmless
+ * no-op - it 500'd this whole endpoint the first time a KVK Admin (who is
+ * always kvkId-scoped) opened Reports. Mirrors each model's own existing
+ * report-builder scope exactly (buildVehicleStatus, buildEquipmentStatus,
+ * buildStaffTransferred, buildFldExtensionTraining below).
+ */
+const KVK_WHERE_OVERRIDE: Record<string, (kvkId: string) => Record<string, unknown>> = {
+  vehicleStatus: (kvkId) => ({ vehicle: { kvkId } }),
+  equipmentStatus: (kvkId) => ({ equipment: { kvkId } }),
+  staffTransfer: (kvkId) => ({ fromKvkId: kvkId }),
+  fldExtensionTraining: (kvkId) => ({ fld: { kvkId } }),
+};
+
+function kvkOrZoneWhere(model: string, scope: { kvkId?: string; zoneId: string }): Record<string, unknown> {
+  if (!scope.kvkId) return { zoneId: scope.zoneId };
+  return (KVK_WHERE_OVERRIDE[model] ?? ((kvkId: string) => ({ kvkId })))(scope.kvkId);
+}
+
+export async function distinctReportingYears(scope: {
+  kvkId?: string;
+  zoneId: string;
+}): Promise<string[]> {
+  const years = new Set<number>();
+
+  // A model with a real reporting-year column wins over its date fields too
+  // (same precedence `periodClause` itself applies), so a model listed in
+  // both maps below is only ever queried once, via its year column.
+  const yearFieldModels = Object.entries(MODEL_PERIOD_YEAR_FIELD);
+  const dateFieldModels = Object.entries(MODEL_PERIOD_DATE_FIELDS).filter(
+    ([model]) => !MODEL_PERIOD_YEAR_FIELD[model],
+  );
+
+  await Promise.all([
+    ...yearFieldModels.map(async ([model, field]) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const delegate = (prisma as any)[model];
+      if (!delegate?.findMany) return;
+      const rows: Record<string, number | null>[] = await delegate.findMany({
+        where: kvkOrZoneWhere(model, scope),
+        distinct: [field],
+        select: { [field]: true },
+      });
+      for (const row of rows) {
+        const y = row[field];
+        if (typeof y === "number" && Number.isFinite(y)) years.add(y);
+      }
+    }),
+    ...dateFieldModels.map(async ([model, fields]) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const delegate = (prisma as any)[model];
+      if (!delegate?.findMany) return;
+      const select: Record<string, boolean> = {};
+      for (const f of fields) select[f] = true;
+      const rows: Record<string, Date | null>[] = await delegate.findMany({
+        where: kvkOrZoneWhere(model, scope),
+        select,
+      });
+      for (const row of rows) {
+        for (const f of fields) {
+          const d = row[f];
+          if (d instanceof Date) years.add(d.getFullYear());
+        }
+      }
+    }),
+  ]);
+
+  return Array.from(years)
+    .sort((a, b) => b - a)
+    .map(String);
+}
+
 /** Calendar years touched by an inclusive [from, to] range (either bound may be absent). */
 function yearsInRange(fromDate?: string, toDate?: string): number[] {
   const y1 = fromDate ? Number(fromDate.slice(0, 4)) : undefined;

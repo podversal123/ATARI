@@ -61,8 +61,9 @@ export const REPORT_TABLE_COLUMNS = [
  * `year:2025` stays a valid quick-select value (older links, and
  * resolveQuickSelectRange still maps it) but the report screens now offer a
  * real "Reporting Year" checkbox multi-select instead of one year pill per
- * year (client request, 2026-09-07) - see REPORT_YEAR_LIST + the `years`
- * query param on /api/reports/generate.
+ * year (client request, 2026-09-07) - options come from /api/reports/years
+ * (lib/report-data.ts's distinctReportingYears), not a hardcoded list here,
+ * and the `years` query param on /api/reports/generate carries the choice.
  */
 export type QuickSelectRange =
   | "all-data"
@@ -73,11 +74,6 @@ export type QuickSelectRange =
   | "this-year"
   | `year:${number}`
   | "custom";
-
-/** Checkbox options for the Reports / Form Management "Reporting Year" multi-select - the current year down to 5 years back, newest first. */
-export const REPORT_YEAR_LIST: string[] = Array.from({ length: 6 }, (_, i) =>
-  String(new Date().getFullYear() - i),
-);
 
 export const QUICK_SELECT_OPTIONS: {
   value: QuickSelectRange;

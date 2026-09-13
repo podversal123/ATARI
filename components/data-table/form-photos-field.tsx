@@ -13,6 +13,11 @@ type FormPhotosFieldProps = {
   onChange: (photos: FormPhoto[]) => void;
 };
 
+/** Client direction, 2026-09-13: at most 2 photos in this section, each between 2MB and 5MB - matches lib/blob.ts's own "module-image" rule (server-side enforces the same size bounds; this is just the fast, no-round-trip check plus the count cap the server can't know about on its own, since it validates one file at a time). */
+const MAX_PHOTOS = 2;
+const MIN_BYTES = 2 * 1024 * 1024;
+const MAX_BYTES = 5 * 1024 * 1024;
+
 /**
  * Real "Upload Photograph(s) + Caption" section every form's photo upload
  * uses (client PDF, "Module Image workflow", 2026-09-02) - each photo carries
@@ -24,14 +29,38 @@ export function FormPhotosField({ label = "Photographs", value, onChange }: Form
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const atLimit = value.length >= MAX_PHOTOS;
 
   async function handleFiles(files: FileList) {
     setError(null);
+    const slotsLeft = MAX_PHOTOS - value.length;
+    const picked = Array.from(files);
+    const overflow = picked.length > slotsLeft;
+    const toUpload = picked.slice(0, Math.max(slotsLeft, 0));
+
+    const failures: string[] = [];
+    const accepted: File[] = [];
+    for (const file of toUpload) {
+      if (file.size < MIN_BYTES) {
+        failures.push(`${file.name}: too small - min 2MB.`);
+      } else if (file.size > MAX_BYTES) {
+        failures.push(`${file.name}: too large - max 5MB.`);
+      } else {
+        accepted.push(file);
+      }
+    }
+
+    if (accepted.length === 0) {
+      if (overflow) failures.push(`Only ${MAX_PHOTOS} photos allowed per section.`);
+      if (failures.length > 0) setError(failures.join(" "));
+      if (inputRef.current) inputRef.current.value = "";
+      return;
+    }
+
     setUploading(true);
     const uploaded: FormPhoto[] = [];
-    const failures: string[] = [];
     try {
-      for (const file of Array.from(files)) {
+      for (const file of accepted) {
         try {
           const formData = new FormData();
           formData.append("file", file);
@@ -48,6 +77,7 @@ export function FormPhotosField({ label = "Photographs", value, onChange }: Form
         }
       }
       if (uploaded.length > 0) onChange([...value, ...uploaded]);
+      if (overflow) failures.push(`Only ${MAX_PHOTOS} photos allowed per section - the rest were skipped.`);
       if (failures.length > 0) setError(failures.join(" "));
     } finally {
       setUploading(false);
@@ -78,26 +108,29 @@ export function FormPhotosField({ label = "Photographs", value, onChange }: Form
           if (files && files.length > 0) handleFiles(files);
         }}
       />
-      <button
-        type="button"
-        disabled={uploading}
-        onClick={() => inputRef.current?.click()}
-        className={cn(
-          "flex w-full flex-col items-center justify-center gap-1.5 rounded-lg border-2 border-dashed border-border bg-muted/30 px-4 py-5 text-center transition-colors hover:border-primary/50 hover:bg-muted/50 disabled:cursor-not-allowed disabled:opacity-60",
-        )}
-      >
-        {uploading ? (
-          <Loader2 className="size-6 animate-spin text-primary" />
-        ) : (
-          <ImagePlus className="size-6 text-muted-foreground" />
-        )}
-        <span className="text-sm font-medium text-primary">
-          {uploading ? "Uploading…" : "Click to upload photos"}
-        </span>
-        <span className="text-xs text-muted-foreground">
-          Only images allowed. Hold Ctrl/Cmd in the file picker to select multiple. (Max 5 MB per file)
-        </span>
-      </button>
+      {/* Hidden once 2 photos are already attached (client direction, 2026-09-13) rather than left clickable-but-rejecting - the caption below already explains the cap for anyone who removes a photo and needs to upload again. */}
+      {!atLimit && (
+        <button
+          type="button"
+          disabled={uploading}
+          onClick={() => inputRef.current?.click()}
+          className={cn(
+            "flex w-full flex-col items-center justify-center gap-1.5 rounded-lg border-2 border-dashed border-border bg-muted/30 px-4 py-5 text-center transition-colors hover:border-primary/50 hover:bg-muted/50 disabled:cursor-not-allowed disabled:opacity-60",
+          )}
+        >
+          {uploading ? (
+            <Loader2 className="size-6 animate-spin text-primary" />
+          ) : (
+            <ImagePlus className="size-6 text-muted-foreground" />
+          )}
+          <span className="text-sm font-medium text-primary">
+            {uploading ? "Uploading…" : "Click to upload photos"}
+          </span>
+          <span className="text-xs text-muted-foreground">
+            Only images allowed, {MIN_BYTES / (1024 * 1024)}MB to {MAX_BYTES / (1024 * 1024)}MB each, up to {MAX_PHOTOS} photos.
+          </span>
+        </button>
+      )}
       {error && <p className="text-xs font-medium text-destructive">{error}</p>}
       {value.length > 0 && (
         <div className="space-y-2 pt-1">

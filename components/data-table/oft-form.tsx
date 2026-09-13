@@ -48,8 +48,18 @@ const currentYear = new Date().getFullYear();
  * last-4-years list `vehicle-details`/`equipment-details` already use
  * (lib/navigation.ts) - the one other place in this app that offers a
  * Reporting Year picker.
+ *
+ * Real bug, 2026-09-13: stayed hardcoded even after every other Reporting
+ * Year picker in the app was fixed to pull real years from the database
+ * (empty-data-table.tsx's filter, master-form-fields.tsx's staticOptions
+ * fields, and vehicle-details/equipment-details themselves) - this is a
+ * bespoke form, so none of those fixes reached it. First fix merged real
+ * years into this quick-pick list; client direction, 2026-09-13 (same day):
+ * drop the hardcoded list entirely so the dropdown is fully DB-driven, not
+ * just DB-supplemented - see reportingYearOptions below, which is now just
+ * realYears + whatever year this record already holds (currentYear, for a
+ * brand-new record). Same fix as FldForm's matching constant.
  */
-const REPORTING_YEAR_OPTIONS = Array.from({ length: 4 }, (_, i) => String(currentYear - i));
 
 type ThematicAreaRow = { thematicArea: string; subjectName: string };
 
@@ -75,6 +85,7 @@ export function OftForm({ trail, backHref, id, initialView }: OftFormProps) {
   const [fundingSourceRows, setFundingSourceRows] = useState<MasterRow[]>([]);
   const [seasonOptions, setSeasonOptions] = useState<string[]>([]);
   const [disciplineRows, setDisciplineRows] = useState<MasterRow[]>([]);
+  const [realYears, setRealYears] = useState<string[]>([]);
   const [loading, setLoading] = useState(Boolean(id));
 
   useEffect(() => {
@@ -110,9 +121,26 @@ export function OftForm({ trail, backHref, id, initialView }: OftFormProps) {
       .then((res) => (res.ok ? res.json() : { rows: [] }))
       .then((data) => setSeasonOptions(uniqueNonEmpty((data.rows ?? []).map((r: Record<string, string>) => r.name))))
       .catch(() => {});
+    fetch("/api/reports/years")
+      .then((res) => (res.ok ? res.json() : { years: [] }))
+      .then((data) => setRealYears(data.years ?? []))
+      .catch(() => {});
   }, []);
 
   const [reportingYear, setReportingYear] = useState(String(currentYear));
+  /**
+   * Fully DB-driven - no hardcoded year list. `reportingYear` is always
+   * included alongside the real years so a brand-new record (defaulted to
+   * `currentYear`, which may have zero saved records yet) and an old/edited
+   * record's own value are never missing from their own dropdown.
+   */
+  const reportingYearOptions = useMemo(
+    () =>
+      Array.from(new Set([...realYears, reportingYear]))
+        .filter(Boolean)
+        .sort((a, b) => Number(b) - Number(a)),
+    [realYears, reportingYear],
+  );
   const [season, setSeason] = useState("");
   const [oftSubject, setOftSubject] = useState("");
   const [discipline, setDiscipline] = useState("");
@@ -370,7 +398,7 @@ export function OftForm({ trail, backHref, id, initialView }: OftFormProps) {
         {loading && <p className="mb-4 text-sm text-muted-foreground">Loading record…</p>}
 
         <div className="grid grid-cols-[repeat(auto-fit,minmax(240px,320px))] gap-5">
-          {selectField("oft-reporting-year", "Reporting Year", reportingYear, setReportingYear, REPORTING_YEAR_OPTIONS, true)}
+          {selectField("oft-reporting-year", "Reporting Year", reportingYear, setReportingYear, reportingYearOptions, true)}
           {textField("oft-start-month", "OFT Start Date", startMonth, setStartMonth, true, undefined, "date")}
           {textField("oft-end-month", "Expected Completion Date", endMonth, setEndMonth, true, undefined, "date", startMonth || undefined)}
           {selectField("oft-staff", "Name of SMS/KVK Head", staff, setStaff, staffOptions, true)}

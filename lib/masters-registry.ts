@@ -103,6 +103,7 @@ const SIMPLE_MASTERS: Record<string, { type: MasterListType; column: string }> =
   infrastructure: { type: "INFRASTRUCTURE_TYPE", column: "name" },
   "soil-water": { type: "SOIL_WATER_ANALYSIS_TYPE", column: "name" },
   "equipment-type": { type: "EQUIPMENT_TYPE", column: "name" },
+  "vehicle-type": { type: "VEHICLE_TYPE", column: "name" },
   "asset-funding-source": { type: "ASSET_FUNDING_SOURCE", column: "name" },
   "nari-activity": { type: "NARI_ACTIVITY", column: "name" },
   "nari-nutrition-garden-type": { type: "NARI_NUTRITION_GARDEN_TYPE", column: "name" },

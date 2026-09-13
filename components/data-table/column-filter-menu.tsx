@@ -81,13 +81,21 @@ export function ColumnFilterMenu({
     setDragging(true);
   }
 
-  const filteredValues = useMemo(
-    () =>
-      values.filter((v) =>
-        v.value.toLowerCase().includes(search.toLowerCase()),
-      ),
-    [values, search],
-  );
+  /**
+   * Real bug (client screenshot, 2026-09-13): the value checklist below
+   * always listed in the same order no matter which sort button was active
+   * - clicking "Desc" flipped the table's row order correctly but left this
+   * list showing 2002, 2009, 2015... (ascending) even with "Desc" pressed.
+   * `values` arrives pre-sorted ascending (EmptyDataTable's `columnValues`),
+   * so reversing it for "desc" is enough - no separate comparator needed,
+   * and it can never disagree with the button that's actually highlighted.
+   */
+  const filteredValues = useMemo(() => {
+    const filtered = values.filter((v) =>
+      v.value.toLowerCase().includes(search.toLowerCase()),
+    );
+    return draft.sort === "desc" ? [...filtered].reverse() : filtered;
+  }, [values, search, draft.sort]);
 
   const allSelected =
     draft.selected === null || draft.selected.size === values.length;
@@ -139,13 +147,39 @@ export function ColumnFilterMenu({
     setOpen(false);
   }
 
-  /** Asc/Desc sort the table live, the instant it's clicked - unlike the checkbox selection below (which needs a "Done" to commit a multi-step choice), a sort direction is a single click with nothing to keep adjusting, so it shouldn't wait for one. Popover stays open so the checklist below is still usable afterward. */
+  /**
+   * Asc/Desc sort the table live, the instant it's clicked - unlike the
+   * checkbox selection below (which needs a "Done" to commit a multi-step
+   * choice), a sort direction is a single click with nothing to keep
+   * adjusting, so it shouldn't wait for one. Popover stays open so the
+   * checklist below is still usable afterward.
+   *
+   * Real bug, 2026-09-13 (client video): built off `state.selected` (the
+   * last value/values actually committed via Done), never off `draft` -
+   * this used to spread `draft`, which also carries whatever the checklist
+   * below is CURRENTLY being edited to, Done or not. Sort is meant to apply
+   * instantly on its own; the checklist is meant to stay a draft until
+   * Done. Because both live in the same ColumnFilterState, clicking Asc/Desc
+   * while mid-edit (e.g. still deciding which boxes to check) force-
+   * committed that half-finished, possibly-empty selection early - a stray
+   * click on "Unique Values" left every box unchecked, and then Asc alone
+   * (Done never pressed) filtered the whole table down to 0 rows. Resetting
+   * `draft` to this same `next` throws away any not-yet-Done checklist edit,
+   * same as closing the popup without Done would - sort is the only thing
+   * that actually gets applied.
+   *
+   * Also fixed the same day: this used to call `onApply` from inside the
+   * `setDraft` updater function, which runs during React's own render/commit
+   * of this component - triggering the parent's setState from in there is a
+   * "Cannot update a component while rendering a different component"
+   * violation that could drop or misorder the update on a fast double-click.
+   * Computing `next` up front and calling `setDraft`/`onApply` as two
+   * separate, top-level calls avoids that too.
+   */
   function applySort(dir: "asc" | "desc") {
-    setDraft((prev) => {
-      const next = { ...prev, sort: prev.sort === dir ? null : dir };
-      onApply(next);
-      return next;
-    });
+    const next: ColumnFilterState = { selected: state.selected, sort: state.sort === dir ? null : dir };
+    setDraft(next);
+    onApply(next);
   }
 
   /** Resets the filter but leaves the popover open (client fix, 2026-08-25: "Clear filters" was closing the popup, matching Done's behavior instead of its own - the reference keeps it open so the user can see the reset state and keep adjusting). */
@@ -213,18 +247,20 @@ export function ColumnFilterMenu({
           </Button>
         </div>
 
-        <label className="mt-3 flex items-start gap-2 text-xs">
+        {/* Client direction, 2026-09-13: was labelled "Unique Values" with a
+            "show one row per distinct value" description, which never
+            matched what this checkbox actually does - it's a plain select-
+            all/select-none toggle for the checklist below (`toggleAll`),
+            same as every other list's "All" checkbox. The old label read
+            like a display option, which is why it kept getting clicked by
+            mistake while someone was really aiming for Asc/Desc just above
+            it - a real cause of "the filter suddenly shows nothing". */}
+        <label className="mt-3 flex items-center gap-2 text-xs">
           <Checkbox
             checked={allSelected}
             onCheckedChange={(checked) => toggleAll(checked === true)}
-            className="mt-0.5"
           />
-          <span>
-            <span className="font-medium text-foreground">Unique Values</span>
-            <span className="block text-muted-foreground">
-              Show one row per distinct value, with its count
-            </span>
-          </span>
+          <span className="font-medium text-foreground">Select All</span>
         </label>
 
         <div className="relative mt-2">

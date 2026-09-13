@@ -367,9 +367,9 @@ export const LEAF_RECORD_REGISTRY: Record<string, CreateFn> = {
   },
   "about-kvk/equipments/view-equipments": (v, ctx) =>
     prisma.equipment.create({
-      // equipmentType has no form input on the reference - it stays a report-only column.
       data: {
         ...ctx,
+        equipmentType: str(v.equipmentType),
         name: reqStr(v.equipmentName),
         yearOfPurchase: reqInt(v.yearOfPurchase),
         cost: reqDec(v.totalCost),
@@ -1801,6 +1801,7 @@ export const LEAF_UPDATE_REGISTRY: Record<string, UpdateFn> = {
     prisma.equipment.updateMany({
       where: { id, ...kvkScope(ctx) },
       data: {
+        equipmentType: str(v.equipmentType),
         name: reqStr(v.equipmentName),
         yearOfPurchase: reqInt(v.yearOfPurchase),
         cost: reqDec(v.totalCost),

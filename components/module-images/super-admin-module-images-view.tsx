@@ -40,7 +40,6 @@ import {
   ALL_CATEGORY_PATHS,
   BULK_DOWNLOAD_OPTIONS,
   MODULE_IMAGE_CATEGORIES,
-  MODULE_IMAGE_REPORTING_YEARS,
   type ModuleImageRecord,
 } from "@/lib/module-images";
 import { KVKS } from "@/lib/rbac";
@@ -94,9 +93,20 @@ export function SuperAdminModuleImagesView() {
     loadRows();
   }, [loadRows]);
 
-  const [selectedYears, setSelectedYears] = useState<Set<string>>(
-    new Set(MODULE_IMAGE_REPORTING_YEARS),
+  /**
+   * Real bug, 2026-09-13: same as the KVK Admin view - the year checklist
+   * used to come from a hardcoded "current year back 5" list, with
+   * `selectedYears` starting as that full hardcoded set to mean "all
+   * years". Any real upload (from any KVK) whose reporting year fell
+   * outside that fixed window could never be selected, not even via "All".
+   * Years now come from every real upload across the zone, and an empty
+   * `selectedYears` (the actual default) means no year filter at all.
+   */
+  const yearOptions = useMemo(
+    () => Array.from(new Set(rows.map((r) => r.reportingYear))).sort((a, b) => Number(b) - Number(a)),
+    [rows],
   );
+  const [selectedYears, setSelectedYears] = useState<Set<string>>(new Set());
   const [selectedKvks, setSelectedKvks] = useState<Set<string>>(
     new Set(KVKS.map((k) => k.name)),
   );
@@ -125,7 +135,7 @@ export function SuperAdminModuleImagesView() {
             ?.label ?? "1 Category")
         : `${selectedCategories.size} Categories`;
 
-  const allYearsSelected = selectedYears.size === MODULE_IMAGE_REPORTING_YEARS.length;
+  const allYearsSelected = selectedYears.size === 0 || selectedYears.size === yearOptions.length;
   const yearLabel = allYearsSelected
     ? "All Years"
     : selectedYears.size === 1
@@ -150,7 +160,7 @@ export function SuperAdminModuleImagesView() {
   const filteredRows = useMemo(() => {
     const query = search.trim().toLowerCase();
     return rows.filter((row) => {
-      if (!selectedYears.has(row.reportingYear)) return false;
+      if (!allYearsSelected && !selectedYears.has(row.reportingYear)) return false;
       if (selectedKvks.size > 0 && !selectedKvks.has(row.kvk)) return false;
       if (!selectedCategories.has(row.categoryPath)) return false;
       if (!selectedStatuses.has(isPublished(row) ? "Published" : "Not Published")) return false;
@@ -171,6 +181,7 @@ export function SuperAdminModuleImagesView() {
     });
   }, [
     rows,
+    allYearsSelected,
     selectedYears,
     selectedKvks,
     selectedCategories,
@@ -216,7 +227,7 @@ export function SuperAdminModuleImagesView() {
   function countForLeaf(path: string) {
     return rows.filter((row) => {
       if (row.categoryPath !== path) return false;
-      if (!selectedYears.has(row.reportingYear)) return false;
+      if (!allYearsSelected && !selectedYears.has(row.reportingYear)) return false;
       if (selectedKvks.size > 0 && !selectedKvks.has(row.kvk)) return false;
       if (!selectedStatuses.has(isPublished(row) ? "Published" : "Not Published")) return false;
       if (fromDate && row.date < fromDate) return false;
@@ -251,7 +262,7 @@ export function SuperAdminModuleImagesView() {
     search !== "";
 
   function resetFilters() {
-    setSelectedYears(new Set(MODULE_IMAGE_REPORTING_YEARS));
+    setSelectedYears(new Set());
     setSelectedKvks(new Set(KVKS.map((k) => k.name)));
     setSelectedCategories(new Set(ALL_CATEGORY_PATHS));
     setSelectedStatuses(new Set(STATUS_OPTIONS));
@@ -387,7 +398,7 @@ export function SuperAdminModuleImagesView() {
               <MultiFilterSelect
                 label="Reporting Year"
                 hideLabel
-                options={MODULE_IMAGE_REPORTING_YEARS}
+                options={yearOptions}
                 selected={selectedYears}
                 onChange={setSelectedYears}
                 triggerClassName="h-9 w-full"

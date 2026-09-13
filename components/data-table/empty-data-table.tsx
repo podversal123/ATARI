@@ -258,13 +258,43 @@ export function EmptyDataTable({
   const [search, setSearch] = useState("");
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
-  const reportingYearOptions = useMemo(
-    () =>
-      Array.from({ length: 6 }, (_, index) =>
-        String(new Date().getFullYear() - index),
-      ),
-    [],
+  /** Every column whose key is a date field, by this schema's own consistent naming (startDate/endDate/dateOfVisit/activityDate/meetingDate/... always end in "Date", or the bare key "date") - used by the From/To Date range filter below, since which single column is "the" date varies per leaf and there's no one universal key. Computed before `reportingYearOptions`, which also needs it. */
+  const dateColumnKeys = useMemo(
+    () => tableColumns.map((c) => c.key).filter((key) => key === "date" || /Date$/.test(key)),
+    [tableColumns],
   );
+  /**
+   * Real bug, 2026-09-13: this used to hardcode "the current year plus the
+   * previous 5" - any row whose reportingYear (or date column) fell outside
+   * that fixed window could never be selected, not even via "All" (which
+   * only checks the years actually offered here) - a KVK Bhagalpur OFT
+   * dated 2027 was invisible this way, with clearing the filter entirely
+   * the only way to see it. Options now come from the real years present in
+   * this leaf's own rows - always exactly right, no matter how old or how
+   * far in the future a real reportingYear or date turns out to be.
+   *
+   * Second real bug, same day (client screenshot): this only ever checked
+   * `reportingYear` and date-suffixed columns - View Vehicles / View
+   * Equipments / Farm Implement Details key their year as `yearOfPurchase`
+   * instead, which matched neither, so the checklist showed nothing but
+   * "All" no matter how many real Year of Purchase values existed. Checking
+   * `yearOfPurchase` too (and the matching filteredRows clause below) covers
+   * this leaf shape without guessing at every possible year field name.
+   */
+  const reportingYearOptions = useMemo(() => {
+    if (!rows) return [];
+    const years = new Set<string>();
+    for (const row of rows) {
+      const y = String(row.reportingYear ?? row.yearOfPurchase ?? "").trim();
+      if (/^\d{4}$/.test(y)) years.add(y);
+      for (const key of dateColumnKeys) {
+        const raw = String(row[key] ?? "").trim();
+        const match = /^(\d{4})-\d{2}-\d{2}/.exec(raw);
+        if (match) years.add(match[1]);
+      }
+    }
+    return Array.from(years).sort((a, b) => Number(b) - Number(a));
+  }, [rows, dateColumnKeys]);
   /**
    * "Reporting Year" checkbox multi-select next to the date range (client
    * request, 2026-09-07) - was a single-value dropdown shown only for OFT/FLD.
@@ -630,12 +660,6 @@ export function EmptyDataTable({
     );
   }
 
-  /** Every column whose key is a date field, by this schema's own consistent naming (startDate/endDate/dateOfVisit/activityDate/meetingDate/... always end in "Date", or the bare key "date") - used by the From/To Date range filter below, since which single column is "the" date varies per leaf and there's no one universal key. */
-  const dateColumnKeys = useMemo(
-    () => tableColumns.map((c) => c.key).filter((key) => key === "date" || /Date$/.test(key)),
-    [tableColumns],
-  );
-
   const filteredRows = useMemo(() => {
     if (!rows) return rows;
     const searchText = search.trim().toLowerCase();
@@ -647,7 +671,10 @@ export function EmptyDataTable({
         if (!matches) return false;
       }
       if (reportingYears.size > 0) {
-        const yearRaw = String(row.reportingYear ?? "");
+        // yearOfPurchase alongside reportingYear for the same reason as
+        // reportingYearOptions above (View Vehicles / View Equipments / Farm
+        // Implement Details key their year that way instead).
+        const yearRaw = String(row.reportingYear ?? row.yearOfPurchase ?? "");
         const dateVals = dateColumnKeys
           .map((key) => String(row[key] ?? ""))
           .filter(Boolean);

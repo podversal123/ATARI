@@ -15,20 +15,34 @@ export type UploadKind =
   | "rawe-attachment"
   | "ppv-fra-farmer-image";
 
-const UPLOAD_RULES: Record<UploadKind, { folder: string; maxBytes: number; mimeTypes: string[] }> = {
+const UPLOAD_RULES: Record<UploadKind, { folder: string; minBytes?: number; maxBytes: number; mimeTypes: string[] }> = {
   "staff-photo": {
     folder: "staff/photos",
     maxBytes: 5 * 1024 * 1024,
     mimeTypes: ["image/jpeg", "image/png", "image/webp"],
   },
-  /** Matches lib/module-images.ts's own ALLOWED_IMAGE_TYPES/MAX_IMAGE_SIZE_MB (JPG/JPEG/PNG, 5MB) - kept in sync, not re-derived. */
+  /**
+   * Matches lib/module-images.ts's own ALLOWED_IMAGE_TYPES/MAX_IMAGE_SIZE_MB
+   * (JPG/JPEG/PNG, 5MB) - kept in sync, not re-derived.
+   *
+   * Client direction, 2026-09-13: every "Photographs" section (this is the
+   * one real multi-photo upload kind - form-photos-field.tsx, used at the
+   * end of every generic leaf form and OFT Result) gets a 2MB floor as well
+   * as the existing 5MB ceiling, plus a 2-photo cap enforced client-side.
+   * Deliberately NOT applied to `staff-photo` (a single ID/passport-style
+   * photo, normally well under 2MB - a floor there would reject completely
+   * normal staff photos, not just bad ones).
+   */
   "module-image": {
     folder: "module-images",
+    minBytes: 2 * 1024 * 1024,
     maxBytes: 5 * 1024 * 1024,
     mimeTypes: ["image/jpeg", "image/png"],
   },
+  /** Client direction, 2026-09-13: same 2-5MB floor/ceiling as "module-image" - a real content photo (the crop itself), not an ID photo like staff-photo, which stays 5MB-max-only on purpose. */
   "cfld-crop-image": {
     folder: "cfld/crop-images",
+    minBytes: 2 * 1024 * 1024,
     maxBytes: 5 * 1024 * 1024,
     mimeTypes: ["image/jpeg", "image/png", "image/webp"],
   },
@@ -149,6 +163,9 @@ export async function uploadPrivateFile(kind: UploadKind, file: File) {
   }
   if (file.size > rule.maxBytes) {
     throw new Error(`File too large - max ${Math.round(rule.maxBytes / (1024 * 1024))}MB.`);
+  }
+  if (rule.minBytes && file.size < rule.minBytes) {
+    throw new Error(`File too small - min ${Math.round(rule.minBytes / (1024 * 1024))}MB.`);
   }
   const buffer = await file.arrayBuffer();
   const check = MAGIC_BYTE_CHECKS[file.type];

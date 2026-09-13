@@ -400,6 +400,17 @@ const otherMasters = group(
       leaf("equipment-type", "Equipment Type Master", [
         { key: "name", label: "Name", formLabel: "Type Name", required: true, placeholder: "e.g. Tractor" },
       ]),
+      /**
+       * Real bug, 2026-09-12: View Vehicles' own Vehicle Type field was a
+       * hardcoded 4-value list (Bus/Jeep/Tractor/Motor Cycle) with no master
+       * behind it at all - the one field in this whole "Type" family that
+       * wasn't database-driven. Same shape as Equipment Type Master right
+       * above; seeded with those same 4 values plus "Other" so the existing
+       * hardcoded dropdown's options survive the switch unchanged.
+       */
+      leaf("vehicle-type", "Vehicle Type Master", [
+        { key: "name", label: "Name", formLabel: "Type Name", required: true, placeholder: "e.g. Tractor" },
+      ]),
       /** Real reference order (2026-08-31): Equipment Type (a real dropdown sourced from Equipment Type Master, not free text) comes before Equipment Name, not after. */
       leaf("equipment", "Equipment Master", [
         {
@@ -1012,12 +1023,13 @@ const aboutKvk = group(
     ]),
     group("vehicles", "Vehicles Information", [
       /**
-       * View Vehicles master form: Vehicle Type (fixed list) comes first,
-       * then Name of Vehicle, Registration Number, Year of Purchase, Total
-       * Cost, Total Run(km/hrs), Present Status (Working / Repairing /
-       * Condemned / Auction). Picking "Repairing" reveals a Repairing Cost input
-       * (MasterColumn.showWhen). Vehicle Type also feeds the KVK report
-       * (1.4.A/1.4.B).
+       * View Vehicles master form: Vehicle Type (real dropdown sourced from
+       * Vehicle Type Master, not a hardcoded list - real bug, 2026-09-12)
+       * comes first, then Name of Vehicle, Registration Number, Year of
+       * Purchase, Total Cost, Total Run(km/hrs), Present Status (Working /
+       * Repairing / Condemned / Auction). Picking "Repairing" reveals a
+       * Repairing Cost input (MasterColumn.showWhen). Vehicle Type also
+       * feeds the KVK report (1.4.A/1.4.B).
        */
       leaf(
         "view-vehicles",
@@ -1030,7 +1042,7 @@ const aboutKvk = group(
             required: true,
             formOrder: 1,
             placeholder: "Select",
-            staticOptions: ["Bus", "Jeep", "Tractor", "Motor Cycle"],
+            sourceMaster: { master: "vehicle-type", optionKey: "name" },
           },
           { key: "vehicleName", label: "Vehicle Name", formLabel: "Name of Vehicle", required: true, formOrder: 2 },
           { key: "registrationNo", label: "Registration No.", formLabel: "Registration Number", formOrder: 3 },
@@ -1115,25 +1127,48 @@ const aboutKvk = group(
     ]),
     group("equipments", "Equipments Information", [
       /**
-       * The equipment master: Name of Equipment -> Year of Purchase -> Total
-       * Cost -> Present Status (Working / Repairing / Condemned / Auction) -> Source of
-       * fund. Picking "Repairing" reveals a Repairing Cost input
-       * (MasterColumn.showWhen). Same flow as View Vehicles minus the
-       * Vehicle Type field. Equipment Type stays a KVK-report-only column.
+       * The equipment master: Equipment Type -> Equipment Name (cascade-
+       * filtered by that type, same Sector->Category pattern as FLD) -> Year
+       * of Purchase -> Total Cost -> Present Status (Working / Repairing /
+       * Condemned / Auction) -> Source of fund. Picking "Repairing" reveals
+       * a Repairing Cost input (MasterColumn.showWhen). Same flow as View
+       * Vehicles, now with its own Equipment Type field too (real bug,
+       * 2026-09-12: `Equipment.equipmentType` was already a real column, and
+       * the KVK report already read it - it just had no form input anywhere,
+       * so it sat blank on every equipment a KVK ever entered. Equipment
+       * Type Master and the Equipment Master type+name catalog were both
+       * already real and populated - this was a wiring gap, not new data
+       * infrastructure.
        */
       leaf(
         "view-equipments",
         "View Equipments",
         [
           { key: "kvk", label: "KVK" },
-          { key: "equipmentName", label: "Equipment Name", formLabel: "Name of Equipment", required: true, formOrder: 1 },
-          { key: "yearOfPurchase", label: "Year of Purchase", required: true, formOrder: 2 },
-          { key: "totalCost", label: "Total Cost (Rs.)", required: true, formOrder: 3 },
+          {
+            key: "equipmentType",
+            label: "Equipment Type",
+            required: true,
+            formOrder: 1,
+            placeholder: "Select",
+            sourceMaster: { master: "equipment-type", optionKey: "name" },
+          },
+          {
+            key: "equipmentName",
+            label: "Equipment Name",
+            formLabel: "Name of Equipment",
+            required: true,
+            formOrder: 2,
+            placeholder: "Select",
+            sourceMaster: { master: "equipment", optionKey: "name", dependsOnKey: "equipmentType", filterKey: "equipmentType" },
+          },
+          { key: "yearOfPurchase", label: "Year of Purchase", required: true, formOrder: 3 },
+          { key: "totalCost", label: "Total Cost (Rs.)", required: true, formOrder: 4 },
           {
             key: "presentStatus",
             label: "Present Status",
             required: true,
-            formOrder: 4,
+            formOrder: 5,
             placeholder: "Select",
             staticOptions: ["Working", "Repairing", "Condemned", "Auction"],
           },
@@ -1142,10 +1177,10 @@ const aboutKvk = group(
             label: "Repairing Cost",
             required: true,
             formOnly: true,
-            formOrder: 5,
+            formOrder: 6,
             showWhen: { key: "presentStatus", equals: "Repairing" },
           },
-          { key: "sourceOfFund", label: "Source of Funding", required: true, formOrder: 6 },
+          { key: "sourceOfFund", label: "Source of Funding", required: true, formOrder: 7 },
         ],
         "Equipments",
       ),

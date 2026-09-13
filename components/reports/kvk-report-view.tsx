@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { CalendarDays, Eye, Filter, Info, RotateCcw } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -10,7 +10,6 @@ import {
   ALL_FORM_PATHS,
   QUICK_SELECT_OPTIONS,
   REPORT_FORM_LEAVES,
-  REPORT_YEAR_LIST,
   resolveQuickSelectRange,
   type QuickSelectRange,
 } from "@/lib/reports";
@@ -51,6 +50,19 @@ export function KvkReportView({ kvkName }: KvkReportViewProps) {
   );
   /** "Reporting Year" checkbox multi-select - empty = use the Date Range; any year checked scopes the report to exactly those calendar years (client request, 2026-09-07). */
   const [selectedYears, setSelectedYears] = useState<Set<string>>(new Set());
+  /**
+   * Real years this KVK actually has data for, not a hardcoded window - was
+   * REPORT_YEAR_LIST (current year back 5), which made any year outside
+   * that fixed range impossible to select even with real data behind it
+   * (bug found 2026-09-13, same class as the empty-data-table.tsx fix).
+   */
+  const [yearOptions, setYearOptions] = useState<string[]>([]);
+  useEffect(() => {
+    fetch("/api/reports/years")
+      .then((res) => (res.ok ? res.json() : { years: [] }))
+      .then((data) => setYearOptions(data.years ?? []))
+      .catch(() => {});
+  }, []);
   /** Empty From/To = no period bound = every reporting year ("All Data"), the default the reference export uses (client request, 2026-09-07). */
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
@@ -195,7 +207,7 @@ export function KvkReportView({ kvkName }: KvkReportViewProps) {
               <MultiFilterSelect
                 label="Reporting Year"
                 hideLabel
-                options={REPORT_YEAR_LIST}
+                options={yearOptions}
                 selected={selectedYears}
                 onChange={setSelectedYears}
                 triggerClassName="mt-1 h-9"

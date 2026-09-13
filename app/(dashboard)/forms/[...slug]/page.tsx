@@ -584,7 +584,12 @@ export default async function FormsPage({ params, searchParams }: FormsPageProps
     const rows = await prisma.vehicle.findMany({
       where: kvkScope,
       include: { kvk: true },
-      orderBy: { createdAt: "desc" },
+      // Real bug, 2026-09-13 (client screenshot): this was `createdAt: "desc"`
+      // only, so a vehicle registered later but purchased in an earlier year
+      // (e.g. an old tractor entered into the system after a newer bus) sorted
+      // above it - "Year of Purchase" column read 2025, 2026, 2025, 2009,
+      // 2015... with no real order. Same fix as VehicleStatus/NfBeneficiary.
+      orderBy: [{ yearOfPurchase: "desc" }, { createdAt: "desc" }],
     });
     formData = {
       rows: rows.map((r) => ({
@@ -611,7 +616,12 @@ export default async function FormsPage({ params, searchParams }: FormsPageProps
         ? { vehicle: { kvkId: kvkScope.kvkId } }
         : { zoneId: kvkScope.zoneId },
       include: { vehicle: { include: { kvk: true } } },
-      orderBy: { createdAt: "desc" },
+      // Real bug, 2026-09-13: this was `createdAt: "desc"` only, so a record
+      // entered later for an EARLIER reporting year (catch-up/arrears entry)
+      // sorted above a real, more recent year - "2025 is there, 2019 is
+      // above it". Year first, same pattern every other reportingYear model
+      // in this file already uses, with createdAt only as the tiebreak.
+      orderBy: [{ reportingYear: "desc" }, { createdAt: "desc" }],
     });
     // Carry-forward (client direction, 2026-09-10, revised 2026-09-11): a
     // vehicle whose latest record is in an earlier year and isn't "Auction"
@@ -661,12 +671,15 @@ export default async function FormsPage({ params, searchParams }: FormsPageProps
     const rows = await prisma.equipment.findMany({
       where: kvkScope,
       include: { kvk: true },
-      orderBy: { createdAt: "desc" },
+      // Same real bug as view-vehicles above (2026-09-13): year first, then
+      // createdAt only to break ties.
+      orderBy: [{ yearOfPurchase: "desc" }, { createdAt: "desc" }],
     });
     formData = {
       rows: rows.map((r) => ({
         id: r.id,
         kvk: r.kvk.name,
+        equipmentType: r.equipmentType ?? "",
         equipmentName: r.name,
         yearOfPurchase: String(r.yearOfPurchase),
         totalCost: String(r.cost),
@@ -725,7 +738,8 @@ export default async function FormsPage({ params, searchParams }: FormsPageProps
     const rows = await prisma.farmImplement.findMany({
       where: kvkScope,
       include: { kvk: true },
-      orderBy: { createdAt: "desc" },
+      // Same real bug as view-vehicles/view-equipments above (2026-09-13).
+      orderBy: [{ yearOfPurchase: "desc" }, { createdAt: "desc" }],
     });
     formData = {
       rows: rows.map((r) => ({
@@ -1644,7 +1658,9 @@ export default async function FormsPage({ params, searchParams }: FormsPageProps
     const rows = await prisma.nfBeneficiary.findMany({
       where: kvkScope,
       include: { kvk: true },
-      orderBy: { createdAt: "desc" },
+      // Same real bug as vehicleStatus above (2026-09-13): year first, then
+      // createdAt only to break ties between rows in the same year.
+      orderBy: [{ reportingYear: "desc" }, { createdAt: "desc" }],
     });
     formData = {
       rows: rows.map((r) => ({
